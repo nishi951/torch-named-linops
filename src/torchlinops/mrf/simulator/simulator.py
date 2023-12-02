@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field, asdict
+from typing import Optional, Literal
 
 import numpy as np
 
@@ -11,9 +12,9 @@ class SimulatorConfig:
         'oversamp': None,
         'width': None,
     })
-    dcf: {
+    dcf: dict = field(default_factory={
         'max_iter': 30,
-    }
+    })
 
 class Simulator:
     def __init__(
@@ -21,7 +22,7 @@ class Simulator:
             sequence,
             trj,
             im_size,
-            params: MRFSimulatorConfig,
+            params: SimulatorConfig,
             dcf: Optional[np.ndarray] = None,
             device_idx: int = -1,
     ):
