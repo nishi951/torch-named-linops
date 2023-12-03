@@ -23,7 +23,6 @@ class Simulator:
             trj,
             im_size,
             params: SimulatorConfig,
-            dcf: Optional[np.ndarray] = None,
             device_idx: int = -1,
     ):
 
@@ -31,12 +30,6 @@ class Simulator:
         self.sequence = sequence
         self.trj = trj
         self.im_size = im_size
-        if dcf is None:
-            self.dcf = mri.pipe_menon_dcf(
-                self.trj, img_shape=im_size, max_iter=self.params.dcf['max_iter']
-            )
-        else:
-            self.dcf = dcf
 
     def simulate(self, phantom: np.ndarray, mps: np.ndarray):
         """
