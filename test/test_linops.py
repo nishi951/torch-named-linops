@@ -1,2 +1,4 @@
-#!/usr/bin/env python3
+import pytest
+
+from torchlinops import LinearOperator
 

@@ -1,8 +1,17 @@
 from copy import copy
 
-class LinOp(nn.Module):
-    def __init__(self):
+import torch
+import torch.nn as nn
+
+__all__ = ['LinearOperator']
+
+class LinearOperator(nn.Module):
+    def __init__(self, input_shape, input_names, output_shape, output_names):
         super().__init__()
+        self.input_shape = input_shape
+        self.input_names = input_names
+        self.output_shape = output_shape
+        self.output_names = output_names
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return NotImplemented
@@ -11,12 +20,12 @@ class LinOp(nn.Module):
         """matrix-vector multiply"""
         return NotImplemented
 
-    def compose(self, L: LinOp) -> LinOpChain:
+    def compose(self, L):
         """i.e. matrix-matrix multiply"""
         return NotImplemented
 
     @property
-    def H(self) -> LinOp:
+    def H(self):
         if self.adj is None:
             self.adj = copy(self) # shallow
             self.adj.forward = self.adjoint
@@ -24,34 +33,22 @@ class LinOp(nn.Module):
         return self.adj
 
     @property
-    def N(self) -> LinOp:
+    def N(self):
         """matrix-vector multiply"""
         if self.normal is None:
             self.normal = self.H @ self
         return self.normal
 
-    def __matmul__(self, V: LinOp):
+    def __matmul__(self, V):
         return self.compose(V)
 
-    def __rmatmul__(self, U: LinOp):
+    def __rmatmul__(self, U):
         return U.compose(self)
 
+    def __getitem__(self, key):
+        raise NotImplementedError(
+            f'LinearOperator {self.__class__.__name__} cannot be sliced'
+        )
 
-class LinOpChain(LinOp):
-    def __init__(self, linops):
-        super(LinOp, self).__init__()
-        self._linops = linops
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        for linop in reversed(self._linops):
-            x = linop(x)
-        return x
-
-    def adjoint(self, y: torch.Tensor) -> torch.Tensor:
-        for linop in self._linops:
-            y = linop.H(y)
-        return y
-
-    @property
-    def N(self) -> LinOpChain:
-        return
+    def __repr__(self):
+        return f'{self.__class__.__name__}[{tuple(self.output_shape)}x{tuple(self.input_shape)}]'
