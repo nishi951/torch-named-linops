@@ -6,23 +6,19 @@ import torch.nn as nn
 __all__ = ['LinearOperator']
 
 class LinearOperator(nn.Module):
-    def __init__(self, input_shape, input_names, output_shape, output_names):
+    def __init__(self):
         super().__init__()
-        self.input_shape = input_shape
-        self.input_names = input_names
-        self.output_shape = output_shape
-        self.output_names = output_names
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return NotImplemented
+        return x
 
     def adjoint(self, y: torch.Tensor) -> torch.Tensor:
         """matrix-vector multiply"""
-        return NotImplemented
+        return self.H(y)
 
     def compose(self, L):
         """i.e. matrix-matrix multiply"""
-        return NotImplemented
+        return Chain(self, L)
 
     @property
     def H(self):
@@ -45,10 +41,29 @@ class LinearOperator(nn.Module):
     def __rmatmul__(self, U):
         return U.compose(self)
 
-    def __getitem__(self, key):
+    def __getitem__(self, idx):
+        out_slc, in_slc = idx
         raise NotImplementedError(
-            f'LinearOperator {self.__class__.__name__} cannot be sliced'
+            f'LinearOperator {self.__class__.__name__} has no slice implemented.'
         )
 
     def __repr__(self):
         return f'{self.__class__.__name__}[{tuple(self.output_shape)}x{tuple(self.input_shape)}]'
+
+
+class Chain(LinearOperator):
+    def __init__(self, *linops):
+        self.linops = nn.ModuleList(linops)
+
+    def forward(self, x: torch.Tensor):
+        for linop in reversed(self.linops):
+            x = linop(x)
+        return x
+
+    def adjoint(self, y: torch.Tensor):
+        for linop in self.linops:
+            y = linop.H(y)
+        return y
+
+    def normal(self, x: torch.Tensor):
+        return self.adjoint(self.forward(x))

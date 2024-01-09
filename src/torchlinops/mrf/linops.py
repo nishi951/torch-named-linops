@@ -17,8 +17,15 @@ class SenseMapsLinop(LinearOperator):
         im_size: Image size (tuple)
         mps: [C *im_size]
         """
-        input_names = ('im_size')
-        output_names = ('C', 'im_size')
+        img_dim = len(mps.shape[1:])
+        if img_dim == 2:
+            im_size = ('x', 'y')
+        elif img_dim == 3:
+            im_size = ('x', 'y', 'z')
+        else:
+            raise ValueError('Only 2D or 3D sense maps are currently supported.')
+        input_names = im_size
+        output_names = ('C', *im_size)
         super().__init__(
             input_shape=mps.shape[1:],
             input_names=input_names,
@@ -33,7 +40,7 @@ class SenseMapsLinop(LinearOperator):
     def __getitem__(self, idx):
         return SenseMapsLinop(self.mps[idx])
 
-class DiagonalLinop(LinearOperator):
+class Multiply(LinearOperator):
     def __init__(self, A, input_names, output_names):
         self.A = A
         input_shape = A.shape

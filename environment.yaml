@@ -6,8 +6,8 @@ channels:
   - conda-forge
 dependencies:
   # Cupy stuff
-  - cupy=12.0.0
-  - cudnn>=8.8.0.121
+  - cupy=12.1.0
+  #- cudnn>=8.8.0.121
   - cutensor>=1.7.0.1
   - nccl>=2.15.5.1
   # Jupyter/plotting
