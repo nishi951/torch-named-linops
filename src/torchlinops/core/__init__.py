@@ -1,2 +1,1 @@
-from .linop import *
-from .sequential import *
+from .linops import *
