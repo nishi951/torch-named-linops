@@ -54,17 +54,6 @@ class NUFFT(NamedLinop):
     def forward(self, x: torch.Tensor):
         return self.fn(x, self.trj)
 
-    def fn(self, x, /, trj):
-        y = self.nufft(x, trj, norm=self.norm)
-        return y
-
-    def adj_fn(self, x, /, trj):
-        y = self.nufft_adj(x, trj, norm=self.norm)
-        return y
-
-    def normal_fn(self, x, /, trj):
-        ...
-
     def _split(self, ibatch, obatch):
         assert obatch[-2] == slice(None), 'NUFFT cannot be sliced in spatial dim'
         return type(self)(
@@ -78,6 +67,20 @@ class NUFFT(NamedLinop):
 
     def size(self, dim: str):
         return self.size_fn(dim, self.trj)
+
+    def fn(self, x, /, trj):
+        y = self.nufft(x, trj, norm=self.norm)
+        return y
+
+    def adj_fn(self, x, /, trj):
+        y = self.nufft_adj(x, trj, norm=self.norm)
+        return y
+
+    def normal_fn(self, x, /, trj):
+        ...
+
+    def split_fn(self, ibatch, obatch, trj):
+        return trj[obatch]
 
     def size_fn(self, dim: str, trj):
         if dim == 'K':

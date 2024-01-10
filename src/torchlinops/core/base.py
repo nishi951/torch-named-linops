@@ -26,7 +26,7 @@ class NamedLinop(nn.Module):
 
     # Override
     def fn(self, x: torch.Tensor, /, **kwargs):
-        """Placeholder for functional forward operator.
+        """Placeholder for functional forwa rd operator.
         Non-input arguments should be keyword-only
         self can still be used - kwargs should contain elements
         that may change frequently (e.g. trajectories) and can
@@ -46,7 +46,7 @@ class NamedLinop(nn.Module):
         return self.adj_fn(self.fn(x, **kwargs), **kwargs)
 
     # Override
-    def _split(self, ibatch, obatch):
+    def split(self, ibatch, obatch):
         """Split the forward version"""
         raise NotImplementedError(f'{self.__class__.__name__} cannot be split.')
 
@@ -58,8 +58,11 @@ class NamedLinop(nn.Module):
         return None
 
     # Override
-    def size_fn(self, dim: str):
-        """Functional version of size"""
+    def size_fn(self, dim: str, /, **kwargs):
+        """Functional version of size. Determines sizes from kwargs
+        kwargs should be the same as the inputs to fn or adj_fn
+        Return None if this linop doesn't determine the size of dim
+        """
         return None
 
     # Probably don't override these
@@ -108,27 +111,37 @@ class NamedLinop(nn.Module):
         ibatch: tuple of slices of same length as ishape
         obatch: tuple of slices of same length as oshape
         """
-        return self._split(ibatch, obatch)
+        return self.split_forward(ibatch, obatch)
 
     def adj_split(self, ibatch, obatch):
         """Split the adjoint version"""
-        return self._split(obatch, ibatch).H
+        return self.split_forward(obatch, ibatch).H
 
-    def _flatten(self):
+    def split_forward(self, ibatch, obatch):
+        """Return a new instance"""
+        raise NotImplementedError(f'{type(self).__name__} cannot be split.')
+
+    def split_data(self, /, **data):
+        """Return split versions of the data that can be passed
+        into fn and adj_fn
+        """
+        raise NotImplementedError(f'{type(self).__name__} cannot be split.')
+
+    def flatten(self):
         """Get a flattened list of constituent linops for composition"""
         return [self]
 
-    def _compose(self, inner):
+    def compose(self, inner):
         """Do self AFTER inner"""
-        before = inner._flatten()
-        after = self._flatten()
+        before = inner.flatten()
+        after = self.flatten()
         return Chain(*(after + before))
 
     def __matmul__(self, other):
-        return self._compose(other)
+        return self.compose(other)
 
     def __rmatmul__(self, other):
-        return other._compose(self)
+        return other.compose(self)
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
@@ -176,7 +189,6 @@ class Chain(NamedLinop):
         """Adjoint operator"""
         if self._adj is None:
             linops = list(linop.H for linop in reversed(self.linops))
-            _adj = type(self)(*linops)
             self._adj = _adj
         return self._adj
 
@@ -203,17 +215,30 @@ class Chain(NamedLinop):
         return x
 
     def normal_fn(self, x: torch.Tensor, /, **kwargs):
-        return self.adj_fn(self.fn(x, **kwargs))
+        return self.adj_fn(self.fn(x, **kwargs), **kwargs)
 
-    def _flatten(self):
+    def flatten(self):
         return self.linops
 
-    def __getitem__(self, idx):
-        return self.linops[idx]
+    def split(self, *iobatches):
+        """For compatibility with NamedLinop"""
+        ibatches = iobatches[:len(iobatches)//2]
+        obatches = iobatches[len(iobatches)//2:]
+        return self.split_forward(ibatches, obatches)
 
-    def __repr__(self):
-        linop_chain = "\n\t".join(repr(linop) for linop in self.linops)
-        return f'{self.__class__.__name__}(\n\t{linop_chain}\n)'
+    def adj_split(self, ibatches, obatches):
+        ibatches = iobatches[:len(iobatches)//2]
+        obatches = iobatches[len(iobatches)//2:]
+        return self.split_forward(obatches, ibatches).H
+
+    def split_forward(self, ibatches, obatches):
+        """ibatches, obatches should correspond to the order in self.linops"""
+        linops = [linop.split(ibatch, obatch) for ibatch, obatch, linop in zip(ibatches, obatches, self.linops)]
+        return Chain(*linops)
+
+    def split_data(self, kwargs_list):
+        data = [linop.split_data(kwargs) for kwargs in kwargs_list]
+        return data
 
     @property
     def dims(self):
@@ -232,3 +257,13 @@ class Chain(NamedLinop):
             if out is not None:
                 return out
         return None
+
+    def __getitem__(self, idx):
+        return self.linops[idx]
+
+    def __len__(self):
+        return len(self.linops)
+
+    def __repr__(self):
+        linop_chain = "\n\t".join(repr(linop) for linop in self.linops)
+        return f'{self.__class__.__name__}(\n\t{linop_chain}\n)'

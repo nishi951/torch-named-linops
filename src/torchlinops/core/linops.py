@@ -90,7 +90,7 @@ class Diagonal(NamedLinop):
     def normal_fn(self, x, /, weight):
         return x * torch.abs(weight) ** 2
 
-    def _split(self, ibatch, obatch):
+    def split_forward(self, ibatch, obatch):
         assert ibatch == obatch, 'Diagonal linop must be split identically'
         self.weight[ibatch]
         return type(self)(self.weight[ibatch], self.ishape, self.oshape)

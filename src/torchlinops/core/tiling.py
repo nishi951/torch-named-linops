@@ -11,31 +11,44 @@ class Batch(NamedLinop):
         self.sizes = self._precompute_sizes()
 
     def _precompute_sizes(self):
-        for dim in self.linop.dims():
-            total = self.linop.size(dim)
-            if total is not None:
-                batch_totals[dim] = total
-        return batch_totals
+        sizes = {dim: self.linop.size(dim) for dim in self.linop.dims}
+        return sizes
 
-    def _make_batch_iterators(self):
+    @staticmethod
+    def _make_batch_iterators(total_sizes, batch_sizes):
         batch_iterators = {}
-        for dim, total in self.batch_totals.items():
-            batch_iterators[dim] = batch_iterator(total, self.batch_sizes[dim])
+        for dim, total in total_sizes.items():
+            batch_iterators[dim] = batch_iterator(total, batch_sizes[dim])
         return batch_iterators
 
     def forward(self, x: torch.Tensor):
+        # Complete the size specifications
         for dim, total in zip(self.ishape, x.shape):
-            self.batch_totals[dim] = total
-        batch_iterators = self._make_batch_iterators()
+            self.sizes[dim] = total
+        batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
+        ishapes = [linop.ishape for linop in self.linop.flatten()]
+        oshapes = [linop.oshape for linop in self.linop.flatten()]
 
-        y =
+        y = torch.zeros(tuple(self.sizes[dim] for dim in self.oshape), dtype=x.dtype)
         for tile in dict_product(batch_iterators):
-            for linop in reversed(self.linop._flatten()):
-                ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
-                obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
-                split_linop = linop.split(ibatch, obatch)
-                x = split_linop(x)
-            # Combine everything
+            # TODO: Make this more efficient
+            ibatches = [[tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes]
+            obatches = [[tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes]
+            linop = self.linop.split(*ibatches, *obatches)
+            y[obatches[-1]] += linop(x)
+        return y
 
+    def fn(self, x, /, **data):
+        sizes = {}
+        for dim, total in zip(self.ishape, x.shape):
+            sizes[dim] = total
+        batch_iterators = self._make_batch_iterators(sizes, self.batch_sizes)
+        ishapes = [linop.ishape for linop in self.linop.flatten()]
+        oshapes = [linop.oshape for linop in self.linop.flatten()]
 
+        y = torch.zeros(tuple(sizes[dim] for dim in self.oshape), dtype=x.dtype)
+        for tile in dict_product(batch_iterators):
+            split_data = self.linop.split_data(all_linop_kwargs)
+            kw = linop.split_fn(data)
+            x = linop.fn(x, **kw)
         return x
