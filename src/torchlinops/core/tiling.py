@@ -43,9 +43,11 @@ class Batch(NamedLinop):
             y[obatches[0]] += ybatch
         return y
 
-    def fn(self, x, /, *data):
+    def fn(self, x, /, data):
         """Specify data as a tuple of data entries, one for each linop in linops"""
         sizes = {}
+        for dim in self.linop.dims:
+            sizes[dim] = self.linop.size_fn(dim, data)
         for dim, total in zip(self.ishape, x.shape):
             sizes[dim] = total
         batch_iterators = self._make_batch_iterators(sizes, self.batch_sizes)
@@ -54,6 +56,9 @@ class Batch(NamedLinop):
 
         y = torch.zeros(tuple(sizes[dim] for dim in self.oshape), dtype=x.dtype)
         for tile in dict_product(batch_iterators):
+            ibatches = [[tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes]
+            obatches = [[tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes]
             split_data = self.linop.split_fn(*ibatches, *obatches, *data)
-            x = linop.fn(x, split_data)
-        return x
+            ybatch = self.linop.fn(x, split_data)
+            y[obatches[0]] += ybatch
+        return y

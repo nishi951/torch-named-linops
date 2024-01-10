@@ -176,12 +176,16 @@ def __(A):
 
 
 @app.cell
-def __(A, Batch, torch, x, y):
+def __(A, Batch, mps, num_interleaves, torch, trj, x, y):
     # Batching
     Abatch = Batch(A, C=1, R=3)
     ybatch = Abatch(x)
     print(ybatch.isclose(y.to(torch.complex64)).all())
-    return Abatch, ybatch
+    # print(trj.shape)
+    ybatch_fn = Abatch.fn(x, [trj, num_interleaves, mps])
+    # print(ybatch_fn.shape)
+    print(ybatch_fn.isclose(y.to(torch.complex64)).all())
+    return Abatch, ybatch, ybatch_fn
 
 
 @app.cell

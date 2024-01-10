@@ -222,7 +222,8 @@ class Chain(NamedLinop):
         forward op
         """
         linops = [linop.split(ibatch, obatch)
-                  for ibatch, obatch, linop in zip(ibatches, obatches, self.linops)]
+                  for linop, ibatch, obatch \
+                  in zip(self.linops, ibatches, obatches)]
         return type(self)(*linops)
 
     def split_forward_fn(self, ibatches, obatches, data_list):
@@ -231,7 +232,8 @@ class Chain(NamedLinop):
         forward op
         """
         data = [linop.split_forward_fn(ibatch, obatch, data)
-                for ibatch, obatch, data in zip(ibatches, obatches, data_list)]
+                for linop, ibatch, obatch, data \
+                in zip(self.linops, ibatches, obatches, data_list)]
         return data
 
     def size(self, dim):
@@ -240,10 +242,9 @@ class Chain(NamedLinop):
             if out is not None:
                 return out
 
-    def size_fn(self, dim, **kwargs):
-        all_linop_kwargs = self.parse_kwargs(kwargs)
-        for linop, kw in zip(self.linops, all_linop_kwargs):
-            out = linop.size_fn(dim, **kw)
+    def size_fn(self, dim, data):
+        for linop, data in zip(self.linops, data):
+            out = linop.size_fn(dim, data)
             if out is not None:
                 return out
         return None
@@ -287,8 +288,8 @@ class Chain(NamedLinop):
         """
         ibatches = iobatchesdata[:len(iobatchesdata)//3]
         obatches = iobatchesdata[len(iobatchesdata)//3:len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2//3]
-        return self.split_forward_fn(ibatch, obatch, data)
+        data = iobatchesdata[len(iobatchesdata) * 2//3:]
+        return self.split_forward_fn(ibatches, obatches, data)
 
     def adj_split_fn(self, *iobatchesdata):
         ibatches = iobatchesdata[:len(iobatchesdata)//3]
