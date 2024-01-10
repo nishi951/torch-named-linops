@@ -39,35 +39,40 @@ class Repeat(NamedLinop):
         super().__init__(ishape, oshape)
         self.n_repeats = n_repeats
         self.dim = dim
-        # Derived
-        self.expand_size = [-1] * len(oshape)
-        self.expand_size[self.dim] = self.n_repeats
 
     def forward(self, x):
-        return self.fn(x)
+        return self.fn(x, self.n_repeats)
 
-    def fn(self, x, /):
+    def fn(self, x, /, n_repeats):
+        expand_size = [-1] * len(self.oshape)
+        expand_size[self.dim] = n_repeats
         x = x.unsqueeze(self.dim)
         # print(x)
-        return x.expand(*self.expand_size)
+        return x.expand(*expand_size)
 
     def adj_fn(self, x, /):
         return torch.sum(x, dim=self.dim, keepdim=False)
 
-    def _split(self, ibatch, obatch):
+    def split_forward(self, ibatch, obatch):
         """Repeat fewer times, depending on the size of obatch"""
         assert len(ibatch) == len(self.ishape), 'length of ibatch should match length of ishape'
         assert len(obatch) == len(self.oshape), 'length of obatch should match length of oshape'
         return type(self)(
-            n_repeats=slice_len(obatch[self.dim], self.n_repeats),
+            n_repeats=self.split_forward_fn(ibatch, obatch, self.n_repeats),
             dim=self.dim,
             ishape=self.ishape,
             oshape=self.oshape,
         )
 
+    def split_forward_fn(self, ibatch, obatch, /, n_repeats):
+        return slice_len(obatch[self.dim], n_repeats)
+
     def size(self, dim: str):
+        return self.size_fn(dim, self.n_repeats)
+
+    def size_fn(self, dim, /, n_repeats):
         if dim == self.oshape[self.dim]:
-            return self.n_repeats
+            return n_repeats
         return None
 
 
@@ -91,10 +96,20 @@ class Diagonal(NamedLinop):
         return x * torch.abs(weight) ** 2
 
     def split_forward(self, ibatch, obatch):
-        assert ibatch == obatch, 'Diagonal linop must be split identically'
-        self.weight[ibatch]
-        return type(self)(self.weight[ibatch], self.ishape, self.oshape)
+        weight = self.split_forward_fn(ibatch, obatch, self.weight)
+        return type(self)(weight, self.ishape, self.oshape)
 
+    def split_forward_fn(self, ibatch, obatch, /, weight):
+        assert ibatch == obatch, 'Diagonal linop must be split identically'
+        return weight[ibatch]
+
+    def size(self, dim: str):
+        return self.size_fn(dim, self.weight)
+
+    def size_fn(self, dim: str, weight):
+        if dim in self.ishape:
+            return weight.shape[self.ishape.index(dim)]
+        return None
 
 class Dense(NamedLinop):
     def __init__(self, mat, ishape, oshape):

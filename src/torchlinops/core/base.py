@@ -25,7 +25,7 @@ class NamedLinop(nn.Module):
         return self.fn(x)
 
     # Override
-    def fn(self, x: torch.Tensor, /, **kwargs):
+    def fn(self, x: torch.Tensor, /, data=None):
         """Placeholder for functional forwa rd operator.
         Non-input arguments should be keyword-only
         self can still be used - kwargs should contain elements
@@ -35,20 +35,26 @@ class NamedLinop(nn.Module):
         return x
 
     # Override
-    def adj_fn(self, x: torch.Tensor, /, **kwargs):
+    def adj_fn(self, x: torch.Tensor, /, data=None):
         """Placeholder for functional adjoint operator.
         Non-input arguments should be keyword-only"""
         return x
 
     # Override
-    def normal_fn(self, x: torch.Tensor, /, **kwargs):
+    def normal_fn(self, x: torch.Tensor, /, data=None):
         """Placeholder for efficient functional normal operator"""
-        return self.adj_fn(self.fn(x, **kwargs), **kwargs)
+        return self.adj_fn(self.fn(x, data), data)
 
     # Override
-    def split(self, ibatch, obatch):
-        """Split the forward version"""
-        raise NotImplementedError(f'{self.__class__.__name__} cannot be split.')
+    def split_forward(self, ibatch, obatch):
+        """Return a new instance"""
+        raise NotImplementedError(f'{type(self).__name__} cannot be split.')
+
+    # Override
+    def split_forward_fn(self, ibatch, obatch, /, data=None):
+        """Return data"""
+        raise NotImplementedError(f'{type(self).__name__} cannot be split.')
+
 
     # Override
     def size(self, dim: str):
@@ -58,7 +64,7 @@ class NamedLinop(nn.Module):
         return None
 
     # Override
-    def size_fn(self, dim: str, /, **kwargs):
+    def size_fn(self, dim: str, /, data=None):
         """Functional version of size. Determines sizes from kwargs
         kwargs should be the same as the inputs to fn or adj_fn
         Return None if this linop doesn't determine the size of dim
@@ -78,6 +84,7 @@ class NamedLinop(nn.Module):
             # Swap functions
             _adj.fn, _adj.adj_fn = self.adj_fn, self.fn
             _adj.split, _adj.adj_split = self.adj_split, self.split
+            _adj.split_fn, adj.adj_split_fn = self.split_fn, self.adj_split_fn
             # Swap shapes
             _adj.ishape, _adj.oshape  = self.oshape, self.ishape
             _adj._suffix += '.H'
@@ -105,6 +112,7 @@ class NamedLinop(nn.Module):
             self._normal = _normal
         return self._normal
 
+
     def split(self, ibatch, obatch):
         """Return a split version of the linop such that`forward`
         performs a split version of the linop
@@ -117,15 +125,15 @@ class NamedLinop(nn.Module):
         """Split the adjoint version"""
         return self.split_forward(obatch, ibatch).H
 
-    def split_forward(self, ibatch, obatch):
-        """Return a new instance"""
-        raise NotImplementedError(f'{type(self).__name__} cannot be split.')
 
-    def split_data(self, /, **data):
+    def split_fn(self, ibatch, obatch, /, **kwargs):
         """Return split versions of the data that can be passed
-        into fn and adj_fn
+        into fn and adj_fn to produce split versions
         """
-        raise NotImplementedError(f'{type(self).__name__} cannot be split.')
+        return self.split_forward_fn(ibatch, obatch, **kwargs)
+
+    def adj_split_fn(self, ibatch, obatch, /, **kwargs):
+        return self.split_forward_fn(obatch, ibatch, **kwargs)
 
     def flatten(self):
         """Get a flattened list of constituent linops for composition"""
@@ -189,6 +197,7 @@ class Chain(NamedLinop):
         """Adjoint operator"""
         if self._adj is None:
             linops = list(linop.H for linop in reversed(self.linops))
+            _adj = type(self)(*linops)
             self._adj = _adj
         return self._adj
 
@@ -201,21 +210,18 @@ class Chain(NamedLinop):
             self._normal = _normal
         return self._normal
 
-    def fn(self, x: torch.Tensor, /, **kwargs):
-        all_linop_kwargs = self._parse_kwargs(kwargs)
-        for linop, kw in zip(reversed(self.linops),
-                             reversed(all_linop_kwargs)):
-            x = linop(x, **kw)
+    def fn(self, x: torch.Tensor, /, *data_list):
+        for linop, data in zip(reversed(self.linops), reversed(data_list)):
+            x = linop.fn(x, data)
         return x
 
-    def adj_fn(self, x: torch.Tensor, /, **kwargs):
-        all_linop_kwargs = self._parse_kwargs(kwargs)
-        for linop, kw in zip(self.linops, all_linop_kwargs):
-            x = linop.adj_fn(x, **kw)
+    def adj_fn(self, x: torch.Tensor, /, *data_list):
+        for linop, data in zip(self.linops, data_list):
+            x = linop.adj_fn(x, data)
         return x
 
-    def normal_fn(self, x: torch.Tensor, /, **kwargs):
-        return self.adj_fn(self.fn(x, **kwargs), **kwargs)
+    def normal_fn(self, x: torch.Tensor, /, *data_list):
+        return self.adj_fn(self.fn(x, *data_list), *data_list)
 
     def flatten(self):
         return self.linops
