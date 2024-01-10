@@ -24,7 +24,49 @@ class NamedLinop(nn.Module):
     def forward(self, x: torch.Tensor):
         return self.fn(x)
 
+    # Override
+    def fn(self, x: torch.Tensor, /, **kwargs):
+        """Placeholder for functional forward operator.
+        Non-input arguments should be keyword-only
+        self can still be used - kwargs should contain elements
+        that may change frequently (e.g. trajectories) and can
+        ignore hyperparameters (e.g. normalization modes)
+        """
+        return x
+
+    # Override
+    def adj_fn(self, x: torch.Tensor, /, **kwargs):
+        """Placeholder for functional adjoint operator.
+        Non-input arguments should be keyword-only"""
+        return x
+
+    # Override
+    def normal_fn(self, x: torch.Tensor, /, **kwargs):
+        """Placeholder for efficient functional normal operator"""
+        return self.adj_fn(self.fn(x, **kwargs), **kwargs)
+
+    # Override
+    def _split(self, ibatch, obatch):
+        """Split the forward version"""
+        raise NotImplementedError(f'{self.__class__.__name__} cannot be split.')
+
+    # Override
+    def size(self, dim: str):
+        """Get the size of a particular dim, or return
+        None if this linop doesn't determine the size
+        """
+        return None
+
+    # Override
+    def size_fn(self, dim: str):
+        """Functional version of size"""
+        return None
+
     # Probably don't override these
+    @property
+    def dims(self):
+        return set(self.ishape).union(set(self.oshape))
+
     @property
     def H(self):
         """Adjoint operator"""
@@ -60,25 +102,6 @@ class NamedLinop(nn.Module):
             self._normal = _normal
         return self._normal
 
-    # Override these
-    def fn(self, x: torch.Tensor, /, **kwargs):
-        """Placeholder for functional forward operator.
-        Non-input arguments should be keyword-only
-        self can still be used - kwargs should contain elements
-        that may change frequently (e.g. trajectories) and can
-        ignore hyperparameters (e.g. normalization modes)
-        """
-        return x
-
-    def adj_fn(self, x: torch.Tensor, /, **kwargs):
-        """Placeholder for functional adjoint operator.
-        Non-input arguments should be keyword-only"""
-        return x
-
-    def normal_fn(self, x: torch.Tensor, /, **kwargs):
-        """Placeholder for efficient functional normal operator"""
-        return self.adj_fn(self.fn(x, **kwargs), **kwargs)
-
     def split(self, ibatch, obatch):
         """Return a split version of the linop such that`forward`
         performs a split version of the linop
@@ -90,11 +113,6 @@ class NamedLinop(nn.Module):
     def adj_split(self, ibatch, obatch):
         """Split the adjoint version"""
         return self._split(obatch, ibatch).H
-
-    def _split(self, ibatch, obatch):
-        """Split the forward version"""
-        raise NotImplementedError(f'{self.__class__.__name__} cannot be split.')
-
 
     def _flatten(self):
         """Get a flattened list of constituent linops for composition"""
@@ -190,6 +208,27 @@ class Chain(NamedLinop):
     def _flatten(self):
         return self.linops
 
+    def __getitem__(self, idx):
+        return self.linops[idx]
+
     def __repr__(self):
         linop_chain = "\n\t".join(repr(linop) for linop in self.linops)
         return f'{self.__class__.__name__}(\n\t{linop_chain}\n)'
+
+    @property
+    def dims(self):
+        return set().union(*[linop.dims for linop in self.linops])
+
+    def size(self, dim):
+        for linop in self.linops:
+            out = linop.size(dim)
+            if out is not None:
+                return out
+
+    def size_fn(self, dim, **kwargs):
+        all_linop_kwargs = self.parse_kwargs(kwargs)
+        for linop, kw in zip(self.linops, all_linop_kwargs):
+            out = linop.size_fn(dim, **kw)
+            if out is not None:
+                return out
+        return None

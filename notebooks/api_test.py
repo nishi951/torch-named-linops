@@ -60,6 +60,7 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
     # B, Nx, Ny, T, K, D, C all defined
     B = 5
     Nx = 64
+
     Ny = 64
     C = 12
     T = 10
@@ -103,7 +104,7 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
     # A = Batch(A, B=3, C=1, T=2)
 
     # Optional:
-    A = torch.compile(A)
+    # A = torch.compile(A)
 
     # Run
     y = A(x)
@@ -121,6 +122,9 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
 
     # You get the idea
     # y4 = A.fn(x, mps=mps, trj=trj)
+
+    # Batching
+
     return (
         A,
         B,
@@ -145,18 +149,62 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
 
 
 @app.cell
-def __():
+def __(A):
+    for dim in A.dims:
+        print(dim, ':', A.size(dim))
+
+
     # Phi = Dense(phi)
     # D = Diagonal(dcf)
     # T = ImplicitGROGToepNUFFT(trj, inner=(Phi.H @ D @ Phi)
     # A = S.H @ T @ Sj
 
-    return
+    return dim,
 
 
 @app.cell
-def __(Chain):
-    Chain.H
+def __(Repeat):
+    R2 = Repeat(20, 0, ('C', 'Nx', 'Ny'), ('R', 'C', 'Nx', 'Ny'))
+    R3 = R2.split(ibatch=(slice(None),) * 3, obatch=(slice(0, 10), slice(None), slice(None), slice(None)))
+    print(R2.size('R'))
+    print(R2.n_repeats)
+    print(R3.n_repeats)
+    print(R3.size('R'))
+    print(R3.size('C'))
+    return R2, R3
+
+
+@app.cell
+def __():
+    import itertools
+
+    def generate_combinations(input_dict):
+        # Extract keys and corresponding iterables
+        keys, values = zip(*input_dict.items())
+
+        # Generate all combinations using product
+        combinations = itertools.product(*values)
+
+        # Create a list of dictionaries for each combination
+        result = [dict(zip(keys, combo)) for combo in combinations]
+
+        return result
+
+    # Example usage
+    input_dict = {
+        "letters": ["a", "b"],
+        "numbers": [1, 2, 3]
+    }
+
+    combinations = generate_combinations(input_dict)
+    for combo in combinations:
+        print(combo)
+
+    return combinations, combo, generate_combinations, input_dict, itertools
+
+
+@app.cell
+def __():
     return
 
 

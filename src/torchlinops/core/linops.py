@@ -25,13 +25,23 @@ class Broadcast(NamedLinop):
     def _split(self, ibatch, obatch):
         return self # Literally don't change anything
 
+def slice_len(slc, n):
+    """
+    n: length of sequence slc is being applied to
+    """
+    return len(range(*slc.indices(n)))
+
 class Repeat(NamedLinop):
     """Unsqueezes and expands a tensor along dim
     """
     def __init__(self, n_repeats, dim, ishape, oshape):
+        assert len(ishape) + 1 == len(oshape), 'oshape should have 1 more dim than ishape'
         super().__init__(ishape, oshape)
         self.n_repeats = n_repeats
         self.dim = dim
+        # Derived
+        self.expand_size = [-1] * len(oshape)
+        self.expand_size[self.dim] = self.n_repeats
 
     def forward(self, x):
         return self.fn(x)
@@ -39,10 +49,26 @@ class Repeat(NamedLinop):
     def fn(self, x, /):
         x = x.unsqueeze(self.dim)
         # print(x)
-        return torch.repeat_interleave(x, self.n_repeats, dim=self.dim)
+        return x.expand(*self.expand_size)
 
     def adj_fn(self, x, /):
         return torch.sum(x, dim=self.dim, keepdim=False)
+
+    def _split(self, ibatch, obatch):
+        """Repeat fewer times, depending on the size of obatch"""
+        assert len(ibatch) == len(self.ishape), 'length of ibatch should match length of ishape'
+        assert len(obatch) == len(self.oshape), 'length of obatch should match length of oshape'
+        return type(self)(
+            n_repeats=slice_len(obatch[self.dim], self.n_repeats),
+            dim=self.dim,
+            ishape=self.ishape,
+            oshape=self.oshape,
+        )
+
+    def size(self, dim: str):
+        if dim == self.oshape[self.dim]:
+            return self.n_repeats
+        return None
 
 
 class Diagonal(NamedLinop):
@@ -68,6 +94,7 @@ class Diagonal(NamedLinop):
         assert ibatch == obatch, 'Diagonal linop must be split identically'
         self.weight[ibatch]
         return type(self)(self.weight[ibatch], self.ishape, self.oshape)
+
 
 class Dense(NamedLinop):
     def __init__(self, mat, ishape, oshape):
