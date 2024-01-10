@@ -160,18 +160,18 @@ class Chain(NamedLinop):
     def __init__(self, *linops):
         super().__init__(linops[-1].ishape, linops[0].oshape)
         self.linops = list(linops)
-        self.signatures = [signature(linop.fn) for linop in self.linops]
-        self._check_signatures()
+        #self.signatures = [signature(linop.fn) for linop in self.linops]
+        #self._check_signatures()
         self._check_inputs_outputs()
 
-    def _check_signatures(self):
-        seen = set()
-        for sig in self.signatures:
-            for param in sig.parameters.values():
-                if param.name in seen:
-                    logger.debug(
-                        f'{param.name} appears more than once in linop chain.'
-                    )
+    # def _check_signatures(self):
+    #     seen = set()
+    #     for sig in self.signatures:
+    #         for param in sig.parameters.values():
+    #             if param.name in seen:
+    #                 logger.debug(
+    #                     f'{param.name} appears more than once in linop chain.'
+    #                 )
 
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
@@ -182,15 +182,57 @@ class Chain(NamedLinop):
                 )
             curr_shape = linop.oshape
 
-    def _parse_kwargs(self, kwargs):
-        all_linop_kwargs = []
-        for sig in self.signatures:
-            linop_kwargs = {}
-            for param in sig.parameters.values():
-                if param.name in kwargs:
-                    linop_kwargs[param.name] = kwargs[param.name]
-            all_linop_kwargs.append(linop_kwargs)
-        return all_linop_kwargs
+    # def _parse_kwargs(self, kwargs):
+    #     all_linop_kwargs = []
+    #     for sig in self.signatures:
+    #         linop_kwargs = {}
+    #         for param in sig.parameters.values():
+    #             if param.name in kwargs:
+    #                 linop_kwargs[param.name] = kwargs[param.name]
+    #         all_linop_kwargs.append(linop_kwargs)
+    #     return all_linop_kwargs
+
+
+    def fn(self, x: torch.Tensor, /, *data_list):
+        for linop, data in zip(reversed(self.linops), reversed(data_list)):
+            x = linop.fn(x, data)
+        return x
+
+    def adj_fn(self, x: torch.Tensor, /, *data_list):
+        for linop, data in zip(self.linops, data_list):
+            x = linop.adj_fn(x, data)
+        return x
+
+    def normal_fn(self, x: torch.Tensor, /, *data_list):
+        return self.adj_fn(self.fn(x, *data_list), *data_list)
+
+    def split_forward(self, ibatches, obatches):
+        """ibatches, obatches should correspond to the order in self.linops"""
+        linops = [linop.split(ibatch, obatch) for ibatch, obatch, linop in zip(ibatches, obatches, self.linops)]
+        return type(self)(*linops)
+
+    def split_forward_fn(self, ibatches, obatches, data_list):
+        data = [linop.split_forward_fn(ibatch, obatch, data)
+                for ibatch, obatch, data in zip(ibatches, obatches, data_list)]
+        return data
+
+    def size(self, dim):
+        for linop in self.linops:
+            out = linop.size(dim)
+            if out is not None:
+                return out
+
+    def size_fn(self, dim, **kwargs):
+        all_linop_kwargs = self.parse_kwargs(kwargs)
+        for linop, kw in zip(self.linops, all_linop_kwargs):
+            out = linop.size_fn(dim, **kw)
+            if out is not None:
+                return out
+        return None
+
+    @property
+    def dims(self):
+        return set().union(*[linop.dims for linop in self.linops])
 
     @property
     def H(self):
@@ -210,59 +252,31 @@ class Chain(NamedLinop):
             self._normal = _normal
         return self._normal
 
-    def fn(self, x: torch.Tensor, /, *data_list):
-        for linop, data in zip(reversed(self.linops), reversed(data_list)):
-            x = linop.fn(x, data)
-        return x
-
-    def adj_fn(self, x: torch.Tensor, /, *data_list):
-        for linop, data in zip(self.linops, data_list):
-            x = linop.adj_fn(x, data)
-        return x
-
-    def normal_fn(self, x: torch.Tensor, /, *data_list):
-        return self.adj_fn(self.fn(x, *data_list), *data_list)
-
-    def flatten(self):
-        return self.linops
-
     def split(self, *iobatches):
         """For compatibility with NamedLinop"""
         ibatches = iobatches[:len(iobatches)//2]
         obatches = iobatches[len(iobatches)//2:]
         return self.split_forward(ibatches, obatches)
 
-    def adj_split(self, ibatches, obatches):
+    def adj_split(self, *iobatches):
         ibatches = iobatches[:len(iobatches)//2]
         obatches = iobatches[len(iobatches)//2:]
         return self.split_forward(obatches, ibatches).H
 
-    def split_forward(self, ibatches, obatches):
-        """ibatches, obatches should correspond to the order in self.linops"""
-        linops = [linop.split(ibatch, obatch) for ibatch, obatch, linop in zip(ibatches, obatches, self.linops)]
-        return Chain(*linops)
+    def split_fn(self, iobatchesdata):
+        """Return split versions of the data that can be passed
+        into fn and adj_fn to produce split versions
+        """
+        ibatches = iobatchesdata[:len(iobatchesdata)//3]
+        obatches = iobatchesdata[len(iobatchesdata)//3:len(iobatchesdata) * 2 // 3]
+        data = iobatchesdata[len(iobatchesdata) * 2//3]
+        return self.split_forward_fn(ibatch, obatch, data)
 
-    def split_data(self, kwargs_list):
-        data = [linop.split_data(kwargs) for kwargs in kwargs_list]
-        return data
+    def adj_split_fn(self, ibatch, obatch, /, **kwargs):
+        return self.split_forward_fn(obatch, ibatch, **kwargs)
 
-    @property
-    def dims(self):
-        return set().union(*[linop.dims for linop in self.linops])
-
-    def size(self, dim):
-        for linop in self.linops:
-            out = linop.size(dim)
-            if out is not None:
-                return out
-
-    def size_fn(self, dim, **kwargs):
-        all_linop_kwargs = self.parse_kwargs(kwargs)
-        for linop, kw in zip(self.linops, all_linop_kwargs):
-            out = linop.size_fn(dim, **kw)
-            if out is not None:
-                return out
-        return None
+    def flatten(self):
+        return self.linops
 
     def __getitem__(self, idx):
         return self.linops[idx]

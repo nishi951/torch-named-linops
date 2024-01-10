@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from einops import rearrange
 import torch
 
@@ -38,7 +40,8 @@ class Batch(NamedLinop):
             y[obatches[-1]] += linop(x)
         return y
 
-    def fn(self, x, /, **data):
+    def fn(self, x, /, data: Tuple):
+        """Specify data as a tuple of data entries, one for each linop in linops"""
         sizes = {}
         for dim, total in zip(self.ishape, x.shape):
             sizes[dim] = total
@@ -48,7 +51,7 @@ class Batch(NamedLinop):
 
         y = torch.zeros(tuple(sizes[dim] for dim in self.oshape), dtype=x.dtype)
         for tile in dict_product(batch_iterators):
-            split_data = self.linop.split_data(all_linop_kwargs)
-            kw = linop.split_fn(data)
-            x = linop.fn(x, **kw)
+            split_data = self.linop.split_forward_fn(*ibatches, *obatches, *data)
+            data = linop.split_fn(data)
+            x = linop.fn(x, data)
         return x
