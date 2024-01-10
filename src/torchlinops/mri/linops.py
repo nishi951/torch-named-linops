@@ -1,3 +1,4 @@
+from typing import Optional
 import torch
 from torchkbnufft import KbNufft, KbNufftAdjoint
 
@@ -26,17 +27,29 @@ class NUFFT(NamedLinop):
             im_size,
             img_batch_shape,
             trj_batch_shape,
+            coil_dim: Optional[str] = 'C',
+            readout_dim: str = 'K',
             norm='ortho',
             kbnufft_kwargs=None,
     ):
         """
         trj: (... d k) in -pi to pi (tkbn-style)
         """
+        self.img_batch_shape = img_batch_shape
+        self.trj_batch_shape = trj_batch_shape
         ishape = img_batch_shape + get2dor3d(im_size)
-        oshape = trj_batch_shape + ('K',) # [R C K]
+        if coil_dim is not None:
+            oshape = trj_batch_shape + (coil_dim, readout_dim) # [R C K]
+        else:
+            oshape = trj_batch_shape + (readout_dim,)
         super().__init__(ishape, oshape)
         self.trj = trj
         self.im_size = im_size
+        self.coil_dim = coil_dim
+        self.readout_dim = readout_dim
+
+        expected_out_dim = (len(trj.shape)-2) + (1 if self.coil_dim else 0) + 1 # (K,)
+        assert len(self.oshape) == expected_out_dim, f'Output shape {self.oshape} does not match expected output dimension {expected_out_dim}'
 
         # KbNufft-specific
         self.norm = norm
@@ -59,18 +72,25 @@ class NUFFT(NamedLinop):
         return self.adj_fn(self.fn(x, trj), trj)
 
     def split_forward(self, ibatch, obatch):
-        assert obatch[-2] == slice(None), 'NUFFT cannot be sliced in spatial dim'
         return type(self)(
-            self.trj[obatch],
-            trj_batch_shape=self.oshape[-2:],
+            self.split_forward_fn(ibatch, obatch, self.trj),
+            im_size=self.im_size,
+            img_batch_shape=self.img_batch_shape,
+            trj_batch_shape=self.trj_batch_shape,
+            coil_dim=self.coil_dim,
+            readout_dim=self.readout_dim,
             norm=self.norm,
             kbnufft_kwargs=self.kbnufft_kwargs,
-            grog_normal=self.grog_normal,
-            grog_config=self.grog_config,
         )
 
     def split_forward_fn(self, ibatch, obatch, trj):
-        return trj[obatch]
+        if self.coil_dim is None:
+            # obatch is [... K]
+            trj_slc = obatch[:-1] + [slice(None)] + obatch[-1:]
+        else:
+            # obatch is [... C K]
+            trj_slc = obatch[:-2] + [slice(None)] + obatch[-1:]
+        return trj[trj_slc]
 
     def size(self, dim: str):
         return self.size_fn(dim, self.trj)
@@ -113,8 +133,8 @@ class SENSE(NamedLinop):
     def split_forward_fn(self, ibatch, obatch, /, weight):
         return self.mps[obatch]
 
-    def size(self, dim: str, mps):
-        return self.size_fn(dim, mps)
+    def size(self, dim: str):
+        return self.size_fn(dim, self.mps)
 
     def size_fn(self, dim: str, mps):
         if dim in self.oshape:

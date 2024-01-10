@@ -3,13 +3,14 @@ from typing import Tuple
 from einops import rearrange
 import torch
 
+from .base import NamedLinop
 from torchlinops.utils import batch_iterator, dict_product
 
 class Batch(NamedLinop):
     def __init__(self, linop, **batch_sizes):
+        super().__init__(linop.ishape, linop.oshape)
         self.linop = linop
         self.batch_sizes = batch_sizes
-        super().__init__(self.linop.ishape, self.linop.oshape)
         self.sizes = self._precompute_sizes()
 
     def _precompute_sizes(self):
@@ -20,7 +21,8 @@ class Batch(NamedLinop):
     def _make_batch_iterators(total_sizes, batch_sizes):
         batch_iterators = {}
         for dim, total in total_sizes.items():
-            batch_iterators[dim] = batch_iterator(total, batch_sizes[dim])
+            batch_iterators[dim] = [slice(a, b) for a, b in batch_iterator(total, batch_sizes[dim])] \
+                if dim in batch_sizes else [slice(None)]
         return batch_iterators
 
     def forward(self, x: torch.Tensor):
@@ -37,10 +39,11 @@ class Batch(NamedLinop):
             ibatches = [[tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes]
             obatches = [[tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes]
             linop = self.linop.split(*ibatches, *obatches)
-            y[obatches[-1]] += linop(x)
+            ybatch = linop(x)
+            y[obatches[0]] += ybatch
         return y
 
-    def fn(self, x, /, data: Tuple):
+    def fn(self, x, /, *data):
         """Specify data as a tuple of data entries, one for each linop in linops"""
         sizes = {}
         for dim, total in zip(self.ishape, x.shape):
@@ -51,7 +54,6 @@ class Batch(NamedLinop):
 
         y = torch.zeros(tuple(sizes[dim] for dim in self.oshape), dtype=x.dtype)
         for tile in dict_product(batch_iterators):
-            split_data = self.linop.split_forward_fn(*ibatches, *obatches, *data)
-            data = linop.split_fn(data)
-            x = linop.fn(x, data)
+            split_data = self.linop.split_fn(*ibatches, *obatches, *data)
+            x = linop.fn(x, split_data)
         return x

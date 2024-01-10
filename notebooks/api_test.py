@@ -20,8 +20,10 @@ def __():
 
     from torchlinops.core.base import Chain
     from torchlinops.core.linops import Diagonal, Repeat
+    from torchlinops.core.tiling import Batch
     from torchlinops.mri.linops import NUFFT, SENSE
     return (
+        Batch,
         Chain,
         Diagonal,
         KbNufft,
@@ -90,7 +92,7 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
     mps = torch.randn((C, Nx, Ny), dtype=torch.complex64)
     F = NUFFT(trj, im_size=(Nx, Ny),
               img_batch_shape=('R', 'C'),
-              trj_batch_shape=('R', 'C'),
+              trj_batch_shape=('R',),
              )
     S = SENSE(mps)
     R = Repeat(n_repeats=num_interleaves, dim=0,
@@ -121,21 +123,32 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
     print(x3.shape)
 
     # You get the idea
-    # y4 = A.fn(x, mps=mps, trj=trj)
+    Sx = S.fn(x, mps)
+    RSx = R.fn(Sx, num_interleaves)
+    print(RSx.shape)
+    FRSx = F.fn(RSx, trj)
+    FRSx.shape
+    print(FRSx.isclose(y).all())
 
-    # Batching
+    Ax = A.fn(x, [trj, num_interleaves, mps])
+    print(FRSx.isclose(Ax).all())
+
 
     return (
         A,
+        Ax,
         B,
         C,
         D,
         F,
+        FRSx,
         K,
         Nx,
         Ny,
         R,
+        RSx,
         S,
+        Sx,
         T,
         mps,
         num_interleaves,
@@ -163,44 +176,12 @@ def __(A):
 
 
 @app.cell
-def __(Repeat):
-    R2 = Repeat(20, 0, ('C', 'Nx', 'Ny'), ('R', 'C', 'Nx', 'Ny'))
-    R3 = R2.split(ibatch=(slice(None),) * 3, obatch=(slice(0, 10), slice(None), slice(None), slice(None)))
-    print(R2.size('R'))
-    print(R2.n_repeats)
-    print(R3.n_repeats)
-    print(R3.size('R'))
-    print(R3.size('C'))
-    return R2, R3
-
-
-@app.cell
-def __():
-    import itertools
-
-    def generate_combinations(input_dict):
-        # Extract keys and corresponding iterables
-        keys, values = zip(*input_dict.items())
-
-        # Generate all combinations using product
-        combinations = itertools.product(*values)
-
-        # Create a list of dictionaries for each combination
-        result = [dict(zip(keys, combo)) for combo in combinations]
-
-        return result
-
-    # Example usage
-    input_dict = {
-        "letters": ["a", "b"],
-        "numbers": [1, 2, 3]
-    }
-
-    combinations = generate_combinations(input_dict)
-    for combo in combinations:
-        print(combo)
-
-    return combinations, combo, generate_combinations, input_dict, itertools
+def __(A, Batch, torch, x, y):
+    # Batching
+    Abatch = Batch(A, C=1, R=3)
+    ybatch = Abatch(x)
+    print(ybatch.isclose(y.to(torch.complex64)).all())
+    return Abatch, ybatch
 
 
 @app.cell

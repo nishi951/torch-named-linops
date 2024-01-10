@@ -50,7 +50,7 @@ class Repeat(NamedLinop):
         # print(x)
         return x.expand(*expand_size)
 
-    def adj_fn(self, x, /):
+    def adj_fn(self, x, /, n_repeats):
         return torch.sum(x, dim=self.dim, keepdim=False)
 
     def split_forward(self, ibatch, obatch):
