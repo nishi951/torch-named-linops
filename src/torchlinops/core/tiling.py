@@ -6,7 +6,10 @@ import torch
 from .base import NamedLinop
 from torchlinops.utils import batch_iterator, dict_product
 
+__all__ = ['Batch']
+
 class Batch(NamedLinop):
+    """TODO:"""
     def __init__(self, linop, **batch_sizes):
         super().__init__(linop.ishape, linop.oshape)
         self.linop = linop
@@ -62,3 +65,6 @@ class Batch(NamedLinop):
             ybatch = self.linop.fn(x, split_data)
             y[obatches[0]] += ybatch
         return y
+
+    def adj_fn(self, x, /, data):
+        raise NotImplementedError('Batched linop has no adjoint (yet).')

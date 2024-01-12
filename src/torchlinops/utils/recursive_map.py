@@ -6,6 +6,7 @@ import cupy as cp
 __all__ = [
     'recursive_map',
     'struct2np',
+    'apply_struct',
 ]
 
 is_array = lambda x: isinstance(x, np.ndarray) or isinstance(x, cp.ndarray) or isinstance(x, torch.Tensor)
@@ -30,3 +31,17 @@ def struct2np(data):
             return x.detach().cpu().numpy()
         return x
     return recursive_map(data, torch2np)
+
+
+def apply_struct(struct, fn: Callable, condition: Callable):
+    if condition(struct):
+        return fn(struct)
+    if isinstance(struct, dict):
+        kv_pairs = struct.items()
+    elif isinstance(struct, list):
+        kv_pairs = enumerate(struct)
+    else:
+        raise NotImplementedError('Struct should be a dict or a list.')
+    for k, v in kv_pairs:
+        struct[k] = apply_struct(v, fn, condition)
+    return struct
