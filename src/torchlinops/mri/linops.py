@@ -96,7 +96,7 @@ class NUFFT(NamedLinop):
         return self.size_fn(dim, self.trj)
 
     def size_fn(self, dim: str, trj):
-        if dim == 'K':
+        if dim == self.readout_dim:
             return trj.shape[-1]
         elif dim == self.oshape[0]:
             return trj.shape[0]
