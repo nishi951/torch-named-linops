@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 import torch
 from torchkbnufft import KbNufft, KbNufftAdjoint
 
@@ -23,10 +23,9 @@ def get2dor3d(im_size, kspace=False):
 class NUFFT(NamedLinop):
     def __init__(
             self,
-            trj,
-            im_size,
-            img_batch_shape,
-            trj_batch_shape,
+            trj: torch.Tensor,
+            im_size: Tuple,
+            batch_shape: Optional[Tuple] = None,
             coil_dim: Optional[str] = 'C',
             readout_dim: str = 'K',
             norm='ortho',
@@ -34,14 +33,17 @@ class NUFFT(NamedLinop):
     ):
         """
         trj: (... d k) in -pi to pi (tkbn-style)
+        img_batch_shape: Extra dimensions in front of the image, not including spatial dims (e.g. subspace/trs)
+        trj_batch_shape: Extra dimensions after the trajectory, not including coils (e.g. interleaves)
         """
-        self.img_batch_shape = img_batch_shape
-        self.trj_batch_shape = trj_batch_shape
-        ishape = img_batch_shape + get2dor3d(im_size)
+        #self.batch_shape = img_batch_shape if img_batch_shape is not None else tuple()
+        self.batch_shape = batch_shape if batch_shape is not None else tuple()
         if coil_dim is not None:
-            oshape = trj_batch_shape + (coil_dim, readout_dim) # [R C K]
+            ishape = self.batch_shape + (coil_dim,) + get2dor3d(im_size)
+            oshape = self.batch_shape + (coil_dim, readout_dim) # [R C K]
         else:
-            oshape = trj_batch_shape + (readout_dim,)
+            ishape = self.batch_shape + get2dor3d(im_size)
+            oshape = self.batch_shape + (readout_dim,)
         super().__init__(ishape, oshape)
         self.trj = trj
         self.im_size = im_size
