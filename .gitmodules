@@ -1,3 +1,9 @@
 [submodule "libraries/optimized-mrf"]
 	path = libraries/optimized-mrf
 	url = git@github.com:nishi951/optimized-mrf.git
+[submodule "libraries/igrog"]
+	path = libraries/igrog
+	url = git@github.com:nishi951/igrog.git
+[submodule "libraries/mr_sim"]
+	path = libraries/mr_sim
+	url = git@github.com:nishi951/mr_sim.git
