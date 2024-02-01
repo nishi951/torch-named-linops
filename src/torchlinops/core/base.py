@@ -205,7 +205,7 @@ class Chain(NamedLinop):
     def fn(self, x: torch.Tensor, /, data_list):
         assert len(self.linops) == len(data_list), f'Length {len(data_list)} data_list does not match length {len(self.linops)} chain linop'
         for linop, data in zip(reversed(self.linops), reversed(data_list)):
-            x = linop.fn(x, data)
+            x = linop.fn(x, *data)
         return x
 
     def adj_fn(self, x: torch.Tensor, /, data_list):
@@ -231,7 +231,7 @@ class Chain(NamedLinop):
         ibatches, obatches specified according to the shape of the
         forward op
         """
-        data = [linop.split_forward_fn(ibatch, obatch, data)
+        data = [linop.split_forward_fn(ibatch, obatch, *data)
                 for linop, ibatch, obatch, data \
                 in zip(self.linops, ibatches, obatches, data_list)]
         return data

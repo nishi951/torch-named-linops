@@ -1,5 +1,7 @@
+from typing import Optional, Mapping
+
 import torch
-from einops import einsum
+from einops import einsum, rearrange
 
 from .base import NamedLinop
 
@@ -79,10 +81,9 @@ class Dense(NamedLinop):
 
 
 class Diagonal(NamedLinop):
-    def __init__(self, weight, ishape, oshape):
-        assert ishape == oshape, 'Diagonal linops must have matching input and output dimensions'
-        assert len(weight.shape) == len(ishape), 'All dimensions must be named'
-        super().__init__(ishape, oshape)
+    def __init__(self, weight, ioshape):
+        assert len(weight.shape) <= len(ioshape), 'All dimensions must be named or broadcastable'
+        super().__init__(ioshape, ioshape)
         self.weight = weight
 
     def forward(self, x):
@@ -111,6 +112,35 @@ class Diagonal(NamedLinop):
     def size_fn(self, dim: str, weight):
         if dim in self.ishape:
             return weight.shape[self.ishape.index(dim)]
+        return None
+
+class Identity(NamedLinop):
+    def __init__(self, ioshape):
+        super().__init__(ioshape, ioshape)
+
+    def forward(self, x):
+        return x
+
+    def fn(self, x, /):
+        return x
+
+    def adj_fn(self, x, /):
+        return x
+
+    def normal_fn(self, x, /):
+        return x
+
+    def split_forward(self, ibatch, obatch):
+        return type(self)(self.ishape, self.oshape)
+
+    def split_forward_fn(self, ibatch, obatch, /):
+        assert ibatch == obatch, 'Identity linop must be split identically'
+        return None
+
+    def size(self, dim: str):
+        return self.size_fn(dim)
+
+    def size_fn(self, dim: str):
         return None
 
 
@@ -159,6 +189,40 @@ class FFT(NamedLinop):
         """FFT doesn't determine any dimensions"""
         return None
 
+class Rearrange(NamedLinop):
+    """Moves around dimensions.
+    """
+    def __init__(self, istr, ostr, ishape, oshape, size_spec: Optional[Mapping] = None):
+        assert len(ishape) == len(oshape), 'Rearrange currently only supports pure dimension permutations'
+        super().__init__(ishape, oshape)
+        self.istr = istr
+        self.ostr = ostr
+        self.size_spec = size_spec if size_spec is not None else {}
+
+    def forward(self, x):
+        return self.fn(x, self.istr, self.ostr, self.size_spec)
+
+    def fn(self, x, /, istr, ostr, size_spec):
+        return rearrange(x, f'{istr} -> {ostr}', **size_spec)
+
+    def adj_fn(self, x, /, ostr, istr, size_spec):
+        return rearrange(x, f'{ostr} -> {istr}', **size_spec)
+
+    def split_forward(self, ibatch, obatch):
+        """Rearranging is transparent to splitting"""
+        return self
+
+    def split_forward_fn(self, ibatch, obatch, /, istr, ostr, size_spec):
+        """Rearranging is transparent to splitting"""
+        return (istr, ostr, size_spec)
+
+    def size(self, dim: str):
+        """Rearranging does not determine any dimensions"""
+        return None
+
+    def size_fn(self, dim: str, /, istr, ostr, size_spec):
+        """Rearranging does not determine any dimensions"""
+        return None
 
 
 
