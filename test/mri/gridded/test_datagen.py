@@ -25,7 +25,7 @@ def __():
     )
     from torchlinops.mri.recon.pcg import CGHparams, ConjugateGradient
     from torchlinops.core.linops import Diagonal, Rearrange, Identity, NamedLinop
-    from torchlinops.mri.linops import NUFFT, SENSE
+    from torchlinops.mri.linops import TorchNUFFT, SENSE
 
     from mr_sim.trajectory.trj import spiral_2d, tgas_spi
     return (
@@ -35,11 +35,11 @@ def __():
         Identity,
         ImplicitGROGDataset,
         ImplicitGROGDatasetConfig,
-        NUFFT,
         NamedLinop,
         Optional,
         Rearrange,
         SENSE,
+        TorchNUFFT,
         Tuple,
         fft,
         functools,
@@ -89,7 +89,7 @@ def __(np, sp, spiral_2d, tgas_spi):
 
 
 @app.cell
-def __(NUFFT, SENSE, Tuple, np, rearrange, torch):
+def __(SENSE, TorchNUFFT, Tuple, np, rearrange, torch):
     def to_tkbn(trj: np.ndarray, im_size: Tuple):
         """Input trj should be sigpy-style
         i.e. in [-N/2, N/2] and shape [..., K, D]
@@ -102,7 +102,7 @@ def __(NUFFT, SENSE, Tuple, np, rearrange, torch):
     def get_linop(im_size: Tuple, trj: np.ndarray, mps: np.ndarray):
         trj = rearrange(trj, 'K R D -> R K D')
         trj_tkbn = to_tkbn(trj, im_size)
-        F = NUFFT(trj_tkbn, im_size,
+        F = TorchNUFFT(trj_tkbn, im_size,
                   in_batch_shape=('C',),
                   out_batch_shape=('R',),
                  )
@@ -191,8 +191,8 @@ def __(
     ConjugateGradient,
     Diagonal,
     Identity,
-    NUFFT,
     Optional,
+    TorchNUFFT,
     Tuple,
     fft,
     np,
@@ -241,7 +241,7 @@ def __(
         C = ksp.shape[0]
         batch = tuple(f'B{i}' for i in range(len(ksp.shape[1:-1])))
         # Create simple linop
-        F = NUFFT(omega, im_size,
+        F = TorchNUFFT(omega, im_size,
                   in_batch_shape=('C',),
                   out_batch_shape=batch).to(device)
         if dcf is not None:
@@ -373,9 +373,9 @@ def __(
     ConjugateGradient,
     Diagonal,
     Identity,
-    NUFFT,
     Optional,
     SENSE,
+    TorchNUFFT,
     functools,
     ksp_np,
     mps_recon,
@@ -404,7 +404,7 @@ def __(
         mps = torch.from_numpy(mps).to(device).to(torch.complex64)
         batch = tuple(f'B{i}' for i in range(len(ksp.shape[1:-1])))
         # Create simple linop
-        F = NUFFT(omega, im_size,
+        F = TorchNUFFT(omega, im_size,
                   in_batch_shape=('C',),
                   out_batch_shape=batch).to(device)
         if dcf is not None:
@@ -484,7 +484,7 @@ def __(mri, sp):
             coord=mvd(trj),
             device=sp.Device(device_idx)
         ).run()
-        # F = sp_linop.NUFFT(mps.shape, mvd(trj))
+        # F = sp_linop.TorchNUFFT(mps.shape, mvd(trj))
         # S = sp_linop.Multiply(im_size, mvd(mps))
         # D = sp_linop.Multiply(dcf.shape, mvd(xp.sqrt(dcf)))
         return recon, A, dcf
@@ -541,6 +541,11 @@ def __(A, dcf, ksp_sp, sigpy_pytorch_solve):
 @app.cell
 def __(np, plt, recon_sp2):
     plt.imshow(np.abs(recon_sp2.detach().cpu().numpy()))
+    return
+
+
+@app.cell
+def __():
     return
 
 
