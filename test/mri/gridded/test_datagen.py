@@ -25,7 +25,7 @@ def __():
     )
     from torchlinops.mri.recon.pcg import CGHparams, ConjugateGradient
     from torchlinops.core.linops import Diagonal, Rearrange, Identity, NamedLinop
-    from torchlinops.mri.linops import TorchNUFFT, SENSE
+    from torchlinops.mri.linops import NUFFT, TorchNUFFT, SENSE
 
     from mr_sim.trajectory.trj import spiral_2d, tgas_spi
     return (
@@ -35,6 +35,7 @@ def __():
         Identity,
         ImplicitGROGDataset,
         ImplicitGROGDatasetConfig,
+        NUFFT,
         NamedLinop,
         Optional,
         Rearrange,
@@ -89,7 +90,7 @@ def __(np, sp, spiral_2d, tgas_spi):
 
 
 @app.cell
-def __(SENSE, TorchNUFFT, Tuple, np, rearrange, torch):
+def __(NUFFT, SENSE, TorchNUFFT, Tuple, np, rearrange, torch):
     def to_tkbn(trj: np.ndarray, im_size: Tuple):
         """Input trj should be sigpy-style
         i.e. in [-N/2, N/2] and shape [..., K, D]
@@ -109,11 +110,23 @@ def __(SENSE, TorchNUFFT, Tuple, np, rearrange, torch):
         S = SENSE(torch.from_numpy(mps).to(torch.complex64))
         # R = Repeat(trj_tkbn.shape[0], dim=0, ishape=('C', 'Nx', 'Ny'), oshape=('R', 'C', 'Nx', 'Ny'))
         return F @ S
-    return get_linop, to_tkbn
+
+    def get_sp_linop(im_size: Tuple, trj: np.ndarray, mps: np.ndarray):
+        trj = rearrange(trj, 'K R D -> R K D')
+        trj = torch.from_numpy(trj)
+        # trj_tkbn = to_tkbn(trj, im_size)
+        F = NUFFT(trj, im_size,
+                  in_batch_shape=('C',),
+                  out_batch_shape=('R',),
+                 )
+        S = SENSE(torch.from_numpy(mps).to(torch.complex64))
+        # R = Repeat(trj_tkbn.shape[0], dim=0, ishape=('C', 'Nx', 'Ny'), oshape=('R', 'C', 'Nx', 'Ny'))
+        return F @ S
+    return get_linop, get_sp_linop, to_tkbn
 
 
 @app.cell
-def __(NamedLinop, gen_mri_dataset, get_linop, np, torch):
+def __(NamedLinop, gen_mri_dataset, get_sp_linop, np, torch):
     def simulate(A: NamedLinop, img: np.ndarray, sigma: float = 0.):
         ksp = linop(torch.from_numpy(img).to(torch.complex64))
         ksp = ksp + sigma * torch.randn_like(ksp)
@@ -121,7 +134,7 @@ def __(NamedLinop, gen_mri_dataset, get_linop, np, torch):
     im_size = (100, 100)
     num_coils = 8
     img, trj, mps = gen_mri_dataset(im_size, num_coils)
-    linop = get_linop(im_size, trj, mps)
+    linop = get_sp_linop(im_size, trj, mps)
     ksp = simulate(linop, img, sigma=0.01)
     return im_size, img, ksp, linop, mps, num_coils, simulate, trj
 
@@ -373,6 +386,7 @@ def __(
     ConjugateGradient,
     Diagonal,
     Identity,
+    NUFFT,
     Optional,
     SENSE,
     TorchNUFFT,
@@ -424,10 +438,48 @@ def __(
         recon = cg(AHb, AHb)
         return recon
 
+    def sp_cgsense(
+        ksp: np.ndarray,
+        trj: np.ndarray,
+        mps: np.ndarray,
+        dcf: Optional[np.ndarray] = None,
+        lam: float = 0.1,
+        num_iter=10,
+        device_idx: int = -1,
+    ):
+        device = torch.device(
+            f'cuda:{device_idx}' if device_idx >= 0 else 'cpu'
+        )
+        im_size = mps.shape[1:]
+        ksp = torch.from_numpy(ksp).to(device)
+        # omega = to_tkbn(trj, im_size).to(device).to(torch.float32)
+        mps = torch.from_numpy(mps).to(device).to(torch.complex64)
+        batch = tuple(f'B{i}' for i in range(len(ksp.shape[1:-1])))
+        # Create simple linop
+        F = NUFFT(torch.from_numpy(trj), im_size,
+                  in_batch_shape=('C',),
+                  out_batch_shape=batch).to(device)
+        if dcf is not None:
+            D = Diagonal(torch.sqrt(dcf),
+                         ioshape=('C', *batch, 'K'),
+                        ).to(device)
+        else:
+            D = Identity(ioshape=('C', *batch, 'K')).to(device)
+        S = SENSE(mps).to(device)
+
+        A = (D @ F @ S).to(device)
+        AHb = A.H(D(ksp)).to(device)
+        def A_reg(x):
+            return A.N(x) + lam*x
+        cg = ConjugateGradient(A_reg, hparams=CGHparams(num_iter=num_iter)
+    ).to(device)
+        recon = cg(AHb, AHb)
+        return recon
+
     @functools.cache
     def recon_interactive(num_iter: int, lam: float):
-        return cgsense(ksp_np, trj_np, mps_recon, lam=lam, num_iter=num_iter, device_idx=0).detach().cpu().numpy()
-    return cgsense, recon_interactive
+        return sp_cgsense(ksp_np, trj_np, mps_recon, lam=lam, num_iter=num_iter, device_idx=0).detach().cpu().numpy()
+    return cgsense, recon_interactive, sp_cgsense
 
 
 @app.cell
@@ -435,7 +487,7 @@ def __(lam, np, num_iter, plt, recon_interactive):
     #recon = cgsense(ksp_np, trj_np, mps_recon, device_idx=0)
     recon = recon_interactive(num_iter.value, float(lam.value))
     plt.imshow(np.abs(recon))
-    plt.title('Recon')
+    plt.title('Recon (Sigpy backend)')
     return recon,
 
 

@@ -4,10 +4,12 @@ from typing import Optional, Tuple
 from einops import rearrange
 import numpy as np
 import torch
+import torch.nn as nn
 from torchkbnufft import KbNufft, KbNufftAdjoint
 from sigpy import linop as sp_linop
 
 from ..core.base import NamedLinop
+from . import _sp_nufft as spnufft
 
 __all__ = [
     'TorchNUFFT',
@@ -26,7 +28,7 @@ def get2dor3d(im_size, kspace=False):
     return im_dim
 
 
-class SigpyNUFFT(NamedLinop):
+class NUFFT(NamedLinop):
     """NUFFT with Sigpy backend"""
     def __init__(
             self,
@@ -48,7 +50,7 @@ class SigpyNUFFT(NamedLinop):
         ishape = self.in_batch_shape + get2dor3d(im_size)
         oshape = self.in_batch_shape + self.out_batch_shape + (readout_dim,)
         super().__init__(ishape, oshape)
-        self.trj = trj
+        self.trj = nn.Parameter(trj, requires_grad=False)
         self.im_size = im_size
         self.readout_dim = readout_dim
 
@@ -57,8 +59,6 @@ class SigpyNUFFT(NamedLinop):
 
         # Sigpy-specific
         self.nufft_kwargs = nufft_kwargs if nufft_kwargs is not None else {}
-        # self.nufft = KbNufft(im_size, **self.kbnufft_kwargs)
-        # self.nufft_adj = KbNufftAdjoint(im_size, **self.kbnufft_kwargs)
 
     def forward(self, x: torch.Tensor):
         return self.fn(x, self.trj)
@@ -66,59 +66,26 @@ class SigpyNUFFT(NamedLinop):
     def fn(self, x, /, trj):
         """
         x: [A...  Nx Ny [Nz]] # A... may include coils
-        trj: [B... D K]
+        trj: [B... K D] (sigpy-style)
         output: [A... B... K]
         Note:
         - tkbn doesn't support batching over multiple non-trajectory dims, so we have to do this manually
 
         """
-
-        self.nufft()
-
-        spatial_dim = x.shape[-self.D:] # doesn't May include coils
-        A = x.shape[:-self.D]
-        x = torch.reshape(x, (-1, *spatial_dim)) # [(A...) Nx Ny [Nz]]
-
-        B = trj.shape[:-2]
-        if len(B) > 0:
-            trj = rearrange(trj, '... D K -> (...) D K') # [(B...) D K]
-        K =  trj.shape[-1]
-
-
-
-        y = torch.zeros((prod(A), prod(B), K),
-                        dtype=x.dtype, layout=x.layout, device=x.device)
-        for a, x_a in enumerate(x):
-            # Add fake coil dim
-            x_a = x_a[None, None, ...].expand((prod(B), 1) + (-1,)*self.D) # [(B...) 1 Nx Ny [Nz]]
-            y_a = self.nufft(x_a, trj, norm=self.norm)
-            y[a] = y_a[..., 0, :] # Remove coil dim
-
-        y = y.reshape((*A, *B, K))
+        y = spnufft.nufft(x, trj, **self.nufft_kwargs)
         return y
 
     def adj_fn(self, y, /, trj):
         """
         y: [A... B... K]
-        trj: [B... D K]
+        trj: [B... K D], Sigpy-style
         output: [A... Nx Ny [Nz]]
         """
+
         B = trj.shape[:-2]
-        if len(B) > 0:
-            trj = rearrange(trj, '... D K -> (...) D K') # [(B...) D K]
-        K =  trj.shape[-1]
-
-        A = y.shape[:-(len(B) + 1)]
-        y = y.reshape((prod(A), prod(B), K))
-
-        x = torch.zeros((prod(A), *self.nufft_adj.im_size),
-                        dtype=y.dtype, layout=y.layout, device=y.device)
-        for a, y_a in enumerate(y):
-            # Fake coil dim
-            y_a = y_a[:, None, ...] # [(B...) 1 K]
-            x_a = self.nufft_adj(y_a, trj, norm=self.norm)
-            x[a] = torch.sum(x_a, dim=(0, 1)) # Sum over batch and fake coil
-        x = x.reshape((*A, *self.nufft_adj.im_size))
+        A = tuple(y.shape[:-(len(B) + 1)])
+        oshape = A + self.im_size
+        x = spnufft.nufft_adjoint(y, trj, oshape, **self.nufft_kwargs)
         return x
 
     def normal_fn(self, x, /, trj):
@@ -306,12 +273,12 @@ class TorchNUFFT(NamedLinop):
 
 
 class SENSE(NamedLinop):
-    def __init__(self, mps, coil_str: str = 'C'):
+    def __init__(self, mps: torch.Tensor, coil_str: str = 'C'):
         im_size = mps.shape[1:]
         im_shape = get2dor3d(im_size, kspace=False)
         super().__init__(im_shape, (coil_str, *im_shape))
         self.coil_str = coil_str
-        self.mps = mps
+        self.mps = nn.Parameter(mps, requires_grad=False)
 
     def forward(self, x):
         return self.fn(x, self.mps)
