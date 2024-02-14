@@ -7,39 +7,37 @@ app = marimo.App()
 @app.cell
 def __():
     import marimo as mo
-    from typing import Tuple, Optional
     import functools
+    from typing import Tuple, Optional
 
+    import matplotlib.pyplot as plt
     from einops import rearrange
-    import numpy as np
     import torch
     import torch.fft as fft
+    import numpy as np
     import sigpy as sp
     import sigpy.mri as mri
-    import matplotlib
-    import matplotlib.pyplot as plt
-
 
     from torchlinops.mri.recon.pcg import CGHparams, ConjugateGradient
-    from torchlinops.core.linops import Diagonal, Rearrange, Identity, NamedLinop
-    from torchlinops.mri.linops import NUFFT, TorchNUFFT, SENSE
+    from torchlinops.core.base import NamedLinop
+    from torchlinops.core.linops import Diagonal, Identity
+    from torchlinops.mri.linops import NUFFT, SENSE
+    from torchlinops.mri.igrog.linops import GriddedNUFFT
 
     from mr_sim.trajectory.trj import spiral_2d, tgas_spi
     return (
         CGHparams,
         ConjugateGradient,
         Diagonal,
+        GriddedNUFFT,
         Identity,
         NUFFT,
         NamedLinop,
         Optional,
-        Rearrange,
         SENSE,
-        TorchNUFFT,
         Tuple,
         fft,
         functools,
-        matplotlib,
         mo,
         mri,
         np,
@@ -53,19 +51,19 @@ def __():
 
 
 @app.cell
-def __(mo):
-    mo.md("# Testing Implicit GROG Data Generation")
-    return
-
-
-@app.cell
-def __(mo):
-    mo.md('## Simulation Phase')
-    return
-
-
-@app.cell
-def __(np, sp, spiral_2d, tgas_spi):
+def __(
+    GriddedNUFFT,
+    NUFFT,
+    NamedLinop,
+    SENSE,
+    Tuple,
+    np,
+    rearrange,
+    sp,
+    spiral_2d,
+    tgas_spi,
+    torch,
+):
     def gen_mri_dataset(im_size, num_coils):
         # Image
         img = sp.shepp_logan(im_size).astype(np.complex64)
@@ -81,30 +79,6 @@ def __(np, sp, spiral_2d, tgas_spi):
         # Coils
         mps = sp.mri.birdcage_maps((num_coils, *im_size))
         return img, trj, mps
-    return gen_mri_dataset,
-
-
-@app.cell
-def __(NUFFT, SENSE, TorchNUFFT, Tuple, np, rearrange, torch):
-    def to_tkbn(trj: np.ndarray, im_size: Tuple):
-        """Input trj should be sigpy-style
-        i.e. in [-N/2, N/2] and shape [..., K, D]
-        """
-        trj_tkbn = torch.from_numpy(trj)
-        trj_tkbn = trj_tkbn / torch.tensor(im_size).float() * (2*np.pi)
-        trj_tkbn = rearrange(trj_tkbn, '... K D -> ... D K')
-        return trj_tkbn
-
-    def get_linop(im_size: Tuple, trj: np.ndarray, mps: np.ndarray):
-        trj = rearrange(trj, 'K R D -> R K D')
-        trj_tkbn = to_tkbn(trj, im_size)
-        F = TorchNUFFT(trj_tkbn, im_size,
-                  in_batch_shape=('C',),
-                  out_batch_shape=('R',),
-                 )
-        S = SENSE(torch.from_numpy(mps).to(torch.complex64))
-        # R = Repeat(trj_tkbn.shape[0], dim=0, ishape=('C', 'Nx', 'Ny'), oshape=('R', 'C', 'Nx', 'Ny'))
-        return F @ S
 
     def get_sp_linop(im_size: Tuple, trj: np.ndarray, mps: np.ndarray):
         trj = rearrange(trj, 'K R D -> R K D')
@@ -117,21 +91,52 @@ def __(NUFFT, SENSE, TorchNUFFT, Tuple, np, rearrange, torch):
         S = SENSE(torch.from_numpy(mps).to(torch.complex64))
         # R = Repeat(trj_tkbn.shape[0], dim=0, ishape=('C', 'Nx', 'Ny'), oshape=('R', 'C', 'Nx', 'Ny'))
         return F @ S
-    return get_linop, get_sp_linop, to_tkbn
 
+    def get_gridded_linop(im_size: Tuple, trj: np.ndarray, mps: np.ndarray):
+        trj = rearrange(trj, 'K R D -> R K D')
+        trj = torch.from_numpy(trj)
+        trj = torch.round(trj)
+        F = GriddedNUFFT(
+            trj, im_size,
+            in_batch_shape=('C',),
+            out_batch_shape=('R',),
+        )
+        S = SENSE(torch.from_numpy(mps).to(torch.complex64))
+        return F @ S
 
-@app.cell
-def __(NamedLinop, gen_mri_dataset, get_sp_linop, np, torch):
     def simulate(A: NamedLinop, img: np.ndarray, sigma: float = 0.):
         ksp = linop(torch.from_numpy(img).to(torch.complex64))
         ksp = ksp + sigma * torch.randn_like(ksp)
         return ksp
+
     im_size = (100, 100)
     num_coils = 8
     img, trj, mps = gen_mri_dataset(im_size, num_coils)
+
+    # Non-cartesian version
     linop = get_sp_linop(im_size, trj, mps)
     ksp = simulate(linop, img, sigma=0.01)
-    return im_size, img, ksp, linop, mps, num_coils, simulate, trj
+
+    # Gridded version
+    grid_linop = get_gridded_linop(im_size, trj, mps)
+    ksp_grid = simulate(grid_linop, img, sigma=0.01)
+    print(ksp.shape)
+    print(ksp_grid.shape)
+    return (
+        gen_mri_dataset,
+        get_gridded_linop,
+        get_sp_linop,
+        grid_linop,
+        im_size,
+        img,
+        ksp,
+        ksp_grid,
+        linop,
+        mps,
+        num_coils,
+        simulate,
+        trj,
+    )
 
 
 @app.cell
@@ -143,54 +148,47 @@ def __(mo, mps, trj):
 
 
 @app.cell
-def __(coil_idx, img, mps, np, plt, trj, trj_idx):
-    fig, ax = plt.subplots(nrows=1, ncols=3)
-    ax[0].imshow(np.abs(img))
-    ax[0].set_title('Phantom')
-    ax[1].plot(trj[:, trj_idx.value, 0], trj[:, trj_idx.value, 1])
-    ax[1].axis('square')
-    ax[1].set_xlim(-img.shape[0]//2, img.shape[0]//2)
-    ax[1].set_ylim(-img.shape[1]//2, img.shape[1]//2)
-    ax[1].set_title(f'Trj[{trj_idx.value}]')
-    ax[2].imshow(np.abs(mps[coil_idx.value]))
-    ax[2].set_title(f'Mps[{coil_idx.value}]')
+def __(coil_idx, grid_linop, img, mps, np, plt, trj, trj_idx):
+    fig, ax = plt.subplots(nrows=2, ncols=3)
+    ax[0,0].imshow(np.abs(img))
+    ax[0,0].set_title('Phantom')
+    ax[0,1].plot(trj[:, trj_idx.value, 0], trj[:, trj_idx.value, 1])
+    ax[0,1].axis('square')
+    ax[0,1].set_xlim(-img.shape[0]//2, img.shape[0]//2)
+    ax[0,1].set_ylim(-img.shape[1]//2, img.shape[1]//2)
+    ax[0,1].set_title(f'Trj[{trj_idx.value}]')
+    ax[0,2].imshow(np.abs(mps[coil_idx.value]))
+    ax[0,2].set_title(f'Mps[{coil_idx.value}]')
+
+    trj_grd = grid_linop.linops[0].trj
+    ax[1,1].plot(trj_grd[trj_idx.value, :, 0], trj_grd[trj_idx.value, :, 1])
+    ax[1,1].axis('square')
+    ax[1,1].set_xlim(-img.shape[0]//2, img.shape[0]//2)
+    ax[1,1].set_ylim(-img.shape[1]//2, img.shape[1]//2)
+    ax[1,1].set_title(f'Trj[{trj_idx.value}]')
+    print(trj.shape)
+    print(trj_grd.shape)
     fig
-    return ax, fig
+    return ax, fig, trj_grd
 
 
 @app.cell
-def __(coil_idx, ksp, np, plt, trj_idx):
+def __(coil_idx, ksp, ksp_grid, np, plt, trj_idx):
     # Plot simulated kspace
-    readout = ksp[trj_idx.value, coil_idx.value].detach().cpu().numpy()
-    plt.plot(np.abs(readout))
-    plt.xlabel('Readout Sample')
-    plt.ylabel('Abs(readout)')
-    plt.title(f'Ksp[trj[{trj_idx.value}], coil[{coil_idx.value}]]')
-    return readout,
+    readout = ksp[coil_idx.value, trj_idx.value].detach().cpu().numpy()
+    readout_grid = ksp_grid[coil_idx.value, trj_idx.value].detach().cpu().numpy()
 
-
-@app.cell
-def __(mo):
-    mo.md('## Reconstruction Phase')
-    return
-
-
-@app.cell
-def __(mo):
-    mo.md("""
-    In this phase, we only make use of:
-
-    - The kspace data `ksp` (numpy)
-    - The trajectory `trj` (numpy)
-
-    We must estimate:
-
-    - The density compensation function `dcf`
-    - The sensitivity maps `mps`
-
-    Once we do that, we can reconstruct the image.
-    """)
-    return
+    fig2, ax2 = plt.subplots(nrows=2, ncols=1)
+    ax2[0].plot(np.abs(readout))
+    ax2[0].set_xlabel('Readout Sample')
+    ax2[0].set_ylabel('Abs(readout)')
+    ax2[0].set_title(f'Ksp[trj[{trj_idx.value}], coil[{coil_idx.value}]]')
+    ax2[1].plot(np.abs(readout_grid))
+    ax2[1].set_xlabel('Readout Sample')
+    ax2[1].set_ylabel('Abs(readout)')
+    ax2[1].set_title(f'Ksp[trj[{trj_idx.value}], coil[{coil_idx.value}]]')
+    fig2
+    return ax2, fig2, readout, readout_grid
 
 
 @app.cell
@@ -199,14 +197,21 @@ def __(
     ConjugateGradient,
     Diagonal,
     Identity,
+    NUFFT,
     Optional,
-    TorchNUFFT,
     Tuple,
     fft,
+    im_size,
+    ksp_grid,
+    mo,
+    mri,
     np,
-    to_tkbn,
+    rearrange,
+    sp,
     torch,
+    trj_grd,
 ):
+    mo.md('## Reconstruction Phase')
     def sp_fft(x, dim=None):
         """Matches Sigpy's fft, but in torch"""
         x = fft.ifftshift(x, dim=dim)
@@ -232,7 +237,7 @@ def __(
 
 
     def inufft(
-        omega: torch.Tensor,
+        trj: torch.Tensor,
         ksp: torch.Tensor,
         im_size: Tuple,
         dcf: Optional[torch.Tensor] = None,
@@ -240,7 +245,7 @@ def __(
         device='cpu',
     ):
         """Inverse NUFFT aka least squares via PCG
-        omega: [B... D K] tkbn-style tensor
+        trj: [B... K D] sigpy-style trajectory
         ksp: [C B... K] tensor where B... is the same batch as omega's B...
         dcf: if provided, [B... K]
         """
@@ -249,7 +254,7 @@ def __(
         C = ksp.shape[0]
         batch = tuple(f'B{i}' for i in range(len(ksp.shape[1:-1])))
         # Create simple linop
-        F = TorchNUFFT(omega, im_size,
+        F = NUFFT(trj, im_size,
                   in_batch_shape=('C',),
                   out_batch_shape=batch).to(device)
         if dcf is not None:
@@ -276,18 +281,17 @@ def __(
             trj, ksp, dcf = truncate_trj_ksp(trj, ksp, max_k=acs_size/2, dcf=dcf)
         else:
             trj, ksp = truncate_trj_ksp(trj, ksp, max_k=acs_size/2)
-        omega = to_tkbn(trj, cal_size)
+        # trj = rearrange(trj, 'K R D -> R K D')
+        trj = torch.from_numpy(trj)
+        #omega = to_tkbn(trj, cal_size)
         ksp = torch.from_numpy(ksp).to(torch.complex64)
         if dcf is not None:
             dcf = torch.as_tensor(dcf)
-        img_cal = inufft(omega, ksp, cal_size, dcf=dcf, num_iter=10, device=device)
+        img_cal = inufft(trj, ksp, cal_size, dcf=dcf, num_iter=10, device=device)
         kgrid = sp_fft(img_cal, dim=(-2, -1))
+        # kgrid = fft.fftn(img_cal, dim=(-2, -1))
         return kgrid.detach().cpu().numpy()
-    return inufft, sp_fft, sp_ifft, synth_cal, truncate_trj_ksp
 
-
-@app.cell
-def __(im_size, ksp, mri, rearrange, sp, synth_cal, torch, trj):
     def get_mps_kgrid(trj, ksp, im_size, calib_width, kernel_width, device_idx, **espirit_kwargs):
         """
         """
@@ -314,31 +318,31 @@ def __(im_size, ksp, mri, rearrange, sp, synth_cal, torch, trj):
 
     acs_size = 24
     kernel_width = 7
-    trj_np = rearrange(trj, 'K R D -> R K D')
-    ksp_np = ksp.detach().cpu().numpy()
+    trj_grid_np = rearrange(trj_grd, 'R K D -> R K D').detach().cpu().numpy()
+    ksp_grid_np = ksp_grid.detach().cpu().numpy()
     mps_recon, kgrid = get_mps_kgrid(
-        trj_np,
-        ksp_np,
+        trj_grid_np,
+        ksp_grid_np,
         im_size,
         calib_width=acs_size,
         kernel_width=kernel_width,
+        crop=0.997,
         device_idx=0
     )
     return (
         acs_size,
         get_mps_kgrid,
+        inufft,
         kernel_width,
         kgrid,
-        ksp_np,
+        ksp_grid_np,
         mps_recon,
-        trj_np,
+        sp_fft,
+        sp_ifft,
+        synth_cal,
+        trj_grid_np,
+        truncate_trj_ksp,
     )
-
-
-@app.cell
-def __(mps_recon):
-    mps_recon.shape
-    return
 
 
 @app.cell
@@ -356,9 +360,14 @@ def __(mo):
 
 @app.cell
 def __(mps_idx, mps_recon, np, plt):
-    plt.imshow(np.abs(mps_recon[mps_idx.value]))
-    plt.title(f'Mps[{mps_idx.value}]')
-    return
+    fig3, ax3 = plt.subplots(nrows=1, ncols=2)
+    ax3[0].imshow(np.abs(mps_recon[mps_idx.value]))
+    ax3[0].set_title('Magnitude')
+    ax3[1].imshow(np.angle(mps_recon[mps_idx.value]), vmin=-np.pi, vmax=np.pi)
+    ax3[1].set_title('Angle')
+    fig3.suptitle(f'Mps[{mps_idx.value}]')
+    fig3
+    return ax3, fig3
 
 
 @app.cell
@@ -380,18 +389,19 @@ def __(
     CGHparams,
     ConjugateGradient,
     Diagonal,
+    GriddedNUFFT,
     Identity,
     NUFFT,
     Optional,
     SENSE,
     TorchNUFFT,
     functools,
-    ksp_np,
+    ksp_grid_np,
     mps_recon,
     np,
     to_tkbn,
     torch,
-    trj_np,
+    trj_grid_np,
 ):
     # def get_mps_kgrid(trj, ksp, im_size, calib_width, kernel_width, device_idx, **espirit_kwargs):
 
@@ -471,134 +481,62 @@ def __(
         recon = cg(AHb, AHb)
         return recon
 
+    def sp_cgsense_grid(
+        ksp: np.ndarray,
+        trj: np.ndarray,
+        mps: np.ndarray,
+        dcf: Optional[np.ndarray] = None,
+        lam: float = 0.1,
+        num_iter=10,
+        device_idx: int = -1,
+    ):
+        device = torch.device(
+            f'cuda:{device_idx}' if device_idx >= 0 else 'cpu'
+        )
+        im_size = mps.shape[1:]
+        ksp = torch.from_numpy(ksp).to(device)
+        # omega = to_tkbn(trj, im_size).to(device).to(torch.float32)
+        trj = torch.from_numpy(trj).long()
+        mps = torch.from_numpy(mps).to(device).to(torch.complex64)
+        batch = tuple(f'B{i}' for i in range(len(ksp.shape[1:-1])))
+        # Create simple linop
+        F = GriddedNUFFT(trj, im_size,
+                  in_batch_shape=('C',),
+                  out_batch_shape=batch).to(device)
+        if dcf is not None:
+            D = Diagonal(torch.sqrt(dcf),
+                         ioshape=('C', *batch, 'K'),
+                        ).to(device)
+        else:
+            D = Identity(ioshape=('C', *batch, 'K')).to(device)
+        S = SENSE(mps).to(device)
+
+        A = (D @ F @ S).to(device)
+        AHb = A.H(D(ksp)).to(device)
+        def A_reg(x):
+            return A.N(x) + lam*x
+        cg = ConjugateGradient(A_reg, hparams=CGHparams(num_iter=num_iter)
+    ).to(device)
+        recon = cg(AHb, AHb)
+        return recon
+
+    # @functools.cache
+    # def recon_interactive(num_iter: int, lam: float):
+    #     return sp_cgsense(ksp_np, trj_np, mps_recon, lam=lam, num_iter=num_iter, device_idx=0).detach().cpu().numpy()
+
     @functools.cache
-    def recon_interactive(num_iter: int, lam: float):
-        return sp_cgsense(ksp_np, trj_np, mps_recon, lam=lam, num_iter=num_iter, device_idx=0).detach().cpu().numpy()
-    return cgsense, recon_interactive, sp_cgsense
+    def recon_interactive_grid(num_iter: int, lam: float):
+        return sp_cgsense_grid(ksp_grid_np, trj_grid_np, mps_recon, lam=lam, num_iter=num_iter, device_idx=0).detach().cpu().numpy()
+    return cgsense, recon_interactive_grid, sp_cgsense, sp_cgsense_grid
 
 
 @app.cell
-def __(lam, np, num_iter, plt, recon_interactive):
+def __(lam, np, num_iter, plt, recon_interactive_grid):
     #recon = cgsense(ksp_np, trj_np, mps_recon, device_idx=0)
-    recon = recon_interactive(num_iter.value, float(lam.value))
+    recon = recon_interactive_grid(num_iter.value, float(lam.value))
     plt.imshow(np.abs(recon))
     plt.title('Recon (Sigpy backend)')
     return recon,
-
-
-@app.cell
-def __(mo):
-    mo.md("## Sigpy baseline")
-    return
-
-
-@app.cell
-def __(mri, sp):
-    import sigpy.linop as sp_linop
-    def run_sigpy_sense_recon(
-        ksp,
-        trj,
-        mps,
-        dcf,
-        lam=0.1,
-        device_idx=-1
-    ):
-        """
-        trj: [B... K D]
-        mps: [C *im_size]
-        dcf: [B... K]
-        """
-
-        def mvd(x):
-            return sp.to_device(x, sp.Device(device_idx))
-        def mvc(x):
-            return sp.to_device(x, sp.cpu_device)
-        xp = sp.Device(device_idx).xp
-        im_size = mps.shape[1:]
-        if dcf is None:
-            dcf = mri.pipe_menon_dcf(trj, im_size, device=sp.Device(device_idx))
-        B = trj.shape[:-2]
-        A = mri.linop.Sense(
-            mvd(mps),
-            mvd(trj),
-            mvd(dcf),
-        )
-        recon = mri.app.SenseRecon(
-            mvd(ksp),
-            mvd(mps),
-            lamda=lam,
-            weights=mvd(dcf),
-            coord=mvd(trj),
-            device=sp.Device(device_idx)
-        ).run()
-        # F = sp_linop.TorchNUFFT(mps.shape, mvd(trj))
-        # S = sp_linop.Multiply(im_size, mvd(mps))
-        # D = sp_linop.Multiply(dcf.shape, mvd(xp.sqrt(dcf)))
-        return recon, A, dcf
-    return run_sigpy_sense_recon, sp_linop
-
-
-@app.cell
-def __(ksp, mps, rearrange, run_sigpy_sense_recon, trj):
-    print(ksp.shape)
-    print(trj.shape)
-    print(mps.shape)
-    ksp_sp = rearrange(ksp.detach().cpu().numpy(),
-                      'C R K -> C K R')
-    recon_sp, A, dcf = run_sigpy_sense_recon(ksp_sp, trj, mps, None, lam=0.1, device_idx=0)
-    return A, dcf, ksp_sp, recon_sp
-
-
-@app.cell
-def __(np, plt, recon_sp):
-    plt.imshow(np.abs(recon_sp.get()))
-    return
-
-
-@app.cell
-def __(mo):
-    mo.md("## Sigpy + Pytorch functionality")
-    return
-
-
-@app.cell
-def __(CGHparams, ConjugateGradient, ksp_sp, sp, torch):
-    from sigpy.app import LinearLeastSquares
-    def sigpy_pytorch_solve(A, dcf, ksp, device_idx):
-        def mvd(x):
-            return sp.to_device(x, sp.Device(device_idx))
-        def mvc(x):
-            return sp.to_device(x, sp.cpu_device)
-        xp = sp.Device(device_idx).xp
-        AHA = sp.to_pytorch_function(A.N, input_iscomplex=True, output_iscomplex=True)
-        AHb = A.H(xp.sqrt(mvd(dcf)) * mvd(ksp_sp))
-        AHb = sp.to_pytorch(AHb)
-        cg = ConjugateGradient(AHA.apply, hparams=CGHparams(num_iter=100))
-        recon = cg(AHb, AHb)
-        return torch.view_as_complex(recon)
-    return LinearLeastSquares, sigpy_pytorch_solve
-
-
-@app.cell
-def __(A, dcf, ksp_sp, sigpy_pytorch_solve):
-    recon_sp2 = sigpy_pytorch_solve(A, dcf, ksp_sp, device_idx=0)
-    return recon_sp2,
-
-
-@app.cell
-def __(np, plt, recon_sp2):
-    plt.imshow(np.abs(recon_sp2.detach().cpu().numpy()))
-    return
-
-
-@app.cell
-def __():
-    return
-
-
-@app.cell
-def __():
-    return
 
 
 if __name__ == "__main__":
