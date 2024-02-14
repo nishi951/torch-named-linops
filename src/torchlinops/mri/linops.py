@@ -68,9 +68,6 @@ class NUFFT(NamedLinop):
         x: [A...  Nx Ny [Nz]] # A... may include coils
         trj: [B... K D] (sigpy-style)
         output: [A... B... K]
-        Note:
-        - tkbn doesn't support batching over multiple non-trajectory dims, so we have to do this manually
-
         """
         y = spnufft.nufft(x, trj, **self.nufft_kwargs)
         return y
@@ -122,9 +119,9 @@ class NUFFT(NamedLinop):
 
     def size_fn(self, dim: str, trj):
         if dim == self.readout_dim:
-            return trj.shape[-1]
-        elif dim == self.oshape[0]:
-            return trj.shape[0]
+            return trj.shape[-2]
+        # elif dim == self.oshape[0]:
+        #     return trj.shape[0]
         return None
 
 
@@ -240,24 +237,16 @@ class TorchNUFFT(NamedLinop):
             im_size=self.im_size,
             in_batch_shape=self.in_batch_shape,
             out_batch_shape=self.out_batch_shape,
-            coil_dim=self.coil_dim,
             readout_dim=self.readout_dim,
             norm=self.norm,
             kbnufft_kwargs=self.kbnufft_kwargs,
         )
 
     def split_forward_fn(self, ibatch, obatch, trj):
-        # if self.coil_dim is None:
-        #     # obatch is [... K]
-        #     trj_slc = obatch[:-1] + [slice(None)] + obatch[-1:]
-        # else:
-        #     # obatch is [... C K]
-        #     trj_slc = obatch[:-2] + [slice(None)] + obatch[-1:]
-
         # Get slice corresponding to trj
         B_slc = obatch[len(self.in_batch_shape):]
         # Add a free dim for the D dimension
-        trj_slc = obatch[:-1] + [slice(None)] + obatch[-1:]
+        trj_slc = B_slc + [slice(None)]
         return trj[trj_slc]
 
     def size(self, dim: str):
