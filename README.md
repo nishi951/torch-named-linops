@@ -1,16 +1,20 @@
-# Torch LinOp
-A selection of linop abstractions implemented in PyTorch.
+# Torchlinops
+A library for fast MRI reconstruction and prototyping.
 
-Attempts to be matrix-free.
+Includes:
 
-Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_linops)
+- A selection of linop abstractions implemented in PyTorch.
+  - Supports named dimensions and slicing/batching over them.
+- A set of `app`s that encapsulate common recon or prototyping tasks.
 
-Support for fast normal operators and batching across matrix dimensions.
+Note: this project is Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_linops)
 
 
-# Features
+# Linops
+
+## Features
 - Full support for complex numbers
-  - Adjoint should take the conjugate transpose
+  - Adjoint takes the conjugate transpose
 - Linear Operator Types
   - Diagonal: Elementwise multiply
   - Dense: Regular matrix multiplication
@@ -23,15 +27,14 @@ Support for fast normal operators and batching across matrix dimensions.
 - Slicing Linear Operators
   - Related to Split - Allows for batching the computation in arbitrary ways
     - Saves GPU memory
-- Simplify Chains of Linear Operators
+- Functional interface
+  - For when the linear operators need to change e.g. each batch of data (machine learning)
+  - Compatible with splitting/slicing of linops as well.
+- TODO: Automatic simplification of chains of linear operators
   - For example, Split followed by Stack simplifies to Identity
     - ...if the splitting and stacking is done along the same dimension.
-- Functional interface
-  - For when the linear operators need to change e.g. each batch (machine learning)
-- Batching over multiple linops
-  - For example, if a dimension is expanded and later combined.
 
-# Implementation
+## Implementation Strategy
 - Data structures
   - The linop data
     - Stores the actual data for the linop
@@ -44,10 +47,9 @@ Support for fast normal operators and batching across matrix dimensions.
 ## Batching strategy
 - Batch object in tiling.py
 
+# MRI
 
-# TODO
-- LinOp
-  - forward
-  - adjoint
-  - normal
+# Project organization
+
+# Unit Testing
 

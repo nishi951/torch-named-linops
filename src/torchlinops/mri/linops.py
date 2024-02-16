@@ -9,6 +9,7 @@ from torchkbnufft import KbNufft, KbNufftAdjoint
 from sigpy import linop as sp_linop
 
 from ..core.base import NamedLinop
+from ..core.shapes import get2dor3d
 from . import _sp_nufft as spnufft
 
 __all__ = [
@@ -18,14 +19,6 @@ __all__ = [
 ]
 
 
-def get2dor3d(im_size, kspace=False):
-    if len(im_size) == 2:
-        im_dim = ('Kx', 'Ky') if kspace else ('Nx', 'Ny')
-    elif len(im_size) == 3:
-        im_dim = ('Kx', 'Ky', 'Kz') if kspace else ('Nx', 'Ny')
-    else:
-        raise ValueError(f'Image size {im_size} - should have length 2 or 3')
-    return im_dim
 
 
 class NUFFT(NamedLinop):
