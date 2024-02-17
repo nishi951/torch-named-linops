@@ -9,9 +9,8 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from metrics import l2_grad_norm, l2_loss, ptol
-from recon.transforms import abs_quantile_normalize
-from utils import Timer
+from .metrics import l2_grad_norm, l2_loss, ptol
+from torchlinops.utils import Timer
 
 __all__ = ['FISTA', 'FISTAHparams']
 
@@ -137,54 +136,3 @@ class FISTA(nn.Module):
         log.grad_norm = l2_grad_norm(gr, x, b, self.A, self.AH, self.AHA, AHb).item()
         self.logs.append((iteration, log))
         return log
-
-
-
-def FISTA_fn(A, AH, b, proxop, num_iters, lr=1., init=None, AHb=None):
-    """FISTA algorithm with fixed step size
-    in pytorch (functional form)
-    can optionally specify initialization
-    can specify AHb if it's already computed
-    """
-    AHb = AHb if AHb is not None else AH.apply(b)
-
-    if init is None:
-        print(">> Starting reconstruction from AHb.", flush=True)
-        x = AHb.clone().detach()
-    else:
-        print(">> Starting reconstruction from init.", flush=True)
-        x = init.clone().detach()
-    z = x.clone()
-    ptol = None
-
-    if num_iters <= 0:
-        return (x, ptol)
-
-    print(">> Starting iterations: ", flush=True)
-    log = []
-    for k in tqdm(range(num_iters), total=num_iters):
-        #print(">>> Starting iteration %03d... " % k, end="", flush=True)
-        start_time = time.perf_counter()
-        x_old = x.clone()
-        x     = z.clone()
-
-        gr    = AH.apply(A.apply(x)) - AHb
-        x     = proxop.apply(1, x - lr*gr)
-        if k == 0:
-            z = x
-        else:
-            step  = k/(k + 3)
-            z     = x + step * (x - x_old)
-        end_time = time.perf_counter()
-        # print("done. Time taken: %0.2f seconds." % (end_time - start_time),
-        #       flush=True)
-        res = EasyDict({
-            'x': x.clone().detach(),
-            'z': z.clone().detach(),
-        })
-        log.append(struct2np(res))
-    with torch.no_grad():
-        ptol = 100 * torch.linalg.norm(x_old - x)/torch.linalg.norm(x)
-        print(">> Iterative tolerance percentage achieved: %0.2f" % ptol.item(),
-              flush=True)
-    return (log, ptol)
