@@ -75,7 +75,8 @@ class FISTA(nn.Module):
             if AHb is not None:
                 x = AHb.clone()
             elif b is not None:
-                x = self.AH(b)
+                AHb = self.AH(b)
+                x = AHb.clone()
         else:
             logger.debug('Initialized from argument')
             x = init
