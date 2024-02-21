@@ -45,6 +45,7 @@ dependencies:
      - pymapvbvd # Loading Siemens twix files
      - pytorch_memlab
      - pyyaml
+     - ruff          # Better linting in Rust
      - sigpy==0.1.25 # here bc of python 3.10 I think
      - tensorboard
      - torchgeometry

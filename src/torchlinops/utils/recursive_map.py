@@ -1,4 +1,6 @@
 """Recursive mapping on data with function"""
+from typing import Callable, Mapping, Optional
+
 import torch
 import numpy as np
 import cupy as cp
@@ -7,6 +9,7 @@ __all__ = [
     'recursive_map',
     'struct2np',
     'apply_struct',
+    'numpy2torch',
 ]
 
 is_array = lambda x: isinstance(x, np.ndarray) or isinstance(x, cp.ndarray) or isinstance(x, torch.Tensor)
@@ -36,7 +39,7 @@ def struct2np(data):
 def apply_struct(struct, fn: Callable, condition: Callable):
     if condition(struct):
         return fn(struct)
-    if isinstance(struct, dict):
+    if isinstance(struct, Mapping):
         kv_pairs = struct.items()
     elif isinstance(struct, list):
         kv_pairs = enumerate(struct)
@@ -45,3 +48,10 @@ def apply_struct(struct, fn: Callable, condition: Callable):
     for k, v in kv_pairs:
         struct[k] = apply_struct(v, fn, condition)
     return struct
+
+def numpy2torch(data, device: Optional[torch.device] = None):
+    return apply_struct(
+        data,
+        lambda x: torch.from_numpy(x).to(device),
+        lambda x: isinstance(x, np.ndarray),
+    )

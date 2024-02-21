@@ -1,5 +1,4 @@
-from dataclasses import dataclass, field, asdict
-from typing import Optional, Literal
+from dataclasses import dataclass, field
 
 import numpy as np
 

@@ -1,6 +1,5 @@
 from typing import Tuple, Optional, Mapping
 
-import torch
 import sigpy as sp
 import numpy as np
 

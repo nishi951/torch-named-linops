@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Callable, Union
+from typing import Tuple, Optional, Callable, Union
 
 from einops import rearrange
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from .block import Block
 

@@ -1,23 +1,20 @@
 from dataclasses import dataclass, field, asdict
 from math import ceil
-import os
 from pathlib import Path
 try:
     import cPickle as pickle
 except ImportError:
-    import pickle
+    pass
 from typing import Optional, Mapping, Callable
 import logging
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-from torchlinops.utils import mkdir, save_yaml_options, apply_struct
+from torchlinops.utils import apply_struct
 
 logger = logging.getLogger(__name__)
 

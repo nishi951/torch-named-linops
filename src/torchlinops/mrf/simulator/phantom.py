@@ -1,7 +1,6 @@
 from typing import Optional
 
 import numpy as np
-import sigpy as sp
 from sigpy.sim import rotation_matrix, sl_scales, sl_offsets, sl_angles
 
 __all__ = [

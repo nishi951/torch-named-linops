@@ -58,13 +58,13 @@ class ConjugateGradient(nn.Module):
 
     def update(self, x, p, r, rsold):
         # Compute step size
-        logger.debug(f'Computing step size alpha...')
+        logger.debug('Computing step size alpha...')
         Ap = self.A(p)
         pAp = self.zdot(p, Ap)
         alpha = (rsold / pAp)
 
         # Take step
-        logger.debug(f'Taking step...')
+        logger.debug('Taking step...')
         x = x + alpha * p
         r = r - alpha * Ap
         rsnew = self.zdot_single(r)
@@ -103,32 +103,3 @@ class ConjugateGradient(nn.Module):
             self.rs.append(rsold.item())
             self.xs.append(x.clone().detach().cpu().numpy())
         return x
-
-
-class PowerMethod(nn.Module):
-    """
-    Implementation of power method to compute singular values of batch
-    of matrices.
-    """
-    def __init__(self, num_iter, eps=1e-6):
-        super(PowerMethod, self).__init__()
-
-        self.num_iter = num_iter
-        self.eps = eps
-
-    def forward(self, A):
-        # get data dimensions
-        batch_size, m, n = A.shape
-
-        # initialize random eigenvector directly on device
-        v = torch.rand((batch_size, n, 1), dtype=torch.complex64, device=A.device)
-
-        # compute A^H A
-        AhA = torch.bmm(A.conj().permute(0, 2, 1), A)
-
-        for _ in range(self.num_iter):
-            v = torch.bmm(AhA, v)
-            eigenvals = (torch.abs(v) ** 2).sum(1).sqrt()
-            v = v / (eigenvals.reshape(batch_size, 1, 1) + self.eps)
-
-        return eigenvals.reshape(batch_size)

@@ -23,6 +23,7 @@ class FISTA:
             log_every: int = 1,
             state_every: int = 1,
     ):
+        device = b.device
         if max_eig is None:
             power_method = PowerMethod(num_iter=max_eig_iters)
             max_eig = power_method(A.N, ishape, device)

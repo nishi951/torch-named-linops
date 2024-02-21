@@ -1,6 +1,4 @@
-from typing import Tuple
 
-from einops import rearrange
 import torch
 
 from .base import NamedLinop

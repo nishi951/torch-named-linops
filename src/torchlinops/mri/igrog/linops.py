@@ -3,8 +3,8 @@ from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 
-from ...core.base import NamedLinop
-from .indexing import ravel, multi_grid
+from ...core.linops import NamedLinop
+from .indexing import multi_grid
 from ..linops import get2dor3d
 
 __all__ = [
@@ -67,8 +67,10 @@ class GriddedNUFFT(NamedLinop):
 
         # Index
         A = x.shape[:-self.D]
-        omega = (slice(None),) * len(A) + self.trj
-        return Fx[omega]
+        batch_slc = (slice(None),) * len(A)
+        trj_split = tuple(trj[..., i] for i in range(trj.shape[-1]))
+        omega_slc = (*batch_slc, *trj_split)
+        return Fx[omega_slc]
 
     def adj_fn(self, y, /, trj):
         """

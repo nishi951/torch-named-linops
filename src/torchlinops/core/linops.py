@@ -1,5 +1,4 @@
 from copy import copy
-from inspect import signature
 from typing import Optional, Mapping
 
 import torch
@@ -99,8 +98,8 @@ class NamedLinop(nn.Module):
             # Swap shapes
             _adj.ishape, _adj.oshape  = self.oshape, self.ishape
             _adj._suffix += '.H'
-            self._adj = _adj
-        return self._adj
+            self._adj = [_adj]  # Prevent registration as a submodule
+        return self._adj[0]
 
     @property
     def N(self):
@@ -120,8 +119,8 @@ class NamedLinop(nn.Module):
             _normal.ishape = self.ishape
             _normal.oshape, _normal.ishape = self.ishape, self.ishape
             _normal._suffix += '.N'
-            self._normal = _normal
-        return self._normal
+            self._normal = [_normal] # Prevent registration as a submodule
+        return self._normal[0]
 
 
     def split(self, ibatch, obatch):
@@ -184,7 +183,7 @@ class NamedLinop(nn.Module):
 class Chain(NamedLinop):
     def __init__(self, *linops):
         super().__init__(linops[-1].ishape, linops[0].oshape)
-        self.linops = list(linops)
+        self.linops = nn.ModuleList(list(linops))
         #self.signatures = [signature(linop.fn) for linop in self.linops]
         #self._check_signatures()
         self._check_inputs_outputs()
@@ -284,17 +283,17 @@ class Chain(NamedLinop):
         if self._adj is None:
             linops = list(linop.H for linop in reversed(self.linops))
             _adj = type(self)(*linops)
-            self._adj = _adj
-        return self._adj
+            self._adj = [_adj] # Prevent registration as a submodule
+        return self._adj[0]
 
     @property
     def N(self):
         """Normal operator (is this really necessary?)"""
         if self._normal is None:
-            linops = list(linop.H for linop in reversed(self.linops)) + self.linops
+            linops = list(linop.H for linop in reversed(self.linops)) + list(self.linops)
             _normal = type(self)(*linops)
-            self._normal = _normal
-        return self._normal
+            self._normal =[_normal] # Prevent registration as a submodule
+        return self._normal[0]
 
     def split(self, *iobatches):
         """For compatibility with NamedLinop"""
@@ -323,7 +322,7 @@ class Chain(NamedLinop):
         return self.split_forward_fn(obatches, ibatches, data)
 
     def flatten(self):
-        return self.linops
+        return list(self.linops)
 
     def __getitem__(self, idx):
         return self.linops[idx]

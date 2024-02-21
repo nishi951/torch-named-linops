@@ -8,3 +8,9 @@ version = "0.0.1"
 authors = [
     { name = "Mark Nishimura", email = "markn1@stanford.edu" }
 ]
+
+[tool.ruff]
+lint.ignore = ["F403"] # from ___ import *
+
+[tool.ruff.format]
+quote-style = "single"

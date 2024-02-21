@@ -10,22 +10,6 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['PowerMethod', 'angle_criterion', 'diff_criterion']
 
-def inner(x: torch.Tensor, y: torch.Tensor):
-    return torch.sum(torch.conj(x) * y)
-
-def normalize(v: torch.Tensor, eps: float = 1e-6):
-    vnorm = torch.linalg.norm(v)
-    return v / torch.clamp(vnorm, min=eps), vnorm
-
-def angle_criterion(v, v_old, threshold):
-    angle = torch.arccos(torch.abs(inner(v_old, v)))
-    logger.debug(f'Incremental angle change: {angle:0.3f}')
-    return (angle < threshold)
-
-def diff_criterion(v, v_old, threshold):
-    diff = torch.sum(torch.abs(v - v_old) ** 2)
-    logger.debug(f'|v - v_old|^2: {diff:0.3f}')
-    return (diff < threshold)
 
 class PowerMethod(nn.Module):
     """Compute the maximum eigenvector and eigenvalue of a linear operator.
@@ -65,3 +49,24 @@ class PowerMethod(nn.Module):
                 break
 
         return v, vnorm
+
+
+def inner(x: torch.Tensor, y: torch.Tensor):
+    return torch.sum(torch.conj(x) * y)
+
+
+def normalize(v: torch.Tensor, eps: float = 1e-6):
+    vnorm = torch.linalg.norm(v)
+    return v / torch.clamp(vnorm, min=eps), vnorm
+
+
+def angle_criterion(v, v_old, threshold):
+    angle = torch.arccos(torch.abs(inner(v_old, v)))
+    logger.debug(f'Incremental angle change: {angle:0.3f}')
+    return (angle < threshold)
+
+
+def diff_criterion(v, v_old, threshold):
+    diff = torch.sum(torch.abs(v - v_old) ** 2)
+    logger.debug(f'|v - v_old|^2: {diff:0.3f}')
+    return (diff < threshold)

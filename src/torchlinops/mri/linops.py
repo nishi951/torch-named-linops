@@ -2,13 +2,11 @@ from math import prod # Numpy prod returns floats
 from typing import Optional, Tuple
 
 from einops import rearrange
-import numpy as np
 import torch
 import torch.nn as nn
 from torchkbnufft import KbNufft, KbNufftAdjoint
-from sigpy import linop as sp_linop
 
-from ..core.base import NamedLinop
+from ..core.linops import NamedLinop
 from ..core.shapes import get2dor3d
 from . import _sp_nufft as spnufft
 
@@ -275,7 +273,7 @@ class SENSE(NamedLinop):
         """Split over coil dim only"""
         for islc, oslc in zip(ibatch, obatch[1:]):
             if islc != oslc:
-                raise IndexError(f'SENSE currently only supports matched image input/output slicing.')
+                raise IndexError('SENSE currently only supports matched image input/output slicing.')
         return type(self)(
             self.split_forward_fn(ibatch, obatch, self.mps)
         )

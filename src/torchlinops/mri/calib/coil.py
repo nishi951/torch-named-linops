@@ -7,7 +7,7 @@ import sigpy.mri as mri
 import numpy as np
 
 from torchlinops.core.linops import Diagonal
-from torchlinops.mri.linops import NUFFT, SENSE
+from torchlinops.mri.linops import NUFFT
 from torchlinops.mri.recon.pcg import CGHparams, ConjugateGradient
 
 def sp_fft(x, dim=None):
@@ -99,7 +99,7 @@ def get_mps_kgrid(trj, ksp, im_size, calib_width, kernel_width, device_idx, **es
             'thresh': 0.05,
         }
     device = torch.device(f'cuda:{device_idx}' if device_idx >= 0 else 'cpu')
-    dcf = mri.pipe_menon_dcf(trj, im_size, device=sp.Device(device_idx))
+    dcf = mri.pipe_menon_dcf(trj, im_size, device=sp.Device(device_idx), show_pbar=False)
     xp = sp.get_device(dcf).xp
     dcf /= xp.linalg.norm(dcf)
     kgrid = synth_cal(trj, ksp, calib_width, dcf, device)
