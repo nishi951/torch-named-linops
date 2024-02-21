@@ -128,43 +128,6 @@ def create_kernel(
         kernel[i, i] += 1.0
     return kernel.view(*((window_range,) + (1,) + window_size))
 
-def test_kernel():
-    kernel = create_kernel(window_size=(3, 3, 3))
-    breakpoint()
-
-def test_block_select():
-    x = torch.randn(1, 1, 220, 220, 220)
-    window_size = (8, 8, 8)
-    stride = 1
-
-    x_blocks = block_select(x, window_size, stride)
-    breakpoint()
-
-def test_blocking_easy():
-    torch.backends.cudnn.deterministic = True
-    block = Block(block_size=(6, 6), block_stride=(6, 6))
-    x = torch.randn(2, 2, 18, 24)
-    print('x shape:', x.shape)
-    y, nblocks = block(x)
-    print('y shape:', y.shape)
-    z = block.adjoint(y, nblocks)
-    print('z shape:', z.shape)
-    assert x.shape == z.shape
-    assert (x == z).all().item()
-
-def test_blocking_medium():
-    torch.backends.cudnn.deterministic = True
-    block = Block(block_size=(6, 6), block_stride=(3, 3))
-    x = torch.randn(1, 1, 18, 24)
-    y, nblocks = block(x)
-    z = block.adjoint(y, nblocks)
-    breakpoint()
-
-def test_blocking_norm():
-    torch.backends.cudnn.deterministic = True
-    block = Block(block_size=(6, 6), block_stride=(3, 3))
-    weights = block.precompute_normalization(test_shape=(18, 24))
-    breakpoint()
 
 
 ####################################
