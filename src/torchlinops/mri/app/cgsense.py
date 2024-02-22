@@ -5,13 +5,14 @@ import torch
 from torchlinops.core import fake_dims
 from torchlinops.core.linops import Diagonal
 from torchlinops.mri.linops import NUFFT, SENSE
-from torchlinops.mri.igrog.linops import GriddedNUFFT
+from torchlinops.mri.gridding.linops import GriddedNUFFT
 
 from ...app.cg import ConjugateGradient
 
 __all__= ['CGSENSE']
 
 class CGSENSE:
+    """Reconstruct a single image from kspace measurements"""
     def __init__(
             self,
             ksp: torch.Tensor,
