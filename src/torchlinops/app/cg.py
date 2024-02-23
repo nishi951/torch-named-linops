@@ -37,5 +37,11 @@ class ConjugateGradient:
         self.cg_hparams = cg_hparams(num_iter)
         self.cg = cg(A, self.cg_hparams)
 
-    def run(self):
+    def run(self) -> torch.Tensor:
+        """Run the actual conjugate gradient algorithm.
+
+        Returns
+        -------
+        torch.Tensor : The estimate of x
+        """
         return self.cg(y=self.b, x_init=self.x_init)

@@ -2,7 +2,7 @@ import itertools
 
 __all__ = [
     'batch_iterator',
-    'dict_product'
+    'dict_product',
 ]
 
 def batch_iterator(total, batch_size):

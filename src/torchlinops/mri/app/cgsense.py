@@ -60,5 +60,5 @@ class CGSENSE:
             num_iter=num_iter,
         )
 
-    def run(self):
+    def run(self) -> torch.Tensor:
         return self.cg_app.run()

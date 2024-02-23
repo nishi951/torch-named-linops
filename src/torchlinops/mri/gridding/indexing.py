@@ -18,9 +18,9 @@ def ravel(x: torch.Tensor, shape: Tuple, dim: int):
     """
     out = 0
     for s, i in zip(shape, range(x.shape[dim]-1)):
-        out = s * (out + torch.select(x, dim, i))
-    out += torch.select(x, dim, -1)
-    return torch.remainder(out, prod(shape))
+        out = s * (out + torch.remainder(torch.select(x, dim, i), s))
+    out += torch.remainder(torch.select(x, dim, -1), shape[-1])
+    return out
 
 def multi_grid(x: torch.Tensor, idx: torch.Tensor, final_size: Tuple, raveled: bool = False):
     """Grid values in x to im_size with indices given in idx

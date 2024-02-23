@@ -6,6 +6,8 @@ import numpy as np
 from torchlinops.mri.calib.coil import get_mps_kgrid
 
 class Calib:
+    """Compute sensitivity maps from high-res, noncartesian data.
+    """
     def __init__(
             self,
             trj: np.ndarray,
@@ -16,6 +18,18 @@ class Calib:
             device: sp.Device = sp.cpu_device,
             espirit_kwargs: Optional[Mapping] = None,
     ):
+        """
+        Parameters
+        ----------
+        trj: [... K D] np.ndarray
+            kspace trajectory
+        ksp: [C ... K D] np.ndarray
+            Collected kspace data
+        im_size: Tuple
+            Size of sensitivity maps to output
+
+
+        """
         self.trj = trj
         self.ksp = ksp
         self.im_size = im_size

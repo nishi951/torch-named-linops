@@ -19,11 +19,11 @@ def __():
     import sigpy.mri as mri
 
     from torchlinops.mri.recon.pcg import CGHparams, ConjugateGradient
-    from torchlinops.core.base import NamedLinop
+    from torchlinops.core.linops import NamedLinop
     from torchlinops.core.linops import Diagonal, Identity
     from torchlinops.mri.linops import NUFFT, SENSE
-    from torchlinops.mri.igrog.linops import GriddedNUFFT
-    from torchlinops.app.calib import Calib
+    from torchlinops.mri.gridding.linops import GriddedNUFFT
+    from torchlinops.mri.app.calib import Calib
 
     from mr_sim.trajectory.trj import spiral_2d, tgas_spi
     return (
@@ -73,6 +73,7 @@ def __(
         # Trajectory
         if len(im_size) == 2:
             trj = spiral_2d(im_size)
+            trj = rearrange(trj, 'K R D -> R K D')
         elif len(im_size) == 3:
             trj = tgas_spi(im_size, ntr=500)
         else:
@@ -114,16 +115,19 @@ def __(
     im_size = (100, 100)
     num_coils = 8
     img, trj, mps = gen_mri_dataset(im_size, num_coils)
-
+    trj = np.round(trj)
     # Non-cartesian version
     linop = get_sp_linop(im_size, trj, mps)
     ksp = simulate(linop, img, sigma=0.01)
+    print(ksp.shape)
+    ksp = rearrange(ksp, 'C K R -> C R K')
+    print(ksp.shape)
 
     # Gridded version
     grid_linop = get_gridded_linop(im_size, trj, mps)
     ksp_grid = simulate(grid_linop, img, sigma=0.01)
-    print(ksp.shape)
-    print(ksp_grid.shape)
+    # print(ksp.shape)
+    # print(ksp_grid.shape)
     return (
         gen_mri_dataset,
         get_gridded_linop,
@@ -177,8 +181,8 @@ def __(coil_idx, grid_linop, img, mps, np, plt, trj, trj_idx):
 @app.cell
 def __(coil_idx, ksp, ksp_grid, np, plt, trj_idx):
     # Plot simulated kspace
-    readout = ksp[coil_idx.value, trj_idx.value].detach().cpu().numpy()
-    readout_grid = ksp_grid[coil_idx.value, trj_idx.value].detach().cpu().numpy()
+    readout = ksp[coil_idx.value, :, trj_idx.value].detach().cpu().numpy()
+    readout_grid = ksp_grid[coil_idx.value, :, trj_idx.value].detach().cpu().numpy()
 
     fig2, ax2 = plt.subplots(nrows=2, ncols=1)
     ax2[0].plot(np.abs(readout))
@@ -209,8 +213,10 @@ def __(Calib, fft, im_size, ksp, mo, sp, trj):
         x = fft.ifftn(x, dim=dim, norm='ortho')
         x = fft.fftshift(x, dim=dim)
         return x
+    print(ksp.shape)
     mps_recon, kgrid = Calib(
-        trj, ksp,
+        trj,
+        ksp.detach().cpu().numpy(),
         im_size=im_size,
         calib_width=24,
         kernel_width=7,
@@ -270,12 +276,13 @@ def __(
     SENSE,
     TorchNUFFT,
     functools,
-    ksp_grid_np,
+    ksp,
     mps_recon,
     np,
+    rearrange,
     to_tkbn,
     torch,
-    trj_grid_np,
+    trj,
 ):
     # def get_mps_kgrid(trj, ksp, im_size, calib_width, kernel_width, device_idx, **espirit_kwargs):
 
@@ -386,7 +393,12 @@ def __(
         S = SENSE(mps).to(device)
 
         A = (D @ F @ S).to(device)
+        print(ksp.shape)
+        print(D.ishape)
+        print(D.oshape)
+        print(A.H.ishape)
         AHb = A.H(D(ksp)).to(device)
+        print(A.H.ishape)
         def A_reg(x):
             return A.N(x) + lam*x
         cg = ConjugateGradient(A_reg, hparams=CGHparams(num_iter=num_iter)
@@ -400,7 +412,14 @@ def __(
 
     @functools.cache
     def recon_interactive_grid(num_iter: int, lam: float):
-        return sp_cgsense_grid(ksp_grid_np, trj_grid_np, mps_recon, lam=lam, num_iter=num_iter, device_idx=0).detach().cpu().numpy()
+        return sp_cgsense_grid(
+            ksp.detach().cpu().numpy(),
+            np.round(rearrange(trj, 'K R D -> R K D')),
+            mps_recon,
+            lam=lam,
+            num_iter=num_iter,
+            device_idx=0
+        ).detach().cpu().numpy()
     return cgsense, recon_interactive_grid, sp_cgsense, sp_cgsense_grid
 
 

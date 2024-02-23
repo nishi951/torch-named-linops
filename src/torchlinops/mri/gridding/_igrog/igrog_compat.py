@@ -31,7 +31,11 @@ def grogify(
     ksp = rearrange(ksp, 'C ... K -> C K ...')
 
     igrg = igrog(im_size=im_size, gparams=gparams, device_idx=device_idx)
-    trj_grd, ksp_igrg = igrg.grogify(trj, ksp, ksp_cal)
-    return trj_grd, ksp_igrg, igrog
+    trj_grd, ksp_grd = igrg.grogify(trj, ksp, ksp_cal)
+
+    trj_grd = rearrange(trj_grd, 'K ... D -> ... K D')
+    ksp_grd = rearrange(ksp_grd, 'C K ... -> C ... K')
+
+    return trj_grd, ksp_grd, igrog
 
 # TODO: Field object for field correction

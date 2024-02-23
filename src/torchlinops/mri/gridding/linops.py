@@ -63,6 +63,7 @@ class GriddedNUFFT(NamedLinop):
         output: [A... B... K]
         """
         # FFT
+        x = torch.fft.ifftshift(x, dim=self.fft_dim)
         Fx = torch.fft.fftn(x, dim=self.fft_dim, norm='ortho')
 
         # Index
@@ -83,6 +84,7 @@ class GriddedNUFFT(NamedLinop):
 
         # IFFT
         x = torch.fft.ifftn(Fx, dim=self.fft_dim, norm='ortho')
+        x = torch.fft.fftshift(x, dim=self.fft_dim)
         return x
 
     def split_forward(self, ibatch, obatch):
