@@ -7,3 +7,6 @@
 [submodule "libraries/mr_sim"]
 	path = libraries/mr_sim
 	url = git@github.com:nishi951/mr_sim.git
+[submodule "libraries/mr_recon"]
+	path = libraries/mr_recon
+	url = git@github.com:danielabrahamgit/mr_recon.git
