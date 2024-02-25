@@ -13,6 +13,8 @@ __all__ = [
     'Diagonal',
     'FFT',
     'Repeat',
+    'Identity',
+    'Add',
     'Scalar',
 ]
 
@@ -485,6 +487,7 @@ class Dense(NamedLinop):
     def __init__(self, weight, weightshape, ishape, oshape):
         super().__init__(ishape, oshape)
         self.weight = weight
+        self.weightshape = weightshape
         self.einstr = f'{" ".join(self.ishape)},{" ".join(self.weightshape)}->{" ".join(self.oshape)}'
         self.adj_einstr = f'{" ".join(self.oshape)},{" ".join(self.weightshape)}->{" ".join(self.ishape)}'
 

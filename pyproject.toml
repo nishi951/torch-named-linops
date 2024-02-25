@@ -14,3 +14,10 @@ lint.ignore = ["F403"] # from ___ import *
 
 [tool.ruff.format]
 quote-style = "single"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"# --ignore libraries --ignore notebooks"
+testpaths = [
+    "test",
+]

@@ -253,10 +253,20 @@ class TorchNUFFT(NamedLinop):
 
 
 class SENSE(NamedLinop):
-    def __init__(self, mps: torch.Tensor, coil_str: str = 'C'):
-        im_size = mps.shape[1:]
-        im_shape = get2dor3d(im_size, kspace=False)
-        super().__init__(im_shape, (coil_str, *im_shape))
+    def __init__(
+            self,
+            mps: torch.Tensor,
+            coil_str: str = 'C',
+            in_batch_shape: Optional[Tuple] = None,
+            out_batch_shape: Optional[Tuple] = None,
+    ):
+        self.im_size = mps.shape[1:]
+        self.D = len(im_size)
+        self.coildim = -(self.D + 1)
+        self.in_batch_shape = in_batch_shape if in_batch_shape is not None else tuple()
+        ishape = self.in_batch_shape + get2dor3d(im_size)
+        oshape = self.in_batch_shape + (coil_str,) + get2dor3d(im_size)
+        super().__init__(ishape, oshape)
         self.coil_str = coil_str
         self.mps = nn.Parameter(mps, requires_grad=False)
 
@@ -264,14 +274,14 @@ class SENSE(NamedLinop):
         return self.fn(x, self.mps)
 
     def fn(self, x, /, mps):
-        return x * mps
+        return x.unsqueeze(self.coildim) * mps
 
     def adj_fn(self, x, /, mps):
-        return torch.sum(x * torch.conj(mps), dim=0)
+        return torch.sum(x * torch.conj(mps), dim=self.coildim)
 
     def split_forward(self, ibatch, obatch):
         """Split over coil dim only"""
-        for islc, oslc in zip(ibatch, obatch[1:]):
+        for islc, oslc in zip(ibatch[-self.D:], obatch[-self.D:]):
             if islc != oslc:
                 raise IndexError('SENSE currently only supports matched image input/output slicing.')
         return type(self)(
@@ -279,12 +289,12 @@ class SENSE(NamedLinop):
         )
 
     def split_forward_fn(self, ibatch, obatch, /, weight):
-        return self.mps[obatch]
+        return self.mps[obatch[self.coildim:]]
 
     def size(self, dim: str):
         return self.size_fn(dim, self.mps)
 
     def size_fn(self, dim: str, mps):
-        if dim in self.oshape:
+        if dim in self.oshape[self.coildim:]:
             return mps.shape[self.oshape.index(dim)]
         return None

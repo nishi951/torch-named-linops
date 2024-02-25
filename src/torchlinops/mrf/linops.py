@@ -1,62 +1,15 @@
-import torch
-import torch.nn as nn
 
-from ..core.linop import LinearOperator
 
-__all__ = [
-    'SenseMapsLinop'
-]
+def subspace_linop(trj, mps, phi, dcf, gridded: bool = False):
+    P = Dense(phi)
+    S = SENSE()
+    F = NUFFT()
+    A = F @ S @ P
+    if dcf is not None:
+        D = Diagonal()
+        A = D @ A
+    return A
 
-class SenseMapsLinop(LinearOperator):
-    def __init__(
-            self,
-            mps: torch.Tensor,
-    ):
-        """
-        C: number of coils
-        im_size: Image size (tuple)
-        mps: [C *im_size]
-        """
-        img_dim = len(mps.shape[1:])
-        if img_dim == 2:
-            im_size = ('x', 'y')
-        elif img_dim == 3:
-            im_size = ('x', 'y', 'z')
-        else:
-            raise ValueError('Only 2D or 3D sense maps are currently supported.')
-        input_names = im_size
-        output_names = ('C', *im_size)
-        super().__init__(
-            input_shape=mps.shape[1:],
-            input_names=input_names,
-            output_shape=mps.shape,
-            output_names=output_names
-        )
-        self.mps = nn.Parameter(mps, requires_grad=False)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.mps * x
-
-    def __getitem__(self, idx):
-        return SenseMapsLinop(self.mps[idx])
-
-class Multiply(LinearOperator):
-    def __init__(self, A, input_names, output_names):
-        self.A = A
-        input_shape = A.shape
-        output_shape = A.shape
-        super().__init__(
-            input_shape=input_shape,
-            input_names=input_names,
-            output_shape=output_shape,
-            output_names=output_names,
-        )
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.A * x
-
-    def __getitem__(self, idx):
-        return DiagonalLinop(self.A[idx], self.input_names, self.output_names)
-
-class NUFFT(LinearOperator):
-    def __init__(self, trj):
-        ...
+A = Batch(subspace_linop(), ...)
+A.N # Should be batched here
+A.H # Should be batched here too
