@@ -1,5 +1,7 @@
 
 def test_vanilla():
+    """This one is for testing various hyperparameter configurations
+    """
     # Make dataset
     datamodule = DataModule(data, datamodule_hparams) # Includes preprocessing
     train_dataloader = datamodule.train_dataloader()
@@ -19,7 +21,7 @@ def test_vanilla():
 
 
 def test_vanilla_app():
+    """This one is for testing the default app
+    """
     data_grd = VanillaImplicitGROG(data).run()
     ...
-
-    du
