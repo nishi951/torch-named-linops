@@ -1,15 +1,20 @@
-from .callbacks import (
-    AbstractTrainingCallback,
-    topological_sort_callbacks as sort_callbacks,
-    GlobalStep,
-    EpochStep,
-)
+from dataclasses import dataclass
+from typing import Optional, Tuple, List, Mapping
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from tqdm import tqdm
+
+
+from utils import EventManager
+
+from .. import AbstractTrainer
 
 
 @dataclass
 class TrainingState:
     model: nn.Module
-    loss_fn: nn.Module
     optimizer: Optional[optim.Optimizer] = None
     scheduler: Optional[optim.lr_scheduler] = None
     features: Optional[Mapping] = None
@@ -21,7 +26,7 @@ class TrainingState:
 
 
 @dataclass
-class AdamHparams:
+class AdamConfig:
     lr: float = 5e-4
     betas: Tuple[float, float] = (0.9, 0.9990)
     fused: bool = True
@@ -29,52 +34,49 @@ class AdamHparams:
 
 
 @dataclass
-class MultiStepLRHparams:
+class MultiStepLRConfig:
     milestones: List[int]
     gamma: float
 
 
 @dataclass
-class BasicTrainerHparams:
+class BasicTrainerConfig:
     num_epochs: int
-    optimizer_hparams: AdamHparams
-    scheduler_hparams: Optional[MultiStepLRHparams] = None
+    optimizer_config: AdamConfig
+    scheduler_config: Optional[MultiStepLRConfig] = None
 
 
-class BasicTrainer:
-    def __init__(self, hparams: BasicTrainerHparams, handlers=None):
-        self.hparams = hparams
-        self.handlers = defaultdict(list)
-
-        # Default handlers
-        if handlers is None:
-            self.register_handler('train_step_ended', GlobalStep())
-            self.register_handler('epoch_ended', EpochStep())
+class BasicTrainer(AbstractTrainer):
+    def __init__(
+        self, config: BasicTrainerConfig, manager: Optional[EventManager] = None
+    ):
+        self.config = config
+        self.m = manager if manager is not None else EventManager
 
     def train(
         self,
         model,
         loss_fn,
-        train_dataloader,
+        dataloader,
         total_train_steps: Optional[int] = None,
     ):
         s = self.initialize_training_state(model, loss_fn)
         s = self.dispatch('train_started', s)
-        for epoch in tqdm(range(self.hparams.num_epochs)):
+        for epoch in tqdm(range(self.config.num_epochs)):
             s = self.dispatch('epoch_started', s)
             s.model.train()
             for s.features, s.target in tqdm(iter(dataloader), total=total_train_steps):
                 s = self.dispatch('train_step_started', s)
-                s = self.train_step(s)
+                s = self.train_step(s, loss_fn)
                 s = self.dispatch('train_step_ended', s)
             s = self.dispatch('epoch_ended', s)
         self.dispatch('train_ended', s)
         return model
 
-    def train_step(self, s: TrainingState):
+    def train_step(self, s: TrainingState, loss_fn):
         """Override if other step behavior is desirable (e.g. gradient clipping)"""
         s.pred = s.model(s.features)
-        s.loss = s.loss_fn(s.pred, s.target)
+        s.loss = loss_fn(s.pred, s.target)
         s.optimizer.zero_grad()
         s.loss.backward()
         s = self.dispatch('backward_called', s)
@@ -82,37 +84,28 @@ class BasicTrainer:
         s = self.dispatch('optimizer_stepped', s)
         return s
 
-    def register_handler(self, event, handler: AbstractTrainingCallback, sort_now: bool = True):
-        self.handlers[event].append(handler)
-        if sort_now:
-            self.handlers[event] = sort_callbacks(self.handlers[event])
-
-    def dispatch(self, event, s: TrainingState):
-        for handler in self.handlers[event]:
-            s = handler(s)
-
-    def initialize_training_state(self, model, loss_fn):
-        s = TrainingState(model=model, loss_fn=loss_fn)
-        s.optimizer = self.make_optimizer(model)
-        s.scheduler = self.make_scheduler(s.optimizer)
+    def initialize_training_state(self, model):
+        s = TrainingState(model=model)
+        s.optimizer = self.build_optimizer(model)
+        s.scheduler = self.build_scheduler(s.optimizer)
         return s
 
-    def make_optimizer(self, model):
+    def build_optimizer(self, model):
         """Override for custom behavior"""
         return optim.Adam(
             model.parameters(),
-            lr=self.hparams.optimizer_hparams.lr,
-            betas=self.hparams.optimizer_hparams.betas,
+            lr=self.config.optimizer_config.lr,
+            betas=self.config.optimizer_config.betas,
         )
 
-    def make_scheduler(self, optimizer):
+    def build_scheduler(self, optimizer):
         """Override for custom behavior"""
-        if self.hparams.scheduler_hparams is None:
+        if self.config.scheduler_config is None:
             return None
         scheduler = optim.lr_scheduler.MultiStepLR(
             optimizer,
-            milestones=self.scheduler_hparams.milestones,
-            gamma=opt.step_scheduler_hparams.gamma,
+            milestones=self.scheduler_config.milestones,
+            gamma=self.config.scheduler_config.gamma,
             verbose=False,
         )
         return scheduler

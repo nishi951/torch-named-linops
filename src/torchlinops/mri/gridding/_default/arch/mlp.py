@@ -1,3 +1,6 @@
+from typing import Optional
+
+import torch.nn as nn
 
 class MLP(nn.Module):
     """A simple multilayered perceptron
@@ -33,4 +36,4 @@ class MLP(nn.Module):
 
 
     def forward(self, x):
-        return net
+        return self.net(x)

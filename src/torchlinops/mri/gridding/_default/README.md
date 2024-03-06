@@ -3,14 +3,19 @@
 ## Layout
 - `engine`
   - Training and evaluation code (generic)
-- `vanilla`
-  - vanilla implicit grog (no field correction)
-    - `arch`
-      - Neural network components
-- `image_based`
-  - implicit grog based on image-domain data
-- `fieldcorr`
-  - field corrected grog
+  - Variants are nested inside at levels appropriate to their level of complexity
+- `app`
+  - For fully-featured plug-and-play "apps" for performing igrog
+  - `basic`
+    - implicit grog based on k-space calibration data
+  - `image_based`
+    - implicit grog based on image-domain data
+  - `fieldcorr`
+    - field corrected grog
+- `config`
+  - Standard configurations for variants inside `app`.`
+- `arch`
+  - Neural network components
 
 ## Backend Organization (engine)
 trainer: Training loop (generic/abstract/interface) - Apply data to improve the model
