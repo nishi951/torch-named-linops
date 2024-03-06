@@ -13,7 +13,8 @@
   - `fieldcorr`
     - field corrected grog
 - `config`
-  - Standard configurations for variants inside `app`.`
+  - Standard configurations for variants inside `app`.
+    - Mostly used to help scripts with configuring igrog
 - `arch`
   - Neural network components
 
