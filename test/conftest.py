@@ -1,7 +1,18 @@
 import pytest
 
+from typing import Tuple
+
+import torch
+import numpy as np
+import sigpy as sp
+
 from mr_sim.trajectory.trj import spiral_2d, tgas_spi
 
+@pytest.fixture
+def device_idx():
+    if torch.cuda.is_available():
+        return 0 # GPU
+    return -1 # CPU
 
 
 class SyntheticDataset:

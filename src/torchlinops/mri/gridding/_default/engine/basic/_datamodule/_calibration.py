@@ -1,39 +1,5 @@
-from torch.utils.data import DataLoader, Dataset
-
+from torch.utils.data import Dataset
 import numpy as np
-
-from .. import AbstractDataModule
-
-class CalibrationDataset(Dataset):
-    def __init__(
-            self,
-            orientations: np.ndarray,
-            calib: CalibRegion,
-    ):
-        self.orientations = orientations
-        self.calib = calib
-
-    def __getitem__(self, i):
-        dk = self.orientations[i]
-        source_ksp, target_ksp = self.randomize_center_point(dk)
-        features = {
-            'dk': self.orientations[i],
-            'source_ksp': source_ksp,
-        }
-        target = {
-            'target_ksp': target_ksp,
-        }
-        return features, target
-
-    def __len__(self):
-        return len(self.orientations)
-
-    def randomize_center_point(self, dk):
-        i = np.random.randint(self.calib.valid_coords.shape[0])
-        ktarget = calib.valid_coords[i]
-        source_ksp.append(calib(ktarget + dk))
-        target_ksp.append(calib(ktarget))
-        return source_ksp, target_ksp
 
 
 class CalibRegion:
@@ -120,13 +86,33 @@ class CalibRegion:
 
         return ksp_interp
 
-@dataclass
-class BasicDataModuleConfig:
-    ...
+class CalibrationDataset(Dataset):
+    def __init__(
+            self,
+            orientations: np.ndarray,
+            calib: CalibRegion,
+    ):
+        self.orientations = orientations
+        self.calib = calib
 
-class BasicDataModule(AbstractDataModule):
-    def __init__(self, config):
-        self.config = config
+    def __getitem__(self, i):
+        dk = self.orientations[i]
+        source_ksp, target_ksp = self.randomize_center_point(dk)
+        features = {
+            'dk': self.orientations[i],
+            'source_ksp': source_ksp,
+        }
+        target = {
+            'target_ksp': target_ksp,
+        }
+        return features, target
 
-    def train_dataloader(self):
-        return DataLoader(self.train_dataset, **self.config.train_dataloader_kwargs)
+    def __len__(self):
+        return len(self.orientations)
+
+    def randomize_center_point(self, dk):
+        i = np.random.randint(self.calib.valid_coords.shape[0])
+        ktarget = calib.valid_coords[i]
+        source_ksp.append(calib(ktarget + dk))
+        target_ksp.append(calib(ktarget))
+        return source_ksp, target_ksp
