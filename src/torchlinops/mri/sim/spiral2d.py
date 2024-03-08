@@ -6,9 +6,10 @@ from einops import rearrange
 import torch
 import torch.nn as nn
 import sigpy as sp
-from ._trj import spiral_2d
 from torchlinops.mri._linops import NUFFT, SENSE
 
+from ._trj import spiral_2d
+from ._data import MRIDataset
 
 @dataclass
 class Spiral2dSimulatorConfig:
@@ -24,14 +25,6 @@ class Spiral2dSimulatorConfig:
             "s_max": 100.0,
         }
     )
-
-
-@dataclass
-class MRIDataset:
-    trj: torch.Tensor
-    mps: torch.Tensor
-    img: torch.Tensor
-    ksp: torch.Tensor
 
 
 class Spiral2dSimulator(nn.Module):
@@ -63,21 +56,23 @@ class Spiral2dSimulator(nn.Module):
             mps = torch.from_numpy(mps).to(torch.complex64)
         self.mps = nn.Parameter(mps, requires_grad=False)
 
+        # Linop
+        self.A = self.make_linop(self.trj, self.mps)
+
     @property
     def data(self) -> MRIDataset:
         if self._data is None:
-            linop = self.linop(self.trj, self.mps)
-            ksp = linop(self.img)
+            ksp = self.A(self.img)
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
             self._data = MRIDataset(self.trj.data, self.mps.data, self.img.data, ksp)
         return self._data
 
-    def linop(self, trj: torch.Tensor, mps: torch.Tensor):
-        S = SENSE(mps, in_batch_shape=("R",))
+    def make_linop(self, trj: torch.Tensor, mps: torch.Tensor):
+        S = SENSE(mps)
         F = NUFFT(
             trj,
             self.config.im_size,
             in_batch_shape=S.out_batch_shape,
-            out_batch_shape=S.out_batch_shape,
+            out_batch_shape=("R",),
         )
         return F @ S

@@ -1,23 +1,12 @@
-"""A simple tgas_spi simulated MRI dataset"""
-from dataclasses import dataclass, field
-from typing import Tuple, Mapping, Optional
-
-from einops import rearrange
-import torch
-import torch.nn as nn
-import sigpy as sp
-
-from torchlinops.mri._linops import NUFFT, SENSE
-
-from ._trj import tgas_spi
-from ._data import MRIDataset
+from ._data import SubspaceDataset
 
 @dataclass
-class TGASSPISimulatorConfig:
+class TGASSPIMRFSimulatorConfig:
     im_size: Tuple[int, int, int]
     num_coils: int
     num_TRs: int
     num_groups: int
+    num_bases: int
     groups_undersamp: float
     noise_std: float
     spiral_2d_kwargs: Mapping = field(
@@ -29,15 +18,15 @@ class TGASSPISimulatorConfig:
         }
     )
 
-
-
-class TGASSPISimulator(nn.Module):
+class TGASSPIMRFSimulator(nn.Module):
     def __init__(
         self,
-        config: TGASSPISimulatorConfig,
+        config: TGASSPIMRFSimulatorConfig,
         img: Optional[torch.Tensor] = None,
         trj: Optional[torch.Tensor] = None,
         mps: Optional[torch.Tensor] = None,
+            phi: Optional[torch.Tensor] = None,
+            dic: Optional[torch.Tensor] = None,
     ):
         super().__init__()
         self.config = config
@@ -83,6 +72,6 @@ class TGASSPISimulator(nn.Module):
             trj,
             self.config.im_size,
             in_batch_shape=S.out_batch_shape,
-            out_batch_shape=("R", "T"),
+            out_batch_shape=S.out_batch_shape,
         )
         return F @ S
