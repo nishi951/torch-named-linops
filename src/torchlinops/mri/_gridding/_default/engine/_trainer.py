@@ -1,4 +1,4 @@
-__all__ = ['AbstractTrainer']
+__all__ = ["AbstractTrainer"]
 
 
 class AbstractTrainer:

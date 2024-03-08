@@ -3,35 +3,34 @@ from typing import Optional
 import numpy as np
 from sigpy.sim import rotation_matrix, sl_scales, sl_offsets, sl_angles
 
-__all__ = [
-    'quantitative_shepp_logan'
-]
+__all__ = ["quantitative_shepp_logan"]
 
-QSL_PD = [1., 0.97, 0.98, 0.98, 0.97, 0.96, 0.96, 0.96, 0.96, 0.96] # Arbitrary units
+QSL_PD = [1.0, 0.97, 0.98, 0.98, 0.97, 0.96, 0.96, 0.96, 0.96, 0.96]  # Arbitrary units
 QSL_T1 = [
-    371.,   # Fat ring
-    800.,   # White matter
-    4000.,  # CSF
-    4000.,  # CSF
-    1193.,  # Gray matter
-    1193.,  # Gray matter
-    1000.,  # Gray matter
-    1202.,  # Gray matter
-    1242.,  # Gray matter
-    1176.,  # Gray matter
-] # ms
-QSL_T2 =[
-    68.,    # Fat
-    75.,    # White matter
-    767.,   # CSF
-    767.,   # CSF
-    109.,   # Gray matter
-    109.,   # Gray matter
-    98.,    # Gray matter
-    79.,    # Gray matter (different)
-    89.,    # Gray matter (different)
-    100.,   # Gray matter (different)
-] # ms
+    371.0,  # Fat ring
+    800.0,  # White matter
+    4000.0,  # CSF
+    4000.0,  # CSF
+    1193.0,  # Gray matter
+    1193.0,  # Gray matter
+    1000.0,  # Gray matter
+    1202.0,  # Gray matter
+    1242.0,  # Gray matter
+    1176.0,  # Gray matter
+]  # ms
+QSL_T2 = [
+    68.0,  # Fat
+    75.0,  # White matter
+    767.0,  # CSF
+    767.0,  # CSF
+    109.0,  # Gray matter
+    109.0,  # Gray matter
+    98.0,  # Gray matter
+    79.0,  # Gray matter (different)
+    89.0,  # Gray matter (different)
+    100.0,  # Gray matter (different)
+]  # ms
+
 
 def phantom_inplace(shape, amps, scales, offsets, angles, dtype):
     """
@@ -93,11 +92,11 @@ def ellipsoid_inplace(amp, scale, offset, angle, coords, out):
 
 
 def quantitative_shepp_logan(
-        im_size,
-        pd_vals: Optional[list] = None,
-        t1_vals: Optional[list] = None,
-        t2_vals: Optional[list] = None,
-        dtype=float,
+    im_size,
+    pd_vals: Optional[list] = None,
+    t1_vals: Optional[list] = None,
+    t2_vals: Optional[list] = None,
+    dtype=float,
 ):
     pd_vals = pd_vals if pd_vals is not None else QSL_PD
     t1_vals = t1_vals if t1_vals is not None else QSL_T1

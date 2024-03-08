@@ -1,14 +1,16 @@
 import itertools
 
 __all__ = [
-    'batch_iterator',
-    'dict_product',
+    "batch_iterator",
+    "dict_product",
 ]
 
+
 def batch_iterator(total, batch_size):
-    assert total > 0, f'batch_iterator called with {total} elements'
+    assert total > 0, f"batch_iterator called with {total} elements"
     delim = list(range(0, total, batch_size)) + [total]
     return zip(delim[:-1], delim[1:])
+
 
 def dict_product(input_dict):
     """Generate all possible dictionaries from a dictionary

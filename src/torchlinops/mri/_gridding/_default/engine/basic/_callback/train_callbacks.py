@@ -26,15 +26,15 @@ class TrainManager(EventManager):
 
     def __init__(self):
         self.register_handler(
-            'train_step_ended',
-            Callback('TrainStepCallback', StepCallback('global_step')),
+            "train_step_ended",
+            Callback("TrainStepCallback", StepCallback("global_step")),
         )
         self.register_handler(
-            'epoch_ended', Callback('TrainStepCallback', StepCallback('epoch'))
+            "epoch_ended", Callback("TrainStepCallback", StepCallback("epoch"))
         )
         self.log_loss_callback = LogLossCallback()
         self.register_handler(
-            'train_step_ended', Callback('LogLossCallback', self.log_loss_callback)
+            "train_step_ended", Callback("LogLossCallback", self.log_loss_callback)
         )
 
     @property

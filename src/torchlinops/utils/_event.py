@@ -3,15 +3,17 @@ from typing import Any, Callable, List
 from collections import defaultdict
 
 __all__ = [
-    'EventManager',
-    'Callback',
+    "EventManager",
+    "Callback",
 ]
+
 
 @dataclass
 class Callback:
     name: str
     fn: Callable
     deps: List[str] = field(default_factory=lambda: [])
+
 
 class EventManager:
     def __init__(self, handlers: dict = None):
@@ -24,10 +26,10 @@ class EventManager:
             self.handlers[event] = self.sort_callbacks(callbacks)
 
     def register_handler(
-            self,
-            event,
-            callback: Callback,
-            sort_now: bool = True,
+        self,
+        event,
+        callback: Callback,
+        sort_now: bool = True,
     ):
         self.handlers[event].append(callback)
         if sort_now:
@@ -62,7 +64,7 @@ class EventManager:
                     dfs(callback_map[dep_name])
                 else:
                     raise ValueError(
-                        f'Dependency {dep_name} not found for callback {cb.name}'
+                        f"Dependency {dep_name} not found for callback {cb.name}"
                     )
             # Add this callback to the sorted list
             sorted_callbacks.append(cb)

@@ -7,19 +7,21 @@ from einops import einsum, rearrange
 
 
 __all__ = [
-    'NamedLinop',
-    'Chain',
-    'Dense',
-    'Diagonal',
-    'FFT',
-    'Repeat',
-    'Identity',
-    'Add',
-    'Scalar',
+    "NamedLinop",
+    "Chain",
+    "Dense",
+    "Diagonal",
+    "FFT",
+    "Repeat",
+    "Identity",
+    "Add",
+    "Scalar",
 ]
+
 
 class NamedLinop(nn.Module):
     """Base Class for all NamedLinops"""
+
     def __init__(self, ishape, oshape):
         """ishape and oshape are symbolic, not numeric
         They also change if the adjoint is taken (!)
@@ -31,7 +33,7 @@ class NamedLinop(nn.Module):
         self._adj = None
         self._normal = None
 
-        self._suffix = ''
+        self._suffix = ""
 
     # Change the call to self.fn according to the data
     def forward(self, x: torch.Tensor):
@@ -61,12 +63,12 @@ class NamedLinop(nn.Module):
     # Override
     def split_forward(self, ibatch, obatch):
         """Return a new instance"""
-        raise NotImplementedError(f'{type(self).__name__} cannot be split.')
+        raise NotImplementedError(f"{type(self).__name__} cannot be split.")
 
     # Override
     def split_forward_fn(self, ibatch, obatch, /, data=None):
         """Return data"""
-        raise NotImplementedError(f'{type(self).__name__} cannot be split.')
+        raise NotImplementedError(f"{type(self).__name__} cannot be split.")
 
     # Override
     def size(self, dim: str):
@@ -98,8 +100,8 @@ class NamedLinop(nn.Module):
             _adj.split, _adj.adj_split = self.adj_split, self.split
             _adj.split_fn, _adj.adj_split_fn = self.split_fn, self.adj_split_fn
             # Swap shapes
-            _adj.ishape, _adj.oshape  = self.oshape, self.ishape
-            _adj._suffix += '.H'
+            _adj.ishape, _adj.oshape = self.oshape, self.ishape
+            _adj._suffix += ".H"
             self._adj = [_adj]  # Prevent registration as a submodule
         return self._adj[0]
 
@@ -107,23 +109,24 @@ class NamedLinop(nn.Module):
     def N(self):
         """Normal operator (is this really necessary?)"""
         if self._normal is None:
-        #     _normal = copy(self)
-        #     _normal._suffix += '.N'
-        #     self.normal = _normal
-        # return self._normal
+            #     _normal = copy(self)
+            #     _normal._suffix += '.N'
+            #     self.normal = _normal
+            # return self._normal
             _normal = copy(self)
             _normal.fn = self.normal_fn
             _normal.adj_fn = self.normal_fn
+
             def new_normal(x, *args, **kwargs):
                 x = self.normal_fn(x, *args, **kwargs)
                 return self.normal_fn(x, *args, **kwargs)
+
             _normal.normal_fn = new_normal
             _normal.ishape = self.ishape
             _normal.oshape, _normal.ishape = self.ishape, self.ishape
-            _normal._suffix += '.N'
-            self._normal = [_normal] # Prevent registration as a submodule
+            _normal._suffix += ".N"
+            self._normal = [_normal]  # Prevent registration as a submodule
         return self._normal[0]
-
 
     def split(self, ibatch, obatch):
         """Return a split version of the linop such that`forward`
@@ -136,7 +139,6 @@ class NamedLinop(nn.Module):
     def adj_split(self, ibatch, obatch):
         """Split the adjoint version"""
         return self.split_forward(obatch, ibatch).H
-
 
     def split_fn(self, ibatch, obatch, /, **kwargs):
         """Return split versions of the data that can be passed
@@ -159,19 +161,18 @@ class NamedLinop(nn.Module):
 
     def __add__(self, right):
         ...
+
     def __radd__(self, left):
         ...
 
     def __mul__(self, right):
-        if (isinstance(right, float) \
-            or isinstance(right, torch.Tensor)):
+        if isinstance(right, float) or isinstance(right, torch.Tensor):
             right = Scalar(weight, self.ishape)
             return self.compose(right)
         return NotImplemented
 
     def __rmul__(self, left):
-        if (isinstance(left, float) \
-            or isinstance(left, torch.Tensor)):
+        if isinstance(left, float) or isinstance(left, torch.Tensor):
             left = Scalar(weight, self.oshape)
             return left.compose(self)
         return NotImplemented
@@ -184,15 +185,19 @@ class NamedLinop(nn.Module):
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        return f'{self.__class__.__name__ + self._suffix}({self.ishape} -> {self.oshape})'
+        return (
+            f"{self.__class__.__name__ + self._suffix}({self.ishape} -> {self.oshape})"
+        )
 
 
 class Add(NamedLinop):
     def __init__(self, *linops):
-        assert all(linop.ishape == linops[0].ishape for linop in linops), \
-            'All linops must share same ishape'
-        assert all(linop.oshape == linops[0].oshape for linop in linops), \
-            'All linops must share same oshape'
+        assert all(
+            linop.ishape == linops[0].ishape for linop in linops
+        ), "All linops must share same ishape"
+        assert all(
+            linop.oshape == linops[0].oshape for linop in linops
+        ), "All linops must share same oshape"
         super().__init__(linops[0].ishape, linops[0].oshape)
         self.linops = linops
 
@@ -203,12 +208,18 @@ class Add(NamedLinop):
         return sum(linop.H(x) for linop in self.linops)
 
     def fn(self, x: torch.Tensor, /, data_list):
-        assert len(self.linops) == len(data_list), f'Length {len(data_list)} data_list does not match length {len(self.linops)} chain linop'
+        assert (
+            len(self.linops) == len(data_list)
+        ), f"Length {len(data_list)} data_list does not match length {len(self.linops)} chain linop"
         return sum(linop.fn(x, *data) for linop, data in zip(self.linops, data_list))
 
     def adj_fn(self, x: torch.Tensor, /, data_list):
-        assert len(self.linops) == len(data_list), f'Length {len(data_list)} data_list does not match length {len(self.linops)} chain adjoint linop'
-        return sum(linop.adj_fn(x, *data) for linop, data in zip(self.linops, data_list))
+        assert (
+            len(self.linops) == len(data_list)
+        ), f"Length {len(data_list)} data_list does not match length {len(self.linops)} chain adjoint linop"
+        return sum(
+            linop.adj_fn(x, *data) for linop, data in zip(self.linops, data_list)
+        )
 
     def normal_fn(self, x: torch.Tensor, /, data_list):
         # Note: Alternatively, make every possible combination of terms? Might be faster in some cases?
@@ -218,9 +229,10 @@ class Add(NamedLinop):
         """ibatches, obatches specified according to the shape of the
         forward op
         """
-        linops = [linop.split(ibatch, obatch)
-                  for linop, ibatch, obatch \
-                  in zip(self.linops, ibatches, obatches)]
+        linops = [
+            linop.split(ibatch, obatch)
+            for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
+        ]
         return type(self)(*linops)
 
     def split_forward_fn(self, ibatches, obatches, data_list):
@@ -228,9 +240,12 @@ class Add(NamedLinop):
         ibatches, obatches specified according to the shape of the
         forward op
         """
-        data = [linop.split_forward_fn(ibatch, obatch, *data)
-                for linop, ibatch, obatch, data \
-                in zip(self.linops, ibatches, obatches, data_list)]
+        data = [
+            linop.split_forward_fn(ibatch, obatch, *data)
+            for linop, ibatch, obatch, data in zip(
+                self.linops, ibatches, obatches, data_list
+            )
+        ]
         return data
 
     def size(self, dim):
@@ -256,42 +271,44 @@ class Add(NamedLinop):
         if self._adj is None:
             linops = list(linop.H for linop in reversed(self.linops))
             _adj = type(self)(*linops)
-            self._adj = [_adj] # Prevent registration as a submodule
+            self._adj = [_adj]  # Prevent registration as a submodule
         return self._adj[0]
 
     @property
     def N(self):
         """Normal operator (is this really necessary?)"""
         if self._normal is None:
-            linops = list(linop.H for linop in reversed(self.linops)) + list(self.linops)
+            linops = list(linop.H for linop in reversed(self.linops)) + list(
+                self.linops
+            )
             _normal = type(self)(*linops)
-            self._normal = [_normal] # Prevent registration as a submodule
+            self._normal = [_normal]  # Prevent registration as a submodule
         return self._normal[0]
 
     def split(self, *iobatches):
         """For compatibility with NamedLinop"""
-        ibatches = iobatches[:len(iobatches)//2]
-        obatches = iobatches[len(iobatches)//2:]
+        ibatches = iobatches[: len(iobatches) // 2]
+        obatches = iobatches[len(iobatches) // 2 :]
         return self.split_forward(ibatches, obatches)
 
     def adj_split(self, *iobatches):
-        ibatches = iobatches[:len(iobatches)//2]
-        obatches = iobatches[len(iobatches)//2:]
+        ibatches = iobatches[: len(iobatches) // 2]
+        obatches = iobatches[len(iobatches) // 2 :]
         return self.split_forward(obatches, ibatches).H
 
     def split_fn(self, *iobatchesdata):
         """Return split versions of the data that can be passed
         into fn and adj_fn to produce split versions
         """
-        ibatches = iobatchesdata[:len(iobatchesdata)//3]
-        obatches = iobatchesdata[len(iobatchesdata)//3:len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2//3:]
+        ibatches = iobatchesdata[: len(iobatchesdata) // 3]
+        obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
+        data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
         return self.split_forward_fn(ibatches, obatches, data)
 
     def adj_split_fn(self, *iobatchesdata):
-        ibatches = iobatchesdata[:len(iobatchesdata)//3]
-        obatches = iobatchesdata[len(iobatchesdata)//3:len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2//3]
+        ibatches = iobatchesdata[: len(iobatchesdata) // 3]
+        obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
+        data = iobatchesdata[len(iobatchesdata) * 2 // 3]
         return self.split_forward_fn(obatches, ibatches, data)
 
     def flatten(self):
@@ -305,15 +322,15 @@ class Add(NamedLinop):
 
     def __repr__(self):
         linop_chain = "\n\t".join(repr(linop) for linop in self.linops)
-        return f'{self.__class__.__name__}(\n\t{linop_chain}\n)'
+        return f"{self.__class__.__name__}(\n\t{linop_chain}\n)"
 
 
 class Chain(NamedLinop):
     def __init__(self, *linops):
         super().__init__(linops[-1].ishape, linops[0].oshape)
         self.linops = nn.ModuleList(list(linops))
-        #self.signatures = [signature(linop.fn) for linop in self.linops]
-        #self._check_signatures()
+        # self.signatures = [signature(linop.fn) for linop in self.linops]
+        # self._check_signatures()
         self._check_inputs_outputs()
 
     # def _check_signatures(self):
@@ -330,7 +347,7 @@ class Chain(NamedLinop):
         for linop in reversed(self.linops):
             if linop.ishape != curr_shape:
                 raise ValueError(
-                    f'Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}'
+                    f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}"
                 )
             curr_shape = linop.oshape
 
@@ -345,13 +362,17 @@ class Chain(NamedLinop):
         return x
 
     def fn(self, x: torch.Tensor, /, data_list):
-        assert len(self.linops) == len(data_list), f'Length {len(data_list)} data_list does not match length {len(self.linops)} chain linop'
+        assert (
+            len(self.linops) == len(data_list)
+        ), f"Length {len(data_list)} data_list does not match length {len(self.linops)} chain linop"
         for linop, data in zip(reversed(self.linops), reversed(data_list)):
             x = linop.fn(x, *data)
         return x
 
     def adj_fn(self, x: torch.Tensor, /, data_list):
-        assert len(self.linops) == len(data_list), f'Length {len(data_list)} data_list does not match length {len(self.linops)} chain adjoint linop'
+        assert (
+            len(self.linops) == len(data_list)
+        ), f"Length {len(data_list)} data_list does not match length {len(self.linops)} chain adjoint linop"
         for linop, data in zip(self.linops, data_list):
             x = linop.adj_fn(x, data)
         return x
@@ -364,9 +385,10 @@ class Chain(NamedLinop):
         """ibatches, obatches specified according to the shape of the
         forward op
         """
-        linops = [linop.split(ibatch, obatch)
-                  for linop, ibatch, obatch \
-                  in zip(self.linops, ibatches, obatches)]
+        linops = [
+            linop.split(ibatch, obatch)
+            for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
+        ]
         return type(self)(*linops)
 
     def split_forward_fn(self, ibatches, obatches, data_list):
@@ -374,9 +396,12 @@ class Chain(NamedLinop):
         ibatches, obatches specified according to the shape of the
         forward op
         """
-        data = [linop.split_forward_fn(ibatch, obatch, *data)
-                for linop, ibatch, obatch, data \
-                in zip(self.linops, ibatches, obatches, data_list)]
+        data = [
+            linop.split_forward_fn(ibatch, obatch, *data)
+            for linop, ibatch, obatch, data in zip(
+                self.linops, ibatches, obatches, data_list
+            )
+        ]
         return data
 
     def size(self, dim):
@@ -402,42 +427,44 @@ class Chain(NamedLinop):
         if self._adj is None:
             linops = list(linop.H for linop in reversed(self.linops))
             _adj = type(self)(*linops)
-            self._adj = [_adj] # Prevent registration as a submodule
+            self._adj = [_adj]  # Prevent registration as a submodule
         return self._adj[0]
 
     @property
     def N(self):
         """Normal operator (is this really necessary?)"""
         if self._normal is None:
-            linops = list(linop.H for linop in reversed(self.linops)) + list(self.linops)
+            linops = list(linop.H for linop in reversed(self.linops)) + list(
+                self.linops
+            )
             _normal = type(self)(*linops)
-            self._normal =[_normal] # Prevent registration as a submodule
+            self._normal = [_normal]  # Prevent registration as a submodule
         return self._normal[0]
 
     def split(self, *iobatches):
         """For compatibility with NamedLinop"""
-        ibatches = iobatches[:len(iobatches)//2]
-        obatches = iobatches[len(iobatches)//2:]
+        ibatches = iobatches[: len(iobatches) // 2]
+        obatches = iobatches[len(iobatches) // 2 :]
         return self.split_forward(ibatches, obatches)
 
     def adj_split(self, *iobatches):
-        ibatches = iobatches[:len(iobatches)//2]
-        obatches = iobatches[len(iobatches)//2:]
+        ibatches = iobatches[: len(iobatches) // 2]
+        obatches = iobatches[len(iobatches) // 2 :]
         return self.split_forward(obatches, ibatches).H
 
     def split_fn(self, *iobatchesdata):
         """Return split versions of the data that can be passed
         into fn and adj_fn to produce split versions
         """
-        ibatches = iobatchesdata[:len(iobatchesdata)//3]
-        obatches = iobatchesdata[len(iobatchesdata)//3:len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2//3:]
+        ibatches = iobatchesdata[: len(iobatchesdata) // 3]
+        obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
+        data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
         return self.split_forward_fn(ibatches, obatches, data)
 
     def adj_split_fn(self, *iobatchesdata):
-        ibatches = iobatchesdata[:len(iobatchesdata)//3]
-        obatches = iobatchesdata[len(iobatchesdata)//3:len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2//3]
+        ibatches = iobatchesdata[: len(iobatchesdata) // 3]
+        obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
+        data = iobatchesdata[len(iobatchesdata) * 2 // 3]
         return self.split_forward_fn(obatches, ibatches, data)
 
     def flatten(self):
@@ -451,7 +478,7 @@ class Chain(NamedLinop):
 
     def __repr__(self):
         linop_chain = "\n\t".join(repr(linop) for linop in self.linops)
-        return f'{self.__class__.__name__}(\n\t{linop_chain}\n)'
+        return f"{self.__class__.__name__}(\n\t{linop_chain}\n)"
 
 
 class Broadcast(NamedLinop):
@@ -459,22 +486,23 @@ class Broadcast(NamedLinop):
     Basically broadcast to each other
     TODO: Fix this class
     """
+
     def __init__(self, ishape, oshape):
         super().__init__(ishape, oshape)
-        self.ishape_str = ' '.join(ishape)
-        self.oshape_str = ' '.join(oshape)
+        self.ishape_str = " ".join(ishape)
+        self.oshape_str = " ".join(oshape)
 
     def forward(self, x):
         return self.fn(x, self.ishape_str, self.oshape_str)
 
     def fn(cls, x, ishape_str, oshape_str):
-        return rearrange(x, f'... {ishape_str} -> ... {oshape_str}')
+        return rearrange(x, f"... {ishape_str} -> ... {oshape_str}")
 
     def adj_fn(cls, x: torch.Tensor, ishape_str, oshape_str):
-        return rearrange(x, f'... {oshape_str} -> ... {ishape_str}')
+        return rearrange(x, f"... {oshape_str} -> ... {ishape_str}")
 
     def split(self, ibatch, obatch):
-        return self # Literally don't change anything
+        return self  # Literally don't change anything
 
 
 class Dense(NamedLinop):
@@ -484,6 +512,7 @@ class Dense(NamedLinop):
     weightshape: [A, T]
     oshape: [T, Nx, Ny]
     """
+
     def __init__(self, weight, weightshape, ishape, oshape):
         super().__init__(ishape, oshape)
         self.weight = weight
@@ -528,7 +557,9 @@ class Dense(NamedLinop):
 
 class Diagonal(NamedLinop):
     def __init__(self, weight: torch.Tensor, ioshape):
-        assert len(weight.shape) <= len(ioshape), 'All dimensions must be named or broadcastable'
+        assert len(weight.shape) <= len(
+            ioshape
+        ), "All dimensions must be named or broadcastable"
         super().__init__(ioshape, ioshape)
         self.weight = weight
 
@@ -549,7 +580,7 @@ class Diagonal(NamedLinop):
         return type(self)(weight, self.ishape, self.oshape)
 
     def split_forward_fn(self, ibatch, obatch, /, weight):
-        assert ibatch == obatch, 'Diagonal linop must be split identically'
+        assert ibatch == obatch, "Diagonal linop must be split identically"
         return weight[ibatch]
 
     def size(self, dim: str):
@@ -559,6 +590,7 @@ class Diagonal(NamedLinop):
         if dim in self.ishape:
             return weight.shape[self.ishape.index(dim)]
         return None
+
 
 class Identity(NamedLinop):
     def __init__(self, ioshape):
@@ -580,7 +612,7 @@ class Identity(NamedLinop):
         return type(self)(self.ishape, self.oshape)
 
     def split_forward_fn(self, ibatch, obatch, /):
-        assert ibatch == obatch, 'Identity linop must be split identically'
+        assert ibatch == obatch, "Identity linop must be split identically"
         return None
 
     def size(self, dim: str):
@@ -635,11 +667,14 @@ class FFT(NamedLinop):
         """FFT doesn't determine any dimensions"""
         return None
 
+
 class Rearrange(NamedLinop):
-    """Moves around dimensions.
-    """
+    """Moves around dimensions."""
+
     def __init__(self, istr, ostr, ishape, oshape, size_spec: Optional[Mapping] = None):
-        assert len(ishape) == len(oshape), 'Rearrange currently only supports pure dimension permutations'
+        assert len(ishape) == len(
+            oshape
+        ), "Rearrange currently only supports pure dimension permutations"
         super().__init__(ishape, oshape)
         self.istr = istr
         self.ostr = ostr
@@ -649,10 +684,10 @@ class Rearrange(NamedLinop):
         return self.fn(x, self.istr, self.ostr, self.size_spec)
 
     def fn(self, x, /, istr, ostr, size_spec):
-        return rearrange(x, f'{istr} -> {ostr}', **size_spec)
+        return rearrange(x, f"{istr} -> {ostr}", **size_spec)
 
     def adj_fn(self, x, /, ostr, istr, size_spec):
-        return rearrange(x, f'{ostr} -> {istr}', **size_spec)
+        return rearrange(x, f"{ostr} -> {istr}", **size_spec)
 
     def split_forward(self, ibatch, obatch):
         """Rearranging is transparent to splitting"""
@@ -671,7 +706,6 @@ class Rearrange(NamedLinop):
         return None
 
 
-
 def slice_len(slc, n):
     """
     n: length of sequence slc is being applied to
@@ -680,10 +714,12 @@ def slice_len(slc, n):
 
 
 class Repeat(NamedLinop):
-    """Unsqueezes and expands a tensor along dim
-    """
+    """Unsqueezes and expands a tensor along dim"""
+
     def __init__(self, n_repeats, dim, ishape, oshape):
-        assert len(ishape) + 1 == len(oshape), 'oshape should have 1 more dim than ishape'
+        assert len(ishape) + 1 == len(
+            oshape
+        ), "oshape should have 1 more dim than ishape"
         super().__init__(ishape, oshape)
         self.n_repeats = n_repeats
         self.dim = dim
@@ -703,8 +739,12 @@ class Repeat(NamedLinop):
 
     def split_forward(self, ibatch, obatch):
         """Repeat fewer times, depending on the size of obatch"""
-        assert len(ibatch) == len(self.ishape), 'length of ibatch should match length of ishape'
-        assert len(obatch) == len(self.oshape), 'length of obatch should match length of oshape'
+        assert len(ibatch) == len(
+            self.ishape
+        ), "length of ibatch should match length of ishape"
+        assert len(obatch) == len(
+            self.oshape
+        ), "length of obatch should match length of oshape"
         return type(self)(
             n_repeats=self.split_forward_fn(ibatch, obatch, self.n_repeats),
             dim=self.dim,
@@ -723,13 +763,15 @@ class Repeat(NamedLinop):
             return n_repeats
         return None
 
+
 class Scalar(Diagonal):
     """The result of scalar multiplication
 
     A Diagonal linop that is trivially splittable.
     """
+
     def split_forward_fn(self, ibatch, obatch, /, weight):
-        assert ibatch == obatch, 'Scalar linop must be split identically'
+        assert ibatch == obatch, "Scalar linop must be split identically"
         return weight
 
     def size_fn(self, dim: str, weight):

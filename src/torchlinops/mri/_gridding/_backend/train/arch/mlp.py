@@ -9,17 +9,19 @@ class GRAPPAMLP(nn.Module):
     Inputs orientation and outputs grappa kernel
     """
 
-    def __init__(self,
-                 dim: int,
-                 n_coil: int,
-                 num_inputs: int,
-                 num_layers: int,
-                 hidden_width: int,
-                 latent_width: Optional[int] = 256,
-                 use_b0: Optional[bool] = False,
-                 use_batch_norm: Optional[bool] = False,
-                 sigma: Optional[float] = 1e-1,
-                 n_pos: Optional[int] = 0):
+    def __init__(
+        self,
+        dim: int,
+        n_coil: int,
+        num_inputs: int,
+        num_layers: int,
+        hidden_width: int,
+        latent_width: Optional[int] = 256,
+        use_b0: Optional[bool] = False,
+        use_batch_norm: Optional[bool] = False,
+        sigma: Optional[float] = 1e-1,
+        n_pos: Optional[int] = 0,
+    ):
         """
         General GRAPPA MLP.
 
@@ -54,33 +56,38 @@ class GRAPPAMLP(nn.Module):
 
         # Construct dimensions
         b0_term = 1 if use_b0 else 0
-        dimensions = [dim * num_inputs + b0_term] \
-                    + [hidden_width] * (num_layers-1) \
-                    + [latent_width, n_coil * n_coil * num_inputs]
+        dimensions = (
+            [dim * num_inputs + b0_term]
+            + [hidden_width] * (num_layers - 1)
+            + [latent_width, n_coil * n_coil * num_inputs]
+        )
 
         # Optional positional encoding
         if n_pos > 0:
             for k in range(1, n_pos):
                 B = torch.tensor(np.random.normal(0, sigma, (k, n_pos))).float()
-                self.register_buffer(f'B_{k}', B)
+                self.register_buffer(f"B_{k}", B)
             dimensions[0] = n_pos * 2
 
         # Define layers from inputs
         self.feature_layers = nn.ModuleList()
         for k in range(0, len(dimensions) - 2):
-
             # Mat mul
-            self.feature_layers.append(nn.Linear(dimensions[k], dimensions[k+1], dtype=torch.float32))
+            self.feature_layers.append(
+                nn.Linear(dimensions[k], dimensions[k + 1], dtype=torch.float32)
+            )
 
             # Batch norm on all relus
             if use_batch_norm:
-                self.feature_layers.append(nn.BatchNorm1d(dimensions[k+1]))
+                self.feature_layers.append(nn.BatchNorm1d(dimensions[k + 1]))
 
             # Activation
             self.feature_layers.append(nn.ReLU())
 
         # Last layer
-        self.last_layer = nn.Linear(dimensions[-2], dimensions[-1], dtype=torch.complex64)
+        self.last_layer = nn.Linear(
+            dimensions[-2], dimensions[-1], dtype=torch.complex64
+        )
 
     def forward(self, orientations, source_pts):
         """
@@ -104,8 +111,12 @@ class GRAPPAMLP(nn.Module):
         # Positional encoding
         if self.n_pos > 0:
             num_inputs = orientations.shape[1]
-            pos_enc_cos = torch.cos(2 * np.pi * orientations @ eval(f'self.B_{num_inputs}'))
-            pos_enc_sin = torch.sin(2 * np.pi * orientations @ eval(f'self.B_{num_inputs}'))
+            pos_enc_cos = torch.cos(
+                2 * np.pi * orientations @ eval(f"self.B_{num_inputs}")
+            )
+            pos_enc_sin = torch.sin(
+                2 * np.pi * orientations @ eval(f"self.B_{num_inputs}")
+            )
             orientations = torch.hstack((pos_enc_sin, pos_enc_cos))
 
         # Feature extraction
@@ -116,9 +127,12 @@ class GRAPPAMLP(nn.Module):
         kern_flat = self.last_layer(orientations.type(torch.complex64))
 
         # Reshape to grappa kernel
-        grappa_kern = rearrange(kern_flat, '... (nc nc_ninp) -> ... nc nc_ninp',
-                                nc=self.n_coil,
-                                nc_ninp=self.n_coil * self.num_inputs)
+        grappa_kern = rearrange(
+            kern_flat,
+            "... (nc nc_ninp) -> ... nc nc_ninp",
+            nc=self.n_coil,
+            nc_ninp=self.n_coil * self.num_inputs,
+        )
 
         # Apply to data
         target = (grappa_kern @ source_pts[..., None])[..., 0]

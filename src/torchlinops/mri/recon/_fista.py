@@ -12,15 +12,18 @@ from tqdm import tqdm
 from .metrics import l2_grad_norm, l2_loss, ptol
 from torchlinops.utils import Timer
 
-__all__ = ['FISTA', 'FISTAHparams']
+__all__ = ["FISTA", "FISTAHparams"]
 
 logger = logging.getLogger(__name__)
 
+
 def tensor_dict_to(tensordict, device):
-    tensordict = EasyDict({(k, v.to(device))
-                           if isinstance(v, torch.Tensor)
-                           else (k, v)
-                           for k, v in tensordict.items()})
+    tensordict = EasyDict(
+        {
+            (k, v.to(device)) if isinstance(v, torch.Tensor) else (k, v)
+            for k, v in tensordict.items()
+        }
+    )
     return tensordict
 
 
@@ -35,16 +38,18 @@ class FISTAHparams:
     state_every: int = 1
     """Number of iterations between logging full state (memory intensive)"""
 
+
 class FISTA(nn.Module):
     """Functional version of FISTA"""
+
     def __init__(
-            self,
-            A: Callable,
-            AH: Callable,
-            prox: Callable,
-            hparams: FISTAHparams,
-            AHA: Optional[Callable] = None,
-            precond: Optional[Callable] = None,
+        self,
+        A: Callable,
+        AH: Callable,
+        prox: Callable,
+        hparams: FISTAHparams,
+        AHA: Optional[Callable] = None,
+        precond: Optional[Callable] = None,
     ):
         super().__init__()
         self.A = A
@@ -55,7 +60,7 @@ class FISTA(nn.Module):
 
         # Can provide an optimized operator here instead
         if AHA is not None:
-            logger.debug('Using user-supplied AHA')
+            logger.debug("Using user-supplied AHA")
             self.AHA = AHA
         else:
             self.AHA = lambda x: AH(A(x))
@@ -69,40 +74,44 @@ class FISTA(nn.Module):
         init: Optional start
         AHb: Optional precomputed AHb (for grad step)
         """
-        assert (b is not None) or (AHb is not None), 'At least one of (b, AHb) should not be provided'
+        assert (b is not None) or (
+            AHb is not None
+        ), "At least one of (b, AHb) should not be provided"
         if init is None:
-            logger.debug('Initialized with adjoint')
+            logger.debug("Initialized with adjoint")
             if AHb is not None:
                 x = AHb.clone()
             elif b is not None:
                 AHb = self.AH(b)
                 x = AHb.clone()
         else:
-            logger.debug('Initialized from argument')
+            logger.debug("Initialized from argument")
             x = init
         if AHb is None:
-            logger.debug('Precomputing AHb')
+            logger.debug("Precomputing AHb")
             AHb = self.AH(b)
 
-        logger.debug('>> Starting...')
+        logger.debug(">> Starting...")
         if len(self.states) > 0:
-            logger.warning('Restarting FISTA and overwriting logs.')
+            logger.warning("Restarting FISTA and overwriting logs.")
         self.states = []
         self.logs = []
         timer = Timer(name="fista iter", log_level=logging.DEBUG)
-        s = EasyDict({
-            'x': x.clone(),
-            'z': x.clone(),
-        })
-        self.states.append((-1, tensor_dict_to(copy.deepcopy(s), 'cpu')))
+        s = EasyDict(
+            {
+                "x": x.clone(),
+                "z": x.clone(),
+            }
+        )
+        self.states.append((-1, tensor_dict_to(copy.deepcopy(s), "cpu")))
         oldstate = copy.deepcopy(s)
         self.log_all(iteration=-1, x=s.x, x_old=s.x, b=b, AHb=AHb, gr=None)
 
         for k in tqdm(
-                range(self.hparams.num_iters),
-                desc='FISTA',
+            range(self.hparams.num_iters),
+            desc="FISTA",
         ):
-            logger.debug(f'>>> Starting iteration {k:03d}... ')
+            logger.debug(f">>> Starting iteration {k:03d}... ")
             torch.cuda.empty_cache()
             gc.collect()
             with timer:
@@ -112,21 +121,21 @@ class FISTA(nn.Module):
                 # logger.info(f'Norm of x(after): {torch.linalg.norm(tmp)}')
                 gr = self.AHA(s.x) - AHb
                 pgr = self.precond(gr)
-                #logger.info(torch.linalg.norm(gr).item())
-                s.x = s.x - self.hparams.lr*pgr
+                # logger.info(torch.linalg.norm(gr).item())
+                s.x = s.x - self.hparams.lr * pgr
                 s.x = self.prox(s.x)
                 # Monitor magnitude of x
                 # Apply acceleration
-                step  = k/(k + 3)
+                step = k / (k + 3)
                 s.z = s.x + step * (s.x - oldstate.x)
-            logger.debug(f'{timer.total:0.4f} s')
+            logger.debug(f"{timer.total:0.4f} s")
             oldstate = copy.deepcopy(s)
 
             # Logging
             if not (k % self.hparams.log_every):
                 self.log_all(k, s.x, oldstate.x, b, AHb, gr)
             if not (k % self.hparams.state_every):
-                save_state = tensor_dict_to(copy.deepcopy(oldstate), 'cpu')
+                save_state = tensor_dict_to(copy.deepcopy(oldstate), "cpu")
                 self.states.append((k, save_state))
         return s
 

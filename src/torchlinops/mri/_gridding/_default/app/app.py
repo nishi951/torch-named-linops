@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
+
 class VanillaImplicitGROG:
-    def __init__(self,
-                 data: Mapping,
-                 datamodule_hparams,
-                 model_hparams,
-                 train_hparams,
-                 inference_hparams,
+    def __init__(
+        self,
+        data: Mapping,
+        datamodule_hparams,
+        model_hparams,
+        train_hparams,
+        inference_hparams,
     ):
         self.data = data
         self.datamodule_hparams = datamodule_hparams
@@ -14,7 +16,7 @@ class VanillaImplicitGROG:
         self.train_hparams = train_hparams
         self.inference_hparams = inference_hparams
 
-    def run(self, device: torch.device = 'cpu'):
+    def run(self, device: torch.device = "cpu"):
         # Make dataset
         model = ImplicitGROGMLP(**asdict(self.model_hparams))
         datamodule = DataModule(self.datamodule_hparams)

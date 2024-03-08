@@ -15,14 +15,16 @@ from tqdm import tqdm
 
 
 __all__ = [
-    'CGHparams',
-    'ConjugateGradient',
+    "CGHparams",
+    "ConjugateGradient",
 ]
+
 
 @dataclass
 class CGHparams:
     num_iter: int
     """Number of iterations"""
+
 
 class ConjugateGradient(nn.Module):
     """
@@ -41,8 +43,8 @@ class ConjugateGradient(nn.Module):
         self.A = A
         self.hparams = hparams
 
-        self.rs = None # For holding residuals
-        self.xs = None # For holding intermediate results
+        self.rs = None  # For holding residuals
+        self.xs = None  # For holding intermediate results
 
     def zdot(self, x1, x2):
         """
@@ -58,30 +60,30 @@ class ConjugateGradient(nn.Module):
 
     def update(self, x, p, r, rsold):
         # Compute step size
-        logger.debug('Computing step size alpha...')
+        logger.debug("Computing step size alpha...")
         Ap = self.A(p)
         pAp = self.zdot(p, Ap)
-        alpha = (rsold / pAp)
+        alpha = rsold / pAp
 
         # Take step
-        logger.debug('Taking step...')
+        logger.debug("Taking step...")
         x = x + alpha * p
         r = r - alpha * Ap
         rsnew = self.zdot_single(r)
-        beta = (rsnew / rsold)
+        beta = rsnew / rsold
         rsold = rsnew
         p = beta * p + r
 
         return x, p, r, rsold
 
-    def forward(self, y: torch.Tensor, x_init: Optional[torch.Tensor]=None):
+    def forward(self, y: torch.Tensor, x_init: Optional[torch.Tensor] = None):
         """
         Solves Ax = y, where A is positive semidefinite
         x: initial guess at solution
         y: RHS input data
         """
         # Initialize variables
-        logger.debug('Computing initial residual...')
+        logger.debug("Computing initial residual...")
         if x_init is not None:
             x = x_init.clone()
             r = y - self.A(x)
@@ -93,13 +95,13 @@ class ConjugateGradient(nn.Module):
         self.rs = [rsold.item()]
         self.xs = [x]
         for i in tqdm(
-                range(self.hparams.num_iter),
-                desc='Conjugate Gradient',
-                leave=False,
+            range(self.hparams.num_iter),
+            desc="Conjugate Gradient",
+            leave=False,
         ):
-            logger.debug(f'CG Iteration {i}')
+            logger.debug(f"CG Iteration {i}")
             x, p, r, rsold = self.update(x, p, r, rsold)
-            logger.debug(f'New residual: {rsold}')
+            logger.debug(f"New residual: {rsold}")
             self.rs.append(rsold.item())
             self.xs.append(x.clone().detach().cpu().numpy())
         return x

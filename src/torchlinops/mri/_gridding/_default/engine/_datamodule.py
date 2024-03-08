@@ -1,6 +1,6 @@
 from torch.utils.data import DataLoader
 
-__all__ = ['AbstractDataModule']
+__all__ = ["AbstractDataModule"]
 
 
 class AbstractDataModule:

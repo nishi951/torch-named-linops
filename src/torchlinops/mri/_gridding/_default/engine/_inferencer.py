@@ -1,4 +1,4 @@
-__all__ = ['AbstractInferencer']
+__all__ = ["AbstractInferencer"]
 
 
 class AbstractInferencer:

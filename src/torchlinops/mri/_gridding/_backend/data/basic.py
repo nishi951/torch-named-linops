@@ -20,6 +20,7 @@ from torch.utils.data import Dataset
 from .calibration import CalibRegion
 from .trj_utils import oversample
 
+
 @dataclass
 class TimeSegmentationParams:
     nseg: int
@@ -46,11 +47,11 @@ class ImplicitGROGDatasetConfig:
 
 class ImplicitGROGDataset(Dataset):
     def __init__(
-            self,
-            acs: CalibRegion,
-            trj: np.ndarray,
-            params: ImplicitGROGDatasetConfig,
-            transform: Optional[Callable] = None
+        self,
+        acs: CalibRegion,
+        trj: np.ndarray,
+        params: ImplicitGROGDatasetConfig,
+        transform: Optional[Callable] = None,
     ):
         """
         trj: [..., nro, dim]
@@ -63,10 +64,11 @@ class ImplicitGROGDataset(Dataset):
         # Derived
         self.valid_coords = acs.coords_with_buffer(width=self.params.calib_buffer)
         self.dk = self.sample_dk()
-        self.use_b0 = (self.params.tseg is not None)
+        self.use_b0 = self.params.tseg is not None
         if self.use_b0:
-            assert self.acs.b0_map is not None, \
-                'Time segmentation requested but no b0 map provided'
+            assert (
+                self.acs.b0_map is not None
+            ), "Time segmentation requested but no b0 map provided"
             self.times = np.arange(self.params.tseg.nseg) * self.params.tseg.dt
             self.times -= self.times[len(self.times) // 2]
 
@@ -84,16 +86,16 @@ class ImplicitGROGDataset(Dataset):
             # Grab the jth time offset
             dt = self.times[t_idx]
             # Interpolate the
-            source['dk'] = dk
-            source['dt'] = dt
-            source['ksp'] = self.acs(kcenter + dk, time)
-            target['ksp'] = self.acs(kcenter)
+            source["dk"] = dk
+            source["dt"] = dt
+            source["ksp"] = self.acs(kcenter + dk, time)
+            target["ksp"] = self.acs(kcenter)
         else:
             # Grab the ith block of orientations
             dk = self.dk[idx]
             # Grab the jth time offset
-            source['ksp'] = self.acs(kcenter + dk)
-            target['ksp'] = self.acs(kcenter)
+            source["ksp"] = self.acs(kcenter + dk)
+            target["ksp"] = self.acs(kcenter)
         if self.transform is not None:
             source, target = self.transform(source, target)
         return source, target
@@ -120,7 +122,7 @@ class ImplicitGROGDataset(Dataset):
         Reference:
         - `precompute_orientations``
         """
-        trj = self.trj.copy() # Preserve original trj
+        trj = self.trj.copy()  # Preserve original trj
         if self.params.oversamp_readout != 1.0:
             trj = oversample(trj, axis=-2, factor=self.params.oversamp_readout)
 
@@ -128,21 +130,25 @@ class ImplicitGROGDataset(Dataset):
         trj_batch_shape = trj.shape[:-2]
         nro = trj.shape[-2]
         dim = trj.shape[-1]
-        trj = rearrange(trj, '... K D -> (...) K D')
+        trj = rearrange(trj, "... K D -> (...) K D")
 
         # Precompute some stuff
-        d_idx = np.arange(-(self.params.num_kpoints // 2), self.params.num_kpoints//2 + 1)
-        dk = np.zeros((*trj.shape, self.params.num_kpoints)) # [... nro, d, num_points]
+        d_idx = np.arange(
+            -(self.params.num_kpoints // 2), self.params.num_kpoints // 2 + 1
+        )
+        dk = np.zeros((*trj.shape, self.params.num_kpoints))  # [... nro, d, num_points]
 
         # Walk along (all) trajectories
         for trj_idx in tqdm(range(trj.shape[0])):
             # Velocity along this trajectory
-            v = np.linalg.norm(np.diff(trj[trj_idx], dim=-2), dim=-1) # Velocity along trajectory
+            v = np.linalg.norm(
+                np.diff(trj[trj_idx], dim=-2), dim=-1
+            )  # Velocity along trajectory
             v = np.append(v, v[:, -1], axis=-1)
             trj_interp = make_interp_spline(np.arange(nro), trj[trj_idx], k=1, axis=-2)
-            for k_idx in tqdm(range(trj.shape[1]), 'Precompute Orientations'):
+            for k_idx in tqdm(range(trj.shape[1]), "Precompute Orientations"):
                 # Identify source off-grid point
-                kcenter = trj[trj_idx, k_idx] # [D]
+                kcenter = trj[trj_idx, k_idx]  # [D]
                 # Identify target grid point
                 ktarget = np.round(kcenter * self.params.oversample_grid)
 
@@ -150,12 +156,13 @@ class ImplicitGROGDataset(Dataset):
                 spacing_idx = self.params.readout_spacing / v[k_idx]
 
                 # Get samples along the readout in both directions
-                k_idx_along_readout = np.clip(k_idx + d_idx * spacing_idx,
-                                              a_min=0., a_max=nro-1)
+                k_idx_along_readout = np.clip(
+                    k_idx + d_idx * spacing_idx, a_min=0.0, a_max=nro - 1
+                )
 
                 # Interpolate to find trj points
                 ksources = trj_interp(k_idx_along_readout)
-                ksources = rearrange(ksources, 'npts D -> D npts')
+                ksources = rearrange(ksources, "npts D -> D npts")
 
                 # Compute orientation vectors
                 dk[t_idx, k_idx] = ksources - ktarget[..., None]

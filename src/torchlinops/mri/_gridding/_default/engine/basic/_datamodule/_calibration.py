@@ -28,27 +28,31 @@ class CalibRegion:
         """
         # Regular NUFFT
         # ksp = sp.nufft(self.img_cal, loc)
-        ksp = self._kb_interp(ksp_cal_pre_KB=self.ksp_cal_pre_KB,
-                                orig_shape=self.orig_shape,
-                                loc=loc)
+        ksp = self._kb_interp(
+            ksp_cal_pre_KB=self.ksp_cal_pre_KB, orig_shape=self.orig_shape, loc=loc
+        )
         return ksp.T
 
     @property
     def valid_coords(self):
         if self._valid_coords is None:
-            coords = tuple((np.arange(w-self.buffer) - (w-self.buffer) // 2)
-                           for w in self.cal_size)
+            coords = tuple(
+                (np.arange(w - self.buffer) - (w - self.buffer) // 2)
+                for w in self.cal_size
+            )
             coords = np.stack(np.meshgrid(*coords), axis=-1)
-            coords = rearrange(coords, '... d -> (...) d')
+            coords = rearrange(coords, "... d -> (...) d")
             self._valid_coords = coords
         return self._valid_coords
 
-    def _kb_interp(self,
-                   ksp_cal_pre_KB: np.ndarray,
-                   orig_shape: tuple,
-                   loc: np.ndarray,
-                   width: Optional[int] = 4,
-                   oversamp: Optional[float] = 1.25):
+    def _kb_interp(
+        self,
+        ksp_cal_pre_KB: np.ndarray,
+        orig_shape: tuple,
+        loc: np.ndarray,
+        width: Optional[int] = 4,
+        oversamp: Optional[float] = 1.25,
+    ):
         """
         Does the FFT step in NUFTT with apodization and oversampling.
 
@@ -80,17 +84,22 @@ class CalibRegion:
         loc_rescaled = _scale_coord(loc, orig_shape, oversamp)
         with device:
             ksp_interp = sp.interp.interpolate(
-                ksp_cal_pre_KB, loc_rescaled, kernel="kaiser_bessel", width=width, param=beta
+                ksp_cal_pre_KB,
+                loc_rescaled,
+                kernel="kaiser_bessel",
+                width=width,
+                param=beta,
             )
         ksp_interp /= width**d
 
         return ksp_interp
 
+
 class CalibrationDataset(Dataset):
     def __init__(
-            self,
-            orientations: np.ndarray,
-            calib: CalibRegion,
+        self,
+        orientations: np.ndarray,
+        calib: CalibRegion,
     ):
         self.orientations = orientations
         self.calib = calib
@@ -99,11 +108,11 @@ class CalibrationDataset(Dataset):
         dk = self.orientations[i]
         source_ksp, target_ksp = self.randomize_center_point(dk)
         features = {
-            'dk': self.orientations[i],
-            'source_ksp': source_ksp,
+            "dk": self.orientations[i],
+            "source_ksp": source_ksp,
         }
         target = {
-            'target_ksp': target_ksp,
+            "target_ksp": target_ksp,
         }
         return features, target
 

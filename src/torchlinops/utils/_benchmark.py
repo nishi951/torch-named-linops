@@ -7,9 +7,10 @@ import torch
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    'torch_benchmark',
-    'Timer',
+    "torch_benchmark",
+    "Timer",
 ]
+
 
 def torch_benchmark(fn, n_trials, warmup=True, *args, **kwargs):
     """Run a function n times with specified args and kwargs and report the time."""
@@ -28,13 +29,14 @@ def torch_benchmark(fn, n_trials, warmup=True, *args, **kwargs):
 
         torch.cuda.synchronize()
         time = start.elapsed_time(end)
-        logger.info(f'Trial {i}: {time}')
+        logger.info(f"Trial {i}: {time}")
 
         timings_ms.append(time)
     gc.enable()
     max_mem_bytes = torch.cuda.max_memory_allocated()
-    logger.info(f'Max memory allocated: {max_mem_bytes}')
+    logger.info(f"Max memory allocated: {max_mem_bytes}")
     return timings_ms, max_mem_bytes
+
 
 class Timer:
     """Context manager to measure how much time was spent in the target scope."""
@@ -50,5 +52,5 @@ class Timer:
         self.start = self._func()
 
     def __exit__(self, type=None, value=None, traceback=None):
-        self.total = (self._func() - self.start) # Store the desired value.
-        logging.log(level=self.log_level, msg=f'{self.name}: {self.total:0.5f} s')
+        self.total = self._func() - self.start  # Store the desired value.
+        logging.log(level=self.log_level, msg=f"{self.name}: {self.total:0.5f} s")

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field, asdict
 from math import ceil
 from pathlib import Path
+
 try:
     import cPickle as pickle
 except ImportError:
@@ -19,26 +20,29 @@ from torchlinops.utils import apply_struct
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    'TrainHparams',
-    'Trainer',
+    "TrainHparams",
+    "Trainer",
 ]
+
 
 def unbatch_and_to_dev(struct, device):
     return apply_struct(
         struct,
         fn=lambda x: x[0].to(device),
-        condition=lambda x: isinstance(x, torch.Tensor)
+        condition=lambda x: isinstance(x, torch.Tensor),
     )
 
 
 @dataclass
 class TrainHparams:
-    dataloader_kwargs: Mapping = field(default_factory = lambda: {
-        'batch_size': 1,
-        'shuffle': True,
-        'num_workers': 2,
-        'pin_memory': True,
-    })
+    dataloader_kwargs: Mapping = field(
+        default_factory=lambda: {
+            "batch_size": 1,
+            "shuffle": True,
+            "num_workers": 2,
+            "pin_memory": True,
+        }
+    )
     train_log_every: int = 1
     """Number of training steps to log after"""
     checkpoint_every: int = 100
@@ -58,12 +62,12 @@ class TrainCheckpoint:
 
 class Trainer:
     def __init__(
-            self,
-            model: nn.Module,
-            optimizer: optim.Optimizer,
-            loss_fn: Callable,
-            train_hparams: TrainHparams,
-            scheduler: Optional = None,
+        self,
+        model: nn.Module,
+        optimizer: optim.Optimizer,
+        loss_fn: Callable,
+        train_hparams: TrainHparams,
+        scheduler: Optional = None,
     ):
         self.model = model
         self.optimizer = optimizer
@@ -74,20 +78,23 @@ class Trainer:
         self.global_step = -1
 
     def train(
-            self,
-            dataset,
-            num_epochs: int,
-            val_dataset: Optional[Dataset] = None,
-            val_fn: Callable = None,
-            logdir: Optional[Path] = None,
-            debug: bool = False,
+        self,
+        dataset,
+        num_epochs: int,
+        val_dataset: Optional[Dataset] = None,
+        val_fn: Callable = None,
+        logdir: Optional[Path] = None,
+        debug: bool = False,
     ):
         dataloader = DataLoader(dataset, **self.hparams.dataloader_kwargs)
-        batch_size = self.hparams.dataloader_kwargs['batch_size']
+        batch_size = self.hparams.dataloader_kwargs["batch_size"]
         for _ in range(num_epochs):
-            logger.info(f'Epoch {self.last_epoch + 1}')
+            logger.info(f"Epoch {self.last_epoch + 1}")
             self.model.train()
-            for source, target in tqdm(iter(dataloader), total=ceil(len(dataset)/batch_size),):
+            for source, target in tqdm(
+                iter(dataloader),
+                total=ceil(len(dataset) / batch_size),
+            ):
                 # Assume batch size is always 1
                 # TODO account for multiple devices
                 source = unbatch_and_to_dev(source, self.model.start_device)
@@ -116,9 +123,11 @@ class Trainer:
         val_result = {}
 
         # Validation Loss
-        val_loss = 0.
-        batch_size = self.hparams.dataloader_kwargs['batch_size']
-        for source, target in tqdm(iter(dataloader), total=ceil(len(dataset)/batch_size)):
+        val_loss = 0.0
+        batch_size = self.hparams.dataloader_kwargs["batch_size"]
+        for source, target in tqdm(
+            iter(dataloader), total=ceil(len(dataset) / batch_size)
+        ):
             source = unbatch_and_to_dev(source, self.model.start_device)
             target = unbatch_and_to_dev(target, self.model.start_device)
             pred = self.model.val_forward(source)
@@ -126,13 +135,13 @@ class Trainer:
             if debug:
                 break
         val_loss /= len(dataset)
-        val_result['loss'] = val_loss
+        val_result["loss"] = val_loss
 
         # TODO: Add other validation metrics
 
         self.log_val(source, target, pred, val_result, logdir)
         self.manage_checkpoints(
-            logdir/'checkpoints', self.last_epoch, self.hparams.checkpoint_every
+            logdir / "checkpoints", self.last_epoch, self.hparams.checkpoint_every
         )
 
     def log_train(self, source, target, pred, loss, logdir: Optional[Path] = None):
@@ -144,9 +153,9 @@ class Trainer:
     def manage_checkpoints(self, ckpt_dir, last_epoch, checkpoint_every):
         ckpt_dir.mkdir(exist_ok=True, parents=True)
         # Update latest checkpoint
-        ckpt_latest = ckpt_dir/'latest.pt'
-        ckpt_latest_bak = ckpt_dir/'latest.pt.bak'
-        if (ckpt_dir/'latest.pt').is_file():
+        ckpt_latest = ckpt_dir / "latest.pt"
+        ckpt_latest_bak = ckpt_dir / "latest.pt.bak"
+        if (ckpt_dir / "latest.pt").is_file():
             # Backup
             ckpt_latest.rename(ckpt_latest_bak)
         # Save new checkpoint
@@ -156,16 +165,17 @@ class Trainer:
             ckpt_latest_bak.unlink()
         if not (last_epoch % checkpoint_every):
             # Also save epoch checkpoint
-            self.save(ckpt_dir/f'epoch_{last_epoch:06d}.pt')
-
+            self.save(ckpt_dir / f"epoch_{last_epoch:06d}.pt")
 
     def save(self, logfile: Path):
-        logging.info(f'Saving checkpoint to {logfile}')
+        logging.info(f"Saving checkpoint to {logfile}")
         ckpt = TrainCheckpoint(
             model_ckpt=self.model.state_dict(),
             train_hparams=self.hparams,
             optimizer_ckpt=self.optimizer.state_dict(),
-            scheduler_ckpt=self.scheduler.state_dict() if self.scheduler is not None else None,
+            scheduler_ckpt=self.scheduler.state_dict()
+            if self.scheduler is not None
+            else None,
             last_epoch=self.last_epoch,
             global_step=self.global_step,
         )
@@ -180,7 +190,7 @@ class Trainer:
         if ckpt.scheduler_ckpt is not None:
             self.scheduler.load_state_dict(torch.load(ckpt.scheduler_ckpt))
 
-        with open(ckpt.train_hparams, 'r') as f:
+        with open(ckpt.train_hparams, "r") as f:
             hparams = yaml.full_load(f)
         self.train_hparams = TrainHparams(**hparams)
 

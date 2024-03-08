@@ -8,32 +8,34 @@ from .indexing import multi_grid
 from ..linops import get2dor3d
 
 __all__ = [
-    'GriddedNUFFT',
+    "GriddedNUFFT",
 ]
+
 
 def sp_fft(x, dim=None):
     """Matches Sigpy's fft, but in torch"""
     x = torch.fft.ifftshift(x, dim=dim)
-    x = torch.fft.fftn(x, dim=dim, norm='ortho')
+    x = torch.fft.fftn(x, dim=dim, norm="ortho")
     x = torch.fft.fftshift(x, dim=dim)
     return x
+
 
 def sp_ifft(x, dim=None, norm=None):
     """Matches Sigpy's fft adjoint, but in torch"""
     x = torch.fft.ifftshift(x, dim=dim)
-    x = torch.fft.ifftn(x, dim=dim, norm='ortho')
+    x = torch.fft.ifftn(x, dim=dim, norm="ortho")
     x = torch.fft.fftshift(x, dim=dim)
     return x
 
 
 class GriddedNUFFT(NamedLinop):
     def __init__(
-            self,
-            trj_grd: torch.Tensor,
-            im_size: Tuple,
-            in_batch_shape: Optional[Tuple] = None,
-            out_batch_shape: Optional[Tuple] = None,
-            readout_dim: str = 'K',
+        self,
+        trj_grd: torch.Tensor,
+        im_size: Tuple,
+        in_batch_shape: Optional[Tuple] = None,
+        out_batch_shape: Optional[Tuple] = None,
+        readout_dim: str = "K",
     ):
         """
         img (input) [A... [C] Nx Ny [Nz]]
@@ -43,7 +45,9 @@ class GriddedNUFFT(NamedLinop):
         """
 
         self.in_batch_shape = in_batch_shape if in_batch_shape is not None else tuple()
-        self.out_batch_shape = out_batch_shape if out_batch_shape is not None else tuple()
+        self.out_batch_shape = (
+            out_batch_shape if out_batch_shape is not None else tuple()
+        )
         ishape = self.in_batch_shape + get2dor3d(im_size)
         oshape = self.in_batch_shape + self.out_batch_shape + (readout_dim,)
         super().__init__(ishape, oshape)
@@ -64,10 +68,10 @@ class GriddedNUFFT(NamedLinop):
         """
         # FFT
         x = torch.fft.ifftshift(x, dim=self.fft_dim)
-        Fx = torch.fft.fftn(x, dim=self.fft_dim, norm='ortho')
+        Fx = torch.fft.fftn(x, dim=self.fft_dim, norm="ortho")
 
         # Index
-        A = x.shape[:-self.D]
+        A = x.shape[: -self.D]
         batch_slc = (slice(None),) * len(A)
         trj_split = tuple(trj[..., i] for i in range(trj.shape[-1]))
         omega_slc = (*batch_slc, *trj_split)
@@ -83,7 +87,7 @@ class GriddedNUFFT(NamedLinop):
         Fx = multi_grid(y, self.trj, final_size=self.im_size)
 
         # IFFT
-        x = torch.fft.ifftn(Fx, dim=self.fft_dim, norm='ortho')
+        x = torch.fft.ifftn(Fx, dim=self.fft_dim, norm="ortho")
         x = torch.fft.fftshift(x, dim=self.fft_dim)
         return x
 
@@ -98,7 +102,7 @@ class GriddedNUFFT(NamedLinop):
 
     def split_forward_fn(self, ibatch, obatch, /, trj):
         """Return data"""
-        B_slc = obatch[len(self.in_batch_shape):]
+        B_slc = obatch[len(self.in_batch_shape) :]
         trj_slc = B_slc + [slice(None)]
         return trj[trj_slc]
 
@@ -113,7 +117,7 @@ class GriddedNUFFT(NamedLinop):
         kwargs should be the same as the inputs to fn or adj_fn
         Return None if this linop doesn't determine the size of dim.
         """
-        trj_oshapes = self.oshape[len(self.in_batch_shape):] # [B... K]
+        trj_oshapes = self.oshape[len(self.in_batch_shape) :]  # [B... K]
         if dim in trj_oshapes:
             i = trj_oshapes.index(dim)
             return trj.shape[i]

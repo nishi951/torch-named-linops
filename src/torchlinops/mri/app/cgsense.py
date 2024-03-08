@@ -9,18 +9,20 @@ from torchlinops.mri.gridding.linops import GriddedNUFFT
 
 from ...app.cg import ConjugateGradient
 
-__all__= ['CGSENSE']
+__all__ = ["CGSENSE"]
+
 
 class CGSENSE:
     """Reconstruct a single image from kspace measurements"""
+
     def __init__(
-            self,
-            ksp: torch.Tensor,
-            trj: torch.Tensor,
-            mps: torch.Tensor,
-            dcf: Optional[torch.Tensor] = None,
-            num_iter: int = 20,
-            gridded: bool = False
+        self,
+        ksp: torch.Tensor,
+        trj: torch.Tensor,
+        mps: torch.Tensor,
+        dcf: Optional[torch.Tensor] = None,
+        num_iter: int = 20,
+        gridded: bool = False,
     ):
         self.ksp = ksp
         self.trj = trj
@@ -33,15 +35,15 @@ class CGSENSE:
             F = GriddedNUFFT(
                 self.trj,
                 self.im_size,
-                in_batch_shape = ('C',),
-                out_batch_shape = fake_dims('B', len(trj.shape) - 2),
+                in_batch_shape=("C",),
+                out_batch_shape=fake_dims("B", len(trj.shape) - 2),
             )
         else:
             F = NUFFT(
                 self.trj,
                 self.im_size,
-                in_batch_shape = ('C',),
-                out_batch_shape = fake_dims('B', len(trj.shape) - 2),
+                in_batch_shape=("C",),
+                out_batch_shape=fake_dims("B", len(trj.shape) - 2),
             )
         S = SENSE(self.mps)
         self.sense_linop = F @ S

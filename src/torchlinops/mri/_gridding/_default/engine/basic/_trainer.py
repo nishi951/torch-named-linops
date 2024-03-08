@@ -61,16 +61,16 @@ class BasicTrainer(AbstractTrainer):
         total_train_steps: Optional[int] = None,
     ):
         s = self.initialize_training_state(model, loss_fn)
-        s = self.dispatch('train_started', s)
+        s = self.dispatch("train_started", s)
         for epoch in tqdm(range(self.config.num_epochs)):
-            s = self.dispatch('epoch_started', s)
+            s = self.dispatch("epoch_started", s)
             s.model.train()
             for s.features, s.target in tqdm(iter(dataloader), total=total_train_steps):
-                s = self.dispatch('train_step_started', s)
+                s = self.dispatch("train_step_started", s)
                 s = self.train_step(s, loss_fn)
-                s = self.dispatch('train_step_ended', s)
-            s = self.dispatch('epoch_ended', s)
-        self.dispatch('train_ended', s)
+                s = self.dispatch("train_step_ended", s)
+            s = self.dispatch("epoch_ended", s)
+        self.dispatch("train_ended", s)
         return model
 
     def train_step(self, s: TrainingState, loss_fn):
@@ -79,9 +79,9 @@ class BasicTrainer(AbstractTrainer):
         s.loss = loss_fn(s.pred, s.target)
         s.optimizer.zero_grad()
         s.loss.backward()
-        s = self.dispatch('backward_called', s)
+        s = self.dispatch("backward_called", s)
         s.optimizer.step()
-        s = self.dispatch('optimizer_stepped', s)
+        s = self.dispatch("optimizer_stepped", s)
         return s
 
     def initialize_training_state(self, model):

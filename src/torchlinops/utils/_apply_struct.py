@@ -5,10 +5,11 @@ import torch
 import numpy as np
 
 __all__ = [
-    'apply_struct',
-    'numpy2torch',
-    'print_shapes',
+    "apply_struct",
+    "numpy2torch",
+    "print_shapes",
 ]
+
 
 def apply_struct(struct, fn: Callable, condition: Callable):
     if isinstance(struct, Mapping):
@@ -19,17 +20,19 @@ def apply_struct(struct, fn: Callable, condition: Callable):
         return fn(struct)
     else:
         return struct
-        #raise NotImplementedError(f'Struct should be a dict or a list (got {type(struct)})')
+        # raise NotImplementedError(f'Struct should be a dict or a list (got {type(struct)})')
     for k, v in kv_pairs:
         struct[k] = apply_struct(v, fn, condition)
     return struct
 
-def numpy2torch(data, device: Optional[torch.device] = 'cpu'):
+
+def numpy2torch(data, device: Optional[torch.device] = "cpu"):
     return apply_struct(
         data,
         lambda x: torch.from_numpy(x).to(device),
         lambda x: isinstance(x, np.ndarray),
     )
+
 
 def torch2numpy(data):
     return apply_struct(
@@ -38,6 +41,7 @@ def torch2numpy(data):
         lambda x: isinstance(x, torch.Tensor),
     )
 
+
 def print_shapes(data):
     for name, obj in data.items():
-        print(f'{name}: {obj.shape}')
+        print(f"{name}: {obj.shape}")

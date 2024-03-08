@@ -8,21 +8,22 @@ import sigpy.mri as mri
 from typing import Optional
 
 __all__ = [
-    'spiral_2d',
-    'tgas_spi',
-    'acs',
-    'radial_2d',
-    'cartesian',
-    'EPI_2d',
+    "spiral_2d",
+    "tgas_spi",
+    "acs",
+    "radial_2d",
+    "cartesian",
+    "EPI_2d",
 ]
 
+
 def spiral_2d(
-        im_size: Tuple,
-        n_shots: int = 16,
-        alpha: float = 1.5,
-        f_sampling: float = 0.4,
-        g_max: float = 40.,
-        s_max: float = 100.,
+    im_size: Tuple,
+    n_shots: int = 16,
+    alpha: float = 1.5,
+    f_sampling: float = 0.4,
+    g_max: float = 40.0,
+    s_max: float = 100.0,
 ) -> np.ndarray:
     """
     Generates an 2-dimensional variable density spiral
@@ -50,15 +51,15 @@ def spiral_2d(
     trj = mri.spiral(
         fov=1,
         N=max(im_size),
-        f_sampling=f_sampling, # TODO function of self.n_read
+        f_sampling=f_sampling,  # TODO function of self.n_read
         R=1,
         ninterleaves=n_shots,
         alpha=alpha,
-        gm=g_max, # Tesla / m
-        sm=s_max, # Tesla / m / s
+        gm=g_max,  # Tesla / m
+        sm=s_max,  # Tesla / m / s
     )
     assert trj.shape[0] % n_shots == 0
-    trj = trj.reshape((trj.shape[0] // n_shots, n_shots, 2), order='F')
+    trj = trj.reshape((trj.shape[0] // n_shots, n_shots, 2), order="F")
 
     # Equalize axes
     for i in range(trj.shape[-1]):
@@ -94,10 +95,8 @@ def rotation_matrix(axis, theta):
 
 
 def tgas_spi(
-        im_size,
-        ntr: int,
-        n_shots: Optional[int] = 16,
-        R: Optional[float] = 1) -> np.ndarray:
+    im_size, ntr: int, n_shots: Optional[int] = 16, R: Optional[float] = 1
+) -> np.ndarray:
     """
     Generates a sample k-space trajectory for MRF, after the following paper:
     Optimized multi-axis spiral projection <scp>MR</scp> fingerprinting with
@@ -132,7 +131,6 @@ def tgas_spi(
 
     # 2D Case
     if d == 2:
-
         # Get rotation axis
         axis = np.zeros(3)
         axis[-1] = 1
@@ -143,7 +141,6 @@ def tgas_spi(
         # Randomize spirals
         for i in range(n_shots):
             for j in range(ntr):
-
                 # TGA along interleave dim
                 theta = tga * (i + j)
                 rot = rotation_matrix(axis, theta)[:2, :2]
@@ -154,7 +151,6 @@ def tgas_spi(
         trj = trj[:, :ngroups_undersamp, ...]
 
     else:
-
         # Trajectory dimensions
         n_inter_undersamp = round(n_shots / R)
         ngroups = n_inter_undersamp * 3
@@ -163,7 +159,6 @@ def tgas_spi(
 
         # Rotate base spiral in all three dimensions
         for dim in range(3):
-
             # Get in plane spiral
             ax1 = dim
             ax2 = (dim + 1) % 3
@@ -177,11 +172,9 @@ def tgas_spi(
 
             # Rotations by TGA
             for j in range(ntr):
-
                 # Randomly select group indices for subsampling
                 random_groups = np.random.choice(n_shots, n_inter_undersamp)
                 for i, g in enumerate(random_groups):
-
                     # Get rotation matrix
                     theta = tga * (g + j)
                     rot = rotation_matrix(rotation_axis, theta)
@@ -193,7 +186,9 @@ def tgas_spi(
     return trj
 
 
-def radial_2d(im_size: Tuple, n_read: Optional[int] = None, n_shots: Optional[int] = None) -> np.ndarray:
+def radial_2d(
+    im_size: Tuple, n_read: Optional[int] = None, n_shots: Optional[int] = None
+) -> np.ndarray:
     """
     Generates a 2d radial trajectory
 
@@ -208,14 +203,16 @@ def radial_2d(im_size: Tuple, n_read: Optional[int] = None, n_shots: Optional[in
         k-space trajector with shape (n_read, n_shots_rad, d), d = len(self.im_size)
     """
     N = max(im_size)
-    n_shots = n_shots if n_shots is not None else 2*N
+    n_shots = n_shots if n_shots is not None else 2 * N
 
     # Number of spokes for fully sampled
     n_spokes = round(np.pi * N)
-    thetas = np.linspace(0, np.pi, n_spokes, endpoint=False)[:, None] + 1e-5 # numerical reasons ...
+    thetas = (
+        np.linspace(0, np.pi, n_spokes, endpoint=False)[:, None] + 1e-5
+    )  # numerical reasons ...
 
     # Generate points along the readout
-    readout_line = np.linspace(-N/2, N/2, n_read)[None, :]
+    readout_line = np.linspace(-N / 2, N / 2, n_read)[None, :]
 
     # Rotations
     pts = readout_line * np.exp(1j * thetas)
@@ -228,6 +225,7 @@ def radial_2d(im_size: Tuple, n_read: Optional[int] = None, n_shots: Optional[in
         trj[..., i] = trj[..., i] * self.im_size[i] / trj[..., i].max() / 2
 
     return trj
+
 
 def cartesian(im_size, n_read: Optional[int] = None):
     """
@@ -256,23 +254,23 @@ def cartesian(im_size, n_read: Optional[int] = None):
     trj = np.zeros((*new_im_size, len(new_im_size)))
     d = trj.shape[-1]
     for i in range(d):
-
         # Get number of points
         n_read = new_im_size[i]
         n = im_size[i]
 
         # Update trajectory
         tup = (None,) * i + (slice(None),) + (None,) * (d - i - 1)
-        trj[..., i] = np.linspace(-n/2, n/2, n_read)[tup]
+        trj[..., i] = np.linspace(-n / 2, n / 2, n_read)[tup]
 
     # Move axes and flatten
     trj = np.moveaxis(trj, i_max, 0)
 
     return trj
 
-def EPI_2d(im_size
-            n_read: Optional[int] = None,
-            n_shots: Optional[int] = 16) -> np.ndarray:
+
+def EPI_2d(
+    im_size, n_read: Optional[int] = None, n_shots: Optional[int] = 16
+) -> np.ndarray:
     """
     Generates a cartesian trajectory
 
@@ -298,7 +296,9 @@ def EPI_2d(im_size
 
     # Make sure number of shots divides nicely
     nky = trj_cart.shape[1]
-    assert nky % n_shots == 0, 'Number of shots should be a divisor of number of acquired ky lines'
+    assert (
+        nky % n_shots == 0
+    ), "Number of shots should be a divisor of number of acquired ky lines"
     lines_per_shot = nky // n_shots
 
     # Place holder trajecrory
@@ -307,15 +307,15 @@ def EPI_2d(im_size
 
     # Populate
     for i in range(n_shots):
-
         # Flip lines
         lines = trj_cart[:, i::n_shots, :]
         lines[:, ::2, :] = np.flip(lines[:, ::2, :], axis=0)
 
         # Update trj
-        trj[:, i, :] = lines.reshape((-1, d), order='F')
+        trj[:, i, :] = lines.reshape((-1, d), order="F")
 
     return trj
+
 
 def acs(calib_size: tuple) -> np.ndarray:
     """
@@ -338,8 +338,8 @@ def acs(calib_size: tuple) -> np.ndarray:
 
     # Set values
     for i in range(d):
-        n  = calib_size[i]
+        n = calib_size[i]
         tup = (None,) * i + (slice(None),) + (None,) * (d - i - 1)
-        trj[..., i] = np.linspace(-n/2, n/2, n)[tup]
+        trj[..., i] = np.linspace(-n / 2, n / 2, n)[tup]
 
     return trj

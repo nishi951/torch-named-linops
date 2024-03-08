@@ -2,29 +2,33 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-__all__ = ['SimulatorConfig', 'Simulator']
+__all__ = ["SimulatorConfig", "Simulator"]
 
 
 @dataclass
 class SimulatorConfig:
-    nufft: dict = field(default_factory={
-        'oversamp': None,
-        'width': None,
-    })
-    dcf: dict = field(default_factory={
-        'max_iter': 30,
-    })
+    nufft: dict = field(
+        default_factory={
+            "oversamp": None,
+            "width": None,
+        }
+    )
+    dcf: dict = field(
+        default_factory={
+            "max_iter": 30,
+        }
+    )
+
 
 class Simulator:
     def __init__(
-            self,
-            sequence,
-            trj,
-            im_size,
-            params: SimulatorConfig,
-            device_idx: int = -1,
+        self,
+        sequence,
+        trj,
+        im_size,
+        params: SimulatorConfig,
+        device_idx: int = -1,
     ):
-
         self.params = params
         self.sequence = sequence
         self.trj = trj

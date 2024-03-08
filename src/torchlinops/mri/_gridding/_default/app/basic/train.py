@@ -1,5 +1,5 @@
-
 import torchlinops.mri.gridding._default.engine.basic as basic
+
 
 class BasicIGROGApp:
     def __init__(self, config: basic.BasicIGROGAppConfig):
@@ -12,7 +12,5 @@ class BasicIGROGApp:
         # Run training
         # Run inference
         # Unpack
-
-
 
         return trj_grd, ksp_grd

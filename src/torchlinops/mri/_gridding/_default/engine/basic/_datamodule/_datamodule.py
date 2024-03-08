@@ -8,6 +8,7 @@ from .. import AbstractDataModule
 class BasicDataModuleConfig:
     ...
 
+
 class BasicDataModule(AbstractDataModule):
     def __init__(self, config):
         self.config = config

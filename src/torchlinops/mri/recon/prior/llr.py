@@ -10,21 +10,19 @@ from .block import Block
 
 
 __all__ = [
-    'LLRHparams',
-    'LocallyLowRank',
-    'ScheduledLLR',
+    "LLRHparams",
+    "LocallyLowRank",
+    "ScheduledLLR",
 ]
+
 
 @dataclass
 class LLRHparams:
-    block_size: Union[Tuple[int, int],
-                      Tuple[int, int, int]]
-    block_stride: Union[Tuple[int, int],
-                        Tuple[int, int, int]]
+    block_size: Union[Tuple[int, int], Tuple[int, int, int]]
+    block_stride: Union[Tuple[int, int], Tuple[int, int, int]]
     threshold: float
     shift_increment: Union[int, str] = 1
     """Int or 'random' """
-
 
 
 class LocallyLowRank(nn.Module):
@@ -32,11 +30,12 @@ class LocallyLowRank(nn.Module):
 
     Language based on spatiotemporal blocks
     """
+
     def __init__(
-            self,
-            input_size: Tuple,
-            hparams: LLRHparams,
-            input_type: Optional[Callable]= None,
+        self,
+        input_size: Tuple,
+        hparams: LLRHparams,
+        input_type: Optional[Callable] = None,
     ):
         super().__init__()
         self.input_type = input_type if input_type is not None else torch.complex64
@@ -70,36 +69,37 @@ class LocallyLowRank(nn.Module):
 
         # Combine within-block dimensions
         # Move temporal dimension to be last
-        unblocked_shape = x.shape # Save block shape for later
-        x = rearrange(x, 'n a b ... -> n b (...) a')
+        unblocked_shape = x.shape  # Save block shape for later
+        x = rearrange(x, "n a b ... -> n b (...) a")
 
         # Take SVD
         U, S, Vh = torch.linalg.svd(x, full_matrices=False)
 
         # Threshold
         S = S - self.hparams.threshold
-        S[S < 0] = 0.
+        S[S < 0] = 0.0
         S = S.type(U.dtype)
 
         # Recompose blocks
         x = U @ torch.diag_embed(S) @ Vh
 
         # Unblock and normalize
-        x = rearrange(x, 'n b x a -> n a b x')
+        x = rearrange(x, "n b x a -> n a b x")
         x = x.reshape(*unblocked_shape)
         x = self.block.adjoint(x, nblocks, norm_weights=self.block_weights)
 
         # Undo the roll in each shift direction
-        x = torch.roll(x, tuple(-i for i in self.shift), dims=tuple(range(-len(self.shift), 0)))
+        x = torch.roll(
+            x, tuple(-i for i in self.shift), dims=tuple(range(-len(self.shift), 0))
+        )
 
         # Update the shift amount
         if isinstance(self.hparams.shift_increment, int):
             self.shift = tuple(i + self.hparams.shift_increment for i in self.shift)
-        elif self.hparams.shift_increment == 'random':
+        elif self.hparams.shift_increment == "random":
             self.shift = tuple(np.random.randint(0, self.hparams.block_stride))
         else:
-            raise ValueError(f'Invalid shift increment: {self.hparams.shift_increment}')
-
+            raise ValueError(f"Invalid shift increment: {self.hparams.shift_increment}")
 
         # Return the thresholded input
         return x
@@ -116,11 +116,12 @@ class LocallyLowRank(nn.Module):
         x = x[0, ...]
         return x
 
+
 class ScheduledLLR(nn.Module):
     def __init__(
-            self,
-            llr_module: LocallyLowRank,
-            schedule: Optional[Callable] = None,
+        self,
+        llr_module: LocallyLowRank,
+        schedule: Optional[Callable] = None,
     ):
         """
         schedule: Function that, when given an iteration and the
@@ -132,8 +133,9 @@ class ScheduledLLR(nn.Module):
         self._iteration = 0
 
     def forward(self, x: torch.Tensor):
-        self.llr.hparams.threshold = self.schedule(self.llr.hparams.threshold,
-                                                   self._iteration)
+        self.llr.hparams.threshold = self.schedule(
+            self.llr.hparams.threshold, self._iteration
+        )
         x = self.llr(x)
         self._iteration += 1
         return x

@@ -8,11 +8,12 @@ import yaml
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    'mkdir',
-    'save_yaml_options',
+    "mkdir",
+    "save_yaml_options",
 ]
 
-def mkdir(root_path, action: Optional[Literal['o', 'l', 'a']] = None):
+
+def mkdir(root_path, action: Optional[Literal["o", "l", "a"]] = None):
     """
     root_path should be a pathlib.Path
     """
@@ -22,15 +23,15 @@ def mkdir(root_path, action: Optional[Literal['o', 'l', 'a']] = None):
             opt = action
         else:
             opt = input(
-                f'{root_path} exists. [O]verwrite/[L]eave/[A]bort? [o/l/a] '
+                f"{root_path} exists. [O]verwrite/[L]eave/[A]bort? [o/l/a] "
             ).lower()
-        if opt == 'o':
-            logger.warning(f'Overwriting {root_path}.')
+        if opt == "o":
+            logger.warning(f"Overwriting {root_path}.")
             shutil.rmtree(root_path)
-        elif opt == 'l':
-            logger.debug(f'Saving to {root_path}')
+        elif opt == "l":
+            logger.debug(f"Saving to {root_path}")
         else:
-            logger.debug('Aborting.')
+            logger.debug("Aborting.")
             sys.exit()
     Path(root_path).mkdir(parents=True, exist_ok=True)
 
@@ -38,6 +39,7 @@ def mkdir(root_path, action: Optional[Literal['o', 'l', 'a']] = None):
 def save_yaml_options(config_file: Path, opt):
     def noop(self, *args, **kwargs):
         pass
+
     yaml.emitter.Emitter.process_tag = noop
-    with open(config_file, 'w') as f:
+    with open(config_file, "w") as f:
         yaml.dump(opt, f)

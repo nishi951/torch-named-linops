@@ -9,8 +9,8 @@ from utils import EventManager
 from .. import AbstractInferencer
 
 __all__ = [
-    'InferenceState',
-    'BasicInferencer',
+    "InferenceState",
+    "BasicInferencer",
 ]
 
 
@@ -47,23 +47,23 @@ class BasicInferencer(AbstractInferencer):
         based on results from validation.
         """
         s = self.initialize_inference_state(model)
-        self.m.dispatch('val_started', s)
-        for s.features, s.target in tqdm(iter(val_dataloader), 'Validation'):
-            self.m.dispatch('val_step_started', s)
+        self.m.dispatch("val_started", s)
+        for s.features, s.target in tqdm(iter(val_dataloader), "Validation"):
+            self.m.dispatch("val_step_started", s)
             s.pred = self.infer(s.model, s.features)
-            self.m.dispatch('val_step_ended', s)
-        self.m.dispatch('val_ended', s)
+            self.m.dispatch("val_step_ended", s)
+        self.m.dispatch("val_ended", s)
         return s
 
     def test(self, model: nn.Module, test_dataloader):
         """Run a test"""
         s = self.initialize_inference_state(model)
-        self.m.dispatch('test_started', s)
-        for features, _ in tqdm(iter(test_dataloader), 'Testing'):
-            self.m.dispatch('test_step_started', s)
+        self.m.dispatch("test_started", s)
+        for features, _ in tqdm(iter(test_dataloader), "Testing"):
+            self.m.dispatch("test_step_started", s)
             s.pred = self.infer(s.model, s.features)
-            self.m.dispatch('test_step_ended', s)
-        self.m.dispatch('test_ended', s)
+            self.m.dispatch("test_step_ended", s)
+        self.m.dispatch("test_ended", s)
         return s
 
     def initialize_inference_state(model):
