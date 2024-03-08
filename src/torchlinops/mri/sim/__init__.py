@@ -1,2 +1,3 @@
 from ._trj import *
-from ._spiral2d import *
+from .spiral2d import *
+from .tgas_spi import *

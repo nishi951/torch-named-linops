@@ -95,7 +95,14 @@ def rotation_matrix(axis, theta):
 
 
 def tgas_spi(
-    im_size, ntr: int, n_shots: Optional[int] = 16, R: Optional[float] = 1
+    im_size,
+    n_tr: int,
+    n_groups: Optional[int] = 16,
+    groups_undersamp: Optional[float] = 1,
+    alpha: float = 1.5,
+    f_sampling: float = 1.0,
+    g_max: float = 40.0,
+    s_max: float = 100.0,
 ) -> np.ndarray:
     """
     Generates a sample k-space trajectory for MRF, after the following paper:
@@ -105,12 +112,12 @@ def tgas_spi(
 
     Parameters
     ----------
-    ntr : int
+    n_tr : int
         number of TRs in MRF sequence
-    R : float
-        the spatial undersampling factor
-    n_shots : int
+    n_groups : float
         number of interleaves needed to cover 2D k-space for one spiral
+    groups_undersamp : float
+        the spatial undersampling factor (actual number of groups will be rounded to an integer)
 
     Returns
     ----------
@@ -122,7 +129,7 @@ def tgas_spi(
     d = len(im_size)
 
     # Generate base spiral
-    base_spiral = spiral_2d(im_size, n_shots)
+    base_spiral = spiral_2d(im_size, n_groups, alpha, f_sampling, g_max, s_max)
 
     # Tiny golden angle
     tga = np.deg2rad(22.63)
@@ -136,26 +143,26 @@ def tgas_spi(
         axis[-1] = 1
 
         # Return trajectory
-        trj = np.zeros((base_spiral.shape[0], n_shots, ntr, d))
+        trj = np.zeros((base_spiral.shape[0], n_groups, n_tr, d))
 
         # Randomize spirals
-        for i in range(n_shots):
-            for j in range(ntr):
+        for i in range(n_groups):
+            for j in range(n_tr):
                 # TGA along interleave dim
                 theta = tga * (i + j)
                 rot = rotation_matrix(axis, theta)[:2, :2]
                 trj[:, i, j, :] = base_spiral[:, 0, :] @ rot
 
         # undersample groups
-        ngroups_undersamp = round(trj.shape[1] / R)
+        ngroups_undersamp = round(trj.shape[1] / groups_undersamp)
         trj = trj[:, :ngroups_undersamp, ...]
 
     else:
         # Trajectory dimensions
-        n_inter_undersamp = round(n_shots / R)
+        n_inter_undersamp = round(n_groups / groups_undersamp)
         ngroups = n_inter_undersamp * 3
         nro = base_spiral.shape[0]
-        trj = np.zeros((nro, ngroups, ntr, 3))
+        trj = np.zeros((nro, ngroups, n_tr, 3))
 
         # Rotate base spiral in all three dimensions
         for dim in range(3):
@@ -171,9 +178,9 @@ def tgas_spi(
             rotation_axis[dim] = 1
 
             # Rotations by TGA
-            for j in range(ntr):
+            for j in range(n_tr):
                 # Randomly select group indices for subsampling
-                random_groups = np.random.choice(n_shots, n_inter_undersamp)
+                random_groups = np.random.choice(n_groups, n_inter_undersamp)
                 for i, g in enumerate(random_groups):
                     # Get rotation matrix
                     theta = tga * (g + j)
@@ -187,7 +194,7 @@ def tgas_spi(
 
 
 def radial_2d(
-    im_size: Tuple, n_read: Optional[int] = None, n_shots: Optional[int] = None
+    im_size: Tuple, n_read: Optional[int] = None, n_groups: Optional[int] = None
 ) -> np.ndarray:
     """
     Generates a 2d radial trajectory
@@ -203,7 +210,7 @@ def radial_2d(
         k-space trajector with shape (n_read, n_shots_rad, d), d = len(self.im_size)
     """
     N = max(im_size)
-    n_shots = n_shots if n_shots is not None else 2 * N
+    n_groups = n_groups if n_groups is not None else 2 * N
 
     # Number of spokes for fully sampled
     n_spokes = round(np.pi * N)
