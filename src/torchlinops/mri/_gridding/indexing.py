@@ -1,5 +1,4 @@
 from typing import Tuple
-from math import prod
 
 import torch
 

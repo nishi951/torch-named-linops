@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable, List, Optional
-from functools import wraps
+from typing import Any, Callable, List
 from collections import defaultdict
 
 __all__ = [
@@ -22,7 +21,7 @@ class EventManager:
         """
         self.handlers = defaultdict(list) if handlers is None else handlers
         for event, callbacks in self.handlers.items():
-            self.handlers[event] = sort_callbacks(callbacks)
+            self.handlers[event] = self.sort_callbacks(callbacks)
 
     def register_handler(
             self,

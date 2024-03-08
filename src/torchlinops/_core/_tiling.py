@@ -1,7 +1,6 @@
-
 import torch
 
-from .base import NamedLinop
+from ._linops import NamedLinop
 from torchlinops.utils import batch_iterator, dict_product
 
 __all__ = ['Batch']

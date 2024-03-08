@@ -9,8 +9,18 @@ Includes:
 
 Note: this project is Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_linops)
 
+## API
+### Modules
+Module summary:
+- `torchlinops` : Base module with all linops
+  - `.app` : Special "apps" for convenient wrapping of lower-level functionality
+  - `.mri` : Submodule with mri-specific functionality
+    - `.app` : MRI-specific apps
+    - `.data` : Data processing functions
+    - `.recon` : Reconstruction techniques
+    - `.sim` : Simulation functions
+  - `.utils` : Utilities
 
-# Linops
 
 ## Features
 - Full support for complex numbers

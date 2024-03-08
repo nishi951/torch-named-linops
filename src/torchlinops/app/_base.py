@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
 
-class App:
+
+class AbstractApp:
     def run(self):
         raise NotImplementedError

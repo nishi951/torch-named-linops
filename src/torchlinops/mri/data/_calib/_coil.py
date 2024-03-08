@@ -10,15 +10,23 @@ from torchlinops.core.linops import Diagonal
 from torchlinops.mri.linops import NUFFT
 from torchlinops.mri.recon.pcg import CGHparams, ConjugateGradient
 
-def sp_fft(x, dim=None):
-    """Matches Sigpy's fft, but in torch"""
+__all__ = [
+    'cfft', 'cifft',
+]
+
+
+def cfft(x, dim=None):
+    """Matches Sigpy's fft, but in torch
+    c = centered
+    """
     x = fft.ifftshift(x, dim=dim)
     x = fft.fftn(x, dim=dim, norm='ortho')
     x = fft.fftshift(x, dim=dim)
     return x
 
-def sp_ifft(x, dim=None, norm=None):
-    """Matches Sigpy's fft adjoint, but in torch"""
+def cifft(x, dim=None, norm=None):
+    """Matches Sigpy's fft adjoint, but in torch
+    """
     x = fft.ifftshift(x, dim=dim)
     x = fft.ifftn(x, dim=dim, norm='ortho')
     x = fft.fftshift(x, dim=dim)

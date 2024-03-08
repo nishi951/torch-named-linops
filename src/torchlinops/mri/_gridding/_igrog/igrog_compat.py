@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple
 
 from einops import rearrange
 import numpy as np
