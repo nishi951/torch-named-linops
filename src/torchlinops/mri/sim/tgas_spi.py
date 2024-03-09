@@ -74,7 +74,7 @@ class TGASSPISimulator(nn.Module):
         if self._data is None:
             ksp = self.A(self.img)
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
-            self._data = MRIDataset(self.trj.data, self.mps.data, self.img.data, ksp)
+            self._data = MRIDataset(trj=self.trj.data, mps=self.mps.data, ksp=ksp, img=self.img.data)
         return self._data
 
     def make_linop(self, trj: torch.Tensor, mps: torch.Tensor):

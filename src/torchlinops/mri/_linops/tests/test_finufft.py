@@ -1,5 +1,7 @@
 import pytest
 
+import torch
+
 from torchlinops.mri.sim.spiral2d import (
     Spiral2dSimulator,
     Spiral2dSimulatorConfig,
@@ -9,8 +11,11 @@ from torchlinops.mri.sim.tgas_spi import (
     TGASSPISimulatorConfig,
 )
 
+from torchlinops.mri._linops._fi_nufft import _nufft, _nufft_adjoint
+from torchlinops.mri._linops.convert_trj import sp2fi, fi2sp
 
-def test_spiral2dsimulator():
+@pytest.fixture
+def spiral2d_data():
     config = Spiral2dSimulatorConfig(
         im_size=(64, 64),
         num_coils=8,
@@ -24,14 +29,10 @@ def test_spiral2dsimulator():
 
     simulator = Spiral2dSimulator(config)
     data = simulator.data
-    assert data.trj.shape[0] == config.spiral_2d_kwargs["n_shots"]
-    assert data.trj.shape[2] == 2  # Dimension
-    assert data.mps.shape[0] == config.num_coils
-    assert tuple(data.mps.shape[1:]) == config.im_size
-    assert tuple(data.img.shape) == config.im_size
+    return data
 
-
-def test_tgasspisimulator():
+@pytest.fixture
+def tgas_spi_data():
     config = TGASSPISimulatorConfig(
         im_size=(64, 64, 64),
         num_coils=8,
@@ -47,9 +48,23 @@ def test_tgasspisimulator():
 
     simulator = TGASSPISimulator(config)
     data = simulator.data
-    assert data.trj.shape[0] == 3 * config.num_groups
-    assert data.trj.shape[1] == config.num_TRs
-    assert data.trj.shape[3] == 3  # Dimension
-    assert data.mps.shape[0] == config.num_coils
-    assert tuple(data.mps.shape[1:]) == config.im_size
-    assert tuple(data.img.shape) == config.im_size
+    return data
+
+def test_finufft2d(spiral2d_data):
+    data = spiral2d_data
+    ksp = _nufft(data.img, sp2fi(data.trj, data.img.shape))
+    assert torch.isclose(ksp, data.ksp)
+
+def test_finufft3d(tgas_spi_data):
+    ...
+
+@pytest.mark.gpu
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU is required but not available")
+def test_cufinufft2d():
+    device = torch.device('cuda')
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU is required but not available")
+def test_cufinufft3d():
+    ...

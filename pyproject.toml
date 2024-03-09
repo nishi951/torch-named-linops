@@ -26,3 +26,7 @@ filterwarnings = [
     "ignore::DeprecationWarning:sigpy.*",
     "ignore::DeprecationWarning:cupy.*",
 ]
+markers = [
+    "slow: tests that are slow (delesect with '-m \"not slow\"')",
+    "gpu: tests that require a gpu",
+]

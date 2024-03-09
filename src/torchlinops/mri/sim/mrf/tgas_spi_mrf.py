@@ -67,7 +67,7 @@ class TGASSPIMRFSimulator(nn.Module):
         return self._data
 
     def make_linop(self, trj: torch.Tensor, mps: torch.Tensor):
-        S = SENSE(mps)
+        S = SENSE(mps, )
         F = NUFFT(
             trj,
             self.config.im_size,

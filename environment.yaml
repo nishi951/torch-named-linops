@@ -35,6 +35,8 @@ dependencies:
      - easydict
      - einops
      - fast-pytorch-kmeans # mr_recon
+     - finufft # Fast NUFFTs
+     - cufinufft # Faster NUFFTs
      - gdown
      - graphviz
      - h5py
