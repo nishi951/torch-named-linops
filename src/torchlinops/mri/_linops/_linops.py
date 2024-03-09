@@ -15,15 +15,17 @@ __all__ = [
     "SENSE",
 ]
 
-def NUFFT(*args, backend: Literal['sigpy', 'torch', 'fi'] = 'sigpy', **kwargs):
-    if backend == 'sigpy':
+
+def NUFFT(*args, backend: Literal["sigpy", "torch", "fi"] = "sigpy", **kwargs):
+    if backend == "sigpy":
         return SigpyNUFFT(*args, **kwargs)
-    elif backend == 'torch':
+    elif backend == "torch":
         return TorchNUFFT(*args, **kwargs)
-    elif backend == 'fi':
+    elif backend == "fi":
         return FiNUFFT(*args, **kwargs)
     else:
-        raise ValueError(f'Unrecognized NUFFT backend: {backend}')
+        raise ValueError(f"Unrecognized NUFFT backend: {backend}")
+
 
 class FiNUFFT(NamedLinop):
     def __init__(
@@ -122,7 +124,6 @@ class FiNUFFT(NamedLinop):
         # elif dim == self.oshape[0]:
         #     return trj.shape[0]
         return None
-
 
 
 class SigpyNUFFT(NamedLinop):

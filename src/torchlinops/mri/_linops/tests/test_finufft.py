@@ -53,7 +53,7 @@ def tgas_spi_data():
 def test_finufft2d(spiral2d_data):
     data = spiral2d_data
     ksp = _nufft(data.img, sp2fi(data.trj, data.img.shape))
-    assert torch.isclose(ksp, data.ksp)
+    assert torch.isclose(ksp, data.ksp).all()
 
 def test_finufft3d(tgas_spi_data):
     ...

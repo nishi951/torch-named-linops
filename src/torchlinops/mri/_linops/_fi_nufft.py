@@ -3,6 +3,7 @@
 Does not support differentiation w.r.t. coordinates
 """
 from math import prod
+from typing import Tuple
 
 import finufft as F
 import cufinufft as cF
@@ -17,23 +18,25 @@ __all__ = ["nufft", "nufft_adjoint"]
 # Type-2 NUFFT = "forward" NUFFT (uniform to nonuniform)
 # Type-3 NUFFT = "adjoint" NUFFT (nonuniform to uniform)
 get_nufft = {
-    'cpu': {
+    "cpu": {
         2: (F.nufft2d2, F.nufft2d1),
         3: (F.nufft3d2, F.nufft3d1),
     },
-    'gpu': {
+    "gpu": {
         2: (cF.nufft2d2, cF.nufft2d1),
         3: (cF.nufft3d2, cF.nufft3d1),
     },
 }
 
-def coord2contig(coord, dim):
+
+def coord2contig(coord, dim=-1):
     return tuple(
-        torch.select(coord, dim, i).contiguous() for i in range(len(coord.shape[dim]))
+        torch.select(coord, dim, i).contiguous() for i in range(coord.shape[dim])
     )
 
+
 def squeeze(coord):
-    """ Get size of batch dimension
+    """Get size of batch dimension
     coord: [K... D]
     Returns
     -------
@@ -43,20 +46,31 @@ def squeeze(coord):
     batch_shape = coord.shape[:-1]
     return rearrange(coord, "... D -> (...) D"), batch_shape
 
+
 def unsqueeze_output(output_squeezed, batch_shape):
     return torch.reshape(output_squeezed, batch_shape)
 
-def _nufft(input: torch.Tensor, coord: torch.Tensor):
+
+def _nufft(input: torch.Tensor, coord: torch.Tensor) -> torch.Tensor:
     """
     coord has scaling [-pi/2, pi/2]
     """
-    dev = 'cpu' if input.device.idx >= 0 else 'gpu'
+    dev = "cpu" if input.device == torch.device("cpu") else "gpu"
     dim = coord.shape[-1]
     coord_squeezed, batch_shape = squeeze(coord)
     n_trans = prod(batch_shape)
     nufft_fn = get_nufft[dev][dim][0]
-    output_squeezed = nufft_fn(input, coord_squeezed, n_trans)
-    output = unsqueeze_output(output_squeezed)
+
+    coord_components = coord2contig(coord_squeezed)
+    if dev == 'cpu':
+        coord_components = tuple(c.detach().numpy() for c in coord_components)
+        input = input.detach().numpy()
+
+    output_squeezed = nufft_fn(*coord_components, input) / prod(input.shape[-dim:])
+
+    if dev == 'cpu':
+        output_squeezed = torch.from_numpy(output_squeezed)
+    output = unsqueeze_output(output_squeezed, batch_shape)
     return output
 
     # if dev == 'cpu':
@@ -71,8 +85,8 @@ def _nufft(input: torch.Tensor, coord: torch.Tensor):
     #         cF.nufft3d2(...)
 
 
-def _nufft_adjoint(input, coord, oshape):
-    dev = 'cpu' if input.device.idx >= 0 else 'gpu'
+def _nufft_adjoint(input: torch.Tensor, coord: torch.Tensor, oshape: Tuple) -> torch.Tensor:
+    dev = "cpu" if input.device.idx >= 0 else "gpu"
     dim = coord.shape[-1]
     input_squeezed, coord_squeezed, batch_shape = squeeze(coord)
     n_trans = prod(batch_shape)
@@ -80,7 +94,6 @@ def _nufft_adjoint(input, coord, oshape):
     output_squeezed = adj_nufft_fn(input, coord_squeezed, n_trans)
     output = unsqueeze_output(output_squeezed)
     return output
-
 
 
 class FiNUFFT(Function):
@@ -104,7 +117,9 @@ class FiNUFFT(Function):
 
         if ctx.needs_input_grad[0]:
             grad_input = _nufft_adjoint(
-                grad_output, coord, ctx.oshape,
+                grad_output,
+                coord,
+                ctx.oshape,
             )
         return grad_input, grad_coord
 
