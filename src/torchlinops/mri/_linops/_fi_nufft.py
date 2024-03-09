@@ -2,7 +2,7 @@
 
 Does not support differentiation w.r.t. coordinates
 """
-from math import prod
+from math import prod, sqrt
 from typing import Tuple
 
 import finufft as F
@@ -35,7 +35,7 @@ def coord2contig(coord, dim=-1):
     )
 
 
-def squeeze(coord):
+def flatten(x, start_dim=0, end_dim=-1):
     """Get size of batch dimension
     coord: [K... D]
     Returns
@@ -43,34 +43,43 @@ def squeeze(coord):
     torch.Tensor [(K...) D] : The trajectory with batch dimensions squeezed
     K...: The actual batch shapes
     """
-    batch_shape = coord.shape[:-1]
-    return rearrange(coord, "... D -> (...) D"), batch_shape
+    orig_shape = x.shape
+    x = torch.flatten(x, start_dim, end_dim)
+    return x, orig_shape
 
 
-def unsqueeze_output(output_squeezed, batch_shape):
-    return torch.reshape(output_squeezed, batch_shape)
+def unflatten(x, orig_shape):
+    return torch.reshape(x, orig_shape)
 
 
 def _nufft(input: torch.Tensor, coord: torch.Tensor) -> torch.Tensor:
     """
-    coord has scaling [-pi/2, pi/2]
+    input : torch.Tensor
+        Shape [N... *im_size]
+    coord : torch.Tensor
+        Has scaling [-pi/2, pi/2]. Shape [K... D]
+    Returns
+    -------
+    output : torch.Tensor
+        [N... K...]
     """
     dev = "cpu" if input.device == torch.device("cpu") else "gpu"
     dim = coord.shape[-1]
-    coord_squeezed, batch_shape = squeeze(coord)
-    n_trans = prod(batch_shape)
+    flat_coord, coord_shape = flatten(coord, start_dim=0, end_dim=-2)
+    flat_input, input_shape = flatten(input, start_dim=0, end_dim=-(dim + 1))
+
     nufft_fn = get_nufft[dev][dim][0]
 
-    coord_components = coord2contig(coord_squeezed)
-    if dev == 'cpu':
+    coord_components = coord2contig(flat_coord)
+    if dev == "cpu":
         coord_components = tuple(c.detach().numpy() for c in coord_components)
-        input = input.detach().numpy()
+        flat_input = flat_input.detach().numpy()
 
-    output_squeezed = nufft_fn(*coord_components, input) / prod(input.shape[-dim:])
+    output = nufft_fn(*coord_components, flat_input) / sqrt(prod(input_shape[-dim:]))
 
-    if dev == 'cpu':
-        output_squeezed = torch.from_numpy(output_squeezed)
-    output = unsqueeze_output(output_squeezed, batch_shape)
+    if dev == "cpu":
+        output = torch.from_numpy(output)
+    output = unflatten(output, (*input_shape[:-dim], *coord_shape[:-1]))
     return output
 
     # if dev == 'cpu':
@@ -85,14 +94,43 @@ def _nufft(input: torch.Tensor, coord: torch.Tensor) -> torch.Tensor:
     #         cF.nufft3d2(...)
 
 
-def _nufft_adjoint(input: torch.Tensor, coord: torch.Tensor, oshape: Tuple) -> torch.Tensor:
-    dev = "cpu" if input.device.idx >= 0 else "gpu"
+def _nufft_adjoint(
+    input: torch.Tensor, coord: torch.Tensor, oshape: Tuple
+) -> torch.Tensor:
+    """
+    input : torch.Tensor
+        Shape [N... K...]
+    coord : torch.Tensor
+        Shape [K... D], has scaling [-pi/2, pi/2]
+    oshape : Tuple
+       Desired output shape.
+
+    Returns
+    -------
+    output : torch.Tensor
+        [N... *oshape]
+    """
+    dev = "cpu" if input.device == torch.device("cpu") else "gpu"
     dim = coord.shape[-1]
-    input_squeezed, coord_squeezed, batch_shape = squeeze(coord)
-    n_trans = prod(batch_shape)
+    coord_batch_len = len(coord.shape) - 1
+    # out_batch = input.shape[:-coord_batch_len]
+    flat_coord, coord_shape = flatten(coord, start_dim=0, end_dim=-2)
+    flat_input, _ = flatten(input, start_dim=0, end_dim=-(coord_batch_len + 1))
+    flat_input, _ = flatten(flat_input, start_dim=-coord_batch_len, end_dim=-1)
+
     adj_nufft_fn = get_nufft[dev][dim][1]
-    output_squeezed = adj_nufft_fn(input, coord_squeezed, n_trans)
-    output = unsqueeze_output(output_squeezed)
+
+    coord_components = coord2contig(flat_coord)
+    if dev == "cpu":
+        coord_components = tuple(c.detach().numpy() for c in coord_components)
+        flat_input = flat_input.detach().numpy()
+
+    im_size = oshape[-dim:]
+    output = adj_nufft_fn(*coord_components, flat_input, im_size) / sqrt(prod(im_size))
+
+    if dev == "cpu":
+        output = torch.from_numpy(output)
+    output = unflatten(output, oshape)
     return output
 
 
