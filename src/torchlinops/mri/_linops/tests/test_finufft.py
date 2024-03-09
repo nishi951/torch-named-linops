@@ -11,8 +11,14 @@ from torchlinops.mri.sim.tgas_spi import (
     TGASSPISimulatorConfig,
 )
 
-from torchlinops.mri._linops._fi_nufft import _nufft, _nufft_adjoint
-from torchlinops.mri._linops._sp_nufft import nufft, nufft_adjoint
+from torchlinops.mri._linops._fi_nufft import (
+    nufft as fi_nufft,
+    nufft_adjoint as fi_nufft_adjoint,
+)
+from torchlinops.mri._linops._sp_nufft import (
+    nufft as sp_nufft,
+    nufft_adjoint as sp_nufft_adjoint,
+)
 from torchlinops.mri._linops.convert_trj import sp2fi, fi2sp
 
 
@@ -56,11 +62,11 @@ def tgas_spi_data():
 
 def test_finufft2d(spiral2d_data):
     data = spiral2d_data
-    ksp = _nufft(data.img * data.mps, sp2fi(data.trj, data.img.shape))
+    ksp = fi_nufft(data.img * data.mps, sp2fi(data.trj, data.img.shape))
     assert torch.isclose(ksp, data.ksp, atol=1e-2, rtol=1e-2).all()
 
-    sp_img_adjoint = nufft_adjoint(data.ksp, data.trj, data.mps.shape)
-    img_adjoint = _nufft_adjoint(
+    sp_img_adjoint = sp_nufft_adjoint(data.ksp, data.trj, data.mps.shape)
+    img_adjoint = fi_nufft_adjoint(
         data.ksp, sp2fi(data.trj, data.img.shape), tuple(data.mps.shape)
     )
     assert torch.isclose(img_adjoint, sp_img_adjoint, atol=1e-1, rtol=1e-2).all()
@@ -68,11 +74,11 @@ def test_finufft2d(spiral2d_data):
 
 def test_finufft3d(tgas_spi_data):
     data = tgas_spi_data
-    ksp = _nufft(data.img * data.mps, sp2fi(data.trj, data.img.shape))
+    ksp = fi_nufft(data.img * data.mps, sp2fi(data.trj, data.img.shape))
     assert torch.isclose(ksp, data.ksp, atol=3e-2, rtol=1e-1).all()
 
-    sp_img_adjoint = nufft_adjoint(data.ksp, data.trj, data.mps.shape)
-    img_adjoint = _nufft_adjoint(
+    sp_img_adjoint = sp_nufft_adjoint(data.ksp, data.trj, data.mps.shape)
+    img_adjoint = fi_nufft_adjoint(
         data.ksp, sp2fi(data.trj, data.img.shape), tuple(data.mps.shape)
     )
     assert torch.isclose(img_adjoint, sp_img_adjoint, atol=1e-1, rtol=1e-1).all()
@@ -85,17 +91,17 @@ def test_finufft3d(tgas_spi_data):
 def test_cufinufft2d(spiral2d_data):
     device = torch.device("cuda")
     data = spiral2d_data
-    ksp = _nufft(
+    ksp = fi_nufft(
         data.img.to(device) * data.mps.to(device),
         sp2fi(data.trj.to(device), data.img.shape),
     )
     ksp = ksp.cpu()
     assert torch.isclose(ksp, data.ksp, atol=1e-2, rtol=1e-2).all()
 
-    sp_img_adjoint = nufft_adjoint(
+    sp_img_adjoint = sp_nufft_adjoint(
         data.ksp.to(device), data.trj.to(device), data.mps.shape
     )
-    img_adjoint = _nufft_adjoint(
+    img_adjoint = fi_nufft_adjoint(
         data.ksp.to(device),
         sp2fi(data.trj.to(device), data.img.shape),
         tuple(data.mps.shape),
@@ -112,17 +118,17 @@ def test_cufinufft2d(spiral2d_data):
 def test_cufinufft3d(tgas_spi_data):
     device = torch.device("cuda")
     data = tgas_spi_data
-    ksp = _nufft(
+    ksp = fi_nufft(
         data.img.to(device) * data.mps.to(device),
         sp2fi(data.trj.to(device), data.img.shape),
     )
     ksp = ksp.cpu()
     assert torch.isclose(ksp, data.ksp, atol=3e-2, rtol=1e-1).all()
 
-    sp_img_adjoint = nufft_adjoint(
+    sp_img_adjoint = sp_nufft_adjoint(
         data.ksp.to(device), data.trj.to(device), data.mps.shape
     )
-    img_adjoint = _nufft_adjoint(
-        data.ksp.to(device), sp2fi(data.trj.to(device), data.img.shape), data.mps.shape
+    img_adjoint = fi_nufft_adjoint(
+        data.ksp.to(device), sp2fi(data.trj.to(device), data.img.shape), tuple(data.mps.shape)
     )
     assert torch.isclose(img_adjoint, sp_img_adjoint, atol=1e-1, rtol=1e-1).all()
