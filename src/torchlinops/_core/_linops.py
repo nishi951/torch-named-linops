@@ -9,6 +9,7 @@ from einops import einsum, rearrange
 __all__ = [
     "NamedLinop",
     "Chain",
+    "Add",
     "Dense",
     "Diagonal",
     "FFT",

@@ -5,7 +5,8 @@ import torch
 
 from torchlinops.utils import Saveable
 
-__all__ = ['MRIDataset']
+__all__ = ["MRIDataset"]
+
 
 @dataclass
 class MRIDataset(Saveable):

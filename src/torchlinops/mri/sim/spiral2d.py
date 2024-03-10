@@ -11,6 +11,7 @@ from torchlinops.mri._linops import NUFFT, SENSE
 from ._trj import spiral_2d
 from ._data import MRIDataset
 
+
 @dataclass
 class Spiral2dSimulatorConfig:
     im_size: Tuple[int, int]
@@ -64,7 +65,9 @@ class Spiral2dSimulator(nn.Module):
         if self._data is None:
             ksp = self.A(self.img)
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
-            self._data = MRIDataset(trj=self.trj.data, mps=self.mps.data, ksp=ksp, img=self.img.data)
+            self._data = MRIDataset(
+                trj=self.trj.data, mps=self.mps.data, ksp=ksp, img=self.img.data
+            )
         return self._data
 
     def make_linop(self, trj: torch.Tensor, mps: torch.Tensor):

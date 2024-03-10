@@ -12,6 +12,7 @@ from torchlinops.mri._linops import NUFFT, SENSE
 from ._trj import tgas_spi
 from ._data import MRIDataset
 
+
 @dataclass
 class TGASSPISimulatorConfig:
     im_size: Tuple[int, int, int]
@@ -28,7 +29,6 @@ class TGASSPISimulatorConfig:
             "s_max": 100.0,
         }
     )
-
 
 
 class TGASSPISimulator(nn.Module):
@@ -74,7 +74,9 @@ class TGASSPISimulator(nn.Module):
         if self._data is None:
             ksp = self.A(self.img)
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
-            self._data = MRIDataset(trj=self.trj.data, mps=self.mps.data, ksp=ksp, img=self.img.data)
+            self._data = MRIDataset(
+                trj=self.trj.data, mps=self.mps.data, ksp=ksp, img=self.img.data
+            )
         return self._data
 
     def make_linop(self, trj: torch.Tensor, mps: torch.Tensor):

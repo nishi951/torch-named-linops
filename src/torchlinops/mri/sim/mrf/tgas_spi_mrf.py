@@ -1,4 +1,17 @@
+from dataclasses import dataclass, field
+from typing import Tuple, Optional, Mapping
+
+from einops import rearrange
+import torch
+import torch.nn as nn
+import sigpy as sp
+
+
+from torchlinops._core._linops import Dense
+from torchlinops.mri._linops import SENSE, NUFFT
 from ._data import SubspaceDataset
+from .._trj import tgas_spi
+
 
 @dataclass
 class TGASSPIMRFSimulatorConfig:
@@ -18,6 +31,7 @@ class TGASSPIMRFSimulatorConfig:
         }
     )
 
+
 class TGASSPIMRFSimulator(nn.Module):
     def __init__(
         self,
@@ -25,8 +39,8 @@ class TGASSPIMRFSimulator(nn.Module):
         img: Optional[torch.Tensor] = None,
         trj: Optional[torch.Tensor] = None,
         mps: Optional[torch.Tensor] = None,
-            phi: Optional[torch.Tensor] = None,
-            dic: Optional[torch.Tensor] = None,
+        phi: Optional[torch.Tensor] = None,
+        dic: Optional[torch.Tensor] = None,
     ):
         super().__init__()
         self.config = config
@@ -55,23 +69,39 @@ class TGASSPIMRFSimulator(nn.Module):
             mps = torch.from_numpy(mps).to(torch.complex64)
         self.mps = nn.Parameter(mps, requires_grad=False)
 
+        if phi is None:
+            ...
+        self.phi = nn.Parameter(phi, requires_grad=False)
+
+        if dic is None:
+            ...
+        self.dic = dic
+
         # Linop
         self.A = self.make_linop(self.trj, self.mps)
 
     @property
-    def data(self) -> MRIDataset:
+    def data(self) -> SubspaceDataset:
         if self._data is None:
             ksp = self.A(self.img)
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
-            self._data = MRIDataset(self.trj.data, self.mps.data, self.img.data, ksp)
+            self._data = SubspaceDataset(
+                self.trj.data, self.mps.data, ksp, self.phi, self.dic, self.img.data
+            )
         return self._data
 
-    def make_linop(self, trj: torch.Tensor, mps: torch.Tensor):
-        S = SENSE(mps, )
+    def make_linop(self, trj: torch.Tensor, mps: torch.Tensor, phi: torch.Tensor):
+        S = SENSE(mps, in_batch_shape=("A",))
         F = NUFFT(
             trj,
             self.config.im_size,
-            in_batch_shape=S.out_batch_shape,
-            out_batch_shape=S.out_batch_shape,
+            in_batch_shape=("A", "C"),
+            out_batch_shape=("R", "T", "K"),
         )
-        return F @ S
+        P = Dense(
+            phi,
+            weightshape=("A", "T"),
+            ishape=("A", "C", "R", "T", "K"),
+            oshape=("C", "T", "Nx", "Ny", "Nz"),
+        )
+        return F @ P @ S

@@ -5,6 +5,7 @@ import torch
 
 from torchlinops.utils import Saveable
 
+
 @dataclass
 class SubspaceDataset(Saveable):
     trj: torch.Tensor

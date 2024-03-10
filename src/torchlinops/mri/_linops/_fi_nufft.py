@@ -3,12 +3,11 @@
 Does not support differentiation w.r.t. coordinates
 """
 from math import prod, sqrt
-from typing import Tuple
+from typing import Tuple, Optional
 
 import finufft as F
 import cufinufft as cF
 
-from einops import rearrange
 import torch
 from torch.autograd import Function
 
@@ -52,7 +51,7 @@ def unflatten(x, orig_shape):
     return torch.reshape(x, orig_shape)
 
 
-def _nufft(input: torch.Tensor, coord: torch.Tensor) -> torch.Tensor:
+def _nufft(input: torch.Tensor, coord: torch.Tensor, out: Optional[torch.Tensor] = None) -> torch.Tensor:
     """
     input : torch.Tensor
         Shape [N... *im_size]
@@ -75,27 +74,16 @@ def _nufft(input: torch.Tensor, coord: torch.Tensor) -> torch.Tensor:
         coord_components = tuple(c.detach().numpy() for c in coord_components)
         flat_input = flat_input.detach().numpy()
 
-    output = nufft_fn(*coord_components, flat_input) / sqrt(prod(input_shape[-dim:]))
+    output = nufft_fn(*coord_components, flat_input, out=out) / sqrt(prod(input_shape[-dim:]))
 
     if dev == "cpu":
         output = torch.from_numpy(output)
     output = unflatten(output, (*input_shape[:-dim], *coord_shape[:-1]))
     return output
 
-    # if dev == 'cpu':
-    #     if dim == 2:
-    #         F.nufft2d2(input, coord_squeezed, n_trans=n_trans)
-    #     if dim == 3:
-    #         F.nufft3d2()
-    # if dev == 'gpu':
-    #     if dim == 2:
-    #         cF.nufft2d2(...)
-    #     if dim == 3:
-    #         cF.nufft3d2(...)
-
 
 def _nufft_adjoint(
-    input: torch.Tensor, coord: torch.Tensor, oshape: Tuple
+        input: torch.Tensor, coord: torch.Tensor, oshape: Tuple, out: Optional[torch.Tensor] = None
 ) -> torch.Tensor:
     """
     input : torch.Tensor
@@ -126,7 +114,7 @@ def _nufft_adjoint(
         flat_input = flat_input.detach().numpy()
 
     im_size = oshape[-dim:]
-    output = adj_nufft_fn(*coord_components, flat_input, im_size) / sqrt(prod(im_size))
+    output = adj_nufft_fn(*coord_components, flat_input, im_size, out=out) / sqrt(prod(im_size))
 
     if dev == "cpu":
         output = torch.from_numpy(output)
@@ -139,19 +127,20 @@ class FiNUFFT(Function):
     def forward(
         input: torch.Tensor,
         coord: torch.Tensor,
+        out: torch.Tensor,
     ) -> torch.Tensor:
-        return _nufft(input, coord)
+        return _nufft(input, coord, out)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        input, coord = inputs
+        input, coord, _ = inputs
         ctx.oshape = input.shape
         ctx.save_for_backward(coord)
 
     @staticmethod
     def backward(ctx, grad_output):
         coord = ctx.saved_tensors[0]
-        grad_input = grad_coord = None
+        grad_input = grad_coord = grad_out = None
 
         if ctx.needs_input_grad[0]:
             grad_input = _nufft_adjoint(
@@ -159,14 +148,14 @@ class FiNUFFT(Function):
                 coord,
                 ctx.oshape,
             )
-        return grad_input, grad_coord
+        return grad_input, grad_coord, grad_out
 
 
-def nufft(input, coord):
+def nufft(input, coord, out=None):
     """
     Wrap to provide default and keyword arguments.
     """
-    return FiNUFFT.apply(input, coord)
+    return FiNUFFT.apply(input, coord, out)
 
 
 class FiNUFFTAdjoint(Function):
@@ -175,26 +164,27 @@ class FiNUFFTAdjoint(Function):
         input: torch.Tensor,
         coord: torch.Tensor,
         oshape: torch.Size,
+        out: Optional[torch.Tensor],
     ) -> torch.Tensor:
         return _nufft_adjoint(input, coord, oshape)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        input, coord, _ = inputs
+        input, coord, _, _= inputs
         ctx.save_for_backward(coord)
 
     @staticmethod
     def backward(ctx, grad_output):
         coord = ctx.saved_tensors[0]
-        grad_input = grad_coord = grad_oshape = None
+        grad_input = grad_coord = grad_oshape = grad_out = None
 
         if ctx.needs_input_grad[0]:
             grad_input = _nufft(grad_output, coord)
-        return grad_input, grad_coord, grad_oshape
+        return grad_input, grad_coord, grad_oshape, grad_out
 
 
-def nufft_adjoint(input, coord, oshape):
+def nufft_adjoint(input, coord, oshape, out=None):
     """
     Wrap to provide default and keyword arguments
     """
-    return FiNUFFTAdjoint.apply(input, coord, oshape)
+    return FiNUFFTAdjoint.apply(input, coord, oshape, out)
