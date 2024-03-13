@@ -33,6 +33,7 @@ class SteadyStateMRFSimulatorConfig:
     num_states: int
     real_signal: bool
 
+
 class SteadyStateMRFSimulator(nn.Module):
     """Simulates two FISP sequences with the same flip angle train
     Outputs the second (steady-state) signal levels for the given (PD, T1, T2)

@@ -35,4 +35,4 @@ def MRF_FISP():
     data = loadmat(str(filename))
     # Fix some stuff
     data['TR_init'][:, -1] = 15
-    return data['FA_init'].astype(np.float32), data['TR_init'].astype(np.float32)
+    return data['FA_init'][0].astype(np.float32), data['TR_init'][0].astype(np.float32)

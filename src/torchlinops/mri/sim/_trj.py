@@ -189,6 +189,10 @@ def tgas_spi(
                     # apply to correct group
                     grp = dim * n_inter_undersamp + i
                     trj[:, grp, j, :] = in_plane_spiral[:, g, :] @ rot
+        # Normalize trajectory to matrix size
+        # Assumes isotropic resolution
+        for dim in range(3):
+            trj[..., dim] *= im_size[dim] / max(im_size)
 
     return trj
 

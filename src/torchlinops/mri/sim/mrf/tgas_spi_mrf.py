@@ -11,7 +11,13 @@ from torchlinops._core._linops import Dense, SumReduce
 from torchlinops.mri._linops import SENSE, NUFFT
 from ._data import SubspaceDataset
 from .._trj import tgas_spi
+from .qmri import brainweb
 
+from .steady_state_simulator import (
+    GREConfig,
+    InversionRecoveryConfig,
+    SteadyStateMRF
+)
 
 @dataclass
 class TGASSPIMRFSimulatorConfig:
@@ -49,7 +55,8 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         self._data = None
 
         if img is None:
-            # Load brainweb phantom
+            img = brainweb.brainweb_phantom()
+            img = torch.from_numpy(img).to(torch.complex64)
         self.img = nn.Parameter(img, requires_grad=False)
 
         if trj is None:
@@ -70,7 +77,10 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         self.mps = nn.Parameter(mps, requires_grad=False)
 
         if dic is None:
-            # Load mrf
+            ...
+            # Load T1/T2 dictionary
+            #
+
         self.dic = dic
 
         if phi is None:
@@ -84,6 +94,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
     @property
     def data(self) -> SubspaceDataset:
         if self._data is None:
+            # Fully simulate data
             ksp = self.A(self.img)
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
             self._data = SubspaceDataset(
@@ -111,3 +122,33 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
 
         )
         return R @ P @ F @ S
+
+    @staticmethod
+    def get_default_simulator():
+        FA, TR = brainweb.MRF_FISP()
+        FA = torch.from_numpy(FA).to(torch.float32)
+        TR = torch.from_numpy(TR).to(torch.float32)
+        gre_config = GREConfig(
+            flip_angle=FA,
+            flip_angle_requires_grad=False,
+            TR=TR,
+            TR_requires_grad=False,
+            TE=torch.tensor(0.7), # [ms]
+            TE_requires_grad=False,
+        )
+        inv_rec_config = InversionRecoveryConfig(
+            inversion_time=torch.tensor(20.),
+            inversion_time_requires_grad=False,
+            inversion_angle=torch.tensor(180.),
+            inversion_angle_requires_grad=False,
+            spoiler=False,
+        )
+        ssmrf_config = SteadyStateMRFSimulatorConfig(
+            fisp_config=gre_config,
+            inv_rec_config=inv_rec_config,
+            wait_time=1500., # [ms]
+            num_states=100,
+            real_signal=True,
+        )
+        simulator = SteadyStateMRFSimulator(ssmrf_config)
+        return simulator
