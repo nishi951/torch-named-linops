@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Tuple, Optional, Mapping
 
-from einops import rearrange
+from einops import rearrange, repeat
 import torch
 import torch.nn as nn
 import sigpy as sp
 
 
-from torchlinops._core._linops import Dense
+from torchlinops._core._linops import Dense, SumReduce
 from torchlinops.mri._linops import SENSE, NUFFT
 from ._data import SubspaceDataset
 from .._trj import tgas_spi
@@ -22,6 +22,7 @@ class TGASSPIMRFSimulatorConfig:
     num_bases: int
     groups_undersamp: float
     noise_std: float
+    nufft_backend: str = 'fi'
     spiral_2d_kwargs: Mapping = field(
         default_factory=lambda: {
             "alpha": 1.5,
@@ -32,7 +33,7 @@ class TGASSPIMRFSimulatorConfig:
     )
 
 
-class TGASSPIMRFSimulator(nn.Module):
+class TGASSPISubspaceMRFSimulator(nn.Module):
     def __init__(
         self,
         config: TGASSPIMRFSimulatorConfig,
@@ -48,8 +49,9 @@ class TGASSPIMRFSimulator(nn.Module):
         self._data = None
 
         if img is None:
-            img = sp.shepp_logan(self.config.im_size)
-            img = torch.from_numpy(img).to(torch.complex64)
+            qimg = sp.shepp_logan(self.config.im_size)
+            qimg = torch.from_numpy(img).to(torch.complex64)
+
         self.img = nn.Parameter(img, requires_grad=False)
 
         if trj is None:
@@ -69,13 +71,15 @@ class TGASSPIMRFSimulator(nn.Module):
             mps = torch.from_numpy(mps).to(torch.complex64)
         self.mps = nn.Parameter(mps, requires_grad=False)
 
+        if dic is None:
+            self.simulate_dictionary
+            ...
+        self.dic = dic
+
         if phi is None:
             ...
         self.phi = nn.Parameter(phi, requires_grad=False)
 
-        if dic is None:
-            ...
-        self.dic = dic
 
         # Linop
         self.A = self.make_linop(self.trj, self.mps)
@@ -96,12 +100,17 @@ class TGASSPIMRFSimulator(nn.Module):
             trj,
             self.config.im_size,
             in_batch_shape=("A", "C"),
-            out_batch_shape=("R", "T", "K"),
+            out_batch_shape=("R", "K"),
+            shared_batch_shape=("T",),
+            backend=self.config.nufft_backend,
         )
-        P = Dense(
-            phi,
-            weightshape=("A", "T"),
-            ishape=("A", "C", "R", "T", "K"),
-            oshape=("C", "T", "Nx", "Ny", "Nz"),
+        P = Diagonal(
+            repeat(phi, "A T -> T A () () ()"), # Expand to match
+            ioshape=("T", "A", "C", "R", "K"),
         )
-        return F @ P @ S
+        R = SumReduce(
+            ishape=("T", "A", 'C', 'R', 'K'),
+            oshape=("C", "R", 'T', 'K'),
+
+        )
+        return R @ P @ F @ S

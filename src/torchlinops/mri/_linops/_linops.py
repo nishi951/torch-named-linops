@@ -19,7 +19,7 @@ __all__ = [
 ]
 
 
-def NUFFT(*args, backend: Literal["sigpy", "torch", "fi"] = "sigpy", **kwargs):
+def NUFFT(*args, backend: Literal["sigpy", "torch", "fi"] = "fi", **kwargs):
     if backend == "sigpy":
         return SigpyNUFFT(*args, **kwargs)
     elif backend == "torch":

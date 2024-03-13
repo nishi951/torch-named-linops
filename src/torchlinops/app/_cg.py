@@ -27,6 +27,7 @@ class ConjugateGradient:
         """
         Any device-related stuff should be taken care of
         beforehand.
+        Any preconditioning should be incorporated into the linear operator.
         """
         self.A = A
         self.b = b

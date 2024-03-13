@@ -17,6 +17,7 @@ class Spiral2dSimulatorConfig:
     im_size: Tuple[int, int]
     num_coils: int
     noise_std: float
+    nufft_backend: str = 'sigpy'
     spiral_2d_kwargs: Mapping = field(
         default_factory=lambda: {
             "n_shots": 16,
@@ -77,5 +78,6 @@ class Spiral2dSimulator(nn.Module):
             self.config.im_size,
             in_batch_shape=S.out_batch_shape,
             out_batch_shape=("R",),
+            backend=self.config.nufft_backend,
         )
         return F @ S

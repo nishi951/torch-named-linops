@@ -21,6 +21,7 @@ class TGASSPISimulatorConfig:
     num_groups: int
     groups_undersamp: float
     noise_std: float
+    nufft_backend: str = 'sigpy'
     spiral_2d_kwargs: Mapping = field(
         default_factory=lambda: {
             "alpha": 1.5,
@@ -86,5 +87,6 @@ class TGASSPISimulator(nn.Module):
             self.config.im_size,
             in_batch_shape=S.out_batch_shape,
             out_batch_shape=("R", "T"),
+            backend=self.config.nufft_backend,
         )
         return F @ S
