@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 
 import torch
 import torch.nn as nn
@@ -8,6 +8,7 @@ from optim_mrf.epg_torch.sequences import (
     GREParams as GREConfig,
     SequenceWrapper,
 )
+
 
 @dataclass
 class InversionRecoveryConfig:
@@ -21,7 +22,6 @@ class InversionRecoveryConfig:
     """Whether or not to optimize the inversion angle"""
     spoiler: bool
     """Whether to play a spoiler gradient after the inversion"""
-
 
 
 @dataclass
@@ -39,6 +39,7 @@ class SteadyStateMRFSimulator(nn.Module):
     Outputs the second (steady-state) signal levels for the given (PD, T1, T2)
     input
     """
+
     def __init__(self, config: SteadyStateMRFSimulatorConfig):
         super().__init__()
         self.config = config
@@ -46,13 +47,9 @@ class SteadyStateMRFSimulator(nn.Module):
         seq = SteadyStateMRF(
             self.config.fisp_config,
             asdict(self.config.inv_rec_config),
-            wait_time=torch.tensor(self.config.wait_time)
+            wait_time=torch.tensor(self.config.wait_time),
         )
-        self.seq = SequenceWrapper(
-            seq,
-            self.config.num_states,
-            self.config.real_signal
-        )
+        self.seq = SequenceWrapper(seq, self.config.num_states, self.config.real_signal)
 
     def forward(self, phantom):
         _, signal = self.seq(phantom)
