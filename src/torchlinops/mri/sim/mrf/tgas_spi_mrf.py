@@ -49,9 +49,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         self._data = None
 
         if img is None:
-            qimg = sp.shepp_logan(self.config.im_size)
-            qimg = torch.from_numpy(img).to(torch.complex64)
-
+            # Load brainweb phantom
         self.img = nn.Parameter(img, requires_grad=False)
 
         if trj is None:
@@ -72,8 +70,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         self.mps = nn.Parameter(mps, requires_grad=False)
 
         if dic is None:
-            self.simulate_dictionary
-            ...
+            # Load mrf
         self.dic = dic
 
         if phi is None:

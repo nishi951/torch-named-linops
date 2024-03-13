@@ -72,7 +72,7 @@ class FiNUFFT(NamedLinop):
         """
         x: [[S...] N...  Nx Ny [Nz]] # A... may include coils
         trj: [[S...] K... D] (sigpy-style)
-        output: [S... N... K...]
+        output: [[S...] N... K...]
         """
         if self.shared_dims == 0:
             return finufft.nufft(x, sp2fi(trj, self.im_size))
@@ -91,16 +91,23 @@ class FiNUFFT(NamedLinop):
 
     def adj_fn(self, y, /, trj):
         """
-
-        y: [A... K...]
-        trj: [K... D], Sigpy-style
-        output: [A... Nx Ny [Nz]]
+        y: [[S...] N... K...] # N... may include coils
+        trj: [[S...] K... D] (sigpy-style)
+        output: [[S...] N...  Nx Ny [Nz]]
         """
-
-        B = trj.shape[:-1]
-        A = tuple(y.shape[: -len(B)])
-        oshape = A + self.im_size
-        x = finufft.nufft_adjoint(y, sp2fi(trj, self.im_size), oshape)
+        if self.shared_dims == 0:
+            return finufft.nufft_adjoint(y, sp2fi(trj, self.im_size), oshape)
+        assert x.shape[:self.shared_dims] == trj.shape[:self.shared_dims], f'First {self.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}'
+        S = y.shape[:self.shared_dims]
+        y = torch.flatten(y, start_dim=0, end_dim=self.shared_dims)
+        trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims)
+        N = x.shape[self.shared_dims:-self.D]
+        oshape = (*N, *self.im_size)
+        output_shape = (*S, *N, *self.im_size)
+        x = torch.zeros((prod(S), *N, *self.im_size), dtype=y.dtype, device=y.device)
+        for i in x.shape[0]:
+            finufft.nufft_adjoint(y, sp2fi(trj, self.im_size), oshape, out=x[i])
+        x = torch.reshape(x, output_shape)
         return x
 
     def normal_fn(self, x, /, trj):

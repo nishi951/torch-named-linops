@@ -8,3 +8,7 @@ tmp/
 *.egg-info
 build
 htmlcov
+
+# Data files
+*.np[yz]
+*.mat
