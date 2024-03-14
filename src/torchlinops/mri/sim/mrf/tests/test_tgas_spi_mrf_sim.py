@@ -1,0 +1,38 @@
+import pytest
+
+import torch
+
+from torchlinops.mri.sim.mrf.tgas_spi_mrf import (
+    TGASSPISubspaceMRFSimulator,
+    TGASSPISubspaceMRFSimulatorConfig
+)
+
+@pytest.mark.slow
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_tgas_spi_mrf():
+    config = TGASSPISubspaceMRFSimulatorConfig(
+        im_size=(180, 216, 180),
+        #num_coils=16,
+        num_coils=1.,
+        num_TRs=500,
+        num_groups=16,
+        groups_undersamp=1.,
+        num_bases=5,
+        noise_std=0.0,
+        voxel_batch_size=1000,
+        nufft_backend='fi',
+        spiral_2d_kwargs={
+            "alpha": 1.5,
+            "f_sampling": 0.4,
+            "g_max": 40.0,
+            "s_max": 100.0,
+        },
+        debug=True,
+    )
+    device = torch.device('cuda')
+    sim = TGASSPISubspaceMRFSimulator(config, device)
+    data = sim.simulate()
+    assert True

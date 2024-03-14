@@ -10,7 +10,7 @@ def get2dor3d(im_size, kspace=False):
     if len(im_size) == 2:
         im_dim = ("Kx", "Ky") if kspace else ("Nx", "Ny")
     elif len(im_size) == 3:
-        im_dim = ("Kx", "Ky", "Kz") if kspace else ("Nx", "Ny")
+        im_dim = ("Kx", "Ky", "Kz") if kspace else ("Nx", "Ny", "Nz")
     else:
         raise ValueError(f"Image size {im_size} - should have length 2 or 3")
     return im_dim

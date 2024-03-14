@@ -64,8 +64,13 @@ def _nufft(input: torch.Tensor, coord: torch.Tensor, out: Optional[torch.Tensor]
     """
     dev = "cpu" if input.device == torch.device("cpu") else "gpu"
     dim = coord.shape[-1]
-    flat_coord, coord_shape = flatten(coord, start_dim=0, end_dim=-2)
+    nK = len(coord.shape[:-1])
     flat_input, input_shape = flatten(input, start_dim=0, end_dim=-(dim + 1))
+    flat_coord, coord_shape = flatten(coord, start_dim=0, end_dim=-2)
+
+    if out is not None:
+        flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(nK+1))
+        flat_out, _ = flatten(flat_out, start_dim=1, end_dim=-1)
 
     nufft_fn = get_nufft[dev][dim][0]
 
@@ -74,11 +79,14 @@ def _nufft(input: torch.Tensor, coord: torch.Tensor, out: Optional[torch.Tensor]
         coord_components = tuple(c.detach().numpy() for c in coord_components)
         flat_input = flat_input.detach().numpy()
 
-    output = nufft_fn(*coord_components, flat_input, out=out) / sqrt(prod(input_shape[-dim:]))
+    if flat_out is not None:
+        nufft_fn(*coord_components, flat_input, out=flat_out) / sqrt(prod(input_shape[-dim:]))
+    else:
+        flat_out = nufft_fn(*coord_components, flat_input) / sqrt(prod(input_shape[-dim:]))
 
     if dev == "cpu":
-        output = torch.from_numpy(output)
-    output = unflatten(output, (*input_shape[:-dim], *coord_shape[:-1]))
+        output = torch.from_numpy(flat_out)
+    output = unflatten(flat_out, (*input_shape[:-dim], *coord_shape[:-1]))
     return output
 
 

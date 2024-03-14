@@ -12,14 +12,13 @@ def __():
     import matplotlib.pyplot as plt
 
     import brainweb
-
     return brainweb, mo, np, plt
 
 
 @app.cell
 def __(brainweb):
     data = brainweb.brainweb_phantom()
-    return (data,)
+    return data,
 
 
 @app.cell
@@ -28,8 +27,7 @@ def __(data, mo):
         options=list(data.keys()), label="Image to show", value="t1w"
     )
     img_key
-
-    return (img_key,)
+    return img_key,
 
 
 @app.cell
@@ -44,12 +42,12 @@ def __(data, img_key, mo):
 
 
 @app.cell
-def __(data, img_key, np, x, y, z):
+def __(data, img_key, x, y, z):
     from einops import rearrange
 
     img = data[img_key.value]
-    img = rearrange(img, "z y x -> x y z")
-    img = np.flip(img, axis=(1, 2, 0))
+    # img = rearrange(img, "z y x -> x y z")
+    # img = np.flip(img, axis=(1, 2, 0))
     axial = img[:, :, z.value]
     sagittal = img[
         :,
@@ -75,7 +73,6 @@ def __(axial, coronal, np, plt, sagittal):
 def __():
     import sigpy as sp
     import sigpy.mri as mri
-
     return mri, sp
 
 
@@ -122,7 +119,6 @@ def __(T2, np, plt):
 def __(np):
     T1x = np.concatenate((np.array(range(20, 301, 20)), np.array(range(340, 821, 40))))
     T2x = np.concatenate((np.array(range(10, 51, 5)), np.array(range(60, 101, 10))))
-
     return T1x, T2x
 
 
@@ -135,7 +131,7 @@ def __(T1x, T2x):
 @app.cell
 def __(T1x, T2x, np):
     t1t2pd = np.stack(np.meshgrid(T1x, T2x, 1.0, indexing="ij"), axis=0)
-    return (t1t2pd,)
+    return t1t2pd,
 
 
 @app.cell

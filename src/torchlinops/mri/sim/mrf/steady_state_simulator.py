@@ -3,25 +3,14 @@ from dataclasses import dataclass, asdict
 import torch
 import torch.nn as nn
 
+from optim_mrf.epg_torch.mag_prep import (
+    InversionRecoveryConfig,
+)
 from optim_mrf.epg_torch.sequences import (
     SteadyStateMRF,
     GREParams as GREConfig,
     SequenceWrapper,
 )
-
-
-@dataclass
-class InversionRecoveryConfig:
-    inversion_time: torch.Tensor
-    """The initial inversion time"""
-    inversion_time_requires_grad: bool
-    """Whether or not to optimize the inversion time"""
-    inversion_angle: torch.Tensor
-    """Inversion angle, in degrees"""
-    inversion_angle_requires_grad: bool
-    """Whether or not to optimize the inversion angle"""
-    spoiler: bool
-    """Whether to play a spoiler gradient after the inversion"""
 
 
 @dataclass
@@ -51,6 +40,6 @@ class SteadyStateMRFSimulator(nn.Module):
         )
         self.seq = SequenceWrapper(seq, self.config.num_states, self.config.real_signal)
 
-    def forward(self, phantom):
-        _, signal = self.seq(phantom)
+    def forward(self, *phantom_t1t2pd):
+        signal = self.seq(*phantom_t1t2pd)
         return signal

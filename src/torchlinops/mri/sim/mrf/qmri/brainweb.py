@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+from einops import rearrange
 
 import gdown
 from scipy.io import loadmat
@@ -20,7 +21,16 @@ def brainweb_phantom():
             id=data_id, output=str(data_filepath), quiet=False, use_cookies=False
         )
     filename = Path(data_filepath) / "brainweb_phantom.npz"
-    return np.load(filename)
+    # Transpose stuff to make it nicer
+    data = dict(np.load(filename))
+    for k, img in data.items():
+        img = rearrange(img, 'z y x -> x y z')
+        img = np.flip(img, axis=(0, 1, 2))
+        data[k] = img.copy()
+    # axial slice is [x y]
+    # sagittal slice is [x z]
+    # coronal slice is [y z]
+    return data
 
 
 def MRF_FISP():

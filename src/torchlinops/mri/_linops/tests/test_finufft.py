@@ -71,7 +71,7 @@ def test_finufft2d(spiral2d_data):
     )
     assert torch.isclose(img_adjoint, sp_img_adjoint, atol=1e-1, rtol=1e-2).all()
 
-
+@pytest.mark.slow
 def test_finufft3d(tgas_spi_data):
     data = tgas_spi_data
     ksp = fi_nufft(data.img * data.mps, sp2fi(data.trj, data.img.shape))
@@ -111,6 +111,7 @@ def test_cufinufft2d(spiral2d_data):
     ).all()
 
 
+@pytest.mark.slow
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"

@@ -56,8 +56,8 @@ class FiNUFFT(NamedLinop):
         )
         self.shared_batch_shape = shared_batch_shape if shared_batch_shape is not None else tuple()
         self.shared_dims = len(self.shared_batch_shape)
-        ishape = self.in_batch_shape + get2dor3d(im_size)
-        oshape = self.in_batch_shape + self.out_batch_shape
+        ishape = self.shared_batch_shape + self.in_batch_shape + get2dor3d(im_size)
+        oshape = self.shared_batch_shape + self.in_batch_shape + self.out_batch_shape
         super().__init__(ishape, oshape)
         self.trj = nn.Parameter(trj, requires_grad=False)
         self.im_size = im_size
@@ -78,14 +78,14 @@ class FiNUFFT(NamedLinop):
             return finufft.nufft(x, sp2fi(trj, self.im_size))
         assert x.shape[:self.shared_dims] == trj.shape[:self.shared_dims], f'First {self.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}'
         S = x.shape[:self.shared_dims]
-        x = torch.flatten(x, start_dim=0, end_dim=self.shared_dims)
-        trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims)
+        x = torch.flatten(x, start_dim=0, end_dim=self.shared_dims-1)
+        trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims-1)
         N = x.shape[self.shared_dims:-self.D]
         K = trj.shape[self.shared_dims:-1]
         output_shape = (*S, *N, *K)
         y = torch.zeros((prod(S), *N, *K), dtype=x.dtype, device=x.device)
-        for i in x.shape[0]:
-            finufft.nufft(x, sp2fi(trj, self.im_size), out=y[i])
+        for i in range(x.shape[0]):
+            finufft.nufft(x[i], sp2fi(trj[i], self.im_size), out=y[i])
         y = torch.reshape(y, output_shape)
         return y
 
