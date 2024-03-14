@@ -143,7 +143,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         self.to(device)
 
         self.dic = self.simulator(*(t.flatten() for t in self.t1t2pd))
-        self.dic = self.dic.reshape(*self.t1t2pd.shape, -)
+        self.dic = self.dic.reshape(*self.t1t2pd[0].shape, -1) # [T1, T2, PD, TR]
         # Temporal subspace
         if phi is None:
             phi = self.compress_dictionary(self.dic, n_coeffs=self.config.num_bases)
@@ -194,7 +194,6 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             spatiotemporal_image = rearrange(spatiotemporal_image, '... T -> T ...').contiguous()
 
             ksp = self.Asim(spatiotemporal_image)
-            breakpoint()
 
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
             self._data = SubspaceDataset(
@@ -203,7 +202,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
                 ksp,
                 self.phi,
                 self.qimg,
-                dict(self.dic),
+                self.dic,
                 self.t1,
                 self.t2,
             )
