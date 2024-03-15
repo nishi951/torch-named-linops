@@ -119,23 +119,27 @@ class FiNUFFT(NamedLinop):
             im_size=self.im_size,
             in_batch_shape=self.in_batch_shape,
             out_batch_shape=self.out_batch_shape,
-            readout_dim=self.readout_dim,
+            shared_batch_shape=self.shared_batch_shape,
         )
 
-    def split_forward_fn(self, ibatch, obatch, trj):
-        # Get slice corresponding to trj
-        B_slc = obatch[len(self.in_batch_shape) :]
-        # Add a free dim for the D dimension
-        trj_slc = obatch[:-1] + [slice(None)] + obatch[-1:]
+    def split_forward_fn(self, ibatch, obatch, /, trj):
+        shared_batch = obatch[:self.shared_dims]
+        kbatch = obatch[self.shared_dims + len(self.in_batch_shape):]
+        trj_slc = tuple(shared_batch + kbatch + [slice(None)])
+        #trj_slc = obatch[:-1] + [slice(None)] + obatch[-1:]
         return trj[trj_slc]
 
     def size(self, dim: str):
         return self.size_fn(dim, self.trj)
 
     def size_fn(self, dim: str, trj):
-        if dim == self.readout_dim:
-            return trj.shape[-2]
-        return None
+        if dim in self.shared_batch_shape:
+            idx = self.shared_batch_shape.index(dim)
+        elif dim in self.out_batch_shape:
+            idx = len(self.shared_batch_shape) + self.out_batch_shape.index(dim)
+        else:
+            return None
+        return trj.shape[idx]
 
 
 class SigpyNUFFT(NamedLinop):
@@ -419,15 +423,20 @@ class SENSE(NamedLinop):
                 raise IndexError(
                     "SENSE currently only supports matched image input/output slicing."
                 )
-        return type(self)(self.split_forward_fn(ibatch, obatch, self.mps))
+        return type(self)(
+            self.split_forward_fn(ibatch, obatch, self.mps),
+            coil_str=self.coil_str,
+            in_batch_shape=self.in_batch_shape,
+        )
 
-    def split_forward_fn(self, ibatch, obatch, /, weight):
-        return self.mps[obatch[self.coildim :]]
+    def split_forward_fn(self, ibatch, obatch, /, mps):
+        return mps[obatch[self.coildim :]]
 
     def size(self, dim: str):
         return self.size_fn(dim, self.mps)
 
     def size_fn(self, dim: str, mps):
-        if dim in self.oshape[self.coildim :]:
-            return mps.shape[self.oshape.index(dim)]
+        mps_shape = self.oshape[self.coildim:]
+        if dim in mps_shape:
+            return mps.shape[mps_shape.index(dim)]
         return None

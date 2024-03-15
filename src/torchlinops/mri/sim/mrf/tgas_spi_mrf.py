@@ -10,8 +10,9 @@ import numpy as np
 from tqdm import tqdm
 
 
+from torchlinops._core._tiling import Batch
 from torchlinops._core._linops import SumReduce, Diagonal
-from torchlinops.utils import batch_iterator
+from torchlinops.utils import batch_tqdm
 from torchlinops.mri._linops import SENSE, NUFFT
 from ._data import SubspaceDataset
 from .._trj import tgas_spi
@@ -39,6 +40,8 @@ class TGASSPISubspaceMRFSimulatorConfig:
     groups_undersamp: float
     noise_std: float
     voxel_batch_size: int
+    tr_batch_size: int
+    coil_batch_size: int
     nufft_backend: str = "fi"
     spiral_2d_kwargs: Mapping = field(
         default_factory=lambda: {
@@ -137,13 +140,16 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         if pd is None:
             pd = torch.tensor([1.0]) # needs to be 1D
         self.pd = pd
-        self.t1t2pd = nn.ParameterList(torch.meshgrid((self.t1, self.t2, self.pd), indexing="ij"))
+        self.t1t2pd = nn.ParameterList(
+            [nn.Parameter(p, requires_grad=False)
+             for p in torch.meshgrid((self.t1, self.t2, self.pd), indexing="ij")])
 
         # Use GPU if available for next steps
         self.to(device)
 
         self.dic = self.simulator(*(t.flatten() for t in self.t1t2pd))
         self.dic = self.dic.reshape(*self.t1t2pd[0].shape, -1) # [T1, T2, PD, TR]
+        self.dic = nn.Parameter(self.dic, requires_grad=False)
         # Temporal subspace
         if phi is None:
             phi = self.compress_dictionary(self.dic, n_coeffs=self.config.num_bases)
@@ -174,26 +180,47 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             # else:
             #     simulator = self.simulator
             simulator = self.simulator
-            spatiotemporal_image = torch.zeros((prod(self.config.im_size), self.config.num_TRs), device=device)
-            img_t1 = self.qimg['img_t1'].flatten()
-            img_t2 = self.qimg['img_t2'].flatten()
-            img_pd = self.qimg['img_pd'].flatten()
+            # Too big to store in memory:
+            ksp_size = tuple(self.Asim.size(dim) for dim in self.Asim.oshape)
+            ksp = torch.zeros(tuple(self.Asim.size(dim) for dim in self.Asim.oshape), dtype=torch.complex64, device=device)
+
             with torch.no_grad(): # Very important to avoid memory blowups
-                for vstart, vend in tqdm(batch_iterator(total=prod(self.config.im_size),
-                                                        batch_size=self.config.voxel_batch_size),
-                                         total=prod(self.config.im_size) // self.config.voxel_batch_size,
-                                         desc='Spatiotemporal Voxel Simulation'
-                                         ):
+                # Compute per-voxel signal
+                spatiotemporal_image = torch.zeros((prod(self.config.im_size), self.config.num_TRs), device='cpu')
+                img_t1 = self.qimg['img_t1'].flatten()
+                img_t2 = self.qimg['img_t2'].flatten()
+                img_pd = self.qimg['img_pd'].flatten()
+                for vstart, vend in batch_tqdm(total=prod(self.config.im_size),
+                                               batch_size=self.config.voxel_batch_size,
+                                               desc='Spatiotemporal Voxel Simulation',
+                                               ):
 
                     spatiotemporal_image[vstart:vend] = simulator(
                         img_t1[vstart:vend],
                         img_t2[vstart:vend],
                         img_pd[vstart:vend],
-                )
-            spatiotemporal_image = spatiotemporal_image.reshape(*self.config.im_size, self.config.num_TRs)
-            spatiotemporal_image = rearrange(spatiotemporal_image, '... T -> T ...').contiguous()
+                    )
+                spatiotemporal_image = spatiotemporal_image.reshape(*self.config.im_size, self.config.num_TRs)
+                spatiotemporal_image = rearrange(spatiotemporal_image, '... T -> T ...').contiguous()
 
-            ksp = self.Asim(spatiotemporal_image)
+                # Compute ksp signal
+                batched_Asim = Batch(
+                    self.Asim,
+                    input_device=device,
+                    output_device=device,
+                    output_dtype=torch.complex64,
+                    pbar=True,
+                    T=self.config.tr_batch_size,
+                    C=self.config.coil_batch_size,
+                )
+                ksp = batched_Asim(spatiotemporal_image)
+                # for tstart, tend in tqdm(batch_iterator(total=self.config.num_TRs,
+                #                                         batch_size=self.config.tr_batch_size),
+                #                          total=self.config.num_TRs // self.config.tr_batch_size,
+                #                          desc='Temporal batching'):
+
+                #     spatiotemporal_batch = spatiotemporal_image[tstart:tend].to(device)
+                #     ksp[tstart:tend] = self.Asim(spatiotemporal_batch)
 
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
             self._data = SubspaceDataset(

@@ -1,4 +1,7 @@
+from typing import Union
+
 import torch
+from tqdm import tqdm
 
 from ._linops import NamedLinop
 from torchlinops.utils import batch_iterator, dict_product
@@ -7,11 +10,21 @@ __all__ = ["Batch"]
 
 
 class Batch(NamedLinop):
-    """TODO:"""
-
-    def __init__(self, linop, **batch_sizes):
+    def __init__(
+            self,
+            linop: NamedLinop,
+            input_device: torch.device,
+            output_device: torch.device,
+            output_dtype: Union[str, torch.dtype],
+            pbar: bool = False,
+            **batch_sizes,
+    ):
         super().__init__(linop.ishape, linop.oshape)
         self.linop = linop
+        self.input_device = input_device
+        self.output_device = output_device
+        self.output_dtype = output_dtype
+        self.pbar = pbar
         self.batch_sizes = batch_sizes
         self.sizes = self._precompute_sizes()
 
@@ -38,9 +51,15 @@ class Batch(NamedLinop):
         ishapes = [linop.ishape for linop in self.linop.flatten()]
         oshapes = [linop.oshape for linop in self.linop.flatten()]
 
-        y = torch.zeros(tuple(self.sizes[dim] for dim in self.oshape), dtype=x.dtype)
-        for tile in dict_product(batch_iterators):
-            # TODO: Make this more efficient
+        y = torch.zeros(
+            tuple(self.sizes[dim] for dim in self.oshape),
+            dtype=self.output_dtype,
+            device=self.output_device,
+        )
+        for tile in tqdm(dict_product(batch_iterators),
+                         desc=f'Batch({self.batch_sizes})',
+                         disable=(not self.pbar)
+                         ):
             ibatches = [
                 [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
             ]
@@ -48,7 +67,8 @@ class Batch(NamedLinop):
                 [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
             ]
             linop = self.linop.split(*ibatches, *obatches)
-            ybatch = linop(x)
+            xbatch = x[ibatches[-1]].to(self.input_device)
+            ybatch = linop(xbatch)
             y[obatches[0]] += ybatch
         return y
 
@@ -63,7 +83,11 @@ class Batch(NamedLinop):
         ishapes = [linop.ishape for linop in self.linop.flatten()]
         oshapes = [linop.oshape for linop in self.linop.flatten()]
 
-        y = torch.zeros(tuple(sizes[dim] for dim in self.oshape), dtype=x.dtype)
+        y = torch.zeros(
+            tuple(sizes[dim] for dim in self.oshape),
+            dtype=self.output_dtype,
+            device=self.output_device,
+        )
         for tile in dict_product(batch_iterators):
             ibatches = [
                 [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
@@ -72,7 +96,8 @@ class Batch(NamedLinop):
                 [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
             ]
             split_data = self.linop.split_fn(*ibatches, *obatches, *data)
-            ybatch = self.linop.fn(x, split_data)
+            xbatch = x[ibatches[-1]].to(self.input_device)
+            ybatch = self.linop.fn(xbatch, split_data)
             y[obatches[0]] += ybatch
         return y
 

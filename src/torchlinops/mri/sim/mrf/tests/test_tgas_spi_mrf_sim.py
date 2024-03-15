@@ -15,14 +15,16 @@ from torchlinops.mri.sim.mrf.tgas_spi_mrf import (
 def test_tgas_spi_mrf():
     config = TGASSPISubspaceMRFSimulatorConfig(
         im_size=(180, 216, 180),
-        #num_coils=16,
-        num_coils=1.,
+        num_coils=16,
+        #num_coils=1.,
         num_TRs=500,
         num_groups=16,
         groups_undersamp=1.,
         num_bases=5,
         noise_std=0.0,
-        voxel_batch_size=1000,
+        voxel_batch_size=10000,
+        tr_batch_size=1,
+        coil_batch_size=4,
         nufft_backend='fi',
         spiral_2d_kwargs={
             "alpha": 1.5,
@@ -30,7 +32,7 @@ def test_tgas_spi_mrf():
             "g_max": 40.0,
             "s_max": 100.0,
         },
-        debug=True,
+        debug=False,
     )
     device = torch.device('cuda')
     sim = TGASSPISubspaceMRFSimulator(config, device)
