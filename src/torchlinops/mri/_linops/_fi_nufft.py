@@ -51,7 +51,9 @@ def unflatten(x, orig_shape):
     return torch.reshape(x, orig_shape)
 
 
-def _nufft(input: torch.Tensor, coord: torch.Tensor, out: Optional[torch.Tensor] = None) -> torch.Tensor:
+def _nufft(
+    input: torch.Tensor, coord: torch.Tensor, out: Optional[torch.Tensor] = None
+) -> torch.Tensor:
     """
     input : torch.Tensor
         Shape [N... *im_size]
@@ -69,7 +71,7 @@ def _nufft(input: torch.Tensor, coord: torch.Tensor, out: Optional[torch.Tensor]
     flat_coord, coord_shape = flatten(coord, start_dim=0, end_dim=-2)
 
     if out is not None:
-        flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(nK+1))
+        flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(nK + 1))
         flat_out, _ = flatten(flat_out, start_dim=1, end_dim=-1)
 
     nufft_fn = get_nufft[dev][dim][0]
@@ -80,9 +82,13 @@ def _nufft(input: torch.Tensor, coord: torch.Tensor, out: Optional[torch.Tensor]
         flat_input = flat_input.detach().numpy()
 
     if flat_out is not None:
-        nufft_fn(*coord_components, flat_input, out=flat_out) / sqrt(prod(input_shape[-dim:]))
+        nufft_fn(*coord_components, flat_input, out=flat_out) / sqrt(
+            prod(input_shape[-dim:])
+        )
     else:
-        flat_out = nufft_fn(*coord_components, flat_input) / sqrt(prod(input_shape[-dim:]))
+        flat_out = nufft_fn(*coord_components, flat_input) / sqrt(
+            prod(input_shape[-dim:])
+        )
 
     if dev == "cpu":
         output = torch.from_numpy(flat_out)
@@ -91,7 +97,10 @@ def _nufft(input: torch.Tensor, coord: torch.Tensor, out: Optional[torch.Tensor]
 
 
 def _nufft_adjoint(
-        input: torch.Tensor, coord: torch.Tensor, oshape: Tuple, out: Optional[torch.Tensor] = None
+    input: torch.Tensor,
+    coord: torch.Tensor,
+    oshape: Tuple,
+    out: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     input : torch.Tensor
@@ -122,7 +131,9 @@ def _nufft_adjoint(
         flat_input = flat_input.detach().numpy()
 
     im_size = oshape[-dim:]
-    output = adj_nufft_fn(*coord_components, flat_input, im_size, out=out) / sqrt(prod(im_size))
+    output = adj_nufft_fn(*coord_components, flat_input, im_size, out=out) / sqrt(
+        prod(im_size)
+    )
 
     if dev == "cpu":
         output = torch.from_numpy(output)
@@ -178,7 +189,7 @@ class FiNUFFTAdjoint(Function):
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        input, coord, _, _= inputs
+        input, coord, _, _ = inputs
         ctx.save_for_backward(coord)
 
     @staticmethod

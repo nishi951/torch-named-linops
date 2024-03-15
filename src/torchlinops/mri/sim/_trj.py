@@ -233,7 +233,7 @@ def radial_2d(
 
     # Rescale
     for i in range(trj.shape[-1]):
-        trj[..., i] = trj[..., i] * self.im_size[i] / trj[..., i].max() / 2
+        trj[..., i] = trj[..., i] * im_size[i] / trj[..., i].max() / 2
 
     return trj
 

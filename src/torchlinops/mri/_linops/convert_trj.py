@@ -19,5 +19,3 @@ def fi2sp(trj, im_size):
     for i in range(len(im_size)):
         trj[..., i] *= im_size[i] / (2 * pi)
     return trj
-
-

@@ -54,7 +54,9 @@ class FiNUFFT(NamedLinop):
         self.out_batch_shape = (
             out_batch_shape if out_batch_shape is not None else tuple()
         )
-        self.shared_batch_shape = shared_batch_shape if shared_batch_shape is not None else tuple()
+        self.shared_batch_shape = (
+            shared_batch_shape if shared_batch_shape is not None else tuple()
+        )
         self.shared_dims = len(self.shared_batch_shape)
         ishape = self.shared_batch_shape + self.in_batch_shape + get2dor3d(im_size)
         oshape = self.shared_batch_shape + self.in_batch_shape + self.out_batch_shape
@@ -76,12 +78,14 @@ class FiNUFFT(NamedLinop):
         """
         if self.shared_dims == 0:
             return finufft.nufft(x, sp2fi(trj, self.im_size))
-        assert x.shape[:self.shared_dims] == trj.shape[:self.shared_dims], f'First {self.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}'
-        S = x.shape[:self.shared_dims]
-        x = torch.flatten(x, start_dim=0, end_dim=self.shared_dims-1)
-        trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims-1)
-        N = x.shape[self.shared_dims:-self.D]
-        K = trj.shape[self.shared_dims:-1]
+        assert (
+            x.shape[: self.shared_dims] == trj.shape[: self.shared_dims]
+        ), f"First {self.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}"
+        S = x.shape[: self.shared_dims]
+        x = torch.flatten(x, start_dim=0, end_dim=self.shared_dims - 1)
+        trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims - 1)
+        N = x.shape[self.shared_dims : -self.D]
+        K = trj.shape[self.shared_dims : -1]
         output_shape = (*S, *N, *K)
         y = torch.zeros((prod(S), *N, *K), dtype=x.dtype, device=x.device)
         for i in range(x.shape[0]):
@@ -97,11 +101,13 @@ class FiNUFFT(NamedLinop):
         """
         if self.shared_dims == 0:
             return finufft.nufft_adjoint(y, sp2fi(trj, self.im_size), oshape)
-        assert x.shape[:self.shared_dims] == trj.shape[:self.shared_dims], f'First {self.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}'
-        S = y.shape[:self.shared_dims]
+        assert (
+            x.shape[: self.shared_dims] == trj.shape[: self.shared_dims]
+        ), f"First {self.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}"
+        S = y.shape[: self.shared_dims]
         y = torch.flatten(y, start_dim=0, end_dim=self.shared_dims)
         trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims)
-        N = x.shape[self.shared_dims:-self.D]
+        N = x.shape[self.shared_dims : -self.D]
         oshape = (*N, *self.im_size)
         output_shape = (*S, *N, *self.im_size)
         x = torch.zeros((prod(S), *N, *self.im_size), dtype=y.dtype, device=y.device)
@@ -123,10 +129,10 @@ class FiNUFFT(NamedLinop):
         )
 
     def split_forward_fn(self, ibatch, obatch, /, trj):
-        shared_batch = obatch[:self.shared_dims]
-        kbatch = obatch[self.shared_dims + len(self.in_batch_shape):]
+        shared_batch = obatch[: self.shared_dims]
+        kbatch = obatch[self.shared_dims + len(self.in_batch_shape) :]
         trj_slc = tuple(shared_batch + kbatch + [slice(None)])
-        #trj_slc = obatch[:-1] + [slice(None)] + obatch[-1:]
+        # trj_slc = obatch[:-1] + [slice(None)] + obatch[-1:]
         return trj[trj_slc]
 
     def size(self, dim: str):
@@ -436,7 +442,7 @@ class SENSE(NamedLinop):
         return self.size_fn(dim, self.mps)
 
     def size_fn(self, dim: str, mps):
-        mps_shape = self.oshape[self.coildim:]
+        mps_shape = self.oshape[self.coildim :]
         if dim in mps_shape:
             return mps.shape[mps_shape.index(dim)]
         return None
