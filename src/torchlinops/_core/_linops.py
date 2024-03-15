@@ -3,7 +3,8 @@ from typing import Optional, Mapping
 
 import torch
 import torch.nn as nn
-from einops import einsum, rearrange
+import torch.fft as fft
+from einops import einsum, rearrange, reduce, repeat
 
 
 __all__ = [
@@ -168,13 +169,13 @@ class NamedLinop(nn.Module):
 
     def __mul__(self, right):
         if isinstance(right, float) or isinstance(right, torch.Tensor):
-            right = Scalar(weight, self.ishape)
+            right = Scalar(weight=right, ioshape=self.ishape)
             return self.compose(right)
         return NotImplemented
 
     def __rmul__(self, left):
         if isinstance(left, float) or isinstance(left, torch.Tensor):
-            left = Scalar(weight, self.oshape)
+            left = Scalar(weight=left, ioshape=self.oshape)
             return left.compose(self)
         return NotImplemented
 
@@ -672,7 +673,9 @@ class FFT(NamedLinop):
 class Rearrange(NamedLinop):
     """Moves around dimensions."""
 
-    def __init__(self, istr, ostr, ishape, oshape, axes_lengths: Optional[Mapping] = None):
+    def __init__(
+        self, istr, ostr, ishape, oshape, axes_lengths: Optional[Mapping] = None
+    ):
         assert len(ishape) == len(
             oshape
         ), "Rearrange currently only supports pure dimension permutations"
@@ -712,6 +715,7 @@ class SumReduce(NamedLinop):
 
     Adjoint of Repeat
     """
+
     def __init__(self, ishape, oshape):
         """
         ipattern : string
@@ -720,7 +724,9 @@ class SumReduce(NamedLinop):
             Output shape spec, einops style
         """
         super().__init__(ishape, oshape)
-        assert len(self.oshape) < len(self.ishape), f'Reduce must be over at least one dimension: got {self.ishape} -> {self.oshape}'
+        assert (
+            len(self.oshape) < len(self.ishape)
+        ), f"Reduce must be over at least one dimension: got {self.ishape} -> {self.oshape}"
         self.adj_ipattern = self.fill_singleton_dims(self.ishape, self.oshape)
         self.ipattern = " ".join(ishape)
         self.opattern = " ".join(oshape)
@@ -732,14 +738,14 @@ class SumReduce(NamedLinop):
             if idim in oshape:
                 out.append(idim)
             else:
-                out.append('()')
+                out.append("()")
         return out
 
     def forward(self, x):
         return self.fn(x, self.ipattern, self.opattern)
 
     def fn(self, x, /):
-        x = reduce(x, f"{self.ipattern} -> {self.opattern}", 'sum')
+        x = reduce(x, f"{self.ipattern} -> {self.opattern}", "sum")
         return x
 
     def adj_fn(self, x, /):
@@ -757,6 +763,7 @@ class SumReduce(NamedLinop):
     def size_fn(self, dim: str, /, ipattern, opattern, size_spec):
         """Reducing does not determine any dimensions"""
         return None
+
 
 class Repeat(NamedLinop):
     """Unsqueezes and expands a tensor along dim

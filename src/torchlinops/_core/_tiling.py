@@ -11,13 +11,13 @@ __all__ = ["Batch"]
 
 class Batch(NamedLinop):
     def __init__(
-            self,
-            linop: NamedLinop,
-            input_device: torch.device,
-            output_device: torch.device,
-            output_dtype: Union[str, torch.dtype],
-            pbar: bool = False,
-            **batch_sizes,
+        self,
+        linop: NamedLinop,
+        input_device: torch.device,
+        output_device: torch.device,
+        output_dtype: Union[str, torch.dtype],
+        pbar: bool = False,
+        **batch_sizes,
     ):
         super().__init__(linop.ishape, linop.oshape)
         self.linop = linop
@@ -56,10 +56,11 @@ class Batch(NamedLinop):
             dtype=self.output_dtype,
             device=self.output_device,
         )
-        for tile in tqdm(dict_product(batch_iterators),
-                         desc=f'Batch({self.batch_sizes})',
-                         disable=(not self.pbar)
-                         ):
+        for tile in tqdm(
+            dict_product(batch_iterators),
+            desc=f"Batch({self.batch_sizes})",
+            disable=(not self.pbar),
+        ):
             ibatches = [
                 [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
             ]
@@ -88,7 +89,11 @@ class Batch(NamedLinop):
             dtype=self.output_dtype,
             device=self.output_device,
         )
-        for tile in dict_product(batch_iterators):
+        for tile in tqdm(
+            dict_product(batch_iterators),
+            desc=f"Batch({self.batch_sizes})",
+            disable=(not self.pbar),
+        ):
             ibatches = [
                 [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
             ]
