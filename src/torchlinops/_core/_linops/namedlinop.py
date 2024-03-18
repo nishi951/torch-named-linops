@@ -3,9 +3,9 @@ from copy import copy
 import torch
 import torch.nn as nn
 
+import torchlinops
 
-from . import scalar
-from . import chain
+from .nameddim import NamedDimension as ND
 
 __all__ = [
     "NamedLinop",
@@ -20,8 +20,8 @@ class NamedLinop(nn.Module):
         They also change if the adjoint is taken (!)
         """
         super().__init__()
-        self.ishape = ishape
-        self.oshape = oshape
+        self.ishape = ND.from_tuple(ishape)
+        self.oshape = ND.from_tuple(oshape)
 
         self._adj = None
         self._normal = None
@@ -87,10 +87,10 @@ class NamedLinop(nn.Module):
     def H(self):
         """Adjoint operator"""
         if self._adj is None:
-            self._adj = [self.get_adjoint()]  # Prevent registration as a submodule
+            self._adj = [self.adjoint()]  # Prevent registration as a submodule
         return self._adj[0]
 
-    def get_adjoint(self):
+    def adjoint(self):
         adj = copy(self)
         # Swap functions
         adj.fn, adj.adj_fn = self.adj_fn, self.fn
@@ -114,10 +114,10 @@ class NamedLinop(nn.Module):
             #     _normal._suffix += '.N'
             #     self.normal = _normal
             # return self._normal
-            self._normal = [self.get_normal()]  # Prevent registration as a submodule
+            self._normal = [self.normal()]  # Prevent registration as a submodule
         return self._normal[0]
 
-    def get_normal(self, inner=None):
+    def normal(self, inner=None):
         """
         inner: Optional linop for toeplitz embedding
         """
@@ -164,7 +164,7 @@ class NamedLinop(nn.Module):
         """Do self AFTER inner"""
         before = inner.flatten()
         after = self.flatten()
-        return chain.Chain(*(after + before))
+        return torchlinops.Chain(*(after + before))
 
     def __add__(self, right):
         ...
@@ -174,13 +174,13 @@ class NamedLinop(nn.Module):
 
     def __mul__(self, right):
         if isinstance(right, float) or isinstance(right, torch.Tensor):
-            right = scalar.Scalar(weight=right, ioshape=self.ishape)
+            right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
             return self.compose(right)
         return NotImplemented
 
     def __rmul__(self, left):
         if isinstance(left, float) or isinstance(left, torch.Tensor):
-            left = scalar.Scalar(weight=left, ioshape=self.oshape)
+            left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
             return left.compose(self)
         return NotImplemented
 

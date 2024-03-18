@@ -3,6 +3,7 @@ from collections import defaultdict
 from einops import einsum
 
 from .namedlinop import NamedLinop
+from .nameddim import NamedDimension as ND
 
 
 class Dense(NamedLinop):
@@ -26,33 +27,42 @@ class Dense(NamedLinop):
     def __init__(self, weight, weightshape, ishape, oshape):
         super().__init__(ishape, oshape)
         self.weight = weight
-        self.weightshape = weightshape
-        self._ishape, self._oshape, self._weightshape = self.__rename_shapes(
-            self.ishape, self.oshape, self.weightshape
-        )
-        self.einstr = f'{" ".join(self._ishape)},{" ".join(self._weightshape)}->{" ".join(self._oshape)}'
-        self.adj_einstr = f'{" ".join(self._oshape)},{" ".join(self._weightshape)}->{" ".join(self._ishape)}'
+        self.weightshape = ND.from_tuple(weightshape)
+        self.weight_ishape = set(self.weightshape) & set(self.ishape)
+        self.ishape_only = set(self.ishape) - set(self.weight_ishape)
+        self.weight_oshape = set(self.weightshape) & set(self.oshape)
+        self.oshape_only = set(self.oshape) - set(self.weight_oshape)
+
+        self.forward_einstr = f"{self.einstr(self.ishape)},{self.einstr(self.weightshape)}->{self.einstr(self.oshape)}"
+        self.adj_einstr = f"{self.einstr(self.oshape)},{self.einstr(self.weightshape)}->{self.einstr(self.ishape)}"
 
     @staticmethod
-    def __rename_shapes(ishape, oshape, weightshape):
-        dim_idx = defaultdict(int)
+    def einstr(arr):
+        """
+        tup: Iterable of str-able objects
+        """
+        return " ".join(str(s) for s in arr)
+
+    @staticmethod
+    def rename_shapes(ishape, oshape, weightshape):
+        repeat_dims = defaultdict(int)
         _ishape = []
         for dim in ishape:
-            _ishape.append(dim + str(dim_idx[dim]))
+            _ishape.append(dim + 1)
         _weightshape = []
         for dim in weightshape:
-            _weightshape.append(dim + str(dim_idx[dim]))
-            dim_idx[dim] += 1
+            repeat_dims[dim] += 1
+            _weightshape.append(dim + repeat_dims[dim])
         _oshape = []
         for dim in oshape:
-            _oshape.append(dim + str(dim_idx[dim]))
+            _oshape.append(dim + repeat_dims[dim])
         return _ishape, _oshape, _weightshape
 
     def forward(self, x):
         return self.fn(x, self.weight)
 
     def fn(self, x, /, weight):
-        return einsum(x, weight, self.einstr)
+        return einsum(x, weight, self.forward_einstr)
 
     def adj_fn(self, x, /, weight):
         return einsum(x, weight, self.adj_einstr)
@@ -60,20 +70,54 @@ class Dense(NamedLinop):
     def normal_fn(self, x, /, weight):
         return self.adj_fn(self.fn(x, weight), weight)
 
-    def get_normal(self, inner=None):
-        # Get output shapes
-        weightoshape = []
-        for dim in self.weightshape:
-            if dim in self.oshape:
-                weightoshape.append(dim)
+    def adjoint(self):
+        return type(self)(
+            self.weight.conj(), self.weightshape, self.oshape, self.ishape
+        )
+
+    def normal(self, inner=None):
+        """
+        If no inner, consolidate two Dense's into a single Dense
+        ishape: [A B X Y]
+        oshape: [C D X Y]
+        wshape: [A B C D]
+
+        Needs to become
+        ishape: [A B X Y]
+        oshape: [A1 B1 X Y]
+        wshape: [A B A1 B1]
+
+        New weight is attained as
+        einsum(weight.conj(), weight, 'A1 B1 C D, A B C D -> A B A1 B1')
+        """
         if inner is None:
-            # Consolidate back-to-back dense ops into a single op
-            normal_einstr = f'{" ".join(self.weightshape)},{" ".join(self.weightshape)} -> {" ".join(weightoshape)},{" ".join(weightoshape)}'
-            weight = einsum(self.weight.conj(), self.weight, normal_einstr)
-            return type(self)(
-                weight, weightoshape + weightoshape, self.ishape, self.ishape
-            )
-        return self.H @ inner @ self
+            # Convert weight
+            weight_conj_shape = []
+            new_weightshape = []
+            for dim in self.weightshape:
+                if dim in self.ishape:
+                    # Duplicate
+                    weight_conj_shape.append(dim + 1)
+                    new_weightshape.append(dim)
+                else:
+                    # Keep/sum over
+                    weight_conj_shape.append(dim)
+            new_weightshape = new_weightshape + [d + 1 for d in new_weightshape]
+            new_weight_einstr = f"{self.einstr(weight_conj_shape)},{self.einstr(self.weightshape)}->{self.einstr(new_weightshape)}"
+            new_weight = einsum(self.weight.conj(), self.weight, new_weight_einstr)
+
+            new_oshape = []
+            for dim in self.ishape:
+                if dim in self.weightshape:
+                    new_oshape.append(dim + 1)
+                else:
+                    new_oshape.append(dim)
+            return type(self)(new_weight, new_weightshape, self.ishape, new_oshape)
+        pre = copy(self)
+        pre.oshape = inner.ishape
+        post = copy(self).H
+        post.ishape = inner.oshape
+        return post @ inner @ pre
 
     def split_forward(self, ibatch, obatch):
         weight = self.split_forward_fn(ibatch, obatch, self.weight)

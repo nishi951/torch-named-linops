@@ -1,11 +1,13 @@
+from copy import copy
+
 import torch
 
-from .namedlinop import NamedLinop
+from . import namedlinop
 
 __all__ = ["Diagonal"]
 
 
-class Diagonal(NamedLinop):
+class Diagonal(namedlinop.NamedLinop):
     def __init__(self, weight: torch.Tensor, ioshape):
         assert len(weight.shape) <= len(
             ioshape
@@ -24,6 +26,22 @@ class Diagonal(NamedLinop):
 
     def normal_fn(self, x, /, weight):
         return x * torch.abs(weight) ** 2
+
+    def adjoint(self):
+        return type(self)(self.weight.conj(), self.ioshape)
+
+    def normal(self, inner=None):
+        if inner is None:
+            return type(self)(torch.abs(self.weight**2), self.ioshape)
+        # Update the shapes
+        pre = copy(self)
+        pre.ishape = inner.ishape
+        pre.oshape = inner.ishape
+
+        post = copy(self).H
+        post.ishape = inner.oshape
+        post.oshape = inner.oshape
+        return post @ inner @ pre
 
     def split_forward(self, ibatch, obatch):
         weight = self.split_forward_fn(ibatch, obatch, self.weight)

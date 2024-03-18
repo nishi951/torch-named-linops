@@ -1,6 +1,6 @@
 import torch
 
-from torchlinops import (
+from torchlinops._core._linops import (
     NamedLinop,
     Chain,
     Dense,
@@ -11,17 +11,18 @@ from torchlinops import (
     Add,
 )
 
+
 def test_dense():
-    M, N = 3, 5
-    weight = torch.randn(M, N)
+    M, N = 9, 3
+    weight = torch.randn(M, N, dtype=torch.complex64)
     weightshape = ("M", "N")
-    x = torch.randn(N)
+    x = torch.randn(N, dtype=torch.complex64)
     ishape = ("N",)
     # y = torch.randn(M)
     oshape = ("M",)
     A = Dense(weight, weightshape, ishape, oshape)
-    breakpoint()
-    assert torch.isclose(A.N(x), A.H(A(x)))
+    AHA = A.N
+    assert torch.isclose(A.N(x), A.H(A(x))).all()
     # Make sure dense's normal doesn't create a chain (unnecessary)
     # If desired, just make the linop explicitly
     assert not isinstance(A.N, Chain)
