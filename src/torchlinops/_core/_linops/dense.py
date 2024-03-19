@@ -44,21 +44,6 @@ class Dense(NamedLinop):
         """
         return " ".join(str(s) for s in arr)
 
-    @staticmethod
-    def rename_shapes(ishape, oshape, weightshape):
-        repeat_dims = defaultdict(int)
-        _ishape = []
-        for dim in ishape:
-            _ishape.append(dim + 1)
-        _weightshape = []
-        for dim in weightshape:
-            repeat_dims[dim] += 1
-            _weightshape.append(dim + repeat_dims[dim])
-        _oshape = []
-        for dim in oshape:
-            _oshape.append(dim + repeat_dims[dim])
-        return _ishape, _oshape, _weightshape
-
     def forward(self, x):
         return self.fn(x, self.weight)
 
@@ -98,12 +83,12 @@ class Dense(NamedLinop):
             for dim in self.weightshape:
                 if dim in self.ishape:
                     # Duplicate
-                    weight_conj_shape.append(dim + 1)
-                    new_weightshape.append(dim)
+                    new_dim = dim.next_unused(self.ishape)
+                    weight_conj_shape.append(dim.next_unused(self.ishape))
+                    new_weightshape.extend([dim, new_dim])
                 else:
                     # Keep/sum over
                     weight_conj_shape.append(dim)
-            new_weightshape = new_weightshape + [d + 1 for d in new_weightshape]
             new_weight_einstr = f"{self.einstr(weight_conj_shape)},{self.einstr(self.weightshape)}->{self.einstr(new_weightshape)}"
             new_weight = einsum(self.weight.conj(), self.weight, new_weight_einstr)
 

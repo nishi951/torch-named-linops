@@ -182,7 +182,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             simulator = self.simulator
             # Too big to store in memory:
             ksp_size = tuple(self.Asim.size(dim) for dim in self.Asim.oshape)
-            ksp = torch.zeros(tuple(self.Asim.size(dim) for dim in self.Asim.oshape), dtype=torch.complex64, device=device)
+            ksp = torch.zeros(*ksp_size, dtype=torch.complex64, device=device)
 
             with torch.no_grad(): # Very important to avoid memory blowups
                 # Compute per-voxel signal
