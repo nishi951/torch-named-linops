@@ -72,6 +72,7 @@ def _nufft(
     nK = len(coord.shape[:-1])
     flat_input, input_shape = flatten(input, start_dim=0, end_dim=-(dim + 1))
     flat_coord, coord_shape = flatten(coord, start_dim=0, end_dim=-2)
+    flat_out = None
 
     if out is not None:
         flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(nK + 1))
@@ -94,7 +95,7 @@ def _nufft(
         )
 
     if dev == "cpu":
-        output = torch.from_numpy(flat_out)
+        flat_out = torch.from_numpy(flat_out)
     output = unflatten(flat_out, (*input_shape[:-dim], *coord_shape[:-1]))
     return output
 

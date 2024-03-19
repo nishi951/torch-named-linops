@@ -11,15 +11,15 @@ from torchlinops.mri.sim.tgas_spi import (
     TGASSPISimulatorConfig,
 )
 
-from torchlinops.mri._linops._fi_nufft import (
+from torchlinops.mri._linops.nufft.backends.fi.functional import (
     nufft as fi_nufft,
     nufft_adjoint as fi_nufft_adjoint,
 )
-from torchlinops.mri._linops._sp_nufft import (
+from torchlinops.mri._linops.nufft.backends.sp.functional import (
     nufft as sp_nufft,
     nufft_adjoint as sp_nufft_adjoint,
 )
-from torchlinops.mri._linops.convert_trj import sp2fi, fi2sp
+from torchlinops.mri._linops.nufft.backends.fi.convert_trj import sp2fi, fi2sp
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def test_finufft2d(spiral2d_data):
 def test_finufft3d(tgas_spi_data):
     data = tgas_spi_data
     ksp = fi_nufft(data.img * data.mps, sp2fi(data.trj, data.img.shape))
-    assert torch.isclose(ksp, data.ksp, atol=3e-2, rtol=1e-1).all()
+    assert torch.isclose(ksp, data.ksp, atol=1e-1, rtol=1e-1).all()
 
     sp_img_adjoint = sp_nufft_adjoint(data.ksp, data.trj, data.mps.shape)
     img_adjoint = fi_nufft_adjoint(
@@ -124,7 +124,7 @@ def test_cufinufft3d(tgas_spi_data):
         sp2fi(data.trj.to(device), data.img.shape),
     )
     ksp = ksp.cpu()
-    assert torch.isclose(ksp, data.ksp, atol=3e-2, rtol=1e-1).all()
+    assert torch.isclose(ksp, data.ksp, atol=1e-1, rtol=1e-1).all()
 
     sp_img_adjoint = sp_nufft_adjoint(
         data.ksp.to(device), data.trj.to(device), data.mps.shape

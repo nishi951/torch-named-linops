@@ -1,6 +1,6 @@
 from typing import Literal
 
-from backends import SigpyNUFFT, TorchNUFFT, FiNUFFT
+from .backends import SigpyNUFFT, TorchNUFFT, FiNUFFT
 
 __all__ = [
     "NUFFT",
