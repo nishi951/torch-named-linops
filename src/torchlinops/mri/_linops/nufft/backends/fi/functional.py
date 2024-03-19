@@ -1,6 +1,9 @@
 """(cu)fiNUFFT backend for Autograd-Compatible NUFFT
 
 Does not support differentiation w.r.t. coordinates
+
+Standalone file (no NamedLinop)
+
 """
 from math import prod, sqrt
 from typing import Tuple, Optional
@@ -108,7 +111,7 @@ def _nufft_adjoint(
     coord : torch.Tensor
         Shape [K... D], has scaling [-pi/2, pi/2]
     oshape : Tuple
-       Desired output shape.
+       Desired output image shape (without batch dimensinos).
 
     Returns
     -------

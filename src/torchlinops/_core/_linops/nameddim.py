@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 __all__ = [
     "NamedDimension",
@@ -31,4 +31,4 @@ class NamedDimension:
         try:
             return type(self)(self.name, self.i + k)
         except TypeError as e:
-            raise TypeError(f"Unsupported NamedDimension add: {self} + {k}")
+            raise TypeError(f"Unsupported NamedDimension add: {self} + {k}", e)
