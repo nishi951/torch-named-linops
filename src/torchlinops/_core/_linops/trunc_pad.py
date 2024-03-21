@@ -7,7 +7,7 @@ from torchlinops._core._linops.nameddim import NamedDimension as ND
 
 __all__ = [
     'Truncate',
-    'Pad',
+    'PadDim',
 ]
 
 
@@ -15,13 +15,14 @@ class Truncate(NamedLinop):
     def __init__(self, dim, length, ishape, oshape):
         self.dim = dim
         self.length = length
+
         # Create the slices
         self.slc = [slice(None)] * len(ishape)
         self.slc[dim] = slice(0, self.length)
         self.slc = tuple(self.slc)
 
         self.end_slc = [slice(None)] * len(oshape)
-        self.end_slc[dim] = slice(-self.length, 0)
+        self.end_slc[dim] = slice(-self.length, None)
         self.end_slc = tuple(self.slc)
         super().__init__(ishape, oshape)
         #self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
@@ -30,13 +31,13 @@ class Truncate(NamedLinop):
         return self.fn(x)
 
     def fn(self, x, /):
-        return x[slc]
+        return x[self.slc]
 
     def adj_fn(self, y, /):
         return end_pad_with_zeros(y, self.dim, self.length)
 
     def normal_fn(self, x, /):
-        x[slc] = 0.
+        x[self.end_slc] = 0.
         return x
 
     def split_forward(self, ibatch, obatch):
@@ -70,7 +71,7 @@ class Truncate(NamedLinop):
         else:
             return False
 
-class PadEnd(NamedLinop):
+class PadDim(NamedLinop):
     def __init__(self, dim, length, ishape, oshape):
         self.dim = dim
         self.length = length
@@ -81,7 +82,7 @@ class PadEnd(NamedLinop):
 
         self.end_slc = [slice(None)] * len(oshape)
         self.end_slc[dim] = slice(-self.length, 0)
-        self.end_slc = tuple(self.slc)
+        self.end_slc = tuple(self.end_slc)
         super().__init__(ishape, oshape)
         #self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
 
@@ -95,10 +96,10 @@ class PadEnd(NamedLinop):
         return end_pad_with_zeros(y, self.dim, self.length)
 
     def adj_fn(self, y, /):
-        return x[slc]
+        return x[self.slc]
 
     def normal_fn(self, x, /):
-        x[slc] = 0.
+        x[self.end_slc] = 0.
         return x
 
     def split_forward(self, ibatch, obatch):
