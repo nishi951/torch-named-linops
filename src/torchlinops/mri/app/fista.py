@@ -3,8 +3,8 @@ from typing import Optional, Callable
 import torch
 
 from torchlinops.core.base import NamedLinop
-from torchlinops.mri.recon.powermethod import PowerMethod
-from torchlinops.mri.recon.fista import (
+from torchlinops.mri.recon._powermethod import PowerMethod
+from torchlinops.mri.recon._fista import (
     FISTA as fista_obj,
     FISTAHparams as fista_config,
 )

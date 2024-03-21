@@ -10,14 +10,14 @@ from .block import Block
 
 
 __all__ = [
-    "LLRHparams",
+    "LocallyLowRankConfig",
     "LocallyLowRank",
     "ScheduledLLR",
 ]
 
 
 @dataclass
-class LLRHparams:
+class LocallyLowRankConfig:
     block_size: Union[Tuple[int, int], Tuple[int, int, int]]
     block_stride: Union[Tuple[int, int], Tuple[int, int, int]]
     threshold: float
@@ -34,22 +34,22 @@ class LocallyLowRank(nn.Module):
     def __init__(
         self,
         input_size: Tuple,
-        hparams: LLRHparams,
+        config: LocallyLowRankConfig,
         input_type: Optional[Callable] = None,
     ):
         super().__init__()
         self.input_type = input_type if input_type is not None else torch.complex64
-        self.hparams = hparams
+        self.config = config
 
         # Derived
-        self.block = Block(self.hparams.block_size, self.hparams.block_stride)
+        self.block = Block(self.config.block_size, self.config.block_stride)
         self.block_weights = nn.Parameter(
             self.block.precompute_normalization(input_size).type(self.input_type),
             requires_grad=False,
         )
 
         # Bookkeeping
-        self.shift = (0,) * len(self.hparams.block_size)
+        self.shift = (0,) * len(self.config.block_size)
 
     def forward(self, x: torch.Tensor):
         """
@@ -76,7 +76,7 @@ class LocallyLowRank(nn.Module):
         U, S, Vh = torch.linalg.svd(x, full_matrices=False)
 
         # Threshold
-        S = S - self.hparams.threshold
+        S = S - self.config.threshold
         S[S < 0] = 0.0
         S = S.type(U.dtype)
 
@@ -94,12 +94,12 @@ class LocallyLowRank(nn.Module):
         )
 
         # Update the shift amount
-        if isinstance(self.hparams.shift_increment, int):
-            self.shift = tuple(i + self.hparams.shift_increment for i in self.shift)
-        elif self.hparams.shift_increment == "random":
-            self.shift = tuple(np.random.randint(0, self.hparams.block_stride))
+        if isinstance(self.config.shift_increment, int):
+            self.shift = tuple(i + self.config.shift_increment for i in self.shift)
+        elif self.config.shift_increment == "random":
+            self.shift = tuple(np.random.randint(0, self.config.block_stride))
         else:
-            raise ValueError(f"Invalid shift increment: {self.hparams.shift_increment}")
+            raise ValueError(f"Invalid shift increment: {self.config.shift_increment}")
 
         # Return the thresholded input
         return x
@@ -133,8 +133,8 @@ class ScheduledLLR(nn.Module):
         self._iteration = 0
 
     def forward(self, x: torch.Tensor):
-        self.llr.hparams.threshold = self.schedule(
-            self.llr.hparams.threshold, self._iteration
+        self.llr.config.threshold = self.schedule(
+            self.llr.config.threshold, self._iteration
         )
         x = self.llr(x)
         self._iteration += 1

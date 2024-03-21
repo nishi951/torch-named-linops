@@ -1,0 +1,130 @@
+"""Truncate/Pad
+Maybe replace with more generic slicing linop later
+"""
+
+from torchlinops.utils import end_pad_with_zeros
+from torchlinops._core._linops.nameddim import NamedDimension as ND
+
+__all__ = [
+    'Truncate',
+    'Pad',
+]
+
+
+class Truncate(NamedLinop):
+    def __init__(self, dim, length, ishape, oshape):
+        self.dim = dim
+        self.length = length
+        # Create the slices
+        self.slc = [slice(None)] * len(ishape)
+        self.slc[dim] = slice(0, self.length)
+        self.slc = tuple(self.slc)
+
+        self.end_slc = [slice(None)] * len(oshape)
+        self.end_slc[dim] = slice(-self.length, 0)
+        self.end_slc = tuple(self.slc)
+        super().__init__(ishape, oshape)
+        #self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
+
+    def forward(self, x):
+        return self.fn(x)
+
+    def fn(self, x, /):
+        return x[slc]
+
+    def adj_fn(self, y, /):
+        return end_pad_with_zeros(y, self.dim, self.length)
+
+    def normal_fn(self, x, /):
+        x[slc] = 0.
+        return x
+
+    def split_forward(self, ibatch, obatch):
+        if ibatch[dim] != slice(None) or obatch[dim] != slice(None):
+            raise ValueError('Cannot slice a Truncate linop along truncation dimension')
+        return self
+
+    def split_forward_fn(self, ibatch, obatch, /, data=None):
+        if ibatch[dim] != slice(None) or obatch[dim] != slice(None):
+            raise ValueError('Cannot slice a Truncate linop along truncation dimension')
+        return self
+
+    # Linop changes relative size, but can't determine the size itself
+    def size(self, dim):
+        return None
+
+    def size_fn(self, dim, /, data=None):
+        return None
+
+    def adjoint(self):
+        return PadEnd(self.dim, self.length, self.oshape, self.ishape)
+
+    @staticmethod
+    def is_in_slice(a_slice, idx):
+        """TODO: unused"""
+        if idx < a_slice.start or idx >= a_slice.stop:
+            return False
+        step = a_slice.step if a_slice.step else 1
+        if (idx - a_slice.start) % step == 0:
+            return True
+        else:
+            return False
+
+class PadEnd(NamedLinop):
+    def __init__(self, dim, length, ishape, oshape):
+        self.dim = dim
+        self.length = length
+        # Create the slices
+        self.slc = [slice(None)] * len(ishape)
+        self.slc[dim] = slice(0, self.length)
+        self.slc = tuple(self.slc)
+
+        self.end_slc = [slice(None)] * len(oshape)
+        self.end_slc[dim] = slice(-self.length, 0)
+        self.end_slc = tuple(self.slc)
+        super().__init__(ishape, oshape)
+        #self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
+
+    def forward(self, x):
+        return self.fn(x)
+
+    def adjoint(self):
+        return Truncate(self.dim, self.length, self.oshape, self.ishape)
+
+    def fn(self, x, /):
+        return end_pad_with_zeros(y, self.dim, self.length)
+
+    def adj_fn(self, y, /):
+        return x[slc]
+
+    def normal_fn(self, x, /):
+        x[slc] = 0.
+        return x
+
+    def split_forward(self, ibatch, obatch):
+        if ibatch[dim] != slice(None) or obatch[dim] != slice(None):
+            raise ValueError('Cannot slice a PadEnd linop along truncation dimension')
+        return self
+
+    def split_forward_fn(self, ibatch, obatch, /, data=None):
+        if ibatch[dim] != slice(None) or obatch[dim] != slice(None):
+            raise ValueError('Cannot slice a PadEnd linop along truncation dimension')
+        return self
+
+    # Linop changes relative size, but can't determine the size itself
+    def size(self, dim):
+        return None
+
+    def size_fn(self, dim, /, data=None):
+        return None
+
+    @staticmethod
+    def is_in_slice(a_slice, idx):
+        """TODO: unused"""
+        if idx < a_slice.start or idx >= a_slice.stop:
+            return False
+        step = a_slice.step if a_slice.step else 1
+        if (idx - a_slice.start) % step == 0:
+            return True
+        else:
+            return False

@@ -6,6 +6,8 @@ import torch.nn as nn
 from torchlinops._core._shapes import get2dor3d
 from torchlinops._core._linops import NamedLinop
 
+__all__ = ["SENSE"]
+
 
 class SENSE(NamedLinop):
     def __init__(

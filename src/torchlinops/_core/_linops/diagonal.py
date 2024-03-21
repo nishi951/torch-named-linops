@@ -58,3 +58,6 @@ class Diagonal(NamedLinop):
         if dim in self.ishape:
             return weight.shape[self.ishape.index(dim)]
         return None
+
+    def __pow__(self, exponent):
+        return type(self)(weight ** exponent, self.ishape)
