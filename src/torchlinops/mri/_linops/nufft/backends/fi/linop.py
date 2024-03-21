@@ -16,8 +16,7 @@ class FiNUFFT(NUFFTBase):
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
         shared_batch_shape: Optional[Tuple] = None,
-        *args,
-        **kwargs,
+        *args, **kwargs,
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]
@@ -36,6 +35,7 @@ class FiNUFFT(NUFFTBase):
             in_batch_shape,
             out_batch_shape,
             shared_batch_shape,
+            *args, **kwargs,
         )
 
     def forward(self, x: torch.Tensor):

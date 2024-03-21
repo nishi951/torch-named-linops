@@ -13,6 +13,7 @@ from torchlinops._core._linops import (
 )
 from torchlinops._core._shapes import get2dor3d
 
+from .toeplitz import toeplitz
 
 class NUFFTBase(NamedLinop):
     def __init__(
@@ -22,7 +23,9 @@ class NUFFTBase(NamedLinop):
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
         shared_batch_shape: Optional[Tuple] = None,
-        nufft_kwargs: Optional[Mapping] = None,
+        extras: Optional[Mapping] = None,
+        toeplitz: bool = False,
+        toeplitz_oversamp: float = 2.,
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]
@@ -33,7 +36,12 @@ class NUFFTBase(NamedLinop):
             The shape of [K...] in trj.
         shared_batch_shape : Tuple
             The shape of [S...] in trj
-
+        extras : Mapping
+            Implementation-specific Optional extra stuff
+        toeplitz : bool
+            Whether or not to use toeplitz embedding for the normal operator
+        toeplitz_oversamp: float
+            Oversampling factor for toeplitz embedding. Defaults to 2x
         """
         ishape, oshape = self.setup_shapes(
             in_batch_shape, out_batch_shape, shared_batch_shape, im_size
@@ -41,11 +49,19 @@ class NUFFTBase(NamedLinop):
         super().__init__(ishape, oshape)
         self.trj = nn.Parameter(trj, requires_grad=False)
         self.im_size = im_size
+        self.extras = extras if extras is not None else {}
+        self.toeplitz = toeplitz
+        self.toeplitz_oversamp = toeplitz_oversamp
 
         # Precompute
         self.D = len(im_size)
 
-        self.nufft_kwargs = nufft_kwargs if nufft_kwargs is not None else {}
+    def normal(self, inner=None):
+        if self.toeplitz:
+            T = toeplitz(self, inner)
+            return T
+        # Fallback to parent implementation
+        return super().normal(inner)
 
     def setup_shapes(
         self, in_batch_shape, out_batch_shape, shared_batch_shape, im_size

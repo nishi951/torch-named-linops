@@ -116,7 +116,8 @@ class Chain(NamedLinop):
         if self._normal is None:
             _normal = None
             for linop in self.linops:
-                _normal = linop.get_normal(inner=_normal)
+                breakpoint()
+                _normal = linop.normal(inner=_normal)
             # linops = list(linop.H for linop in reversed(self.linops)) + list(
             #     self.linops
             # )

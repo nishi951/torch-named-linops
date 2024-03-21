@@ -1,4 +1,3 @@
-from collections import defaultdict
 from copy import copy
 
 from einops import einsum
@@ -14,15 +13,12 @@ class Dense(NamedLinop):
     weightshape: [A, T]
     oshape: [T, Nx, Ny]
 
-    x: [M, N]
-    weightshape: [M, M]
-    oshape: [M, N]
-    - Internally, shapes are renamed
-    - second "M" dimension acts on the input, so the above is equivalent to
-    x: [M1, N]
-    weightshape: [M0, M1]
-    oshape: [M0, N]
-
+    # Diagonal/elementwise dimensions
+    # Einsum can infer which dims are shared (literally the point of
+    # the summation notation)
+    x: [C, A, Nx, Ny]
+    weight: [C, A, A1]
+    oshape: [C, A1, Nx, Ny]
     """
 
     def __init__(self, weight, weightshape, ishape, oshape):

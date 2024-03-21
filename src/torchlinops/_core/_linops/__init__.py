@@ -7,6 +7,7 @@ from .fft import *
 from .identity import *
 from .scalar import *
 from .trunc_pad import *
+from .pad_last import *
 
-from .nameddim import NamedDimension
-from .namedlinop import NamedLinop
+from .nameddim import *
+from .namedlinop import *

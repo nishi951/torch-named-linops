@@ -4,7 +4,6 @@ Maybe replace with more generic slicing linop later
 
 from torchlinops.utils import end_pad_with_zeros
 from torchlinops._core._linops.namedlinop import NamedLinop
-from torchlinops._core._linops.nameddim import NamedDimension as ND
 
 __all__ = [
     "Truncate",
@@ -42,14 +41,14 @@ class Truncate(NamedLinop):
         return x
 
     def split_forward(self, ibatch, obatch):
-        if ibatch[dim] != slice(None) or obatch[dim] != slice(None):
+        if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
             raise ValueError("Cannot slice a Truncate linop along truncation dimension")
         return self
 
     def split_forward_fn(self, ibatch, obatch, /, data=None):
-        if ibatch[dim] != slice(None) or obatch[dim] != slice(None):
+        if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
             raise ValueError("Cannot slice a Truncate linop along truncation dimension")
-        return self
+        return None
 
     # Linop changes relative size, but can't determine the size itself
     def size(self, dim):
@@ -59,7 +58,7 @@ class Truncate(NamedLinop):
         return None
 
     def adjoint(self):
-        return PadEnd(self.dim, self.length, self.oshape, self.ishape)
+        return PadDim(self.dim, self.length, self.oshape, self.ishape)
 
     @staticmethod
     def is_in_slice(a_slice, idx):
@@ -95,24 +94,24 @@ class PadDim(NamedLinop):
         return Truncate(self.dim, self.length, self.oshape, self.ishape)
 
     def fn(self, x, /):
-        return end_pad_with_zeros(y, self.dim, self.length)
+        return end_pad_with_zeros(x, self.dim, self.length)
 
     def adj_fn(self, y, /):
-        return x[self.slc]
+        return y[self.slc]
 
     def normal_fn(self, x, /):
         x[self.end_slc] = 0.0
         return x
 
     def split_forward(self, ibatch, obatch):
-        if ibatch[dim] != slice(None) or obatch[dim] != slice(None):
+        if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
             raise ValueError("Cannot slice a PadEnd linop along truncation dimension")
         return self
 
     def split_forward_fn(self, ibatch, obatch, /, data=None):
-        if ibatch[dim] != slice(None) or obatch[dim] != slice(None):
+        if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
             raise ValueError("Cannot slice a PadEnd linop along truncation dimension")
-        return self
+        return None
 
     # Linop changes relative size, but can't determine the size itself
     def size(self, dim):

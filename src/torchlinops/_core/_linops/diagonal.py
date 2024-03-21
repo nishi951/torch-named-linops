@@ -60,4 +60,4 @@ class Diagonal(NamedLinop):
         return None
 
     def __pow__(self, exponent):
-        return type(self)(weight**exponent, self.ishape)
+        return type(self)(self.weight**exponent, self.ishape)

@@ -17,7 +17,8 @@ class SigpyNUFFT(NUFFTBase):
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
         shared_batch_shape: Optional[Tuple] = None,
-        nufft_kwargs: Optional[Mapping] = None,
+        extras: Optional[Mapping] = None,
+        *args, **kwargs
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]
@@ -36,8 +37,17 @@ class SigpyNUFFT(NUFFTBase):
             in_batch_shape,
             out_batch_shape,
             shared_batch_shape,
-            nufft_kwargs,
+            extras,
+            *args, **kwargs,
         )
+        if extras is not None and 'oversamp' in extras:
+            self.oversamp = extras['oversamp']
+        else:
+            self.oversamp = 1.25
+        if extras is not None and 'width' in extras:
+            self.width = extras['width']
+        else:
+            self.width = 4
 
     def forward(self, x: torch.Tensor):
         return self.fn(x, self.trj)
@@ -49,7 +59,7 @@ class SigpyNUFFT(NUFFTBase):
         output: [A... B... K]
         """
         if self.shared_dims == 0:
-            return F.nufft(x, trj, **self.nufft_kwargs)
+            return F.nufft(x, trj, self.oversamp, self.width)
         assert (
             x.shape[: self.shared_dims] == trj.shape[: self.shared_dims]
         ), f"First {self.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}"
@@ -62,7 +72,7 @@ class SigpyNUFFT(NUFFTBase):
         output_shape = (*S, *N, *K)
         y = torch.zeros((prod(S), *N, *K), dtype=x.dtype, device=x.device)
         for i in range(x.shape[0]):
-            y[i] = F.nufft(x[i], trj[i], **self.nufft_kwargs)
+            y[i] = F.nufft(x[i], trj[i], self.oversamp, self.width)
         y = torch.reshape(y, output_shape)
         return y
 
@@ -77,7 +87,7 @@ class SigpyNUFFT(NUFFTBase):
         if self.shared_dims == 0:
             N = y.shape[: -self.D]
             oshape = (*N, *self.im_size)
-            x = F.nufft_adjoint(y, trj, oshape, **self.nufft_kwargs)
+            x = F.nufft_adjoint(y, trj, oshape, self.oversamp, self.width)
         assert (
             y.shape[: self.shared_dims] == trj.shape[: self.shared_dims]
         ), f"First {self.shared_dims} dims of y, trj  must match but got y: {y.shape}, trj: {trj.shape}"
@@ -89,7 +99,7 @@ class SigpyNUFFT(NUFFTBase):
         trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims)
         x = torch.zeros((prod(S), *N, *self.im_size), dtype=y.dtype, device=y.device)
         for i in x.shape[0]:
-            x[i] = F.nufft_adjoint(y[i], trj[i], output_shape, **self.nufft_kwargs)
+            x[i] = F.nufft_adjoint(y[i], trj[i], output_shape, self.oversamp, self.width)
         x = torch.reshape(x, output_shape)
         return x
 

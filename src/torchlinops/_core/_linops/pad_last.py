@@ -1,10 +1,13 @@
-import torch
-import torch.nn as nn
+from copy import copy
+
 import torch.nn.functional as F
 
 from .namedlinop import NamedLinop
 from . import Identity
-from .nameddim import NamedDimension as ND
+from .nameddim import NamedDimension as ND, get2dor3d
+
+
+__all__ = ["PadLast"]
 
 
 class PadLast(NamedLinop):
