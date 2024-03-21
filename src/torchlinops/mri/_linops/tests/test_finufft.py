@@ -71,6 +71,7 @@ def test_finufft2d(spiral2d_data):
     )
     assert torch.isclose(img_adjoint, sp_img_adjoint, atol=1e-1, rtol=1e-2).all()
 
+
 @pytest.mark.slow
 def test_finufft3d(tgas_spi_data):
     data = tgas_spi_data
@@ -130,6 +131,8 @@ def test_cufinufft3d(tgas_spi_data):
         data.ksp.to(device), data.trj.to(device), data.mps.shape
     )
     img_adjoint = fi_nufft_adjoint(
-        data.ksp.to(device), sp2fi(data.trj.to(device), data.img.shape), tuple(data.mps.shape)
+        data.ksp.to(device),
+        sp2fi(data.trj.to(device), data.img.shape),
+        tuple(data.mps.shape),
     )
     assert torch.isclose(img_adjoint, sp_img_adjoint, atol=1e-1, rtol=1e-1).all()

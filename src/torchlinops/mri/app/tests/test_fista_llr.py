@@ -5,12 +5,11 @@ from torchlinops.mri.app.fista import FISTA
 
 
 def test_fista_llr_mrf_invivo():
-
     llr_config = LocallyLowRankConfig(
         block_size=(10, 10, 10),
         block_stride=(10, 10, 10),
         threshold=1.5e-4,
-        shift_increment='random'
+        shift_increment="random",
     )
 
     # DCF
@@ -20,12 +19,13 @@ def test_fista_llr_mrf_invivo():
     Phi = Diagonal(...)
     R = SumReduce(...)
 
-    A = (D**(1/2)) @ R @ Phi @ F @ S
-    b = (D**(1/2))(ksp)
+    A = (D ** (1 / 2)) @ R @ Phi @ F @ S
+    b = (D ** (1 / 2))(ksp)
 
     # Run recon
     fista = FISTA(
-        A, b,
+        A,
+        b,
         prox=LocallyLowRank(input_size, config),
         num_iters=20,
         max_eig=None,
@@ -36,13 +36,13 @@ def test_fista_llr_mrf_invivo():
 
     breakpoint()
 
-def test_fista_llr_mrf_timeseg_invivo():
 
+def test_fista_llr_mrf_timeseg_invivo():
     llr_config = LocallyLowRankConfig(
         block_size=(10, 10, 10),
         block_stride=(10, 10, 10),
         threshold=1.5e-4,
-        shift_increment='random'
+        shift_increment="random",
     )
 
     # DCF
@@ -53,12 +53,13 @@ def test_fista_llr_mrf_timeseg_invivo():
     Phi = Diagonal(...)
     R = SumReduce(...)
 
-    A = (D**(1/2)) @ R @ Phi @ F @ S
-    b = (D**(1/2))(ksp)
+    A = (D ** (1 / 2)) @ R @ Phi @ F @ S
+    b = (D ** (1 / 2))(ksp)
 
     # Run recon
     fista = FISTA(
-        A, b,
+        A,
+        b,
         prox=LocallyLowRank(input_size, config),
         num_iters=20,
         max_eig=None,

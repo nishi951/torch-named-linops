@@ -16,38 +16,38 @@ class Rearrange(NamedLinop):
     """Moves around dimensions."""
 
     def __init__(
-        self, istr, ostr, ishape, oshape, axes_lengths: Optional[Mapping] = None
+        self, ipattern, opattern, ishape, oshape, axes_lengths: Optional[Mapping] = None
     ):
-        assert len(ishape) == len(
-            oshape
-        ), "Rearrange currently only supports pure dimension permutations"
+        # assert len(ishape) == len(
+        #     oshape
+        # ), "Rearrange currently only supports pure dimension permutations"
         super().__init__(ishape, oshape)
-        self.istr = istr
-        self.ostr = ostr
+        self.ipattern = ipattern
+        self.opattern = opattern
         self.axes_lengths = axes_lengths if axes_lengths is not None else {}
 
     def forward(self, x):
-        return self.fn(x, self.istr, self.ostr, self.axes_lengths)
+        return self.fn(x)
 
-    def fn(self, x, /, istr, ostr, axes_lengths):
-        return rearrange(x, f"{istr} -> {ostr}", **axes_lengths)
+    def fn(self, x, /):
+        return rearrange(x, f"{self.ipattern} -> {self.opattern}", **self.axes_lengths)
 
-    def adj_fn(self, x, /, ostr, istr, axes_lengths):
-        return rearrange(x, f"{ostr} -> {istr}", **axes_lengths)
+    def adj_fn(self, x, /):
+        return rearrange(x, f"{self.opattern} -> {self.ipattern}", **self.axes_lengths)
 
     def split_forward(self, ibatch, obatch):
         """Rearranging is transparent to splitting"""
         return self
 
-    def split_forward_fn(self, ibatch, obatch, /, istr, ostr, axes_lengths):
+    def split_forward_fn(self, ibatch, obatch, /):
         """Rearranging is transparent to splitting"""
-        return (istr, ostr, axes_lengths)
+        return None
 
     def size(self, dim: str):
         """Rearranging does not determine any dimensions"""
         return None
 
-    def size_fn(self, dim: str, /, istr, ostr, axes_lengths):
+    def size_fn(self, dim: str, /):
         """Rearranging does not determine any dimensions"""
         return None
 

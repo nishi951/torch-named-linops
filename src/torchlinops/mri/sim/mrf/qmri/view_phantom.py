@@ -12,13 +12,14 @@ def __():
     import matplotlib.pyplot as plt
 
     import brainweb
+
     return brainweb, mo, np, plt
 
 
 @app.cell
 def __(brainweb):
     data = brainweb.brainweb_phantom()
-    return data,
+    return (data,)
 
 
 @app.cell
@@ -27,7 +28,7 @@ def __(data, mo):
         options=list(data.keys()), label="Image to show", value="t1w"
     )
     img_key
-    return img_key,
+    return (img_key,)
 
 
 @app.cell
@@ -73,6 +74,7 @@ def __(axial, coronal, np, plt, sagittal):
 def __():
     import sigpy as sp
     import sigpy.mri as mri
+
     return mri, sp
 
 
@@ -131,7 +133,7 @@ def __(T1x, T2x):
 @app.cell
 def __(T1x, T2x, np):
     t1t2pd = np.stack(np.meshgrid(T1x, T2x, 1.0, indexing="ij"), axis=0)
-    return t1t2pd,
+    return (t1t2pd,)
 
 
 @app.cell

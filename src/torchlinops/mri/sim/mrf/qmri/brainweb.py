@@ -24,7 +24,7 @@ def brainweb_phantom():
     # Transpose stuff to make it nicer
     data = dict(np.load(filename))
     for k, img in data.items():
-        img = rearrange(img, 'z y x -> x y z')
+        img = rearrange(img, "z y x -> x y z")
         img = np.flip(img, axis=(0, 1, 2))
         data[k] = img.copy()
     # axial slice is [x y]

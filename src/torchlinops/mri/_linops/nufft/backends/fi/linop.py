@@ -16,6 +16,8 @@ class FiNUFFT(NUFFTBase):
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
         shared_batch_shape: Optional[Tuple] = None,
+        *args,
+        **kwargs,
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]

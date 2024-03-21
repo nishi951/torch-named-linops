@@ -1,9 +1,16 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Mapping
+from copy import copy
 
 import torch
 import torch.nn as nn
 
-from torchlinops._core._linops import NamedLinop
+from torchlinops.utils import end_pad_with_zeros
+from torchlinops._core._linops import (
+    NamedLinop,
+    NamedDimension as ND,
+    Truncate,
+    Rearrange,
+)
 from torchlinops._core._shapes import get2dor3d
 
 
@@ -15,6 +22,7 @@ class NUFFTBase(NamedLinop):
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
         shared_batch_shape: Optional[Tuple] = None,
+        nufft_kwargs: Optional[Mapping] = None,
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]
@@ -27,14 +35,21 @@ class NUFFTBase(NamedLinop):
             The shape of [S...] in trj
 
         """
-        self.setup_shapes(in_batch_shape, out_batch_shape, shared_batch_shape, im_size)
+        ishape, oshape = self.setup_shapes(
+            in_batch_shape, out_batch_shape, shared_batch_shape, im_size
+        )
+        super().__init__(ishape, oshape)
         self.trj = nn.Parameter(trj, requires_grad=False)
         self.im_size = im_size
 
         # Precompute
         self.D = len(im_size)
 
-    def setup_shapes(in_batch_shape, out_batch_shape, shared_batch_shape, im_size):
+        self.nufft_kwargs = nufft_kwargs if nufft_kwargs is not None else {}
+
+    def setup_shapes(
+        self, in_batch_shape, out_batch_shape, shared_batch_shape, im_size
+    ):
         self.in_batch_shape = in_batch_shape if in_batch_shape is not None else tuple()
         self.out_batch_shape = (
             out_batch_shape if out_batch_shape is not None else tuple()
@@ -45,7 +60,7 @@ class NUFFTBase(NamedLinop):
         self.shared_dims = len(self.shared_batch_shape)
         ishape = self.shared_batch_shape + self.in_batch_shape + get2dor3d(im_size)
         oshape = self.shared_batch_shape + self.in_batch_shape + self.out_batch_shape
-        super().__init__(ishape, oshape)
+        return ishape, oshape
 
     def split_forward(self, ibatch, obatch):
         return type(self)(
@@ -79,6 +94,7 @@ class NUFFTBase(NamedLinop):
         """
         Convert a NUFFT-style linop to a segmented linop
 
+
         Parameters
         ----------
         num_segments : int
@@ -103,36 +119,57 @@ class NUFFTBase(NamedLinop):
             segments = t.chunk(num_segments, dim=dim)
             first_segment = segments[0]
             last_segment = segments[-1]
-            last_segment_size = last_segment.shape[dim]
             num_to_truncate = first_segment.shape[dim] - last_segment.shape[dim]
             # Pad last segment
             last_segment = end_pad_with_zeros(
                 last_segment, dim, first_segment.shape[dim] - last_segment.shape[dim]
             )
-            segments[-1] = last_segment
-            return torch.stack(*segments, dim=0), num_to_truncate
+            segments = segments[:-1] + (last_segment,)
+            return torch.stack(segments, dim=0), num_to_truncate
 
-        trj, num_to_truncate = segment_helper(self.trj, num_segments, dim=-2)
+        segmented_trj, num_to_truncate = segment_helper(self.trj, num_segments, dim=-2)
 
         # Change expected input and output shapes
         segment_dim = ND.infer(segment_dim)
-        shared_batch_shape = (segment_dim,) + self.shared_batch_shape
-        out_batch_shape = list(self.out_batch_shape)
-        out_batch_shape[-1] = out_batch_shape[-1].next_unused(out_batch_shape)
-        out_batch_shape = tuple(out_batch_shape)
+        segment_readout_dim = ND.from_tuple(self.out_batch_shape)[-1].next_unused(
+            self.out_batch_shape
+        )
+        segmented_shared_batch_shape = (segment_dim,) + ND.from_tuple(
+            self.shared_batch_shape
+        )
+        segmented_out_batch_shape = ND.from_tuple(self.out_batch_shape)[:-1] + (
+            segment_readout_dim,
+        )
 
-        F = copy(self)
-        F.setup_shapes(self.in_batch_shape,
-                       out_batch_shape,
-                       shared_batch_shape,
-                       self.im_size)
-        F.trj = trj
+        # Add segment dim at position 0 of oshape
+        # Change name of segmented readout dim
+        F = type(self)(
+            segmented_trj,
+            self.im_size,
+            self.in_batch_shape,
+            segmented_out_batch_shape,
+            segmented_shared_batch_shape,
+            self.nufft_kwargs,
+        )
 
-        R_oshape = F.shared_batch_shape + F.in_batch_shape + F.out_batch_shape[-1:] + F.out_batch_shape[-1].next_unused(F.out_batch_shape)
-        ostr = F.shared_batch_shape + F.in_batch_shape + F.out_batch_shape[-1:] + f"({segment_dim} {readout_dim})"
-        R = Rearrange(istr=str(F.oshape),
-                      ostr=str(ostr),
-                      ishape=F.oshape,
-                      oshape=R_oshape)
-        T = Truncate(dim=-1, length=num_to_truncate, ishape=R_oshape, oshape=self.oshape)
+        # Recombine segment dim and segmented readout dim
+        opattern = (
+            " ".join(str(d) for d in F.oshape[1:-1])
+            + f" ({segment_dim} {segment_readout_dim})"
+        )
+        extended_readout_dim = segment_readout_dim.next_unused(F.out_batch_shape)
+        R_oshape = F.oshape[1:-1] + (extended_readout_dim,)
+
+        R = Rearrange(
+            ipattern=" ".join(str(d) for d in F.oshape),
+            opattern=opattern,
+            ishape=F.oshape,
+            oshape=R_oshape,
+            axes_lengths={str(segment_dim): num_segments},
+        )
+
+        # Truncate readout dim to original length
+        T = Truncate(
+            dim=-1, length=num_to_truncate, ishape=R.oshape, oshape=self.oshape
+        )
         return T @ R @ F

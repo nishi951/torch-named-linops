@@ -1,5 +1,5 @@
 from math import prod
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Mapping
 
 import torch
 
@@ -17,7 +17,7 @@ class SigpyNUFFT(NUFFTBase):
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
         shared_batch_shape: Optional[Tuple] = None,
-        nufft_kwargs=None,
+        nufft_kwargs: Optional[Mapping] = None,
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]
@@ -31,10 +31,13 @@ class SigpyNUFFT(NUFFTBase):
 
         """
         super().__init__(
-            trj, im_size, in_batch_shape, out_batch_shape, shared_batch_shape
+            trj,
+            im_size,
+            in_batch_shape,
+            out_batch_shape,
+            shared_batch_shape,
+            nufft_kwargs,
         )
-
-        self.nufft_kwargs = nufft_kwargs if nufft_kwargs is not None else {}
 
     def forward(self, x: torch.Tensor):
         return self.fn(x, self.trj)

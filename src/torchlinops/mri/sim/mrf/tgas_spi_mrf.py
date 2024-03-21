@@ -25,10 +25,8 @@ from .steady_state_simulator import (
     SteadyStateMRFSimulatorConfig,
 )
 
-__all__  = [
-    'TGASSPISubspaceMRFSimulatorConfig',
-    'TGASSPISubspaceMRFSimulator'
-]
+__all__ = ["TGASSPISubspaceMRFSimulatorConfig", "TGASSPISubspaceMRFSimulator"]
+
 
 @dataclass
 class TGASSPISubspaceMRFSimulatorConfig:
@@ -103,13 +101,16 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             if self.config.debug:
                 w = 32
                 slc = tuple(
-                    slice(self.config.im_size[i]//2 - w//2, self.config.im_size[i]//2 + w//2)
+                    slice(
+                        self.config.im_size[i] // 2 - w // 2,
+                        self.config.im_size[i] // 2 + w // 2,
+                    )
                     for i in range(len(self.config.im_size))
                 )
-                qimg['img_t1'] = qimg['img_t1'][slc]
-                qimg['img_t2'] = qimg['img_t2'][slc]
-                qimg['img_pd'] = qimg['img_pd'][slc]
-                self.config.im_size = qimg['img_t1'].shape
+                qimg["img_t1"] = qimg["img_t1"][slc]
+                qimg["img_t2"] = qimg["img_t2"][slc]
+                qimg["img_pd"] = qimg["img_pd"][slc]
+                self.config.im_size = qimg["img_t1"].shape
         self.qimg = nn.ParameterDict(qimg)
         # Trajectory
         if trj is None:
@@ -138,17 +139,20 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             t2 = self.tgas_t2()
         self.t2 = t2
         if pd is None:
-            pd = torch.tensor([1.0]) # needs to be 1D
+            pd = torch.tensor([1.0])  # needs to be 1D
         self.pd = pd
         self.t1t2pd = nn.ParameterList(
-            [nn.Parameter(p, requires_grad=False)
-             for p in torch.meshgrid((self.t1, self.t2, self.pd), indexing="ij")])
+            [
+                nn.Parameter(p, requires_grad=False)
+                for p in torch.meshgrid((self.t1, self.t2, self.pd), indexing="ij")
+            ]
+        )
 
         # Use GPU if available for next steps
         self.to(device)
 
         self.dic = self.simulator(*(t.flatten() for t in self.t1t2pd))
-        self.dic = self.dic.reshape(*self.t1t2pd[0].shape, -1) # [T1, T2, PD, TR]
+        self.dic = self.dic.reshape(*self.t1t2pd[0].shape, -1)  # [T1, T2, PD, TR]
         self.dic = nn.Parameter(self.dic, requires_grad=False)
         # Temporal subspace
         if phi is None:
@@ -167,8 +171,10 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         static_t1 = torch.zeros(batch_size, device=device, requires_grad=True)
         static_t2 = torch.zeros(batch_size, device=device, requires_grad=True)
         static_pd = torch.zeros(batch_size, device=device, requires_grad=True)
-        #output = simulator(static_t1, static_t2, static_pd)
-        sim_graph = torch.cuda.make_graphed_callables(simulator, (static_t1, static_t2, static_pd))
+        # output = simulator(static_t1, static_t2, static_pd)
+        sim_graph = torch.cuda.make_graphed_callables(
+            simulator, (static_t1, static_t2, static_pd)
+        )
         return sim_graph
 
     def simulate(self) -> SubspaceDataset:
@@ -184,24 +190,30 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             ksp_size = tuple(self.Asim.size(dim) for dim in self.Asim.oshape)
             ksp = torch.zeros(*ksp_size, dtype=torch.complex64, device=device)
 
-            with torch.no_grad(): # Very important to avoid memory blowups
+            with torch.no_grad():  # Very important to avoid memory blowups
                 # Compute per-voxel signal
-                spatiotemporal_image = torch.zeros((prod(self.config.im_size), self.config.num_TRs), device='cpu')
-                img_t1 = self.qimg['img_t1'].flatten()
-                img_t2 = self.qimg['img_t2'].flatten()
-                img_pd = self.qimg['img_pd'].flatten()
-                for vstart, vend in batch_tqdm(total=prod(self.config.im_size),
-                                               batch_size=self.config.voxel_batch_size,
-                                               desc='Spatiotemporal Voxel Simulation',
-                                               ):
-
+                spatiotemporal_image = torch.zeros(
+                    (prod(self.config.im_size), self.config.num_TRs), device="cpu"
+                )
+                img_t1 = self.qimg["img_t1"].flatten()
+                img_t2 = self.qimg["img_t2"].flatten()
+                img_pd = self.qimg["img_pd"].flatten()
+                for vstart, vend in batch_tqdm(
+                    total=prod(self.config.im_size),
+                    batch_size=self.config.voxel_batch_size,
+                    desc="Spatiotemporal Voxel Simulation",
+                ):
                     spatiotemporal_image[vstart:vend] = simulator(
                         img_t1[vstart:vend],
                         img_t2[vstart:vend],
                         img_pd[vstart:vend],
                     )
-                spatiotemporal_image = spatiotemporal_image.reshape(*self.config.im_size, self.config.num_TRs)
-                spatiotemporal_image = rearrange(spatiotemporal_image, '... T -> T ...').contiguous()
+                spatiotemporal_image = spatiotemporal_image.reshape(
+                    *self.config.im_size, self.config.num_TRs
+                )
+                spatiotemporal_image = rearrange(
+                    spatiotemporal_image, "... T -> T ..."
+                ).contiguous()
 
                 # Compute ksp signal
                 batched_Asim = Batch(

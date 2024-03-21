@@ -21,7 +21,7 @@ class TGASSPISimulatorConfig:
     num_groups: int
     groups_undersamp: float
     noise_std: float
-    nufft_backend: str = 'sigpy'
+    nufft_backend: str = "sigpy"
     spiral_2d_kwargs: Mapping = field(
         default_factory=lambda: {
             "alpha": 1.5,
