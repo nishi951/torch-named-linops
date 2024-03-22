@@ -59,7 +59,7 @@ class NUFFTBase(NamedLinop):
 
     def normal(self, inner=None):
         if self.toeplitz:
-            T = toeplitz(self, inner)
+            T = toeplitz(self, inner, self.toeplitz_oversamp, self.trj.device)
             return T
         # Fallback to parent implementation
         return super().normal(inner)
