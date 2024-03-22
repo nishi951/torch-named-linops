@@ -18,7 +18,8 @@ class SigpyNUFFT(NUFFTBase):
         out_batch_shape: Optional[Tuple] = None,
         shared_batch_shape: Optional[Tuple] = None,
         extras: Optional[Mapping] = None,
-        *args, **kwargs
+        *args,
+        **kwargs,
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]
@@ -38,14 +39,15 @@ class SigpyNUFFT(NUFFTBase):
             out_batch_shape,
             shared_batch_shape,
             extras,
-            *args, **kwargs,
+            *args,
+            **kwargs,
         )
-        if extras is not None and 'oversamp' in extras:
-            self.oversamp = extras['oversamp']
+        if extras is not None and "oversamp" in extras:
+            self.oversamp = extras["oversamp"]
         else:
             self.oversamp = 1.25
-        if extras is not None and 'width' in extras:
-            self.width = extras['width']
+        if extras is not None and "width" in extras:
+            self.width = extras["width"]
         else:
             self.width = 4
 
@@ -83,11 +85,11 @@ class SigpyNUFFT(NUFFTBase):
         trj: [B... K D], Sigpy-style
         output: [A... Nx Ny [Nz]]
         """
-
         if self.shared_dims == 0:
             N = y.shape[: -self.D]
             oshape = (*N, *self.im_size)
             x = F.nufft_adjoint(y, trj, oshape, self.oversamp, self.width)
+            return x
         assert (
             y.shape[: self.shared_dims] == trj.shape[: self.shared_dims]
         ), f"First {self.shared_dims} dims of y, trj  must match but got y: {y.shape}, trj: {trj.shape}"
@@ -98,8 +100,10 @@ class SigpyNUFFT(NUFFTBase):
         y = torch.flatten(y, start_dim=0, end_dim=self.shared_dims)
         trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims)
         x = torch.zeros((prod(S), *N, *self.im_size), dtype=y.dtype, device=y.device)
-        for i in x.shape[0]:
-            x[i] = F.nufft_adjoint(y[i], trj[i], output_shape, self.oversamp, self.width)
+        for i in range(x.shape[0]):
+            x[i] = F.nufft_adjoint(
+                y[i], trj[i], output_shape, self.oversamp, self.width
+            )
         x = torch.reshape(x, output_shape)
         return x
 

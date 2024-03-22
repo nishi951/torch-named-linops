@@ -37,6 +37,10 @@ def coord2contig(coord, dim=-1):
     )
 
 
+def slicelen(n, start=None, end=None, step=None):
+    return len(range(*slice(start, end, step).indices(n)))
+
+
 def flatten(x, start_dim=0, end_dim=-1):
     """Get size of batch dimension
     coord: [K... D]
@@ -46,7 +50,8 @@ def flatten(x, start_dim=0, end_dim=-1):
     K...: The actual batch shapes
     """
     orig_shape = x.shape
-    x = torch.flatten(x, start_dim, end_dim)
+    if slicelen(len(x.shape), start=start_dim, end=end_dim) > 0:
+        x = torch.flatten(x, start_dim, end_dim)
     return x, orig_shape
 
 
@@ -112,7 +117,7 @@ def _nufft_adjoint(
     coord : torch.Tensor
         Shape [K... D], has scaling [-pi/2, pi/2]
     oshape : Tuple
-       Desired output image shape (without batch dimensinos).
+       Desired output image shape (with batch dimensinos).
 
     Returns
     -------
@@ -123,9 +128,9 @@ def _nufft_adjoint(
     dim = coord.shape[-1]
     coord_batch_len = len(coord.shape) - 1
     # out_batch = input.shape[:-coord_batch_len]
-    flat_coord, coord_shape = flatten(coord, start_dim=0, end_dim=-2)
     flat_input, _ = flatten(input, start_dim=0, end_dim=-(coord_batch_len + 1))
     flat_input, _ = flatten(flat_input, start_dim=-coord_batch_len, end_dim=-1)
+    flat_coord, _ = flatten(coord, start_dim=0, end_dim=-2)
 
     adj_nufft_fn = get_nufft[dev][dim][1]
 
@@ -135,9 +140,9 @@ def _nufft_adjoint(
         flat_input = flat_input.detach().numpy()
 
     im_size = oshape[-dim:]
-    output = adj_nufft_fn(*coord_components, flat_input, im_size, out=out) / sqrt(
-        prod(im_size)
-    )
+    output = adj_nufft_fn(
+        *coord_components, flat_input, im_size, isign=1, out=out
+    ) / sqrt(prod(im_size))
 
     if dev == "cpu":
         output = torch.from_numpy(output)

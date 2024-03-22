@@ -47,6 +47,7 @@ class PadLast(NamedLinop):
 
     def forward(self, x):
         """Pad the last n dimensions of x"""
+        return self.fn(x)
 
     def fn(self, x, /):
         assert tuple(x.shape[-self.im_dim :]) == self.im_size

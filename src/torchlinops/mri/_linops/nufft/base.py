@@ -15,6 +15,7 @@ from torchlinops._core._shapes import get2dor3d
 
 from .toeplitz import toeplitz
 
+
 class NUFFTBase(NamedLinop):
     def __init__(
         self,
@@ -25,7 +26,7 @@ class NUFFTBase(NamedLinop):
         shared_batch_shape: Optional[Tuple] = None,
         extras: Optional[Mapping] = None,
         toeplitz: bool = False,
-        toeplitz_oversamp: float = 2.,
+        toeplitz_oversamp: float = 2.0,
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]

@@ -6,9 +6,10 @@ import torch.fft as fft
 from .indexing import multi_grid
 
 __all__ = [
-    'gridded_nufft',
-    'gridded_nufft_adjoint',
+    "gridded_nufft",
+    "gridded_nufft_adjoint",
 ]
+
 
 def gridded_nufft(x: torch.Tensor, trj: torch.Tensor, dim: Tuple):
     """
@@ -27,7 +28,10 @@ def gridded_nufft(x: torch.Tensor, trj: torch.Tensor, dim: Tuple):
     omega_slc = (*batch_slc, *trj_split)
     return Fx[omega_slc]
 
-def gridded_nufft_adjoint(y: torch.Tensor, trj: torch.Tensor, dim: Tuple, im_size: Tuple):
+
+def gridded_nufft_adjoint(
+    y: torch.Tensor, trj: torch.Tensor, dim: Tuple, im_size: Tuple
+):
     # Un-Index (i.e. grid)
     Fx = multi_grid(y, trj, final_size=im_size)
 

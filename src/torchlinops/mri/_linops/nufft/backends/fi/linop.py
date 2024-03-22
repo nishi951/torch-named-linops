@@ -16,7 +16,8 @@ class FiNUFFT(NUFFTBase):
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
         shared_batch_shape: Optional[Tuple] = None,
-        *args, **kwargs,
+        *args,
+        **kwargs,
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]
@@ -35,7 +36,8 @@ class FiNUFFT(NUFFTBase):
             in_batch_shape,
             out_batch_shape,
             shared_batch_shape,
-            *args, **kwargs,
+            *args,
+            **kwargs,
         )
 
     def forward(self, x: torch.Tensor):
@@ -48,7 +50,7 @@ class FiNUFFT(NUFFTBase):
         output: [[S...] N... K...]
         """
         if self.shared_dims == 0:
-            return F.nufft(x, sp2fi(trj, self.im_size))
+            return F.nufft(x, sp2fi(trj.clone(), self.im_size))
         assert (
             x.shape[: self.shared_dims] == trj.shape[: self.shared_dims]
         ), f"First {self.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}"
@@ -59,8 +61,8 @@ class FiNUFFT(NUFFTBase):
         x = torch.flatten(x, start_dim=0, end_dim=self.shared_dims - 1)
         trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims - 1)
         y = torch.zeros((prod(S), *N, *K), dtype=x.dtype, device=x.device)
-        for i in range(x.shape[0]):
-            F.nufft(x[i], sp2fi(trj[i], self.im_size), out=y[i])
+        for i in range(y.shape[0]):
+            F.nufft(x[i], sp2fi(trj[i].clone(), self.im_size), out=y[i])
         y = torch.reshape(y, output_shape)
         return y
 
@@ -70,8 +72,10 @@ class FiNUFFT(NUFFTBase):
         trj: [[S...] K... D] (sigpy-style)
         output: [[S...] N...  Nx Ny [Nz]]
         """
+        N = y.shape[self.shared_dims : -self.D]
+        oshape = (*N, *self.im_size)
         if self.shared_dims == 0:
-            return F.nufft_adjoint(y, sp2fi(trj, self.im_size), self.im_size)
+            return F.nufft_adjoint(y, sp2fi(trj.clone(), self.im_size), oshape)
         assert (
             y.shape[: self.shared_dims] == trj.shape[: self.shared_dims]
         ), f"First {self.shared_dims} dims of y, trj  must match but got y: {y.shape}, trj: {trj.shape}"
@@ -82,8 +86,8 @@ class FiNUFFT(NUFFTBase):
         y = torch.flatten(y, start_dim=0, end_dim=self.shared_dims)
         trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims)
         x = torch.zeros((prod(S), *N, *self.im_size), dtype=y.dtype, device=y.device)
-        for i in x.shape[0]:
-            F.nufft_adjoint(y, sp2fi(trj, self.im_size), oshape, out=x[i])
+        for i in range(x.shape[0]):
+            F.nufft_adjoint(y[i], sp2fi(trj[i].clone(), self.im_size), oshape, out=x[i])
         x = torch.reshape(x, output_shape)
         return x
 

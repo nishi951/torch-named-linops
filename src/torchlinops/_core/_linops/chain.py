@@ -116,7 +116,6 @@ class Chain(NamedLinop):
         if self._normal is None:
             _normal = None
             for linop in self.linops:
-                breakpoint()
                 _normal = linop.normal(inner=_normal)
             # linops = list(linop.H for linop in reversed(self.linops)) + list(
             #     self.linops
@@ -155,7 +154,10 @@ class Chain(NamedLinop):
         return list(self.linops)
 
     def __getitem__(self, idx):
-        return self.linops[idx]
+        linops = self.linops[idx]
+        if isinstance(linops, NamedLinop):
+            return linops
+        return type(self)(*linops)
 
     def __len__(self):
         return len(self.linops)

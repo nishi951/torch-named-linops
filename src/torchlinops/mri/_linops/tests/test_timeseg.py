@@ -1,5 +1,3 @@
-import pytest
-
 from torchlinops.utils import ceildiv
 
 from torchlinops.mri.sim.spiral2d import (

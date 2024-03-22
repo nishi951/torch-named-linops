@@ -1,3 +1,4 @@
+from copy import copy
 from typing import Optional, Tuple
 
 import torch
@@ -60,3 +61,8 @@ class SENSE(NamedLinop):
         if dim in mps_shape:
             return mps.shape[mps_shape.index(dim)]
         return None
+
+    def normal(self, inner=None):
+        if inner is None:
+            return super().normal(inner)
+        return copy(self).H @ inner @ copy(self)
