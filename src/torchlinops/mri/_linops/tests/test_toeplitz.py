@@ -13,6 +13,18 @@ from torchlinops.mri.sim.tgas_spi import (
     TGASSPISimulatorConfig,
 )
 
+TOLERANCES = {
+    'fi': {'atol': 1e-5, 'rtol': 1e-4},
+    'sigpy': {'atol': 1e-2, 'rtol': 1e-4},
+}
+
+def mask_by_img(x, reference_img, eps=1e-2):
+    mask = torch.abs(reference_img) < eps
+    out = x.clone()
+    out[mask] = 0.
+    return out
+
+
 # Different image sizes
 @pytest.fixture(params=[(64, 64), (64, 128)])
 def spiral2d_data(request):
@@ -47,58 +59,11 @@ def test_toeplitz_2d_nufft_only(spiral2d_data, backend):
         backend=backend,
         toeplitz=True,
     )
-    F.N # get it
-    x = data.img
-    # import matplotlib.pyplot as plt
-    # curr = ""
-    # for linop in reversed(F.N):
-    #     plt.figure()
-    #     plt.title(f'{curr}, abs')
-    #     plt.imshow(torch.abs(x))
-    #     plt.figure()
-    #     plt.title(f'{curr}, angle')
-    #     plt.imshow(torch.angle(x))
-    #     x = linop(x)
-    #     curr += f' {type(linop).__name__}'
-    # plt.figure()
-    # plt.title(f'{curr}, abs')
-    # plt.imshow(torch.abs(x))
-    # plt.figure()
-    # plt.title(f'{curr}, angle')
-    # plt.imshow(torch.angle(x))
     toep = F.N(data.img)
-    # toep = x
-
+    toep = mask_by_img(toep, data.img)
     notoep = F.H(F(data.img))
-    # plt.figure()
-    # plt.title('notoep, abs')
-    # plt.imshow(torch.abs(notoep))
-    # plt.figure()
-    # plt.title('notoep, angle')
-    # plt.imshow(torch.angle(notoep))
-
-    mask = torch.abs(data.img) < 1e-2
-    toep_mask = torch.abs(toep).clone()
-    toep_mask[mask] = 0.
-    notoep_mask = torch.abs(notoep).clone()
-    notoep_mask[mask] = 0.
-
-    # plt.figure()
-    # plt.title('mask')
-    # plt.imshow(mask)
-
-    # plt.figure()
-    # plt.title('abs(toep) / abs(notoep)')
-    # plt.imshow(toep_mask / notoep_mask)
-    # plt.colorbar()
-
-    # plt.show()
-    # breakpoint()
-
-    if backend == 'fi':
-        assert torch.isclose(toep_mask, notoep_mask, atol=1e-5, rtol=1e-4).all()
-    elif backend == 'sigpy':
-        assert torch.isclose(toep_mask, notoep_mask, atol=1e-2, rtol=1e-4).all()
+    notoep = mask_by_img(notoep, data.img)
+    assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()
 
 @pytest.mark.parametrize("backend", NUFFT_BACKENDS)
 def test_toeplitz_2d_with_coils(spiral2d_data, backend):
@@ -116,7 +81,9 @@ def test_toeplitz_2d_with_coils(spiral2d_data, backend):
     )
     S = SENSE(data.mps)
     A = F @ S
-    assert torch.isclose(A.N(data.img), A.H(A(data.img))).all()
+    toep = mask_by_img(A.N(data.img), data.img)
+    notoep = mask_by_img(A.H(A(data.img)), data.img)
+    assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()
 
 @pytest.mark.parametrize("backend", NUFFT_BACKENDS)
 def test_toeplitz_2d_full(spiral2d_data, backend):
@@ -135,8 +102,14 @@ def test_toeplitz_2d_full(spiral2d_data, backend):
         toeplitz=True,
     )
     A = (D ** (1 / 2)) @ F @ S
-    assert torch.isclose(A.N(data.img), A.H(A(data.img))).all()
+    toep = mask_by_img(A.N(data.img), data.img)
+    notoep = mask_by_img(A.H(A(data.img)), data.img)
+    assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()
 
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
 @pytest.fixture
 def tgas_spi_data():
     config = TGASSPISimulatorConfig(
@@ -152,22 +125,24 @@ def tgas_spi_data():
         },
     )
 
-    simulator = TGASSPISimulator(config)
+    simulator = TGASSPISimulator(config, device=torch.device('cuda:0'))
     data = simulator.data
     return data
 
+@pytest.mark.slow
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"
 )
-def test_toeplitz_3d(tgas_spi_data):
+@pytest.mark.parametrize('backend', ['fi', 'sigpy'])
+def test_toeplitz_3d(tgas_spi_data, backend):
     data = tgas_spi_data
     device = torch.device("cuda:0")
     D = DCF(
         data.trj, data.img.shape, ("C", "R", "T", "K"), device_idx=0, show_pbar=False
     )
     S = SENSE(data.mps)
-    F_fi = NUFFT(
+    F = NUFFT(
         data.trj,
         im_size=data.img.shape,
         in_batch_shape=("C",),
@@ -176,36 +151,12 @@ def test_toeplitz_3d(tgas_spi_data):
             "T",
             "K",
         ),
-        backend="fi",
+        backend=backend,
         toeplitz=True,
     )
-    F_sp = NUFFT(
-        data.trj,
-        im_size=data.img.shape,
-        in_batch_shape=("C",),
-        out_batch_shape=(
-            "R",
-            "T",
-            "K",
-        ),
-        backend="sigpy",
-        toeplitz=True,
-    )
-    A_fi = (D ** (1 / 2)) @ F_fi @ S
-    A_sp = (D ** (1 / 2)) @ F_sp @ S
-    A_fi.to(device)
-    A_sp.to(device)
-
-    assert torch.isclose(
-        A_fi.N(data.img.to(device)),
-        A_fi.H(A_fi(data.img.to(device))),
-        atol=2e-1,
-        rtol=1e-1,
-    ).all()
-    assert torch.isclose(
-        A_sp.N(data.img.to(device)),
-        A_sp.H(A_sp(data.img.to(device))),
-        atol=2e-1,
-        rtol=1e-1,
-    ).all()
-
+    A = (D ** (1 / 2)) @ F @ S
+    A.to(device)
+    img = data.img.to(device)
+    toep = mask_by_img(A.N(img), img).detach().cpu()
+    notoep = mask_by_img(A.H(A(img)), img).detach().cpu()
+    assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()

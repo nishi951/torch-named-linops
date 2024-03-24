@@ -39,6 +39,7 @@ class TGASSPISimulator(nn.Module):
         img: Optional[torch.Tensor] = None,
         trj: Optional[torch.Tensor] = None,
         mps: Optional[torch.Tensor] = None,
+        device: torch.device = 'cpu'
     ):
         super().__init__()
         self.config = config
@@ -70,9 +71,13 @@ class TGASSPISimulator(nn.Module):
         # Linop
         self.A = self.make_linop(self.trj, self.mps)
 
+        # Device
+        self.device = device
+
     @property
     def data(self) -> MRIDataset:
         if self._data is None:
+            self.to(self.device)
             ksp = self.A(self.img)
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
             self._data = MRIDataset(

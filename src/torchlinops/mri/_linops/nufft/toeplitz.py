@@ -32,6 +32,10 @@ def toeplitz(
     # Get FFT
     F = _fft(len(Pad.im_size), ishape=Pad.oshape, oshape=nufft_batch_shape + N2K(Pad.im_shape))
 
+    # Create oversampled nufft
+    Nufft_oversamp = deepcopy(Nufft)
+    Nufft_oversamp.change_im_size(Pad.pad_im_size)
+
     if Inner is not None:
         assert len(Inner.ishape) == len(
             Inner.oshape
@@ -51,9 +55,6 @@ def toeplitz(
         weight_shape = Inner.ishape
         weight_size = tuple(_size(d, Nufft, Inner, Pad) for d in weight_shape)
 
-        # Create oversampled nufft
-        Nufft_oversamp = deepcopy(Nufft)
-        Nufft_oversamp.change_resolution(Pad.pad_im_size)
         # Nufft out batch shape should not be affected non-diagonally
         changed_ranges = tuple(range(s) if changed[i] else (slice(None),) for i, s in enumerate(weight_size))
         kernel = torch.zeros(*kernel_size, dtype=torch.complex64, device=device)
@@ -63,8 +64,8 @@ def toeplitz(
             weight = Inner(weight)
             weight = F(Nufft_oversamp.H(weight))
             changed_idx = tuple(slc for slc, chg in zip(idx, changed) if chg)
-            full_idx = changed_idx + (slice(None),) * len(idx)
-            kernel[full_idx] = weight
+            #full_idx = changed_idx + (slice(None),) * len(idx)
+            kernel[changed_idx] = weight
         kernel *= oversamp ** Nufft.trj.shape[-1] # Fix scaling
         kernel_oshape = Inner.oshape[:-len(Nufft.out_batch_shape)] + N2K(Pad.im_shape)
         Kern = Dense(kernel, kernel_shape, F.oshape, kernel_oshape)
@@ -73,54 +74,9 @@ def toeplitz(
         weight_shape = Nufft.oshape
         weight_size = tuple(_size(d, Nufft, Pad) for d in Nufft.oshape)
         weight = torch.ones(*weight_size, dtype=torch.complex64, device=device)
-        # weight: [[S...] N... K...]
-        # DEBUG (2d)
-        # import matplotlib
-        # import matplotlib.pyplot as plt
-        # matplotlib.use('WebAgg')
-        # plt.figure()
-        # plt.title('Trj')
-        # plt.plot(Nufft.trj[..., 0].flatten(), Nufft.trj[..., 1].flatten())
 
-        # img = Nufft.H(weight)
-
-        # # Note: these are Centered
-        # plt.figure()
-        # plt.title('abs(img)')
-        # plt.imshow(torch.abs(img))
-        # plt.figure()
-        # plt.title('angle(img)')
-        # plt.imshow(torch.angle(img))
-
-        # img2 = Pad(img)
-
-        # # Note: this works fine
-        # plt.figure()
-        # plt.title('abs(img2) (padded)')
-        # plt.imshow(torch.abs(img2))
-        # plt.figure()
-        # plt.title('angle(img2) (padded)')
-        # plt.imshow(torch.angle(img2))
-
-        # img3 = F(img2)
-
-        # plt.figure()
-        # plt.title('abs(img3) (padded, fft)')
-        # plt.imshow(torch.abs(img3))
-        # plt.figure()
-        # plt.title('angle(img3) (padded, fft)')
-        # plt.imshow(torch.angle(img3))
-
-        # plt.show()
-
-        #kernel = F(Pad(Nufft.H(weight)))
-        Nufft_oversamp = deepcopy(Nufft)
-        Nufft_oversamp.change_resolution(Pad.pad_im_size)
         kernel = F(Nufft_oversamp.H(weight))
         kernel *= oversamp ** Nufft.trj.shape[-1] # Fix scaling
-        # After Nufft.H: weight: [[S...] N1... Nx Ny [Nz]]
-        # After Pad: weight: [[S...] N1... Nx1 Ny1 [Nz1]]
-        # After F: weight: [[S...] N1... Kx1 Ky1 [Kz1]]
         kernel_shape = (
             Nufft.shared_batch_shape + Nufft.in_batch_shape + F.oshape[-len(Pad.im_shape) :]
         )

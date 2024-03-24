@@ -57,7 +57,7 @@ class NUFFTBase(NamedLinop):
         # Precompute
         self.D = len(im_size)
 
-    def change_resolution(self, new_im_size):
+    def change_im_size(self, new_im_size):
         # Necessary for sigpy scaling
         for i in range(self.trj.shape[-1]):
             self.trj[..., i] *= new_im_size[i] / self.im_size[i]
