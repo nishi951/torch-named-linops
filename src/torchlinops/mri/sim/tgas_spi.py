@@ -39,7 +39,7 @@ class TGASSPISimulator(nn.Module):
         img: Optional[torch.Tensor] = None,
         trj: Optional[torch.Tensor] = None,
         mps: Optional[torch.Tensor] = None,
-        device: torch.device = 'cpu'
+        device: torch.device = "cpu",
     ):
         super().__init__()
         self.config = config

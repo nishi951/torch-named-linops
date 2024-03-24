@@ -2,10 +2,23 @@ import pytest
 
 import torch
 
+from torchlinops.mri._linops.nufft.backends import NUFFT_BACKENDS
 from torchlinops.mri.sim.mrf.tgas_spi_mrf import (
     TGASSPISubspaceMRFSimulator,
     TGASSPISubspaceMRFSimulatorConfig,
 )
+
+TOLERANCES = {
+    "fi": {"atol": 1e-5, "rtol": 1e-4},
+    "sigpy": {"atol": 1e-2, "rtol": 1e-4},
+}
+
+
+def mask_by_img(x, reference_img, eps=1e-2):
+    mask = torch.abs(reference_img) < eps
+    out = x.clone()
+    out[mask] = 0.0
+    return out
 
 
 @pytest.mark.gpu
@@ -36,7 +49,7 @@ def test_tgas_spi_mrf_small():
     device = torch.device("cuda")
     sim = TGASSPISubspaceMRFSimulator(config, device)
     data = sim.simulate()
-    assert True
+    assert True  # Simulation completes
 
 
 @pytest.mark.slow
@@ -68,14 +81,16 @@ def test_tgas_spi_mrf_full():
     device = torch.device("cuda")
     sim = TGASSPISubspaceMRFSimulator(config, device)
     data = sim.simulate()
-    assert True
+    assert True  # Simulation completes
+
 
 @pytest.mark.slow
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"
 )
-def test_tgas_spi_mrf_toeplitz():
+@pytest.mark.parametrize("backend", NUFFT_BACKENDS)
+def test_tgas_spi_mrf_toeplitz(backend):
     config = TGASSPISubspaceMRFSimulatorConfig(
         im_size=(180, 216, 180),
         num_coils=2,
@@ -87,7 +102,11 @@ def test_tgas_spi_mrf_toeplitz():
         voxel_batch_size=10000,
         tr_batch_size=1,
         coil_batch_size=1,
-        nufft_backend="fi",
+        nufft_backend=backend,
+        nufft_extras={
+            "width": 4,
+            "oversamp": 2.0,
+        },
         spiral_2d_kwargs={
             "alpha": 1.5,
             "f_sampling": 0.4,
@@ -102,7 +121,30 @@ def test_tgas_spi_mrf_toeplitz():
 
     A = sim.A
     A.to(device)
-    test_img = torch.zeros(config.num_bases, *config.im_size,
-                           device=device, dtype=torch.complex64)
-    test_img_2 = A.N(test_img)
-    assert True
+    img = data.sub_img.to(device)
+    img = img / torch.max(torch.abs(img))
+    toep = A.N(img)
+    notoep = A.H(A(img))
+    # toep = mask_by_img(A.N(img), img, eps=1e-5).detach().cpu()
+    # notoep = mask_by_img(A.H(A(img)), img, eps=1e-5).detach().cpu()
+
+    # import matplotlib
+    # import matplotlib.pyplot as plt
+    # matplotlib.use('WebAgg')
+    # plt.figure()
+    # plt.title('abs(toep[0])')
+    # plt.imshow(torch.abs(toep[0, ..., 16].detach().cpu()))
+    # plt.figure()
+    # plt.title('angle(toep[0])')
+    # plt.imshow(torch.angle(toep[0, ..., 16].detach().cpu()))
+
+    # plt.figure()
+    # plt.title('abs(notoep[0])')
+    # plt.imshow(torch.abs(notoep[0, ..., 16].detach().cpu()))
+    # plt.figure()
+    # plt.title('angle(notoep[0])')
+    # plt.imshow(torch.angle(notoep[0, ..., 16].detach().cpu()))
+
+    # plt.show()
+
+    assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()

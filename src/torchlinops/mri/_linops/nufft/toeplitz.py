@@ -30,7 +30,11 @@ def toeplitz(
     Pad = _pad(Nufft.im_size, oversamp, nufft_batch_shape)
 
     # Get FFT
-    F = _fft(len(Pad.im_size), ishape=Pad.oshape, oshape=nufft_batch_shape + N2K(Pad.im_shape))
+    F = _fft(
+        len(Pad.im_size),
+        ishape=Pad.oshape,
+        oshape=nufft_batch_shape + N2K(Pad.im_shape),
+    )
 
     # Create oversampled nufft
     Nufft_oversamp = deepcopy(Nufft)
@@ -45,29 +49,38 @@ def toeplitz(
         kernel_changed_shape, changed = _changed_shape(Inner.ishape, Inner.oshape)
         n_changed = len(kernel_changed_shape)
         n_nufft_batch = len(nufft_batch_shape)
-        nufft_changed_batch_shape = tuple(odim if changed[i] else idim
-                                          for i, (idim, odim) in enumerate(zip(Inner.ishape[:n_nufft_batch], Inner.oshape[:n_nufft_batch])))
-        kernel_shape = kernel_changed_shape + nufft_changed_batch_shape + N2K(Pad.im_shape)
+        nufft_changed_batch_shape = tuple(
+            odim if changed[i] else idim
+            for i, (idim, odim) in enumerate(
+                zip(Inner.ishape[:n_nufft_batch], Inner.oshape[:n_nufft_batch])
+            )
+        )
+        kernel_shape = (
+            kernel_changed_shape + nufft_changed_batch_shape + N2K(Pad.im_shape)
+        )
         kernel_size = list(_size(d, Nufft, Inner, Pad) for d in kernel_shape)
 
-        kernel_size[-len(Pad.im_shape):] = Pad.pad_im_size
+        kernel_size[-len(Pad.im_shape) :] = Pad.pad_im_size
         kernel_size = tuple(kernel_size)
         weight_shape = Inner.ishape
         weight_size = tuple(_size(d, Nufft, Inner, Pad) for d in weight_shape)
 
         # Nufft out batch shape should not be affected non-diagonally
-        changed_ranges = tuple(range(s) if changed[i] else (slice(None),) for i, s in enumerate(weight_size))
+        changed_ranges = tuple(
+            range(s) if changed[i] else (slice(None),)
+            for i, s in enumerate(weight_size)
+        )
         kernel = torch.zeros(*kernel_size, dtype=torch.complex64, device=device)
         for idx in product(*changed_ranges):
             weight = torch.zeros(*weight_size, dtype=torch.complex64, device=device)
-            weight[tuple(idx)].fill_(1.)
+            weight[tuple(idx)].fill_(1.0)
             weight = Inner(weight)
             weight = F(Nufft_oversamp.H(weight))
             changed_idx = tuple(slc for slc, chg in zip(idx, changed) if chg)
-            #full_idx = changed_idx + (slice(None),) * len(idx)
+            # full_idx = changed_idx + (slice(None),) * len(idx)
             kernel[changed_idx] = weight
-        kernel *= oversamp ** Nufft.trj.shape[-1] # Fix scaling
-        kernel_oshape = Inner.oshape[:-len(Nufft.out_batch_shape)] + N2K(Pad.im_shape)
+        kernel *= oversamp ** Nufft.trj.shape[-1]  # Fix scaling
+        kernel_oshape = Inner.oshape[: -len(Nufft.out_batch_shape)] + N2K(Pad.im_shape)
         Kern = Dense(kernel, kernel_shape, F.oshape, kernel_oshape)
 
     else:
@@ -76,27 +89,30 @@ def toeplitz(
         weight = torch.ones(*weight_size, dtype=torch.complex64, device=device)
 
         kernel = F(Nufft_oversamp.H(weight))
-        kernel *= oversamp ** Nufft.trj.shape[-1] # Fix scaling
+        kernel *= oversamp ** Nufft.trj.shape[-1]  # Fix scaling
         kernel_shape = (
-            Nufft.shared_batch_shape + Nufft.in_batch_shape + F.oshape[-len(Pad.im_shape) :]
+            Nufft.shared_batch_shape
+            + Nufft.in_batch_shape
+            + F.oshape[-len(Pad.im_shape) :]
         )
         Kern = Dense(kernel, kernel_shape, F.oshape, F.H.ishape)
 
     return Pad.normal(F.normal(Kern))
 
+
 def _pad(im_size, oversamp, batch_shape):
-    """Helper function for making a padding linop
-    """
+    """Helper function for making a padding linop"""
     pad_im_size = tuple(int(oversamp * d) for d in im_size)
     Pad = PadLast(pad_im_size, im_size, batch_shape)
     return Pad
 
+
 def _fft(ndim, ishape, oshape):
-    """Helper function for making an n-dimensional FFT
-    """
+    """Helper function for making an n-dimensional FFT"""
     dim = tuple(range(-ndim, 0))
     F = FFT(ishape, oshape, dim=dim, norm="ortho", centered=True)
     return F
+
 
 def _size(dim: ND, *linops):
     """Get the size of dimension, possibly from multiple linops
@@ -110,6 +126,7 @@ def _size(dim: ND, *linops):
         if size is not None:
             return size
     return 1
+
 
 def _changed_shape(ishape, oshape):
     """Helper function for getting the kernel shape and slices

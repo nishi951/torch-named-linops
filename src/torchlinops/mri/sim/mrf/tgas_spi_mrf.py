@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from math import prod
 from typing import Tuple, Optional, Mapping
 
-from einops import rearrange, repeat
+from einops import rearrange, repeat, einsum
 import torch
 import torch.nn as nn
 import sigpy as sp
@@ -41,6 +41,7 @@ class TGASSPISubspaceMRFSimulatorConfig:
     tr_batch_size: int
     coil_batch_size: int
     nufft_backend: str = "fi"
+    nufft_extras: Optional[Mapping] = None
     spiral_2d_kwargs: Mapping = field(
         default_factory=lambda: {
             "alpha": 1.5,
@@ -57,7 +58,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         self,
         config: TGASSPISubspaceMRFSimulatorConfig,
         device: Optional[torch.device] = None,
-        qimg: Optional[Mapping[str, torch.Tensor]] = None,
+        q_img: Optional[Mapping[str, torch.Tensor]] = None,
         trj: Optional[torch.Tensor] = None,
         mps: Optional[torch.Tensor] = None,
         phi: Optional[torch.Tensor] = None,
@@ -72,7 +73,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             Configuration object for this simulator
 
         All following args are optional:
-        qimg : Mapping[str, torch.Tensor]
+        q_img : Mapping[str, torch.Tensor]
             Quantitative phantom image expressed as a mapping from 't1', 't2', 'pd' to their respective maps
         trj : torch.Tensor
             [T K... D] kspace trajectory, sigpy scaling [-N/2, N/2]
@@ -89,7 +90,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         self.simulator = self.make_simulator()
 
         # Quantitative phantom
-        if qimg is None:
+        if q_img is None:
             data = brainweb.brainweb_phantom()
             img_t1 = torch.from_numpy(data["t1"]).float()
             img_t1 = nn.Parameter(img_t1, requires_grad=False)
@@ -97,7 +98,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             img_t2 = nn.Parameter(img_t2, requires_grad=False)
             img_pd = torch.from_numpy(data["pd"]).float()
             img_pd = nn.Parameter(img_pd, requires_grad=False)
-            qimg = {"img_t1": img_t1, "img_t2": img_t2, "img_pd": img_pd}
+            q_img = {"img_t1": img_t1, "img_t2": img_t2, "img_pd": img_pd}
             if self.config.debug:
                 w = 32
                 slc = tuple(
@@ -107,11 +108,11 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
                     )
                     for i in range(len(self.config.im_size))
                 )
-                qimg["img_t1"] = qimg["img_t1"][slc]
-                qimg["img_t2"] = qimg["img_t2"][slc]
-                qimg["img_pd"] = qimg["img_pd"][slc]
-                self.config.im_size = qimg["img_t1"].shape
-        self.qimg = nn.ParameterDict(qimg)
+                q_img["img_t1"] = q_img["img_t1"][slc]
+                q_img["img_t2"] = q_img["img_t2"][slc]
+                q_img["img_pd"] = q_img["img_pd"][slc]
+                self.config.im_size = q_img["img_t1"].shape
+        self.q_img = nn.ParameterDict(q_img)
         # Trajectory
         if trj is None:
             trj = tgas_spi(
@@ -180,7 +181,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
 
     def simulate(self) -> SubspaceDataset:
         if self._data is None:
-            device = self.qimg["img_t1"].device
+            device = self.q_img["img_t1"].device
             # TODO: Get graphs to work?Fully simulate data
             # if not device == torch.device('cpu'):
             #     simulator = self.convert_simulator_to_graph(self.simulator, device, self.config.voxel_batch_size)
@@ -196,9 +197,9 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
                 spatiotemporal_image = torch.zeros(
                     (prod(self.config.im_size), self.config.num_TRs), device="cpu"
                 )
-                img_t1 = self.qimg["img_t1"].flatten()
-                img_t2 = self.qimg["img_t2"].flatten()
-                img_pd = self.qimg["img_pd"].flatten()
+                img_t1 = self.q_img["img_t1"].flatten()
+                img_t2 = self.q_img["img_t2"].flatten()
+                img_pd = self.q_img["img_pd"].flatten()
                 for vstart, vend in batch_tqdm(
                     total=prod(self.config.im_size),
                     batch_size=self.config.voxel_batch_size,
@@ -235,13 +236,20 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
                 #     spatiotemporal_batch = spatiotemporal_image[tstart:tend].to(device)
                 #     ksp[tstart:tend] = self.Asim(spatiotemporal_batch)
 
+            self.t_img = spatiotemporal_image
+            # Project to subspace
+            self.sub_img = einsum(
+                self.phi.conj(), self.t_img.to(device), "A T, T ... -> A ..."
+            )
             ksp = ksp + self.config.noise_std * torch.randn_like(ksp)
             self._data = SubspaceDataset(
                 self.trj.data,
                 self.mps.data,
                 ksp,
                 self.phi,
-                self.qimg,
+                self.q_img,
+                self.t_img,
+                self.sub_img,
                 self.dic,
                 self.t1,
                 self.t2,
@@ -257,6 +265,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             out_batch_shape=("R", "K"),
             shared_batch_shape=("T",),
             backend=self.config.nufft_backend,
+            extras=self.config.nufft_extras,
         )
         return F @ S
 
@@ -280,11 +289,13 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             ishape=("A", "C", "T", "R", "K"),
             oshape=("C", "T", "R", "K"),
         )
-        D = DCF(trj, self.config.im_size,
-                ioshape=("C", "T", "R", "K"),
-                device_idx=ordinal(self.device),
-                )
-        return (D ** (1/2)) @ R @ P @ F @ S
+        D = DCF(
+            trj,
+            self.config.im_size,
+            ioshape=("C", "T", "R", "K"),
+            device_idx=ordinal(self.device),
+        )
+        return (D ** (1 / 2)) @ R @ P @ F @ S
 
     @staticmethod
     def make_simulator():

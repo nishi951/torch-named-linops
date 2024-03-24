@@ -64,7 +64,6 @@ class NUFFTBase(NamedLinop):
         self.im_size = new_im_size
         return self
 
-
     def normal(self, inner=None):
         if self.toeplitz:
             T = toeplitz(self, inner, self.toeplitz_oversamp, self.trj.device)

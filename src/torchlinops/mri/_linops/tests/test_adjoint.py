@@ -3,14 +3,13 @@ import pytest
 import torch
 
 from torchlinops import NamedLinop
-from torchlinops.mri import (
-    NUFFT
-)
+from torchlinops.mri import NUFFT
 from torchlinops.mri._linops.nufft.backends import NUFFT_BACKENDS
 from torchlinops.mri.sim.spiral2d import (
     Spiral2dSimulator,
     Spiral2dSimulatorConfig,
 )
+
 
 @pytest.fixture
 def spiral2d_data():
@@ -50,6 +49,7 @@ def is_adjoint(
     """
     return torch.isclose(inner(y, A(x)), inner(A.H(y), x), atol=atol, rtol=rtol).all()
 
+
 @pytest.fixture(params=NUFFT_BACKENDS)
 def nufft(spiral2d_data, request):
     data = spiral2d_data
@@ -65,11 +65,12 @@ def nufft(spiral2d_data, request):
     )
     return F, request.param, data.img, data.ksp[0]
 
+
 def test_nufft(nufft):
     F, backend, x, y = nufft
     # isize = F.im_size
     # osize = tuple(F.size(d) for d in F.oshape)
-    if backend == 'fi':
+    if backend == "fi":
         assert is_adjoint(F, x, y)
-    elif backend == 'sigpy':
+    elif backend == "sigpy":
         assert is_adjoint(F, x, y, atol=1e-4, rtol=1e-7)

@@ -16,8 +16,12 @@ class SubspaceDataset(Saveable):
     """Simulated ksp data"""
     phi: torch.Tensor
     """Temporal Subspace"""
-    qimg: Mapping[str, torch.Tensor]
+    q_img: Mapping[str, torch.Tensor]
     """Ground truth quantitative image"""
+    t_img: Mapping[str, torch.Tensor]
+    """Ground truth spatiotemporal image"""
+    sub_img: Mapping[str, torch.Tensor]
+    """Ground truth subspace image"""
     dic: Mapping[str, torch.Tensor]
     """Lookup dictionary"""
     t1: torch.Tensor

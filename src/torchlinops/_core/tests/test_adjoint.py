@@ -55,4 +55,3 @@ def test_diagonal():
     ioshape = ("M", "N", "P")
     A = Diagonal(weight, ioshape)
     assert is_adjoint(A, x, y)
-
