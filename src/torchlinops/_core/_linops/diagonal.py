@@ -14,6 +14,7 @@ class Diagonal(NamedLinop):
         ), "All dimensions must be named or broadcastable"
         super().__init__(ioshape, ioshape)
         self.weight = weight
+        assert len(self.ishape) >= len(self.weight.shape), f'Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}'
 
     def forward(self, x):
         return self.fn(x, self.weight)
@@ -56,7 +57,11 @@ class Diagonal(NamedLinop):
 
     def size_fn(self, dim: str, weight):
         if dim in self.ishape:
-            return weight.shape[self.ishape.index(dim)]
+            n_broadcast = len(self.ishape) - len(weight.shape)
+            if self.ishape.index(dim) < n_broadcast:
+                return None
+            else:
+                return weight.shape[self.ishape.index(dim) - n_broadcast]
         return None
 
     def __pow__(self, exponent):

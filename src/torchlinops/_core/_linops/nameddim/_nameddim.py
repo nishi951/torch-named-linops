@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 
 __all__ = [
+    "ND",
     "NamedDimension",
 ]
 
@@ -44,3 +45,5 @@ class NamedDimension:
     def __eq__(self, other):
         """Tests for simple string equality"""
         return repr(self) == other
+
+ND = NamedDimension

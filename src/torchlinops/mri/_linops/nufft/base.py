@@ -57,12 +57,26 @@ class NUFFTBase(NamedLinop):
         # Precompute
         self.D = len(im_size)
 
+    def change_resolution(self, new_im_size):
+        # Necessary for sigpy scaling
+        for i in range(self.trj.shape[-1]):
+            self.trj[..., i] *= new_im_size[i] / self.im_size[i]
+        self.im_size = new_im_size
+        return self
+
+
     def normal(self, inner=None):
         if self.toeplitz:
             T = toeplitz(self, inner, self.toeplitz_oversamp, self.trj.device)
             return T
-        # Fallback to parent implementation
-        return super().normal(inner)
+        pre = copy(self)
+        post = copy(self).H
+        # Don't modify post.oshape
+        if inner is None:
+            return post @ pre
+        pre.oshape = inner.ishape
+        post.ishape = inner.oshape
+        return post @ inner @ pre
 
     def setup_shapes(
         self, in_batch_shape, out_batch_shape, shared_batch_shape, im_size

@@ -1,3 +1,4 @@
+from copy import copy
 from typing import Optional, Mapping
 
 import torch
@@ -69,9 +70,10 @@ class SumReduce(NamedLinop):
         assert (
             len(self.oshape) < len(self.ishape)
         ), f"Reduce must be over at least one dimension: got {self.ishape} -> {self.oshape}"
-        self.adj_ipattern = self.fill_singleton_dims(self.ishape, self.oshape)
-        self.ipattern = " ".join(ishape)
-        self.opattern = " ".join(oshape)
+        self.adj_ishape = self.fill_singleton_dims(self.ishape, self.oshape)
+        self.adj_ipattern = " ".join(str(d) if d is not None else "()" for d in self.adj_ishape)
+        self.ipattern = " ".join(str(d) for d in ishape)
+        self.opattern = " ".join(str(d) for d in oshape)
 
     @staticmethod
     def fill_singleton_dims(ishape, oshape):
@@ -80,11 +82,11 @@ class SumReduce(NamedLinop):
             if idim in oshape:
                 out.append(idim)
             else:
-                out.append("()")
-        return out
+                out.append(None)
+        return tuple(out)
 
     def forward(self, x):
-        return self.fn(x, self.ipattern, self.opattern)
+        return self.fn(x)
 
     def fn(self, x, /):
         x = reduce(x, f"{self.ipattern} -> {self.opattern}", "sum")
@@ -96,7 +98,7 @@ class SumReduce(NamedLinop):
 
     def split_forward_fn(self, ibatch, obatch, /):
         """Reducing is transparent to splitting"""
-        return tuple()
+        return None
 
     def size(self, dim: str):
         """Reducing does not determine any dimensions"""
@@ -105,6 +107,18 @@ class SumReduce(NamedLinop):
     def size_fn(self, dim: str, /, ipattern, opattern, size_spec):
         """Reducing does not determine any dimensions"""
         return None
+
+    # TODO: implement this
+    # def adjoint(self):
+    #     return Repeat
+
+    def normal(self, inner=None):
+        pre = copy(self)
+        post = copy(self).H
+        post.oshape = tuple(d if d in pre.adj_ishape else d.next_unused(pre.ishape) for d in pre.ishape)
+        if inner is not None:
+            return post @ inner @ pre
+        return post @ pre
 
 
 class Repeat(NamedLinop):

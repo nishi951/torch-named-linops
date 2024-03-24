@@ -1,6 +1,9 @@
+from copy import copy
+
 import torch.fft as fft
 
 from .namedlinop import NamedLinop
+from .identity import Identity
 
 
 class FFT(NamedLinop):
@@ -47,3 +50,13 @@ class FFT(NamedLinop):
     def size_fn(self, dim: str, /):
         """FFT doesn't determine any dimensions"""
         return None
+
+    def normal(self, inner=None):
+        if inner is None:
+            return Identity(self.ishape)
+        pre = copy(self)
+        pre.oshape = inner.ishape
+        post = copy(self).H
+        post.ishape = inner.oshape
+        # Don't modify post.oshape
+        return post @ inner @ pre

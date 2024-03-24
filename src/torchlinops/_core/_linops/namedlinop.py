@@ -121,19 +121,31 @@ class NamedLinop(nn.Module):
         """
         inner: Optional linop for toeplitz embedding
         """
-        normal = copy(self)
-        normal.fn = self.normal_fn
-        normal.adj_fn = self.normal_fn
+        if inner is None:
+            normal = copy(self)
+            normal.fn = self.normal_fn
+            normal.adj_fn = self.normal_fn
 
-        def new_normal(x, *args, **kwargs):
-            x = self.normal_fn(x, *args, **kwargs)
-            return self.normal_fn(x, *args, **kwargs)
+            def new_normal(x, *args, **kwargs):
+                x = self.normal_fn(x, *args, **kwargs)
+                return self.normal_fn(x, *args, **kwargs)
 
-        normal.normal_fn = new_normal
-        normal.ishape = self.ishape
-        normal.oshape, normal.ishape = self.ishape, self.ishape
-        normal._suffix += ".N"
-        return normal
+            normal.normal_fn = new_normal
+            normal.ishape = self.ishape
+            normal.oshape, normal.ishape = self.ishape, self.ishape
+            # Assume that none of the dims are the same anymore
+            # Override this behavior for e.g. diagonal linops
+            normal.oshape = (tuple(d.next_unused(normal.ishape) for d in normal.oshape))
+            normal._suffix += ".N"
+            return normal
+        pre = copy(self)
+        post = copy(self).H
+        pre.oshape = inner.ishape
+        post.ishape = inner.oshape
+        # Assume that none of the dims are the same anymore
+        # Override this behavior for e.g. diagonal linops
+        post.oshape = tuple(d.next_unused(post.oshape) for d in post.oshape)
+        return post @ inner @ pre
 
     def split(self, ibatch, obatch):
         """Return a split version of the linop such that`forward`

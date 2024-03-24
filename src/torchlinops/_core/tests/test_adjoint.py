@@ -56,4 +56,3 @@ def test_diagonal():
     A = Diagonal(weight, ioshape)
     assert is_adjoint(A, x, y)
 
-def test_trunc():

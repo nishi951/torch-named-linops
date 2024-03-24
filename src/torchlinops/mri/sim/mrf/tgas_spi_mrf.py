@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 from torchlinops._core._tiling import Batch
 from torchlinops._core._linops import SumReduce, Diagonal
-from torchlinops.utils import batch_tqdm
-from torchlinops.mri._linops import SENSE, NUFFT
+from torchlinops.utils import batch_tqdm, ordinal
+from torchlinops.mri._linops import SENSE, NUFFT, DCF
 from ._data import SubspaceDataset
 from .._trj import tgas_spi
 from .qmri import brainweb
@@ -149,7 +149,8 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         )
 
         # Use GPU if available for next steps
-        self.to(device)
+        self.device = device
+        self.to(self.device)
 
         self.dic = self.simulator(*(t.flatten() for t in self.t1t2pd))
         self.dic = self.dic.reshape(*self.t1t2pd[0].shape, -1)  # [T1, T2, PD, TR]
@@ -267,18 +268,23 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             trj,
             self.config.im_size,
             in_batch_shape=("A", "C"),
-            out_batch_shape=("R", "T", "K"),
+            out_batch_shape=("T", "R", "K"),
+            toeplitz=True,
             backend=self.config.nufft_backend,
         )
         P = Diagonal(
-            repeat(phi, "A T -> A () () T ()"),  # Expand to match
-            ioshape=("A", "C", "R", "T", "K"),
+            repeat(phi, "A T -> A () T () ()"),  # Expand to match
+            ioshape=("A", "C", "T", "R", "K"),
         )
         R = SumReduce(
-            ishape=("A", "C", "R", "T", "K"),
-            oshape=("C", "R", "T", "K"),
+            ishape=("A", "C", "T", "R", "K"),
+            oshape=("C", "T", "R", "K"),
         )
-        return R @ P @ F @ S
+        D = DCF(trj, self.config.im_size,
+                ioshape=("C", "T", "R", "K"),
+                device_idx=ordinal(self.device),
+                )
+        return (D ** (1/2)) @ R @ P @ F @ S
 
     @staticmethod
     def make_simulator():

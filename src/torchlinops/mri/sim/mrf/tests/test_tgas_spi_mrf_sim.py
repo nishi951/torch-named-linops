@@ -69,3 +69,40 @@ def test_tgas_spi_mrf_full():
     sim = TGASSPISubspaceMRFSimulator(config, device)
     data = sim.simulate()
     assert True
+
+@pytest.mark.slow
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_tgas_spi_mrf_toeplitz():
+    config = TGASSPISubspaceMRFSimulatorConfig(
+        im_size=(180, 216, 180),
+        num_coils=2,
+        num_TRs=500,
+        num_groups=16,
+        groups_undersamp=1.0,
+        num_bases=5,
+        noise_std=0.0,
+        voxel_batch_size=10000,
+        tr_batch_size=1,
+        coil_batch_size=1,
+        nufft_backend="fi",
+        spiral_2d_kwargs={
+            "alpha": 1.5,
+            "f_sampling": 0.4,
+            "g_max": 40.0,
+            "s_max": 100.0,
+        },
+        debug=True,
+    )
+    device = torch.device("cuda")
+    sim = TGASSPISubspaceMRFSimulator(config, device)
+    data = sim.simulate()
+
+    A = sim.A
+    A.to(device)
+    test_img = torch.zeros(config.num_bases, *config.im_size,
+                           device=device, dtype=torch.complex64)
+    test_img_2 = A.N(test_img)
+    assert True

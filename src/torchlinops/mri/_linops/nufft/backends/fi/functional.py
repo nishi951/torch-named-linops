@@ -18,7 +18,7 @@ __all__ = ["nufft", "nufft_adjoint"]
 
 # lookup[(<device>, <im_dim>)] -> (forward, adjoint)
 # Type-2 NUFFT = "forward" NUFFT (uniform to nonuniform)
-# Type-3 NUFFT = "adjoint" NUFFT (nonuniform to uniform)
+# Type-1 NUFFT = "adjoint" NUFFT (nonuniform to uniform)
 get_nufft = {
     "cpu": {
         2: (F.nufft2d2, F.nufft2d1),
@@ -91,11 +91,11 @@ def _nufft(
         flat_input = flat_input.detach().numpy()
 
     if flat_out is not None:
-        nufft_fn(*coord_components, flat_input, out=flat_out) / sqrt(
+        nufft_fn(*coord_components, flat_input, isign=-1, out=flat_out) / sqrt(
             prod(input_shape[-dim:])
         )
     else:
-        flat_out = nufft_fn(*coord_components, flat_input) / sqrt(
+        flat_out = nufft_fn(*coord_components, flat_input, isign=-1) / sqrt(
             prod(input_shape[-dim:])
         )
 
@@ -117,7 +117,9 @@ def _nufft_adjoint(
     coord : torch.Tensor
         Shape [K... D], has scaling [-pi/2, pi/2]
     oshape : Tuple
-       Desired output image shape (with batch dimensinos).
+        Desired output image shape (with batch dimensinos).
+    out : Optional[torch.Tensor]
+        Shape [N..., *im_size] optional output image
 
     Returns
     -------
@@ -131,6 +133,9 @@ def _nufft_adjoint(
     flat_input, _ = flatten(input, start_dim=0, end_dim=-(coord_batch_len + 1))
     flat_input, _ = flatten(flat_input, start_dim=-coord_batch_len, end_dim=-1)
     flat_coord, _ = flatten(coord, start_dim=0, end_dim=-2)
+    flat_out = None
+    if out is not None:
+        flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(coord_batch_len + 1))
 
     adj_nufft_fn = get_nufft[dev][dim][1]
 
@@ -140,13 +145,18 @@ def _nufft_adjoint(
         flat_input = flat_input.detach().numpy()
 
     im_size = oshape[-dim:]
-    output = adj_nufft_fn(
-        *coord_components, flat_input, im_size, isign=1, out=out
-    ) / sqrt(prod(im_size))
+    if flat_out is not None:
+        adj_nufft_fn(
+            *coord_components, flat_input, im_size, isign=1, out=flat_out
+        ) / sqrt(prod(im_size))
+    else:
+        flat_out = adj_nufft_fn(*coord_components, flat_input, im_size, isign=1) / sqrt(
+            prod(im_size)
+        )
 
     if dev == "cpu":
-        output = torch.from_numpy(output)
-    output = unflatten(output, oshape)
+        flat_out = torch.from_numpy(flat_out)
+    output = unflatten(flat_out, oshape)
     return output
 
 
