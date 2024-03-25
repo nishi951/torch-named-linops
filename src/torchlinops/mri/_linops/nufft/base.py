@@ -179,7 +179,9 @@ class NUFFTBase(NamedLinop):
             self.in_batch_shape,
             segmented_out_batch_shape,
             segmented_shared_batch_shape,
-            self.nufft_kwargs,
+            self.extras,
+            self.toeplitz,
+            self.toeplitz_oversamp,
         )
 
         # Recombine segment dim and segmented readout dim

@@ -5,6 +5,7 @@ import torch
 from einops import rearrange, reduce, repeat
 
 from .namedlinop import NamedLinop
+from .nameddim import ND
 
 __all__ = [
     "Rearrange",
@@ -29,6 +30,23 @@ class Rearrange(NamedLinop):
 
     def forward(self, x):
         return self.fn(x)
+
+    def normal(self, inner=None):
+        pre = copy(self)
+        post = copy(self).H
+        if inner is not None:
+            pre.oshape = inner.ishape
+
+            new_ishape = inner.oshape
+            new_oshape = list(post.oshape)
+            for old_d, new_d in zip(post.ishape, new_ishape):
+                if old_d != new_d and old_d in new_oshape:
+                    # Replace the old dimension with the new dimension
+                    new_oshape[new_oshape.index(old_d)] = new_d
+            post.ishape = new_ishape
+            post.oshape = new_oshape
+            return post @ inner @ pre
+        return post @ pre
 
     def fn(self, x, /):
         return rearrange(x, f"{self.ipattern} -> {self.opattern}", **self.axes_lengths)
@@ -108,9 +126,92 @@ class SumReduce(NamedLinop):
         """Reducing does not determine any dimensions"""
         return None
 
-    # TODO: implement this
-    # def adjoint(self):
-    #     return Repeat
+    def adjoint(self):
+        n_repeats = {d: 1 for d in self.ishape if d not in self.oshape}
+        return Repeat(n_repeats, ishape=self.oshape, oshape=self.ishape)
+
+    def normal(self, inner=None):
+        pre = copy(self)
+        post = copy(self).H
+        # New post output shape (post = Repeat)
+        # If dimension is not summed over (i.e. it is in pre_adj_ishape) , it stays the same
+        # Otherwise, if dimension is summed over, its name changes
+        new_oshape = []
+        new_axes_lengths = {}
+        for d in pre.ishape:
+            if d in pre.adj_ishape:
+                new_oshape.append(d)
+            else:
+                new_d = d.next_unused(pre.ishape)
+                new_oshape.append(new_d)
+                if d in post.axes_lengths:
+                    # Replace old dimension with a new one
+                    new_axes_lengths[new_d] = post.axes_lengths[d]
+        post.oshape = tuple(new_oshape)
+        post.axes_lengths = new_axes_lengths
+
+        if inner is not None:
+            return post @ inner @ pre
+        return post @ pre
+
+
+class Repeat(NamedLinop):
+    """Unsqueezes and expands a tensor along dim
+    """
+
+    def __init__(self, n_repeats: Mapping, ishape, oshape):
+        super().__init__(ishape, oshape)
+        assert (
+            len(self.oshape) > len(self.ishape)
+        ), f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
+        self.adj_ishape = self.fill_singleton_dims(self.oshape, self.ishape)
+        self.adj_ipattern = " ".join(str(d) if d is not None else "()" for d in self.adj_ishape)
+        self.ipattern = " ".join(str(d) for d in ishape)
+        self.opattern = " ".join(str(d) for d in oshape)
+        self.axes_lengths = n_repeats
+        self.axes_lengths = {ND.infer(k): v for k, v in self.axes_lengths.items()}
+
+    @staticmethod
+    def fill_singleton_dims(ishape, oshape):
+        out = []
+        for idim in ishape:
+            if idim in oshape:
+                out.append(idim)
+            else:
+                out.append(None)
+        return tuple(out)
+
+    def forward(self, x):
+        return self.fn(x)
+
+    def fn(self, x, /):
+        x = repeat(x, f"{self.ipattern} -> {self.opattern}", **{str(k): v for k, v in self.axes_lengths.items()})
+        return x
+
+    def adj_fn(self, x, /):
+        x = reduce(x, f"{self.opattern} -> {self.ipattern}", "sum")
+        return x
+
+    def split_forward(self, ibatch, obatch):
+        """Repeat fewer times, depending on the size of obatch"""
+        A = copy(self)
+        for dim, slc in zip(self.oshape, obatch):
+            if dim in A.axes_lengths:
+                A.axes_lengths[dim] = self.slice_len
+        return A
+
+    def split_forward_fn(self, ibatch, obatch, /):
+        """No data to split"""
+        return None
+
+    def size(self, dim: str):
+        return self.size_fn(dim)
+
+    def size_fn(self, dim, /):
+        return self.axes_lengths.get(dim, None)
+
+    def adjoint(self):
+        return SumReduce(self.oshape, self.ishape)
 
     def normal(self, inner=None):
         pre = copy(self)
@@ -119,59 +220,6 @@ class SumReduce(NamedLinop):
         if inner is not None:
             return post @ inner @ pre
         return post @ pre
-
-
-class Repeat(NamedLinop):
-    """Unsqueezes and expands a tensor along dim
-    TODO: Replace with einops' repeat
-    """
-
-    def __init__(self, n_repeats, dim, ishape, oshape):
-        assert len(ishape) + 1 == len(
-            oshape
-        ), "oshape should have 1 more dim than ishape"
-        super().__init__(ishape, oshape)
-        self.n_repeats = n_repeats
-        self.dim = dim
-
-    def forward(self, x):
-        return self.fn(x, self.n_repeats)
-
-    def fn(self, x, /, n_repeats):
-        expand_size = [-1] * len(self.oshape)
-        expand_size[self.dim] = n_repeats
-        x = x.unsqueeze(self.dim)
-        # print(x)
-        return x.expand(*expand_size)
-
-    def adj_fn(self, x, /, n_repeats):
-        return torch.sum(x, dim=self.dim, keepdim=False)
-
-    def split_forward(self, ibatch, obatch):
-        """Repeat fewer times, depending on the size of obatch"""
-        assert len(ibatch) == len(
-            self.ishape
-        ), "length of ibatch should match length of ishape"
-        assert len(obatch) == len(
-            self.oshape
-        ), "length of obatch should match length of oshape"
-        return type(self)(
-            n_repeats=self.split_forward_fn(ibatch, obatch, self.n_repeats),
-            dim=self.dim,
-            ishape=self.ishape,
-            oshape=self.oshape,
-        )
-
-    def split_forward_fn(self, ibatch, obatch, /, n_repeats):
-        return self.slice_len(obatch[self.dim], n_repeats)
-
-    def size(self, dim: str):
-        return self.size_fn(dim, self.n_repeats)
-
-    def size_fn(self, dim, /, n_repeats):
-        if dim == self.oshape[self.dim]:
-            return n_repeats
-        return None
 
     @staticmethod
     def slice_len(slc, n):

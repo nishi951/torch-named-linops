@@ -1,6 +1,7 @@
 """Truncate/Pad
 Maybe replace with more generic slicing linop later
 """
+from copy import copy
 
 from torchlinops.utils import end_pad_with_zeros
 from torchlinops._core._linops.namedlinop import NamedLinop
@@ -12,7 +13,7 @@ __all__ = [
 
 
 class Truncate(NamedLinop):
-    def __init__(self, dim, length, ishape, oshape):
+    def __init__(self, dim: int, length, ishape, oshape):
         self.dim = dim
         self.length = length
 
@@ -60,6 +61,19 @@ class Truncate(NamedLinop):
     def adjoint(self):
         return PadDim(self.dim, self.length, self.oshape, self.ishape)
 
+    def normal(self, inner=None):
+        """Diagonal in all dims except the last one"""
+        pre = copy(self)
+        post = copy(self).H
+        if inner is None:
+            return post @ pre
+        pre.oshape = inner.ishape
+        post.ishape = inner.oshape
+        new_oshape = list(inner.oshape)
+        new_oshape[self.dim] = post.oshape[self.dim]
+        post.oshape = tuple(new_oshape)
+        return post @ inner @ pre
+
     @staticmethod
     def is_in_slice(a_slice, idx):
         """TODO: unused"""
@@ -92,6 +106,16 @@ class PadDim(NamedLinop):
 
     def adjoint(self):
         return Truncate(self.dim, self.length, self.oshape, self.ishape)
+
+    def normal(self, inner=None):
+        """Diagonal in all dims except the last one"""
+        pre = copy(self)
+        post = copy(self).H
+        if inner is None:
+            return post @ pre
+        pre.oshape = inner.ishape
+        post.ishape = inner.oshape
+        return post @ inner @ pre
 
     def fn(self, x, /):
         return end_pad_with_zeros(x, self.dim, self.length)

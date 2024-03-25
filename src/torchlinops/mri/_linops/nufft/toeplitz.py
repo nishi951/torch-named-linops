@@ -58,18 +58,19 @@ def toeplitz(
         kernel_shape = (
             kernel_changed_shape + nufft_changed_batch_shape + N2K(Pad.im_shape)
         )
-        kernel_size = list(_size(d, Nufft, Inner, Pad) for d in kernel_shape)
+        kernel_size = list(_size(d, [Nufft, Inner, Pad], 1) for d in kernel_shape)
 
         kernel_size[-len(Pad.im_shape) :] = Pad.pad_im_size
         kernel_size = tuple(kernel_size)
         weight_shape = Inner.ishape
-        weight_size = tuple(_size(d, Nufft, Inner, Pad) for d in weight_shape)
+        weight_size = tuple(_size(d, [Nufft, Inner, Pad], 1) for d in weight_shape)
 
         # Nufft out batch shape should not be affected non-diagonally
         changed_ranges = tuple(
             range(s) if changed[i] else (slice(None),)
             for i, s in enumerate(weight_size)
         )
+        breakpoint()
         kernel = torch.zeros(*kernel_size, dtype=torch.complex64, device=device)
         for idx in product(*changed_ranges):
             weight = torch.zeros(*weight_size, dtype=torch.complex64, device=device)
@@ -85,7 +86,7 @@ def toeplitz(
 
     else:
         weight_shape = Nufft.oshape
-        weight_size = tuple(_size(d, Nufft, Pad) for d in Nufft.oshape)
+        weight_size = tuple(_size(d, [Nufft, Pad], 1) for d in Nufft.oshape)
         weight = torch.ones(*weight_size, dtype=torch.complex64, device=device)
 
         kernel = F(Nufft_oversamp.H(weight))
@@ -114,8 +115,15 @@ def _fft(ndim, ishape, oshape):
     return F
 
 
-def _size(dim: ND, *linops):
+def _size(dim: ND, linops, default=None):
     """Get the size of dimension, possibly from multiple linops
+    Parameters
+    ----------
+    dim : NamedDimension
+        The name of the dimension to determine the size of
+    default : Any
+        The return value to use if none of the linops can
+        size this dimension.
     Returns
     -------
     int : the size of the dimension, or 1 (i.e. broadcastable) if the linops
@@ -125,7 +133,7 @@ def _size(dim: ND, *linops):
         size = linop.size(dim)
         if size is not None:
             return size
-    return 1
+    return default
 
 
 def _changed_shape(ishape, oshape):
