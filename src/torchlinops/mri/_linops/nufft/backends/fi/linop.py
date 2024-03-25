@@ -83,8 +83,8 @@ class FiNUFFT(NUFFTBase):
         N = y.shape[self.shared_dims : -self.D]
         oshape = (*N, *self.im_size)
         output_shape = (*S, *N, *self.im_size)
-        y = torch.flatten(y, start_dim=0, end_dim=self.shared_dims)
-        trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims)
+        y = torch.flatten(y, start_dim=0, end_dim=self.shared_dims - 1)
+        trj = torch.flatten(trj, start_dim=0, end_dim=self.shared_dims - 1)
         x = torch.zeros((prod(S), *N, *self.im_size), dtype=y.dtype, device=y.device)
         for i in range(x.shape[0]):
             F.nufft_adjoint(y[i], sp2fi(trj[i].clone(), self.im_size), oshape, out=x[i])

@@ -89,7 +89,11 @@ class SigpyNUFFTAdjoint(Function):
             coord = sp.from_pytorch(coord, iscomplex=False)
             grad_output = sp.from_pytorch(grad_output, iscomplex=False)
             grad_input = sp.nufft(grad_output, coord, ctx.oversamp, ctx.width)
-            grad_input = complex_to_pytorch(grad_input)
+            # TODO: may need to change the requires grad if you want to
+            # backprop through a backprop
+            grad_input = complex_to_pytorch(
+                grad_input, requires_grad=grad_output.requires_grad
+            )
         return grad_input, grad_coord, grad_oshape, grad_oversamp, grad_width
 
 

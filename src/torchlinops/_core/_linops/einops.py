@@ -44,7 +44,7 @@ class Rearrange(NamedLinop):
                     # Replace the old dimension with the new dimension
                     new_oshape[new_oshape.index(old_d)] = new_d
             post.ishape = new_ishape
-            post.oshape = new_oshape
+            post.oshape = tuple(new_oshape)
             return post @ inner @ pre
         return post @ pre
 
@@ -88,10 +88,21 @@ class SumReduce(NamedLinop):
         assert (
             len(self.oshape) < len(self.ishape)
         ), f"Reduce must be over at least one dimension: got {self.ishape} -> {self.oshape}"
-        self.adj_ishape = self.fill_singleton_dims(self.ishape, self.oshape)
-        self.adj_ipattern = " ".join(str(d) if d is not None else "()" for d in self.adj_ishape)
-        self.ipattern = " ".join(str(d) for d in ishape)
-        self.opattern = " ".join(str(d) for d in oshape)
+
+    @property
+    def adj_ishape(self):
+        return self.fill_singleton_dims(self.ishape, self.oshape)
+    @property
+    def adj_ipattern(self):
+        return " ".join(str(d) if d is not None else "()" for d in self.adj_ishape)
+
+    @property
+    def ipattern(self):
+        return " ".join(str(d) for d in self.ishape)
+
+    @property
+    def opattern(self):
+        return " ".join(str(d) for d in self.oshape)
 
     @staticmethod
     def fill_singleton_dims(ishape, oshape):
@@ -138,19 +149,20 @@ class SumReduce(NamedLinop):
         # Otherwise, if dimension is summed over, its name changes
         new_oshape = []
         new_axes_lengths = {}
-        for d in pre.ishape:
-            if d in pre.adj_ishape:
+        for d in self.ishape:
+            if d in self.adj_ishape:
                 new_oshape.append(d)
             else:
-                new_d = d.next_unused(pre.ishape)
+                new_d = d.next_unused(self.ishape)
                 new_oshape.append(new_d)
                 if d in post.axes_lengths:
                     # Replace old dimension with a new one
                     new_axes_lengths[new_d] = post.axes_lengths[d]
         post.oshape = tuple(new_oshape)
         post.axes_lengths = new_axes_lengths
-
         if inner is not None:
+            pre.oshape = inner.ishape
+            post.ishape = inner.oshape
             return post @ inner @ pre
         return post @ pre
 
@@ -164,12 +176,24 @@ class Repeat(NamedLinop):
         assert (
             len(self.oshape) > len(self.ishape)
         ), f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
-        self.adj_ishape = self.fill_singleton_dims(self.oshape, self.ishape)
-        self.adj_ipattern = " ".join(str(d) if d is not None else "()" for d in self.adj_ishape)
-        self.ipattern = " ".join(str(d) for d in ishape)
-        self.opattern = " ".join(str(d) for d in oshape)
         self.axes_lengths = n_repeats
         self.axes_lengths = {ND.infer(k): v for k, v in self.axes_lengths.items()}
+
+    @property
+    def adj_ishape(self):
+        return self.fill_singleton_dims(self.oshape, self.ishape)
+
+    @property
+    def adj_ipattern(self):
+        return " ".join(str(d) if d is not None else "()" for d in self.adj_ishape)
+
+    @property
+    def ipattern(self):
+        return " ".join(str(d) for d in self.ishape)
+
+    @property
+    def opattern(self):
+        return " ".join(str(d) for d in self.oshape)
 
     @staticmethod
     def fill_singleton_dims(ishape, oshape):

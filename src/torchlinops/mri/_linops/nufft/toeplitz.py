@@ -70,7 +70,6 @@ def toeplitz(
             range(s) if changed[i] else (slice(None),)
             for i, s in enumerate(weight_size)
         )
-        breakpoint()
         kernel = torch.zeros(*kernel_size, dtype=torch.complex64, device=device)
         for idx in product(*changed_ranges):
             weight = torch.zeros(*weight_size, dtype=torch.complex64, device=device)

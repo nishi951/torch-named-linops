@@ -189,19 +189,30 @@ class NUFFTBase(NamedLinop):
             " ".join(str(d) for d in F.oshape[1:-1])
             + f" ({segment_dim} {segment_readout_dim})"
         )
-        extended_readout_dim = segment_readout_dim.next_unused(F.out_batch_shape)
-        R_oshape = F.oshape[1:-1] + (extended_readout_dim,)
+        if num_to_truncate > 0:
+            # Add another readout dim name for the
+            # rearranged but not truncated readout dimension
+            extended_readout_dim = segment_readout_dim.next_unused(F.out_batch_shape)
+            R_oshape = F.oshape[1:-1] + (extended_readout_dim,)
 
+            R = Rearrange(
+                ipattern=" ".join(str(d) for d in F.oshape),
+                opattern=opattern,
+                ishape=F.oshape,
+                oshape=R_oshape,
+                axes_lengths={str(segment_dim): num_segments},
+            )
+
+            # Truncate readout dim to original length
+            T = Truncate(
+                dim=-1, length=num_to_truncate, ishape=R.oshape, oshape=self.oshape
+            )
+            return T @ R @ F
         R = Rearrange(
             ipattern=" ".join(str(d) for d in F.oshape),
             opattern=opattern,
             ishape=F.oshape,
-            oshape=R_oshape,
+            oshape=self.oshape,
             axes_lengths={str(segment_dim): num_segments},
         )
-
-        # Truncate readout dim to original length
-        T = Truncate(
-            dim=-1, length=num_to_truncate, ishape=R.oshape, oshape=self.oshape
-        )
-        return T @ R @ F
+        return R @ F

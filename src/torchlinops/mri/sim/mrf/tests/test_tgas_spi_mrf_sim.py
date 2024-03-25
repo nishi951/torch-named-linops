@@ -126,27 +126,6 @@ def test_tgas_spi_mrf_toeplitz(backend):
     img = img / torch.max(torch.abs(img))
     toep = A.N(img)
     notoep = A.H(A(img))
-    # toep = mask_by_img(A.N(img), img, eps=1e-5).detach().cpu()
-    # notoep = mask_by_img(A.H(A(img)), img, eps=1e-5).detach().cpu()
-
-    # import matplotlib
-    # import matplotlib.pyplot as plt
-    # matplotlib.use('WebAgg')
-    # plt.figure()
-    # plt.title('abs(toep[0])')
-    # plt.imshow(torch.abs(toep[0, ..., 16].detach().cpu()))
-    # plt.figure()
-    # plt.title('angle(toep[0])')
-    # plt.imshow(torch.angle(toep[0, ..., 16].detach().cpu()))
-
-    # plt.figure()
-    # plt.title('abs(notoep[0])')
-    # plt.imshow(torch.abs(notoep[0, ..., 16].detach().cpu()))
-    # plt.figure()
-    # plt.title('angle(notoep[0])')
-    # plt.imshow(torch.angle(notoep[0, ..., 16].detach().cpu()))
-
-    # plt.show()
 
     assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()
 
@@ -202,26 +181,5 @@ def test_tgas_spi_mrf_timeseg_toeplitz(backend):
     img = img / torch.max(torch.abs(img))
     toep = A.N(img)
     notoep = A.H(A(img))
-    # toep = mask_by_img(A.N(img), img, eps=1e-5).detach().cpu()
-    # notoep = mask_by_img(A.H(A(img)), img, eps=1e-5).detach().cpu()
-
-    # import matplotlib
-    # import matplotlib.pyplot as plt
-    # matplotlib.use('WebAgg')
-    # plt.figure()
-    # plt.title('abs(toep[0])')
-    # plt.imshow(torch.abs(toep[0, ..., 16].detach().cpu()))
-    # plt.figure()
-    # plt.title('angle(toep[0])')
-    # plt.imshow(torch.angle(toep[0, ..., 16].detach().cpu()))
-
-    # plt.figure()
-    # plt.title('abs(notoep[0])')
-    # plt.imshow(torch.abs(notoep[0, ..., 16].detach().cpu()))
-    # plt.figure()
-    # plt.title('angle(notoep[0])')
-    # plt.imshow(torch.angle(notoep[0, ..., 16].detach().cpu()))
-
-    # plt.show()
 
     assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()
