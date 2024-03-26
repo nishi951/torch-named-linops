@@ -6,9 +6,9 @@ import sigpy as sp
 import sigpy.mri as mri
 import numpy as np
 
-from torchlinops.core.linops import Diagonal
-from torchlinops.mri.linops import NUFFT
-from torchlinops.mri.recon.pcg import CGHparams, ConjugateGradient
+from torchlinops import Diagonal, Identity
+from torchlinops.mri import NUFFT
+from torchlinops.mri.recon._pcg import CGHparams, ConjugateGradient
 
 __all__ = [
     "cfft",
@@ -59,7 +59,6 @@ def inufft(
     """
     hparams = CGHparams(num_iter=num_iter)
     device = ksp.device
-    C = ksp.shape[0]
     batch = tuple(f"B{i}" for i in range(len(ksp.shape[1:-1])))
     # Create simple linop
     F = NUFFT(trj, im_size, in_batch_shape=("C",), out_batch_shape=batch).to(device)
@@ -96,7 +95,7 @@ def synth_cal(
     if dcf is not None:
         dcf = torch.as_tensor(dcf)
     img_cal = inufft(trj, ksp, cal_size, dcf=dcf, num_iter=10, device=device)
-    kgrid = sp_fft(img_cal, dim=(-2, -1))
+    kgrid = cfft(img_cal, dim=(-2, -1))
     # kgrid = fft.fftn(img_cal, dim=(-2, -1))
     return kgrid.detach().cpu().numpy()
 

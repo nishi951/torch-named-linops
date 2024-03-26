@@ -1,10 +1,10 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Mapping
 
 import torch
 import torch.nn as nn
 import torch.fft as fft
 
-from .base import NUFFTBase
+from ..base import NUFFTBase
 from . import functional as F
 
 __all__ = [
@@ -70,4 +70,3 @@ class GriddedNUFFT(NUFFTBase):
             return F.gridded_nufft_adjoint(y, trj, self.fft_dim, self.im_size)
         return x
 
-    def

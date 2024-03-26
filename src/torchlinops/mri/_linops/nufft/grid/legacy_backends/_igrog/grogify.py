@@ -11,7 +11,6 @@ __all__ = [
     "grogify",
 ]
 
-
 def grogify(
     trj: np.ndarray,
     ksp: np.ndarray,

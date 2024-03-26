@@ -28,5 +28,6 @@ filterwarnings = [
 ]
 markers = [
     "slow: tests that are slow (delesect with '-m \"not slow\"')",
+    "big: tests that require large memory (cpu or gpu)",
     "gpu: tests that require a gpu",
 ]

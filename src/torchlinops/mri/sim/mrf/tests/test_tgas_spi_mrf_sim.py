@@ -55,6 +55,7 @@ def test_tgas_spi_mrf_small():
 
 @pytest.mark.slow
 @pytest.mark.gpu
+@pytest.mark.big
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"
 )

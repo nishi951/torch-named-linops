@@ -40,15 +40,15 @@ class MultiStepLRConfig:
 
 
 @dataclass
-class BasicTrainerConfig:
+class KCalTrainer:
     num_epochs: int
     optimizer_config: AdamConfig
     scheduler_config: Optional[MultiStepLRConfig] = None
 
 
-class BasicTrainer(AbstractTrainer):
+class KCalTrainer(AbstractTrainer):
     def __init__(
-        self, config: BasicTrainerConfig, manager: Optional[EventManager] = None
+        self, config: KCalTrainer, manager: Optional[EventManager] = None
     ):
         self.config = config
         self.m = manager if manager is not None else EventManager
