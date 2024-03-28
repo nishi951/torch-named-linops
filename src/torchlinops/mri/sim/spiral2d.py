@@ -23,7 +23,7 @@ class Spiral2dSimulatorConfig:
             "n_shots": 16,
             "alpha": 1.5,
             "f_sampling": 0.4,
-            "g_max": 40.0,
+            "g_max": 0.04,
             "s_max": 100.0,
         }
     )

@@ -179,10 +179,10 @@ class NamedLinop(nn.Module):
         return torchlinops.Chain(*(after + before))
 
     def __add__(self, right):
-        ...
+        return torchlinops.Add(self, right)
 
     def __radd__(self, left):
-        ...
+        return torchlinops.Add(left, self)
 
     def __mul__(self, right):
         if isinstance(right, float) or isinstance(right, torch.Tensor):

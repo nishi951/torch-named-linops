@@ -1,6 +1,7 @@
 from copy import copy
 
 import torch
+import torch.nn as nn
 
 from .namedlinop import NamedLinop
 
@@ -13,7 +14,7 @@ class Diagonal(NamedLinop):
             ioshape
         ), "All dimensions must be named or broadcastable"
         super().__init__(ioshape, ioshape)
-        self.weight = weight
+        self.weight = nn.Parameter(weight, requires_grad=False)
         assert (
             len(self.ishape) >= len(self.weight.shape)
         ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
