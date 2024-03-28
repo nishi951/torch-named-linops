@@ -2,6 +2,7 @@ import pytest
 
 import torch
 
+from torchlinops.mri._linops.nufft.timeseg import timeseg
 from torchlinops._core._linops import Repeat
 from torchlinops.mri._linops.nufft.backends import NUFFT_BACKENDS
 from torchlinops.mri.sim.mrf.tgas_spi_mrf import (
@@ -170,7 +171,7 @@ def test_tgas_spi_mrf_timeseg_toeplitz(backend):
     # Insert time segmentation
     num_segments = 4
     segment_dim = "B"
-    A_tseg = A.linops[-2].timeseg(num_segments, segment_dim)
+    A_tseg = timeseg(A.linops[-2], num_segments, segment_dim)
     mps_shape = A.linops[-1].oshape
     tseg_shape = A_tseg.ishape
     # Simulate B0 with repeat - no actual b0 applied

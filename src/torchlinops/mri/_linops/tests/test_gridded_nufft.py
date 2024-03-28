@@ -2,10 +2,12 @@ import pytest
 
 from typing import Tuple
 
+import sigpy as sp
+import sigpy.mri as mri
 import torch
 from torchlinops.mri.recon._pcg import CGHparams, ConjugateGradient
 from torchlinops.mri._linops.nufft.grid import GriddedNUFFT
-from torchlinops.mri import DCF, NUFFT
+from torchlinops.mri import DCF, NUFFT, SENSE
 from torchlinops.mri._grid.third_party._igrog.grogify import grogify, training_params, gridding_params
 from torchlinops.utils import ordinal, to_pytorch, from_pytorch
 
@@ -63,6 +65,9 @@ def test_gridded_nufft_2d(spiral2d_data):
     cal_frac = 0.5
     calib_width = 16
     kernel_width = 6
+
+    cg_iters = 10
+    epochs = 10
     im_size = torch.tensor(data.img.shape)
     #cal_im_size = torch.round(im_size * cal_frac).long()
 
@@ -81,17 +86,23 @@ def test_gridded_nufft_2d(spiral2d_data):
     A = (D_trunc ** (1/2)) @ F_trunc
     b = (D_trunc ** (1/2))(ksp_trunc)
     AHb = A.H(b)
-    img_cal = ConjugateGradient(A.N, CGHparams(num_iter=10))(AHb, AHb)
+    img_cal = ConjugateGradient(A.N, CGHparams(num_iter=cg_iters))(AHb, AHb)
 
     assert img_cal.shape == data.mps.shape
 
     # Grid data
     device = torch.device('cuda')
     gparams = gridding_params(kern_width=3)
-    tparams = training_params(show_loss=False, epochs=20)
+    tparams = training_params(show_loss=False, epochs=epochs)
     ksp_grd, trj_grd = grogify(data.ksp.to(device), data.trj.to(device), img_cal.to(device), tparams, gparams)
     D = DCF(trj_grd, data.img.shape, ("C", "R", "K"), show_pbar=False, device_idx=ordinal(device))
-    F = NUFFT(trj_grd, im_size)
+    F = NUFFT(
+        trj_grd,
+        im_size,
+        toeplitz=True,
+        toeplitz_oversamp=2.,
+        backend='grid',
+    )
 
     # Estimate sensitivity maps
     kgrid = torch.fft.fftn(img_cal, dim=tuple(range(-len(im_size), 0)), norm='ortho')

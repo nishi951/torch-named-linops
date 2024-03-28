@@ -135,7 +135,7 @@ class NamedLinop(nn.Module):
             normal.oshape, normal.ishape = self.ishape, self.ishape
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
-            normal.oshape = (tuple(d.next_unused(normal.ishape) for d in normal.oshape))
+            normal.oshape = tuple(d.next_unused(normal.ishape) for d in normal.oshape)
             normal._suffix += ".N"
             return normal
         pre = copy(self)

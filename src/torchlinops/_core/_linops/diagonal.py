@@ -14,7 +14,9 @@ class Diagonal(NamedLinop):
         ), "All dimensions must be named or broadcastable"
         super().__init__(ioshape, ioshape)
         self.weight = weight
-        assert len(self.ishape) >= len(self.weight.shape), f'Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}'
+        assert (
+            len(self.ishape) >= len(self.weight.shape)
+        ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
 
     def forward(self, x):
         return self.fn(x, self.weight)
@@ -33,7 +35,7 @@ class Diagonal(NamedLinop):
 
     def normal(self, inner=None):
         if inner is None:
-            return type(self)(torch.abs(self.weight)**2, self.ishape)
+            return type(self)(torch.abs(self.weight) ** 2, self.ishape)
         # Update the shapes
         pre = copy(self)
         pre.ishape = inner.ishape

@@ -9,7 +9,7 @@ from torchlinops.mri.sim.tgas_spi import (
     TGASSPISimulatorConfig,
 )
 from torchlinops.mri._linops.nufft import NUFFT
-
+from torchlinops.mri._linops.nufft.timeseg import timeseg
 
 def test_spiral2d_timeseg():
     config = Spiral2dSimulatorConfig(
@@ -34,7 +34,7 @@ def test_spiral2d_timeseg():
         out_batch_shape=("R", "K"),
         backend="fi",
     )
-    Fseg = F.timeseg(num_segments, "B")
+    Fseg = timeseg(F, num_segments, "B")
 
     assert Fseg[-1].trj.shape[-2] == ceildiv(data.trj.shape[-2], num_segments)
     assert Fseg.ishape == ("B", "C", "Nx", "Ny")
@@ -66,7 +66,7 @@ def test_tgasspi_timeseg():
         out_batch_shape=("R", "T", "K"),
         backend="fi",
     )
-    Fseg = F.timeseg(num_segments, "B")
+    Fseg = timeseg(F, num_segments, "B")
 
     assert Fseg[-1].trj.shape[-2] == ceildiv(data.trj.shape[-2], num_segments)
     assert Fseg.ishape == ("B", "C", "Nx", "Ny", "Nz")

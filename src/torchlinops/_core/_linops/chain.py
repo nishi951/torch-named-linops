@@ -124,6 +124,11 @@ class Chain(NamedLinop):
             self._normal = [_normal]  # Prevent registration as a submodule
         return self._normal[0]
 
+    def normal(self, inner=None):
+        for linop in self.linops:
+            inner = linop.normal(inner)
+        return inner
+
     def split(self, *iobatches):
         """For compatibility with NamedLinop"""
         ibatches = iobatches[: len(iobatches) // 2]

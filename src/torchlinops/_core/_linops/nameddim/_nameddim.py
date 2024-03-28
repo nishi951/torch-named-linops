@@ -46,4 +46,5 @@ class NamedDimension:
         """Tests for simple string equality"""
         return repr(self) == other
 
+
 ND = NamedDimension

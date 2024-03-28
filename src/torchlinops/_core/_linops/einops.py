@@ -92,6 +92,7 @@ class SumReduce(NamedLinop):
     @property
     def adj_ishape(self):
         return self.fill_singleton_dims(self.ishape, self.oshape)
+
     @property
     def adj_ipattern(self):
         return " ".join(str(d) if d is not None else "()" for d in self.adj_ishape)
@@ -168,13 +169,12 @@ class SumReduce(NamedLinop):
 
 
 class Repeat(NamedLinop):
-    """Unsqueezes and expands a tensor along dim
-    """
+    """Unsqueezes and expands a tensor along dim"""
 
     def __init__(self, n_repeats: Mapping, ishape, oshape):
         super().__init__(ishape, oshape)
-        assert (
-            len(self.oshape) > len(self.ishape)
+        assert len(self.oshape) > len(
+            self.ishape
         ), f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
         self.axes_lengths = n_repeats
         self.axes_lengths = {ND.infer(k): v for k, v in self.axes_lengths.items()}
@@ -209,7 +209,11 @@ class Repeat(NamedLinop):
         return self.fn(x)
 
     def fn(self, x, /):
-        x = repeat(x, f"{self.ipattern} -> {self.opattern}", **{str(k): v for k, v in self.axes_lengths.items()})
+        x = repeat(
+            x,
+            f"{self.ipattern} -> {self.opattern}",
+            **{str(k): v for k, v in self.axes_lengths.items()},
+        )
         return x
 
     def adj_fn(self, x, /):
@@ -240,7 +244,9 @@ class Repeat(NamedLinop):
     def normal(self, inner=None):
         pre = copy(self)
         post = copy(self).H
-        post.oshape = tuple(d if d in pre.adj_ishape else d.next_unused(pre.ishape) for d in pre.ishape)
+        post.oshape = tuple(
+            d if d in pre.adj_ishape else d.next_unused(pre.ishape) for d in pre.ishape
+        )
         if inner is not None:
             return post @ inner @ pre
         return post @ pre
