@@ -9,6 +9,7 @@ class Scalar(Diagonal):
 
     A Diagonal linop that is trivially splittable.
     """
+
     def __init__(self, weight: float, ioshape):
         super(Diagonal, self).__init__(ioshape, ioshape)
         self.weight = nn.Parameter(torch.tensor(weight), requires_grad=False)

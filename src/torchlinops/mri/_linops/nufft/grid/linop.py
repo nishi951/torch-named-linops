@@ -38,9 +38,7 @@ class GriddedNUFFT(NUFFTBase):
         shared_batch_shape = (
             shared_batch_shape if shared_batch_shape is not None else tuple()
         )
-        in_batch_shape = (
-            in_batch_shape if in_batch_shape is not None else tuple()
-        )
+        in_batch_shape = in_batch_shape if in_batch_shape is not None else tuple()
         in_batch_shape = shared_batch_shape + in_batch_shape
         super().__init__(
             trj,
@@ -58,7 +56,9 @@ class GriddedNUFFT(NUFFTBase):
     def change_im_size(self, new_im_size):
         # Necessary for sigpy scaling
         for i in range(self.trj.shape[-1]):
-            self.trj[..., i] = (self.trj[..., i] * new_im_size[i] / self.im_size[i]).long()
+            self.trj[..., i] = (
+                self.trj[..., i] * new_im_size[i] / self.im_size[i]
+            ).long()
         self.im_size = new_im_size
         return self
 
