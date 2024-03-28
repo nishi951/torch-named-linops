@@ -72,7 +72,8 @@ class FiNUFFT(NUFFTBase):
         trj: [[S...] K... D] (sigpy-style)
         output: [[S...] N...  Nx Ny [Nz]]
         """
-        N = y.shape[self.shared_dims : -self.D]
+        nK = len(self.out_batch_shape)
+        N = y.shape[self.shared_dims : -nK]
         oshape = (*N, *self.im_size)
         if self.shared_dims == 0:
             return F.nufft_adjoint(y, sp2fi(trj.clone(), self.im_size), oshape)

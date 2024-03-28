@@ -1,7 +1,7 @@
-
 @dataclass
 class KCalConfig:
     ...
+
 
 class KCalGridding(GriddingBase):
     def __init__(self, kcal: torch.Tensor, config: KCalConfig):

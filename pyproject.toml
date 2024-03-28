@@ -4,10 +4,55 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "torchlinops"
+description = "A library for MRI reconstruction with a torch linear operator abstraction."
 version = "0.0.1"
 authors = [
     { name = "Mark Nishimura", email = "markn1@stanford.edu" }
 ]
+dependencies = [
+    # NUFFT
+    "finufft",
+    # Sigpy for various utils
+    # Other versions locked for compatibility (may change soon)
+    "sigpy == 0.1.25",
+    "numpy == 1.22",
+    "scipy",
+    "torchkbnufft",
+    # User should install these themselves
+    # "pytorch >= 2.1",
+    # "torchvision",
+    # "torchaudio,"
+    # Misc utilities
+    "einops",
+    "tqdm",
+    "pyyaml",
+]
+readme = "README.md"
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+cuda12 = [
+    "cufinufft",
+    # Versions compatible with sigpy
+    "cupy-cuda12x",
+    "cutensor-cu12",
+    #"nvidia-nccl-cu12", # install via conda or cupy install command
+]
+cuda11 = [
+    "cufinufft",
+    # Versions compatible with sigpy
+    "cupy-cuda11x",
+    "cutensor-cu11",
+    #"nvidia-nccl-cu11", # install via conda or cupy install command
+]
+dev = [
+    "pytest", # Unit tests
+    "ruff", # Linting
+    "gdown", # Downloading test files
+    "marimo", # Better notebooks
+    "matplotlib", # Visualization
+]
+
 
 [tool.ruff]
 lint.ignore = ["F403"] # from ___ import *
@@ -27,7 +72,7 @@ filterwarnings = [
     "ignore::DeprecationWarning:cupy.*",
 ]
 markers = [
-    "slow: tests that are slow (delesect with '-m \"not slow\"')",
+    "slow: tests that are slow (deselect with '-m \"not slow\"')",
     "big: tests that require large memory (cpu or gpu)",
     "gpu: tests that require a gpu",
 ]

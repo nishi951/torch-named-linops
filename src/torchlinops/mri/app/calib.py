@@ -4,6 +4,7 @@ import sigpy as sp
 import numpy as np
 
 from torchlinops.mri.calib.coil import get_mps_kgrid
+from torchlinops.utils import ordinal
 
 
 class Calib:
@@ -11,12 +12,12 @@ class Calib:
 
     def __init__(
         self,
-        trj: np.ndarray,
-        ksp: np.ndarray,
+        trj: torch.Tensor,
+        ksp: torch.Tensor,
         im_size: Tuple,
         calib_width: int = 24,
         kernel_width: int = 7,
-        device: sp.Device = sp.cpu_device,
+        # device: sp.Device = sp.cpu_device,
         espirit_kwargs: Optional[Mapping] = None,
     ):
         """
@@ -48,12 +49,12 @@ class Calib:
 
     def run(self):
         mps, kgrid = get_mps_kgrid(
-            self.trj,
+            sp.from_pytorch(self.trj),
             self.ksp,
             self.im_size,
             calib_width=self.calib_width,
             kernel_width=self.kernel_width,
-            device_idx=int(self.device),
+            device_idx=ordinal(self.device),
             **self.espirit_kwargs,
         )
         return mps, kgrid

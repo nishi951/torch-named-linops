@@ -1,42 +1,45 @@
 from typing import Tuple
 
 from einops import rearrange
-import numpy as np
+import torch
 
-from igrog.readout_grog import grog_params
-from igrog.grog_lib import igrog
+from igrog.gridding import gridding_params
+from igrog.training import training_params
+from igrog.grogify import gridding_implicit_grogify
 
 __all__ = [
-    "grog_params",
+    "gridding_params",
+    "training_params",
     "grogify",
 ]
 
+
 def grogify(
-    trj: np.ndarray,
-    ksp: np.ndarray,
-    ksp_cal: np.ndarray,
-    im_size: Tuple,
-    gparams: grog_params,
-    device_idx: int = -1,
+    ksp: torch.Tensor,
+    trj: torch.Tensor,
+    img_cal: torch.Tensor,
+    tparams: training_params,
+    gparams: gridding_params,
 ):
     """
     Parameters
     ----------
-    trj: [..., nro, ndim] np.ndarray
-    ksp: [ncoil, nro, ...] np.ndarray
-    ksp_cal: [ncoil, *im_size] np.ndarray
+    trj: [..., nro, ndim] torch.Tensor
+    ksp: [ncoil, nro, ...] torch.Tensor
+    img_cal: [ncoil, *im_size] torch.Tensor
+        Sensitivity maps or image-domain calibration region
     """
 
-    trj = rearrange(trj, "... K D -> K ... D")
     ksp = rearrange(ksp, "C ... K -> C K ...")
+    trj = rearrange(trj, "... K D -> K ... D")
 
-    igrg = igrog(im_size=im_size, gparams=gparams, device_idx=device_idx)
-    trj_grd, ksp_grd = igrg.grogify(trj, ksp, ksp_cal)
+    ksp_grd, trj_grd = gridding_implicit_grogify(
+        ksp, trj, img_cal, train_params=tparams, grid_params=gparams
+    )
 
-    trj_grd = rearrange(trj_grd, "K ... D -> ... K D")
     ksp_grd = rearrange(ksp_grd, "C K ... -> C ... K")
-
-    return trj_grd, ksp_grd, igrog
+    trj_grd = rearrange(trj_grd, "K ... D -> ... K D")
+    return ksp_grd, trj_grd
 
 
 # TODO: Field object for field correction

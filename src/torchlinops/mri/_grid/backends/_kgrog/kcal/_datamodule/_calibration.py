@@ -1,7 +1,8 @@
 from torch.utils.data import Dataset
 import numpy as np
 
-__all__ = ['CalibRegion']
+__all__ = ["CalibRegion"]
+
 
 class CalibRegion:
     def __init__(self, ksp_cal: np.ndarray, buffer: int = 0):

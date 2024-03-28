@@ -1,5 +1,6 @@
 import torch
 
+
 class GriddingBase:
     def datamodule(self):
         raise NotImplementedError()

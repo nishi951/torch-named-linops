@@ -11,6 +11,11 @@ __all__ = ["SENSE"]
 
 
 class SENSE(NamedLinop):
+    """
+    input: [... Nx Ny [Nz]]
+    output: [... C Nx Ny [Nz]]
+    """
+
     def __init__(
         self,
         mps: torch.Tensor,

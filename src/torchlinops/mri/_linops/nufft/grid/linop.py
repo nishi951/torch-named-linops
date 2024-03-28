@@ -34,7 +34,14 @@ class GriddedNUFFT(NUFFTBase):
 
         """
 
-        super().__init__(trj, im_size, in_batch_shape, out_batch_shape, shared_batch_shape, nufft_kwargs)
+        super().__init__(
+            trj,
+            im_size,
+            in_batch_shape,
+            out_batch_shape,
+            shared_batch_shape,
+            nufft_kwargs,
+        )
         self.fft_dim = list(range(-self.D, 0))
 
     def forward(self, x: torch.Tensor):
@@ -69,4 +76,3 @@ class GriddedNUFFT(NUFFTBase):
         if self.shared_dims == 0:
             return F.gridded_nufft_adjoint(y, trj, self.fft_dim, self.im_size)
         return x
-

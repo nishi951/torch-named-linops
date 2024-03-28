@@ -76,8 +76,8 @@ def inufft(
 
 
 def synth_cal(
-    trj,
-    ksp,
+    trj: np.ndarray,
+    ksp: np.ndarray,
     acs_size: int,
     dcf: Optional[np.ndarray] = None,
     device: torch.device = "cpu",
@@ -101,7 +101,13 @@ def synth_cal(
 
 
 def get_mps_kgrid(
-    trj, ksp, im_size, calib_width, kernel_width, device_idx, **espirit_kwargs
+    trj: np.ndarray,
+    ksp: np.ndarray,
+    im_size,
+    calib_width,
+    kernel_width,
+    device_idx,
+    **espirit_kwargs,
 ):
     """ """
     if len(espirit_kwargs) == 0:

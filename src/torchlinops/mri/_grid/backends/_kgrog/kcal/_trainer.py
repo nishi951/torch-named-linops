@@ -47,9 +47,7 @@ class KCalTrainer:
 
 
 class KCalTrainer(AbstractTrainer):
-    def __init__(
-        self, config: KCalTrainer, manager: Optional[EventManager] = None
-    ):
+    def __init__(self, config: KCalTrainer, manager: Optional[EventManager] = None):
         self.config = config
         self.m = manager if manager is not None else EventManager
 

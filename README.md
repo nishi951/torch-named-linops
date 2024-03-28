@@ -9,6 +9,23 @@ Includes:
 
 Note: this project is Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_linops)
 
+## Installation
+For full support, some dependencies need to be installed separately
+- `pytorch >= 2.1`
+- `torchvision`
+- `torchaudio`
+
+### CuPy workaround (March 2024)
+Cupy doesn't like `nccl` dependencies installed as wheels from pip. Importing
+cupy the first time will present an import error with a python command that can
+be used to manually install the nccl library, e.g. (for cuda 12.x - replace with
+relevant cuda version) 
+``` sh
+python -m cupyx.tools.install_library --library nccl --cuda 12.x
+```
+For more up-to-date info, can follow the issue here:
+https://github.com/cupy/cupy/issues/8227
+
 ## API
 ### Modules
 Module summary:
