@@ -3,7 +3,7 @@ from typing import Union
 import torch
 from tqdm import tqdm
 
-from ._linops import NamedLinop
+from ._linops import NamedLinop, ND
 from torchlinops.utils import batch_iterator, dict_product
 
 __all__ = ["Batch"]
@@ -15,6 +15,7 @@ class Batch(NamedLinop):
         linop: NamedLinop,
         input_device: torch.device,
         output_device: torch.device,
+        input_dtype: Union[str, torch.dtype],
         output_dtype: Union[str, torch.dtype],
         pbar: bool = False,
         **batch_sizes,
@@ -23,9 +24,10 @@ class Batch(NamedLinop):
         self.linop = linop
         self.input_device = input_device
         self.output_device = output_device
+        self.input_dtype = input_dtype
         self.output_dtype = output_dtype
         self.pbar = pbar
-        self.batch_sizes = batch_sizes
+        self.batch_sizes = {ND.infer(k): v for k, v in batch_sizes.items()}
         self.sizes = self._precompute_sizes()
 
     def _precompute_sizes(self):
@@ -69,12 +71,40 @@ class Batch(NamedLinop):
             ]
             linop = self.linop.split(*ibatches, *obatches)
             xbatch = x[ibatches[-1]].to(self.input_device)
+            breakpoint()
             ybatch = linop(xbatch)
             y[obatches[0]] += ybatch
         return y
 
+    def adjoint(self):
+        batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
+        adj = type(self)(
+            linop=self.linop.H,
+            input_device=self.output_device,
+            output_device=self.input_device,
+            input_dtype=self.output_dtype,
+            output_dtype=self.input_dtype,
+            pbar=self.pbar,
+            **batch_sizes,
+        )
+        return adj
+
+    def normal(self, inner=None):
+        batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
+        normal = type(self)(
+            linop=self.linop.N,
+            input_device=self.input_device,
+            output_device=self.input_device,
+            input_dtype=self.input_dtype,
+            output_dtype=self.input_dtype,
+            pbar=self.pbar,
+            **batch_sizes,
+        )
+        return normal
+
     def fn(self, x, /, data):
-        """Specify data as a tuple of data entries, one for each linop in linops"""
+        """TODO: Functional interface
+        Specify data as a tuple of data entries, one for each linop in linops"""
         sizes = {}
         for dim in self.linop.dims:
             sizes[dim] = self.linop.size_fn(dim, data)

@@ -62,6 +62,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         trj: Optional[torch.Tensor] = None,
         mps: Optional[torch.Tensor] = None,
         phi: Optional[torch.Tensor] = None,
+        field: Optional[torch.Tensor] = None,
         t1: Optional[torch.Tensor] = None,
         t2: Optional[torch.Tensor] = None,
         pd: Optional[torch.Tensor] = None,

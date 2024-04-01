@@ -11,6 +11,7 @@ from torchlinops.mri.recon._pcg import CGHparams, ConjugateGradient
 from torchlinops.mri._linops.nufft.grid import GriddedNUFFT
 from torchlinops.mri import DCF, NUFFT, SENSE
 from torchlinops.mri._grid.third_party._igrog.grogify import grogify, training_params, gridding_params
+from torchlinops.mri.data import trj_mask
 from torchlinops.utils import ordinal, to_pytorch, from_pytorch, cfft, cifft
 
 from torchlinops.mri.sim.spiral2d import (
@@ -44,27 +45,6 @@ def mask_by_img(x, reference_img, eps=1e-2):
     return out
 
 
-def trj_mask(trj: torch.Tensor, max_k: float, ord=float('inf')) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Truncate a kspace trajectory to a specific radius
-
-    Parameters
-    ----------
-    trj : torch.Tensor
-        The ksp trajectory to truncate
-        where N is the input matrix size in that dimension
-    max_k : float
-        The radius of the kspace region to truncate to.
-
-    Returns
-    -------
-    torch.Tensor, size [K', D] | float
-        The truncated kspace trajectory. Note the readout has collapsed.
-    torch.Tensor, size [K...] | bool
-        A boolean tensor mask
-
-    Note: May need to pre-scale trj in each dimension to have desired behavior
-    """
-    return torch.linalg.norm(trj, ord=ord, dim=-1, keepdim=False) <= max_k
 
 @pytest.mark.gpu
 @pytest.mark.skipif(

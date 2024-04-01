@@ -54,6 +54,7 @@ cuda11 = [
 dev = [
     "pytest", # Unit tests
     "ruff", # Linting
+    "pre-commit",
     "gdown", # Downloading test files
     "marimo", # Better notebooks
     "matplotlib", # Visualization

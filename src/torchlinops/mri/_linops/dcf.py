@@ -5,6 +5,7 @@ import sigpy as sp
 import sigpy.mri as mri
 
 from torchlinops._core._linops import Diagonal
+from torchlinops.utils import ordinal
 
 __all__ = ["DCF"]
 
@@ -15,7 +16,6 @@ def DCF(
     ioshape: Tuple,
     max_iter: int = 30,
     show_pbar: bool = True,
-    device_idx: int = -1,
 ):
     """Create a Diagonal linop representing the application of
     the full DCF to ksp data
@@ -27,7 +27,7 @@ def DCF(
         sp.from_pytorch(trj),
         img_shape=im_size,
         max_iter=max_iter,
-        device=sp.Device(device_idx),
+        device=sp.Device(ordinal(trj.device)),
         show_pbar=show_pbar,
     )
     dcf = sp.to_pytorch(dcf, requires_grad=False)

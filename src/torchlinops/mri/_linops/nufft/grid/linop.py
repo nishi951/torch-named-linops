@@ -89,6 +89,7 @@ class GriddedNUFFT(NUFFTBase):
         output: [N... Nx Ny [Nz]]
         """
         # Un-Index (i.e. grid)
+        breakpoint()
         Fx = multi_grid(y, self.trj, final_size=self.im_size)
 
         # IFFT

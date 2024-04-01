@@ -62,7 +62,8 @@ class SENSE(NamedLinop):
         return self.size_fn(dim, self.mps)
 
     def size_fn(self, dim: str, mps):
-        mps_shape = self.oshape[self.coildim :]
+        forward_oshape = self.out_batch_shape + get2dor3d(self.im_size)
+        mps_shape = forward_oshape[self.coildim :]
         if dim in mps_shape:
             return mps.shape[mps_shape.index(dim)]
         return None

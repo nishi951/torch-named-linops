@@ -225,7 +225,7 @@ class Repeat(NamedLinop):
         A = copy(self)
         for dim, slc in zip(self.oshape, obatch):
             if dim in A.axes_lengths:
-                A.axes_lengths[dim] = self.slice_len
+                A.axes_lengths[dim] = self.slice_len(slc, self.size(dim))
         return A
 
     def split_forward_fn(self, ibatch, obatch, /):
