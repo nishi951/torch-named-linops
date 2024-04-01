@@ -11,6 +11,7 @@ from torchlinops.mri.sim.tgas_spi import (
 from torchlinops.mri._linops.nufft import NUFFT
 from torchlinops.mri._linops.nufft.timeseg import timeseg
 
+
 def test_spiral2d_timeseg():
     config = Spiral2dSimulatorConfig(
         im_size=(64, 64),

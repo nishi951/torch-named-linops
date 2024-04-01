@@ -24,7 +24,7 @@ class Dense(NamedLinop):
     def __init__(self, weight, weightshape, ishape, oshape):
         super().__init__(ishape, oshape)
         self.weight = weight
-        self.weightshape = ND.from_tuple(weightshape)
+        self.weightshape = ND.infer(weightshape)
         self.weight_ishape = set(self.weightshape) & set(self.ishape)
         self.ishape_only = set(self.ishape) - set(self.weight_ishape)
         self.weight_oshape = set(self.weightshape) & set(self.oshape)

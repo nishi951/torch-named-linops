@@ -49,13 +49,11 @@ def timeseg(Nufft, num_segments, segment_dim):
     segmented_trj, num_to_truncate = segment_helper(Nufft.trj, num_segments, dim=-2)
     # Change expected input and output shapes
     segment_dim = ND.infer(segment_dim)
-    segment_readout_dim = ND.from_tuple(Nufft.out_batch_shape)[-1].next_unused(
+    segment_readout_dim = ND.infer(Nufft.out_batch_shape)[-1].next_unused(
         Nufft.out_batch_shape
     )
-    segmented_shared_batch_shape = (segment_dim,) + ND.from_tuple(
-        Nufft.shared_batch_shape
-    )
-    segmented_out_batch_shape = ND.from_tuple(Nufft.out_batch_shape)[:-1] + (
+    segmented_shared_batch_shape = (segment_dim,) + ND.infer(Nufft.shared_batch_shape)
+    segmented_out_batch_shape = ND.infer(Nufft.out_batch_shape)[:-1] + (
         segment_readout_dim,
     )
 

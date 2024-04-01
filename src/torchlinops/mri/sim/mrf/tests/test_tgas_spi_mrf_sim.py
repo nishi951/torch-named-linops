@@ -131,6 +131,7 @@ def test_tgas_spi_mrf_toeplitz(backend):
 
     assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()
 
+
 @pytest.mark.slow
 @pytest.mark.gpu
 @pytest.mark.skipif(

@@ -4,9 +4,7 @@ from copy import copy
 import torch
 import torch.nn as nn
 
-from torchlinops._core._linops import (
-    NamedLinop,
-)
+from torchlinops._core._linops import NamedLinop, ND
 from torchlinops._core._shapes import get2dor3d
 
 from .toeplitz import toeplitz
@@ -65,13 +63,55 @@ class NUFFTBase(NamedLinop):
             T = toeplitz(self, inner, self.toeplitz_oversamp, self.trj.device)
             return T
         pre = copy(self)
-        post = copy(self).H
+        post = copy(self)
         # Don't modify post.oshape
         if inner is None:
             return post @ pre
-        pre.oshape = inner.ishape
-        post.ishape = inner.oshape
-        return post @ inner @ pre
+        nS = self.shared_dims
+        nK = len(self.out_batch_shape)
+        # inner = [S... N... K...] -> [S'... N'... K'...]
+        # inner.ishape[:nS] = S
+        # inner.ishape[nS:-nK] = N
+        # inner.ishape[-nK:] = K
+        pre.shared_batch_shape = inner.ishape[:nS]  # S
+        pre.out_batch_shape = inner.ishape[-nK:]  # K
+        pre.oshape = ND.infer(
+            pre.get_oshape(
+                pre.in_batch_shape,
+                pre.out_batch_shape,
+                pre.shared_batch_shape,
+                pre.im_size,
+            )
+        )
+
+        post.shared_batch_shape = inner.oshape[:nS]  # S
+        post.in_batch_shape = inner.oshape[nS:-nK]  # N
+        post.ishape = ND.infer(
+            post.get_ishape(
+                post.in_batch_shape,
+                post.out_batch_shape,
+                post.shared_batch_shape,
+                post.im_size,
+            )
+        )
+        post.oshape = ND.infer(
+            post.get_oshape(
+                post.in_batch_shape,
+                post.out_batch_shape,
+                post.shared_batch_shape,
+                post.im_size,
+            )
+        )
+
+        return post.H @ inner @ pre
+
+    @staticmethod
+    def get_ishape(in_batch_shape, out_batch_shape, shared_batch_shape, im_size):
+        return shared_batch_shape + in_batch_shape + get2dor3d(im_size)
+
+    @staticmethod
+    def get_oshape(in_batch_shape, out_batch_shape, shared_batch_shape, im_size):
+        return shared_batch_shape + in_batch_shape + out_batch_shape
 
     def setup_shapes(
         self, in_batch_shape, out_batch_shape, shared_batch_shape, im_size
@@ -84,8 +124,12 @@ class NUFFTBase(NamedLinop):
             shared_batch_shape if shared_batch_shape is not None else tuple()
         )
         self.shared_dims = len(self.shared_batch_shape)
-        ishape = self.shared_batch_shape + self.in_batch_shape + get2dor3d(im_size)
-        oshape = self.shared_batch_shape + self.in_batch_shape + self.out_batch_shape
+        ishape = self.get_ishape(
+            self.in_batch_shape, self.out_batch_shape, self.shared_batch_shape, im_size
+        )
+        oshape = self.get_oshape(
+            self.in_batch_shape, self.out_batch_shape, self.shared_batch_shape, im_size
+        )
         return ishape, oshape
 
     def split_forward(self, ibatch, obatch):

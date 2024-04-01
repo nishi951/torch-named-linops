@@ -71,7 +71,6 @@ class Batch(NamedLinop):
             ]
             linop = self.linop.split(*ibatches, *obatches)
             xbatch = x[ibatches[-1]].to(self.input_device)
-            breakpoint()
             ybatch = linop(xbatch)
             y[obatches[0]] += ybatch
         return y

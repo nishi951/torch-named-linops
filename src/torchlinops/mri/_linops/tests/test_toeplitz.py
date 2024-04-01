@@ -142,9 +142,7 @@ def tgas_spi_data():
 def test_toeplitz_3d(tgas_spi_data, backend):
     data = tgas_spi_data
     device = torch.device("cuda:0")
-    D = DCF(
-        data.trj, data.img.shape, ("C", "R", "T", "K"), device_idx=0, show_pbar=False
-    )
+    D = DCF(data.trj.to(device), data.img.shape, ("C", "R", "T", "K"), show_pbar=False)
     S = SENSE(data.mps)
     F = NUFFT(
         data.trj,

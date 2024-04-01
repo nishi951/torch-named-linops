@@ -13,12 +13,6 @@ def test_nameddim():
     assert C3.name == "C"
 
 
-def test_nameddim_from_tuple():
-    ishape = ("C", "Nx", "Ny")
-    ishape2 = NamedDimension.from_tuple(ishape)
-    assert ishape2[1] == NamedDimension("Nx")
-
-
 def test_nameddim_repr():
     A = NamedDimension("A")
     assert repr(A) == "A"
@@ -31,6 +25,9 @@ def test_nameddim_infer():
     assert Nx.i == 0 and Nx.name == "Nx"
     P1 = NamedDimension.infer("P1")
     assert P1.i == 1 and P1.name == "P"
+    ishape = ("C", "Nx", "Ny")
+    ishape2 = NamedDimension.infer(ishape)
+    assert ishape2[1] == NamedDimension("Nx")
 
 
 def test_nameddim_add():

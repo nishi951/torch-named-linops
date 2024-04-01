@@ -291,10 +291,9 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
             oshape=("C", "T", "R", "K"),
         )
         D = DCF(
-            trj,
+            trj.to(self.device),
             self.config.im_size,
             ioshape=("C", "T", "R", "K"),
-            device_idx=ordinal(self.device),
         )
         return (D ** (1 / 2)) @ R @ P @ F @ S
 

@@ -14,8 +14,6 @@ from torchlinops.mri.data import (
 )
 
 
-
-
 @pytest.fixture
 def spiral2d_data():
     config = Spiral2dSimulatorConfig(
@@ -33,13 +31,14 @@ def spiral2d_data():
     data = simulator.data
     return data
 
+
 def test_readoutinterpolator(spiral2d_data):
     data = spiral2d_data
 
     interp_config = ReadoutInterpolatorConfig(
-        oversamp=1.,
+        oversamp=1.0,
         width=120,
-        resamp_method='sinc_interp_kaiser',
+        resamp_method="sinc_interp_kaiser",
     )
 
     ksp = data.ksp
@@ -51,5 +50,5 @@ def test_readoutinterpolator(spiral2d_data):
     # Test one of the points
     t = c[0, 0, 0].item()
     l, u = floor(t), ceil(t)
-    manual_interp = ksp[..., u] * (t - l)/(u - l) + ksp[..., l] * (u - t)/(u - l)
+    manual_interp = ksp[..., u] * (t - l) / (u - l) + ksp[..., l] * (u - t) / (u - l)
     assert torch.isclose(ksp_c[..., 0, 0], manual_interp).all()

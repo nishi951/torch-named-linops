@@ -19,8 +19,8 @@ class PadLast(NamedLinop):
 
     def __init__(self, pad_im_size, im_size, batch_shape):
         batch_shape = batch_shape if batch_shape is not None else tuple()
-        im_shape = ND.from_tuple(get2dor3d(im_size))
-        pad_im_shape = ND.from_tuple(get2dor3d(im_size))
+        im_shape = ND.infer(get2dor3d(im_size))
+        pad_im_shape = ND.infer(get2dor3d(im_size))
         pad_im_shape = tuple(d.next_unused(im_shape) for d in pad_im_shape)
         ishape = batch_shape + im_shape
         oshape = batch_shape + pad_im_shape

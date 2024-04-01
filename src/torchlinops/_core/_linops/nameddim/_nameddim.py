@@ -1,6 +1,6 @@
 from copy import copy
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Tuple, List
 
 __all__ = [
     "ND",
@@ -20,11 +20,9 @@ class NamedDimension:
         if isinstance(dim, str) and len(dim) == 2:
             if dim[1].isdigit():
                 return cls(dim[0], int(dim[1]))
+        elif isinstance(dim, Tuple) or isinstance(dim, List):
+            return type(dim)(cls.infer(d) for d in dim)
         return cls(dim)
-
-    @classmethod
-    def from_tuple(cls, tup):
-        return tuple(cls.infer(i) for i in tup)
 
     def next_unused(self, tup):
         """Get the next dim by index that does not occur in tup"""

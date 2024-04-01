@@ -58,6 +58,7 @@ def test_diagonal():
     A = Diagonal(weight, ioshape)
     assert is_adjoint(A, x, y)
 
+
 def test_reduce_repeat():
     M, N = 5, 7
     x = torch.randn(M, N)

@@ -17,11 +17,11 @@ class NamedLinop(nn.Module):
 
     def __init__(self, ishape, oshape):
         """ishape and oshape are symbolic, not numeric
-        They also change if the adjoint is taken (!)
+        They also swap if the adjoint is taken (!)
         """
         super().__init__()
-        self.ishape = ND.from_tuple(ishape)
-        self.oshape = ND.from_tuple(oshape)
+        self.ishape = ND.infer(ishape)
+        self.oshape = ND.infer(oshape)
 
         self._adj = None
         self._normal = None
@@ -86,9 +86,9 @@ class NamedLinop(nn.Module):
     @property
     def H(self):
         """Adjoint operator"""
-        if self._adj is None:
-            self._adj = [self.adjoint()]  # Prevent registration as a submodule
-        return self._adj[0]
+        # if self._adj is None:
+        #     self._adj = [self.adjoint()]  # Prevent registration as a submodule
+        return self.adjoint()
 
     def adjoint(self):
         adj = copy(self)
@@ -109,13 +109,13 @@ class NamedLinop(nn.Module):
         for custom behavior, as many functions have optimized normal
         forms.
         """
-        if self._normal is None:
-            #     _normal = copy(self)
-            #     _normal._suffix += '.N'
-            #     self.normal = _normal
-            # return self._normal
-            self._normal = [self.normal()]  # Prevent registration as a submodule
-        return self._normal[0]
+        # if self._normal is None:
+        #     #     _normal = copy(self)
+        #     #     _normal._suffix += '.N'
+        #     #     self.normal = _normal
+        #     # return self._normal
+        #     self._normal = [self.normal()]  # Prevent registration as a submodule
+        return self.normal()
 
     def normal(self, inner=None):
         """

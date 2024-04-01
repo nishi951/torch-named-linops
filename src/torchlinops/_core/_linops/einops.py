@@ -126,6 +126,9 @@ class SumReduce(NamedLinop):
         x = repeat(x, f"{self.opattern} -> {self.adj_ipattern}")
         return x
 
+    def split_forward(self, ibatch, obatch):
+        return self
+
     def split_forward_fn(self, ibatch, obatch, /):
         """Reducing is transparent to splitting"""
         return None

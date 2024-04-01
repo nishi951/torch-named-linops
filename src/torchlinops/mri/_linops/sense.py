@@ -71,4 +71,12 @@ class SENSE(NamedLinop):
     def normal(self, inner=None):
         if inner is None:
             return super().normal(inner)
-        return copy(self).H @ inner @ copy(self)
+        pre = copy(self)
+        post = copy(self)
+        pre.oshape = inner.ishape
+
+        post.out_batch_shape = inner.oshape[: -self.D]
+        post.in_batch_shape = inner.oshape[: -(self.D + 1)]
+        post.ishape = post.in_batch_shape + inner.oshape[-self.D :]
+        post.oshape = post.out_batch_shape + inner.oshape[-self.D :]
+        return post.H @ inner @ pre
