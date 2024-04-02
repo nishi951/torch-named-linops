@@ -10,12 +10,10 @@ class Scalar(Diagonal):
     A Diagonal linop that is trivially splittable.
     """
 
-    def __init__(self, weight: float, ioshape):
-        super(Diagonal, self).__init__(ioshape, ioshape)
-        self.weight = nn.Parameter(torch.tensor(weight), requires_grad=False)
-        assert (
-            len(self.ishape) >= len(self.weight.shape)
-        ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
+    def __init__(self, weight, ioshape, *args, **kwargs):
+        if not isinstance(weight, torch.Tensor):
+            weight = torch.tensor(weight)
+        super().__init__(weight, ioshape, broadcast_dims=list(ioshape))
 
     def split_forward_fn(self, ibatch, obatch, /, weight):
         assert ibatch == obatch, "Scalar linop must be split identically"

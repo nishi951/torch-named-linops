@@ -104,25 +104,16 @@ class Chain(NamedLinop):
     @property
     def H(self):
         """Adjoint operator"""
-        if self._adj is None:
-            linops = list(linop.H for linop in reversed(self.linops))
-            _adj = type(self)(*linops)
-            self._adj = [_adj]  # Prevent registration as a submodule
-        return self._adj[0]
+        return self.adjoint()
+
+    def adjoint(self):
+        linops = list(linop.H for linop in reversed(self.linops))
+        return type(self)(*linops)
 
     @property
     def N(self):
         """Normal operator (is this really necessary?)"""
-        if self._normal is None:
-            _normal = None
-            for linop in self.linops:
-                _normal = linop.normal(inner=_normal)
-            # linops = list(linop.H for linop in reversed(self.linops)) + list(
-            #     self.linops
-            # )
-            # _normal = type(self)(*linops)
-            self._normal = [_normal]  # Prevent registration as a submodule
-        return self._normal[0]
+        return self.normal()
 
     def normal(self, inner=None):
         for linop in self.linops:

@@ -1,8 +1,10 @@
 from typing import Union
+from pprint import pformat
 
 import torch
 from tqdm import tqdm
 
+import torchlinops
 from ._linops import NamedLinop, ND
 from torchlinops.utils import batch_iterator, dict_product
 
@@ -137,3 +139,52 @@ class Batch(NamedLinop):
 
     def adj_fn(self, x, /, data):
         raise NotImplementedError("Batched linop has no adjoint (yet).")
+
+    def size(self, dim):
+        return self.linop.size(dim)
+
+    def size_fn(self, dim, /, data=None):
+        raise NotImplementedError()
+
+    def flatten(self):
+        """Get a flattened list of constituent linops for composition
+        Removes batching
+        """
+        return self.linop.flatten()
+
+    def compose(self, inner):
+        """Do self AFTER inner"""
+        self.linop = self.linop.compose(inner)
+        return self
+
+    def __add__(self, right):
+        self.linop = torchlinops.Add(self.linop, right)
+        return self
+
+    def __radd__(self, left):
+        self.linop = torchlinops.Add(left, self.linop)
+        return self
+
+    def __mul__(self, right):
+        if isinstance(right, float) or isinstance(right, torch.Tensor):
+            right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
+            self.linop = self.linop.compose(right)
+            return self
+        return NotImplemented
+
+    def __rmul__(self, left):
+        if isinstance(left, float) or isinstance(left, torch.Tensor):
+            left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
+            self.linop = left.compose(self.linop)
+            return self
+        return NotImplemented
+
+    def __matmul__(self, right):
+        return self.compose(right)
+
+    def __rmatmul__(self, left):
+        return left.compose(self)
+
+    def __repr__(self):
+        """Helps prevent recursion error caused by .H and .N"""
+        return f"{self.__class__.__name__ + self._suffix}(\n\t{self.linop}, {pformat(self.batch_sizes)})"
