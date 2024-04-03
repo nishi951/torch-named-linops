@@ -1,13 +1,31 @@
-from typing import Optional, Tuple, Mapping
+from typing import Optional, Tuple, Mapping, Iterable
 from copy import copy
 
 import torch
 import torch.nn as nn
 
-from torchlinops._core._linops import NamedLinop, ND
+from torchlinops._core._linops import NamedLinop, ND, NamedComboShape
 from torchlinops._core._shapes import get2dor3d
 
 from .toeplitz import toeplitz
+
+
+class NamedNufftShape(NamedComboShape):
+    def __init__(
+        self,
+        shared_shape: Iterable,
+        batch_shape: Iterable,
+        img_shape: Iterable,
+        ksp_shape: Iterable,
+    ):
+        shared_shape = list(ND.infer(shared_batch_shape))
+        batch_shape = list(ND.infer(in_batch_shape))
+        im_shape = list(ND.infer(get2dor2d(im_size)))
+        ksp_shape = list(ND.infer(out_batch_shape))
+        diag_ishape = shared_shape + batch_shape
+        dense_ishape = img_shape
+        dense_oshape = ksp_shape
+        super().__init__(diag_ishape, dense_ishape, dense_oshape)
 
 
 class NUFFTBase(NamedLinop):

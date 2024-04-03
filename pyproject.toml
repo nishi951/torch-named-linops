@@ -58,6 +58,7 @@ dev = [
     "gdown", # Downloading test files
     "marimo", # Better notebooks
     "matplotlib", # Visualization
+    "pytorch_pfe_extras", # Mempool sharing between cupy and pytorch
 ]
 
 
