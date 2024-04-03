@@ -1,16 +1,23 @@
 from copy import copy
-from typing import Iterable, Sequence, Tuple, Union
+from typing import Iterable, Sequence, Tuple, Union, Optional
 
 from ._nameddim import ND
 from ._shapes import get2dor3d
 
 __all__ = [
+    "NS",
     "NamedShape",
     "NamedDiagShape",
     "NamedComboShape",
 ]
 
 NDorStr = Union[ND, str]
+
+
+def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None):
+    if oshape is None:
+        return NamedDiagShape(ishape)
+    return NamedShape(ishape, oshape)
 
 
 class NamedShape:
@@ -53,7 +60,8 @@ class NamedShape:
             self._unnormal.ishape = _ishape
         if self._normal is not None:
             self._normal.ishape = _ishape
-            self._normal.oshape = _ishape
+            new_oshape = tuple(d.next_unused(_ishape) for d in _ishape)
+            self._normal.oshape = new_oshape
         self._ishape_updated = False
 
     @property
@@ -69,8 +77,6 @@ class NamedShape:
         self._oshape_updated = True
         if self._adjoint is not None:
             self._adjoint.ishape = _oshape
-        if self._unnormal is not None:
-            self._unnormal.ishape = _oshape
         self._oshape_updated = False
 
     def adjoint(self):
@@ -78,7 +84,8 @@ class NamedShape:
         return type(self)(self.oshape, self.ishape)
 
     def normal(self):
-        return type(self)(self.ishape, self.ishape)
+        new_ishape = tuple(d.next_unused(self.ishape) for d in self.ishape)
+        return type(self)(self.ishape, new_ishape)
 
     @property
     def H(self):
@@ -140,15 +147,31 @@ class NamedDiagShape(NamedShape):
     def N(self):
         return self
 
+    def __len__(self):
+        return len(self._ioshape)
+
 
 class NamedComboShape(NamedShape):
+    """A shape that combines parts of a diag and a regular shape
 
-    """A shape that combines parts of a diag and a regular shape"""
+    Might be unnecessary lol
+    """
 
-    def __init__(self, shared_shape, ishape, oshape):
+    def __init__(self, ishape, oshape):
+        shared_shape = []
+        idense = []
+        odense = []
+
+        shared = set(ishape) & set(oshape)
+        idense = set(ishape) - shared
+        odense = set(oshape) - shared
+
         self.diag = NamedDiagShape(shared_shape)
         self.num_diag = len(self.diag.ishape)
         self.dense = NamedShape(ishape, oshape)
+
+        self.iperm = iperm
+        self.operm = operm
 
         self._adjoint = None
         self._normal = None
@@ -159,14 +182,14 @@ class NamedComboShape(NamedShape):
 
     @property
     def ishape(self):
-        return self.diag.ishape + self.dense.ishape
+        return tuple((self.diag.ishape + self.dense.ishape)[self.iperm])
 
     @ishape.setter
     def ishape(self, val):
         if self._ishape_updated:
             return
-        diag_ishape = val[: self.num_diag]
-        dense_ishape = val[self.num_diag :]
+        diag_ishape = val[self.iperm][: self.num_diag]
+        dense_ishape = val[self.iperm][self.num_diag :]
         self.diag.ishape = diag_ishape
         self.dense.ishape = dense_ishape
         self._ishape_updated = True
@@ -184,7 +207,7 @@ class NamedComboShape(NamedShape):
 
     @property
     def oshape(self):
-        return self.diag.oshape + self.dense.oshape
+        return tuple((self.diag.oshape + self.dense.oshape)[self.operm])
 
     @oshape.setter
     def oshape(self, val):

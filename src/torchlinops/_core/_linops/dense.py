@@ -3,7 +3,7 @@ from copy import copy
 from einops import einsum
 
 from .namedlinop import NamedLinop
-from .nameddim import NamedDimension as ND
+from .nameddim import ND, NS, NamedShape
 
 
 class Dense(NamedLinop):
@@ -13,6 +13,12 @@ class Dense(NamedLinop):
     weightshape: [A, T]
     oshape: [T, Nx, Ny]
 
+    shape:
+        diag.ioshape = [Nx, Ny]
+        dense.ishape = [A]
+        dense.oshape = [T]
+
+
     # Diagonal/elementwise dimensions
     # Einsum can infer which dims are shared (literally the point of
     # the summation notation)
@@ -21,8 +27,9 @@ class Dense(NamedLinop):
     oshape: [C, A1, Nx, Ny]
     """
 
-    def __init__(self, weight, weightshape, ishape, oshape):
-        super().__init__(ishape, oshape)
+    def __init__(self, weight, weightshape, shape: NamedShape):
+        """ """
+        super().__init__(shape)
         self.weight = weight
         self.weightshape = ND.infer(weightshape)
         self.weight_ishape = set(self.weightshape) & set(self.ishape)
@@ -53,9 +60,7 @@ class Dense(NamedLinop):
         return self.adj_fn(self.fn(x, weight), weight)
 
     def adjoint(self):
-        return type(self)(
-            self.weight.conj(), self.weightshape, self.oshape, self.ishape
-        )
+        return type(self)(self.weight.conj(), self.weightshape, self._shape.H)
 
     def normal(self, inner=None):
         """
@@ -78,7 +83,7 @@ class Dense(NamedLinop):
             new_weightshape = []
             for dim in self.weightshape:
                 if dim in self.ishape:
-                    # Duplicate
+                    # Dense-like
                     new_dim = dim.next_unused(self.ishape)
                     weight_conj_shape.append(dim.next_unused(self.ishape))
                     new_weightshape.extend([dim, new_dim])
@@ -94,7 +99,9 @@ class Dense(NamedLinop):
                     new_oshape.append(dim + 1)
                 else:
                     new_oshape.append(dim)
-            return type(self)(new_weight, new_weightshape, self.ishape, new_oshape)
+            new_shape = copy(self._shape).N
+            new_shape.oshape = new_oshape
+            return type(self)(new_weight, new_weightshape, new_shape)
         pre = copy(self)
         pre.oshape = inner.ishape
         post = copy(self).H

@@ -5,7 +5,7 @@ import torch.nn as nn
 
 import torchlinops
 
-from .nameddim import NamedDimension as ND
+from .nameddim import NamedDimension as ND, NamedShape
 
 __all__ = [
     "NamedLinop",
@@ -15,16 +15,13 @@ __all__ = [
 class NamedLinop(nn.Module):
     """Base Class for all NamedLinops"""
 
-    def __init__(self, ishape, oshape):
-        """ishape and oshape are symbolic, not numeric
-        They also swap if the adjoint is taken (!)
-        """
+    def __init__(self, shape: NamedShape):
         super().__init__()
-        self.ishape = ND.infer(ishape)
-        self.oshape = ND.infer(oshape)
+        self._shape = shape
 
-        self._adj = None
+        self._adjoint = None
         self._normal = None
+        self._unnormal = None
 
         self._suffix = ""
 
@@ -86,18 +83,19 @@ class NamedLinop(nn.Module):
     @property
     def H(self):
         """Adjoint operator"""
-        # if self._adj is None:
-        #     self._adj = [self.adjoint()]  # Prevent registration as a submodule
-        return self.adjoint()
+        if self._adjoint is None:
+            _adjoint = self.adjoint()
+            _adjoint._adjoint = [self]
+            self._adjoint = [_adjoint]  # Prevent registration as a submodule
+        return self._adjoint[0]
 
     def adjoint(self):
         adj = copy(self)
+        adj._shape = self._shape.H
         # Swap functions
         adj.fn, adj.adj_fn = self.adj_fn, self.fn
         adj.split, adj.adj_split = self.adj_split, self.split
         adj.split_fn, adj.adj_split_fn = self.split_fn, self.adj_split_fn
-        # Swap shapes
-        adj.ishape, adj.oshape = self.oshape, self.ishape
         adj._suffix += ".H"
         return adj
 
@@ -109,13 +107,11 @@ class NamedLinop(nn.Module):
         for custom behavior, as many functions have optimized normal
         forms.
         """
-        # if self._normal is None:
-        #     #     _normal = copy(self)
-        #     #     _normal._suffix += '.N'
-        #     #     self.normal = _normal
-        #     # return self._normal
-        #     self._normal = [self.normal()]  # Prevent registration as a submodule
-        return self.normal()
+        if self._normal is None:
+            _normal = self.normal()
+            _normal._unnormal = [self]
+            self._normal = [_normal]
+        return self._normal[0]
 
     def normal(self, inner=None):
         """
@@ -123,6 +119,7 @@ class NamedLinop(nn.Module):
         """
         if inner is None:
             normal = copy(self)
+            normal._shape = self._shape.N
             normal.fn = self.normal_fn
             normal.adj_fn = self.normal_fn
 
@@ -131,8 +128,6 @@ class NamedLinop(nn.Module):
                 return self.normal_fn(x, *args, **kwargs)
 
             normal.normal_fn = new_normal
-            normal.ishape = self.ishape
-            normal.oshape, normal.ishape = self.ishape, self.ishape
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
             normal.oshape = tuple(d.next_unused(normal.ishape) for d in normal.oshape)
@@ -142,9 +137,6 @@ class NamedLinop(nn.Module):
         post = copy(self).H
         pre.oshape = inner.ishape
         post.ishape = inner.oshape
-        # Assume that none of the dims are the same anymore
-        # Override this behavior for e.g. diagonal linops
-        post.oshape = tuple(d.next_unused(post.oshape) for d in post.oshape)
         return post @ inner @ pre
 
     def split(self, ibatch, obatch):
@@ -207,3 +199,20 @@ class NamedLinop(nn.Module):
         return (
             f"{self.__class__.__name__ + self._suffix}({self.ishape} -> {self.oshape})"
         )
+
+    # Pass these through to the shape representation
+    @property
+    def ishape(self):
+        return self._shape.ishape
+
+    @ishape.setter
+    def ishape(self, val):
+        self._shape.ishape = val
+
+    @property
+    def oshape(self):
+        return self._shape.oshape
+
+    @oshape.setter
+    def oshape(self, val):
+        self._shape.oshape = val

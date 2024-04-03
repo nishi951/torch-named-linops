@@ -16,7 +16,7 @@ class Diagonal(NamedLinop):
         assert len(weight.shape) <= len(
             ioshape
         ), "All dimensions must be named or broadcastable"
-        super().__init__(ioshape, ioshape)
+        super().__init__(ioshape)
         self.weight = nn.Parameter(weight, requires_grad=False)
         self.broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         self.broadcast_dims = [ND.infer(d) for d in self.broadcast_dims]
@@ -37,12 +37,12 @@ class Diagonal(NamedLinop):
         return x * torch.abs(weight) ** 2
 
     def adjoint(self):
-        return type(self)(self.weight.conj(), self.ishape, self.broadcast_dims)
+        return type(self)(self.weight.conj(), self._shape.H, self.broadcast_dims)
 
     def normal(self, inner=None):
         if inner is None:
             return type(self)(
-                torch.abs(self.weight) ** 2, self.ishape, self.broadcast_dims
+                torch.abs(self.weight) ** 2, self._shape.N, self.broadcast_dims
             )
         # Update the shapes
         pre = copy(self)
