@@ -26,15 +26,15 @@ def toeplitz(
     if Inner is None:
         warn("No Inner linop provided to toeplitz (not even density compensation?)")
     # Get Padding
-    nufft_batch_shape = Nufft.shared_batch_shape + Nufft.in_batch_shape
+    D = len(Nufft.im_size)
+    nufft_batch_shape = Nufft.ishape[:-D]
     Pad = _pad(Nufft.im_size, oversamp, nufft_batch_shape)
+    im_shape = Pad.ishape[-D:]
+    pad_im_shape = Pad.oshape[-D:]
 
     # Get FFT
-    F = _fft(
-        len(Pad.im_size),
-        ishape=Pad.oshape,
-        oshape=nufft_batch_shape + N2K(Pad.im_shape),
-    )
+    F = _fft(len(Pad.im_size), nufft_batch_shape)
+    F.ishape = Pad.oshape
 
     # Create oversampled nufft
     Nufft_oversamp = deepcopy(Nufft)
@@ -56,11 +56,11 @@ def toeplitz(
             )
         )
         kernel_shape = (
-            kernel_changed_shape + nufft_changed_batch_shape + N2K(Pad.im_shape)
+            kernel_changed_shape + nufft_changed_batch_shape + N2K(im_shape)
         )
         kernel_size = list(_size(d, [Nufft, Inner, Pad], 1) for d in kernel_shape)
 
-        kernel_size[-len(Pad.im_shape) :] = Pad.pad_im_size
+        kernel_size[-D :] = Pad.pad_im_size
         kernel_size = tuple(kernel_size)
         weight_shape = Inner.ishape
         weight_size = tuple(_size(d, [Nufft, Inner, Pad], 1) for d in weight_shape)
@@ -80,7 +80,7 @@ def toeplitz(
             # full_idx = changed_idx + (slice(None),) * len(idx)
             kernel[changed_idx] = weight
         kernel *= oversamp ** Nufft.trj.shape[-1]  # Fix scaling
-        kernel_oshape = Inner.oshape[: -len(Nufft.out_batch_shape)] + N2K(Pad.im_shape)
+        kernel_oshape = Inner.oshape[: -len(Nufft.out_batch_shape)] + N2K(im_shape)
         Kern = Dense(kernel, kernel_shape, F.oshape, kernel_oshape)
 
     else:
@@ -93,7 +93,7 @@ def toeplitz(
         kernel_shape = (
             Nufft.shared_batch_shape
             + Nufft.in_batch_shape
-            + F.oshape[-len(Pad.im_shape) :]
+            + F.oshape[-D :]
         )
         Kern = Dense(kernel, kernel_shape, F.oshape, F.H.ishape)
 
@@ -107,10 +107,10 @@ def _pad(im_size, oversamp, batch_shape):
     return Pad
 
 
-def _fft(ndim, ishape, oshape):
+def _fft(ndim, batch_shape):
     """Helper function for making an n-dimensional FFT"""
     dim = tuple(range(-ndim, 0))
-    F = FFT(ishape, oshape, dim=dim, norm="ortho", centered=True)
+    F = FFT(dim, batch_shape, norm="ortho", centered=True)
     return F
 
 

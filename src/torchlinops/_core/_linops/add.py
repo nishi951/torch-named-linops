@@ -1,5 +1,6 @@
 import torch
 
+from .nameddim import NS
 from .namedlinop import NamedLinop
 
 __all__ = ["Add"]
@@ -13,7 +14,7 @@ class Add(NamedLinop):
         assert all(
             linop.oshape == linops[0].oshape for linop in linops
         ), "All linops must share same oshape"
-        super().__init__(linops[0].ishape, linops[0].oshape)
+        super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = linops
 
     def forward(self, x):

@@ -1,3 +1,6 @@
+import sys
+import traceback
+
 import torch
 import torch.nn as nn
 
@@ -105,7 +108,11 @@ class Chain(NamedLinop):
     @property
     def H(self):
         """Adjoint operator"""
-        return self.adjoint()
+        try:
+            return self.adjoint()
+        except AttributeError as e:
+            traceback.print_exc()
+            raise
 
     def adjoint(self):
         linops = list(linop.H for linop in reversed(self.linops))
@@ -114,7 +121,11 @@ class Chain(NamedLinop):
     @property
     def N(self):
         """Normal operator (is this really necessary?)"""
-        return self.normal()
+        try:
+            return self.normal()
+        except AttributeError as e:
+            traceback.print_exc()
+            raise
 
     def normal(self, inner=None):
         for linop in self.linops:

@@ -1,9 +1,10 @@
 from .namedlinop import NamedLinop
+from .nameddim import NS
 
 
 class Identity(NamedLinop):
     def __init__(self, ioshape):
-        super().__init__(ioshape, ioshape)
+        super().__init__(NS(ioshape))
 
     def forward(self, x):
         return x
@@ -18,7 +19,7 @@ class Identity(NamedLinop):
         return x
 
     def split_forward(self, ibatch, obatch):
-        return type(self)(self.ishape, self.oshape)
+        return self
 
     def split_forward_fn(self, ibatch, obatch, /):
         assert ibatch == obatch, "Identity linop must be split identically"

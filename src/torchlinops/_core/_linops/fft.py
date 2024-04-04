@@ -3,15 +3,17 @@ from copy import copy
 import torch.fft as fft
 
 from .namedlinop import NamedLinop
+from .nameddim import get2dor3d, NS
 from .identity import Identity
 
-
 class FFT(NamedLinop):
-    def __init__(self, ishape, oshape, dim, norm, centered: bool = False):
+    def __init__(self, dim, batch_shape, norm, centered: bool = False):
         """
+        Currently only supports 2D and 3D FFTs
         centered=True mimicks sigpy behavior
         """
-        super().__init__(ishape, oshape)
+        shape = NS(batch_shape) + NS(get2dor3d(dim), get2dor3d(dim, kspace=True))
+        super().__init__(shape)
         self.dim = dim
         self.norm = norm
         self.centered = centered
@@ -58,5 +60,4 @@ class FFT(NamedLinop):
         pre.oshape = inner.ishape
         post = copy(self).H
         post.ishape = inner.oshape
-        # Don't modify post.oshape
         return post @ inner @ pre

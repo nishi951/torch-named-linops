@@ -1,4 +1,5 @@
 from copy import copy
+import traceback
 
 import torch
 import torch.nn as nn
@@ -84,9 +85,13 @@ class NamedLinop(nn.Module):
     def H(self):
         """Adjoint operator"""
         if self._adjoint is None:
-            _adjoint = self.adjoint()
-            _adjoint._adjoint = [self]
-            self._adjoint = [_adjoint]  # Prevent registration as a submodule
+            try:
+                _adjoint = self.adjoint()
+                _adjoint._adjoint = [self]
+                self._adjoint = [_adjoint]  # Prevent registration as a submodule
+            except AttributeError as e:
+                traceback.print_exc()
+                raise
         return self._adjoint[0]
 
     def adjoint(self):
@@ -108,9 +113,13 @@ class NamedLinop(nn.Module):
         forms.
         """
         if self._normal is None:
-            _normal = self.normal()
-            _normal._unnormal = [self]
-            self._normal = [_normal]
+            try:
+                _normal = self.normal()
+                _normal._unnormal = [self]
+                self._normal = [_normal]
+            except AttributeError as e:
+                traceback.print_exc()
+                raise
         return self._normal[0]
 
     def normal(self, inner=None):
