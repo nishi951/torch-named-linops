@@ -4,13 +4,13 @@ from copy import copy
 import torch
 import torch.nn as nn
 
-from torchlinops._core._linops import NamedLinop, ND, NamedComboShape
+from torchlinops._core._linops import NamedLinop, ND, NS, NamedShape
 from torchlinops._core._shapes import get2dor3d
 
 from .toeplitz import toeplitz
 
 
-class NamedNufftShape(NamedComboShape):
+class NamedNufftShape(NamedShape):
     def __init__(
         self,
         shared_shape: Iterable,
@@ -33,9 +33,9 @@ class NUFFTBase(NamedLinop):
         self,
         trj: torch.Tensor,
         im_size: Tuple,
+        shared_shape: Optional[Tuple] = None,
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
-        shared_batch_shape: Optional[Tuple] = None,
         extras: Optional[Mapping] = None,
         toeplitz: bool = False,
         toeplitz_oversamp: float = 2.0,
@@ -56,10 +56,16 @@ class NUFFTBase(NamedLinop):
         toeplitz_oversamp: float
             Oversampling factor for toeplitz embedding. Defaults to 2x
         """
-        ishape, oshape = self.setup_shapes(
-            in_batch_shape, out_batch_shape, shared_batch_shape, im_size
+
+        shape = (
+            NS(shared_batch_shape)
+            + NS(in_batch_shape)
+            + NS(get2dor3d(im_size), out_batch_shape)
         )
-        super().__init__(ishape, oshape)
+        # ishape, oshape = self.setup_shapes(
+        #     in_batch_shape, out_batch_shape, shared_batch_shape, im_size
+        # )
+        super().__init__(shape)
         self.trj = nn.Parameter(trj, requires_grad=False)
         self.im_size = im_size
         self.extras = extras if extras is not None else {}
@@ -67,7 +73,17 @@ class NUFFTBase(NamedLinop):
         self.toeplitz_oversamp = toeplitz_oversamp
 
         # Precompute
+        self.shared_dims = len(shared_batch_shape)
+        self.shared_batch_shape = self.ishape[: self.shared_dims]
+        self.in_batch_shape = self.ishape[self.shared_dims : -self.D]
+        self.out_batch_shape = self.oshape[
+            self.shared_dims + len(self.in_batch_shape) :
+        ]
+        breakpoint()
         self.D = len(im_size)
+
+    def forward(self):
+        raise NotImplementedError(f"{type(self).__name__} cannot be used directly")
 
     def change_im_size(self, new_im_size):
         # Necessary for sigpy scaling
@@ -80,84 +96,23 @@ class NUFFTBase(NamedLinop):
         if self.toeplitz:
             T = toeplitz(self, inner, self.toeplitz_oversamp, self.trj.device)
             return T
-        pre = copy(self)
-        post = copy(self)
         # Don't modify post.oshape
         if inner is None:
+            pre = copy(self)
+            post = copy(self).H
             return post @ pre
-        nS = self.shared_dims
-        nK = len(self.out_batch_shape)
-        # inner = [S... N... K...] -> [S'... N'... K'...]
-        # inner.ishape[:nS] = S
-        # inner.ishape[nS:-nK] = N
-        # inner.ishape[-nK:] = K
-        pre.shared_batch_shape = inner.ishape[:nS]  # S
-        pre.out_batch_shape = inner.ishape[-nK:]  # K
-        pre.oshape = ND.infer(
-            pre.get_oshape(
-                pre.in_batch_shape,
-                pre.out_batch_shape,
-                pre.shared_batch_shape,
-                pre.im_size,
-            )
-        )
 
-        post.shared_batch_shape = inner.oshape[:nS]  # S
-        post.in_batch_shape = inner.oshape[nS:-nK]  # N
-        post.ishape = ND.infer(
-            post.get_ishape(
-                post.in_batch_shape,
-                post.out_batch_shape,
-                post.shared_batch_shape,
-                post.im_size,
-            )
-        )
-        post.oshape = ND.infer(
-            post.get_oshape(
-                post.in_batch_shape,
-                post.out_batch_shape,
-                post.shared_batch_shape,
-                post.im_size,
-            )
-        )
-
-        return post.H @ inner @ pre
-
-    @staticmethod
-    def get_ishape(in_batch_shape, out_batch_shape, shared_batch_shape, im_size):
-        return shared_batch_shape + in_batch_shape + get2dor3d(im_size)
-
-    @staticmethod
-    def get_oshape(in_batch_shape, out_batch_shape, shared_batch_shape, im_size):
-        return shared_batch_shape + in_batch_shape + out_batch_shape
-
-    def setup_shapes(
-        self, in_batch_shape, out_batch_shape, shared_batch_shape, im_size
-    ):
-        self.in_batch_shape = in_batch_shape if in_batch_shape is not None else tuple()
-        self.out_batch_shape = (
-            out_batch_shape if out_batch_shape is not None else tuple()
-        )
-        self.shared_batch_shape = (
-            shared_batch_shape if shared_batch_shape is not None else tuple()
-        )
-        self.shared_dims = len(self.shared_batch_shape)
-        ishape = self.get_ishape(
-            self.in_batch_shape, self.out_batch_shape, self.shared_batch_shape, im_size
-        )
-        oshape = self.get_oshape(
-            self.in_batch_shape, self.out_batch_shape, self.shared_batch_shape, im_size
-        )
-        return ishape, oshape
+        pre = copy(self)
+        pre.oshape = inner.ishape
+        # Fully overwrite post's shape
+        post = copy(self).H
+        post.ishape = inner.oshape
+        return post @ inner @ pre
 
     def split_forward(self, ibatch, obatch):
-        return type(self)(
-            self.split_forward_fn(ibatch, obatch, self.trj),
-            im_size=self.im_size,
-            in_batch_shape=self.in_batch_shape,
-            out_batch_shape=self.out_batch_shape,
-            shared_batch_shape=self.shared_batch_shape,
-        )
+        split = copy(self)
+        split.trj = self.split_forward_fn(ibatch, obatch, self.trj)
+        return split
 
     def split_forward_fn(self, ibatch, obatch, /, trj):
         shared_batch = obatch[: self.shared_dims]

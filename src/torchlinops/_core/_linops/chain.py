@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 
 from .namedlinop import NamedLinop
+from .nameddim import NS
 
 
 class Chain(NamedLinop):
     def __init__(self, *linops):
-        super().__init__(linops[-1].ishape, linops[0].oshape)
+        super().__init__(NS(linops[-1].ishape, linops[0].oshape))
         self.linops = nn.ModuleList(list(linops))
         # self.signatures = [signature(linop.fn) for linop in self.linops]
         # self._check_signatures()

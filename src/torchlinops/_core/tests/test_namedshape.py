@@ -1,6 +1,15 @@
 import pytest
 
-from torchlinops import NamedShape, NamedDiagShape, NamedComboShape
+from torchlinops import NamedShape, NamedDiagShape, NamedComboShape, NS
+
+
+def test_empty_dim():
+    shape = NS(None, ('C',))
+    adj_shape = shape.H
+    normal_shape = shape.N
+
+    adj_shape.ishape = ('C1',)
+    assert shape.oshape == ("C1",)
 
 
 def test_adjoint():

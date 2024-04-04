@@ -15,6 +15,11 @@ NDorStr = Union[ND, str]
 
 
 def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None):
+    """
+    Iif shape is empty, use tuple(), not None
+    """
+    if ishape is None:
+        return None
     if oshape is None:
         if isinstance(ishape, NamedShape):
             return ishape
@@ -151,7 +156,7 @@ class NamedDiagShape(NamedShape):
     @oshape.setter
     def oshape(self, val: Iterable[NDorStr]):
         _ioshape = self.convert(val)
-        self._ioshape = _oshape
+        self._ioshape = _ioshape
 
     def adjoint(self):
         return self
