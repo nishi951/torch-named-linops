@@ -76,7 +76,7 @@ class Spiral2dSimulator(nn.Module):
         F = NUFFT(
             trj,
             self.config.im_size,
-            in_batch_shape=S.out_batch_shape,
+            in_batch_shape=S.oshape[:-2],
             out_batch_shape=("R",),
             backend=self.config.nufft_backend,
         )

@@ -35,10 +35,10 @@ class SigpyNUFFT(NUFFTBase):
         super().__init__(
             trj,
             im_size,
-            in_batch_shape,
-            out_batch_shape,
-            shared_batch_shape,
-            extras,
+            shared_batch_shape=shared_batch_shape,
+            in_batch_shape=in_batch_shape,
+            out_batch_shape=out_batch_shape,
+            extras=extras,
             *args,
             **kwargs,
         )

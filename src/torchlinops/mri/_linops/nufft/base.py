@@ -33,7 +33,7 @@ class NUFFTBase(NamedLinop):
         self,
         trj: torch.Tensor,
         im_size: Tuple,
-        shared_shape: Optional[Tuple] = None,
+        shared_batch_shape: Optional[Tuple] = None,
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
         extras: Optional[Mapping] = None,
@@ -73,14 +73,16 @@ class NUFFTBase(NamedLinop):
         self.toeplitz_oversamp = toeplitz_oversamp
 
         # Precompute
+        shared_batch_shape = (
+            shared_batch_shape if shared_batch_shape is not None else tuple()
+        )
         self.shared_dims = len(shared_batch_shape)
+        self.D = len(im_size)
         self.shared_batch_shape = self.ishape[: self.shared_dims]
         self.in_batch_shape = self.ishape[self.shared_dims : -self.D]
         self.out_batch_shape = self.oshape[
             self.shared_dims + len(self.in_batch_shape) :
         ]
-        breakpoint()
-        self.D = len(im_size)
 
     def forward(self):
         raise NotImplementedError(f"{type(self).__name__} cannot be used directly")

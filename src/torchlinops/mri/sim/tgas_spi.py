@@ -90,7 +90,7 @@ class TGASSPISimulator(nn.Module):
         F = NUFFT(
             trj,
             self.config.im_size,
-            in_batch_shape=S.out_batch_shape,
+            in_batch_shape=S.oshape[:-3],
             out_batch_shape=("R", "T"),
             backend=self.config.nufft_backend,
         )

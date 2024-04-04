@@ -213,7 +213,7 @@ class ProductShape(NamedShape):
             s.oshape = val[l:r]
 
     def flatten(self):
-        return self.shapes
+        return list(self.shapes)
 
     def adjoint(self):
         return sum((s.H for s in self.shapes), start=None)
