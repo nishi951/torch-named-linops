@@ -45,7 +45,7 @@ def test_dense():
     ishape = ("N",)
     y = torch.randn(M, dtype=torch.complex64)
     oshape = ("M",)
-    A = Dense(weight, weightshape, NS(ishape, oshape))
+    A = Dense(weight, weightshape, ishape, oshape)
     assert is_adjoint(A, x, y)
 
 
@@ -57,7 +57,7 @@ def test_diagonal():
     x = torch.randn(M, N, P, dtype=torch.complex64)
     y = torch.randn(M, N, P, dtype=torch.complex64)
     ioshape = ("M", "N", "P")
-    A = Diagonal(weight, NS(ioshape))
+    A = Diagonal(weight, ioshape)
     assert is_adjoint(A, x, y)
 
 
@@ -66,8 +66,8 @@ def test_reduce_repeat():
     x = torch.randn(M, N)
     y = torch.randn(N)
 
-    A = SumReduce(NS(("M", "N"), ("N",)))
-    B = Repeat({"M": M}, NS(("N",), ("M", "N")))
+    A = SumReduce(("M", "N"), ("N",))
+    B = Repeat({"M": M}, ("N",), ("M", "N"))
 
     assert is_adjoint(A, x, y)
     assert is_adjoint(B, y, x)

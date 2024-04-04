@@ -21,13 +21,14 @@ class Rearrange(NamedLinop):
         self,
         ipattern,
         opattern,
-        shape: NamedShape,
+        ishape,
+        oshape,
         axes_lengths: Optional[Mapping] = None,
     ):
         # assert len(ishape) == len(
         #     oshape
         # ), "Rearrange currently only supports pure dimension permutations"
-        super().__init__(shape)
+        super().__init__(NS(ishape, oshape))
         self.ipattern = ipattern
         self.opattern = opattern
         self.axes_lengths = axes_lengths if axes_lengths is not None else {}
@@ -81,14 +82,14 @@ class SumReduce(NamedLinop):
     Adjoint of Repeat
     """
 
-    def __init__(self, shape: NamedShape):
+    def __init__(self, ishape, oshape):
         """
         ipattern : string
             Input shape spec, einops style
         opattern : string
             Output shape spec, einops style
         """
-        super().__init__(shape)
+        super().__init__(NS(ishape, oshape))
         assert (
             len(self.oshape) < len(self.ishape)
         ), f"Reduce must be over at least one dimension: got {self.ishape} -> {self.oshape}"
@@ -147,7 +148,7 @@ class SumReduce(NamedLinop):
 
     def adjoint(self):
         n_repeats = {d: 1 for d in self.ishape if d not in self.oshape}
-        return Repeat(n_repeats, self._shape.H)
+        return Repeat(n_repeats, self._shape.H, None)
 
     def normal(self, inner=None):
         pre = copy(self)
@@ -178,8 +179,8 @@ class SumReduce(NamedLinop):
 class Repeat(NamedLinop):
     """Unsqueezes and expands a tensor along dim"""
 
-    def __init__(self, n_repeats: Mapping, shape: NamedShape):
-        super().__init__(shape)
+    def __init__(self, n_repeats: Mapping, ishape, oshape):
+        super().__init__(NS(ishape, oshape))
         assert len(self.oshape) > len(
             self.ishape
         ), f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
@@ -246,7 +247,7 @@ class Repeat(NamedLinop):
         return self.axes_lengths.get(dim, None)
 
     def adjoint(self):
-        return SumReduce(self._shape.H)
+        return SumReduce(self._shape.H, None)
 
     def normal(self, inner=None):
         pre = copy(self)

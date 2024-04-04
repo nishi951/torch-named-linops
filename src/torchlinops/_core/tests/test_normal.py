@@ -21,7 +21,7 @@ def test_dense():
     ishape = ("N",)
     # y = torch.randn(M)
     oshape = ("M",)
-    A = Dense(weight, weightshape, NS(ishape, oshape))
+    A = Dense(weight, weightshape, ishape, oshape)
     assert torch.isclose(A.N(x), A.H(A(x))).all()
     # Make sure dense's normal doesn't create a chain (unnecessary)
     # If desired, just make the linop explicitly
@@ -37,6 +37,6 @@ def test_diagonal():
     # weightshape = ("M",)
     x = torch.randn(M, N, P, dtype=torch.complex64)
     ioshape = ("M", "N", "P")
-    A = Diagonal(weight, NS(ioshape))
+    A = Diagonal(weight, ioshape)
     assert torch.isclose(A.N(x), A.H(A(x))).all()
     assert not isinstance(A.N, Chain)

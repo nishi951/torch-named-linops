@@ -4,6 +4,7 @@ from typing import List, Optional
 import torch
 import torch.nn as nn
 
+from torchlinops._core._linops.nameddim import NS
 from .namedlinop import NamedLinop, ND
 
 __all__ = ["Diagonal"]
@@ -16,7 +17,7 @@ class Diagonal(NamedLinop):
         assert len(weight.shape) <= len(
             ioshape
         ), "All dimensions must be named or broadcastable"
-        super().__init__(ioshape)
+        super().__init__(NS(ioshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
         self.broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         self.broadcast_dims = [ND.infer(d) for d in self.broadcast_dims]
@@ -46,12 +47,10 @@ class Diagonal(NamedLinop):
             )
         # Update the shapes
         pre = copy(self)
-        pre.ishape = inner.ishape
         pre.oshape = inner.ishape
 
         post = copy(self).H
         post.ishape = inner.oshape
-        post.oshape = inner.oshape
         return post @ inner @ pre
 
     def split_forward(self, ibatch, obatch):

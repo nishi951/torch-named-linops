@@ -16,6 +16,8 @@ NDorStr = Union[ND, str]
 
 def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None):
     if oshape is None:
+        if isinstance(ishape, NamedShape):
+            return ishape
         return NamedDiagShape(ishape)
     return NamedShape(ishape, oshape)
 
@@ -174,11 +176,17 @@ class ProductShape(NamedShape):
         self.shapes = shapes
 
         self.isizes = [len(shape.ishape) for shape in shapes]
-        self.islices = [(sum(self.isizes[:i]), sum(self.isizes[:i+1])) for i in range(len(self.isizes)-1)]
+        self.islices = [
+            (sum(self.isizes[:i]), sum(self.isizes[: i + 1]))
+            for i in range(len(self.isizes) - 1)
+        ]
         self.islices += [(self.islices[-1][1], sum(self.isizes))]
 
         self.osizes = [len(shape.oshape) for shape in shapes]
-        self.oslices = [(sum(self.osizes[:i]), sum(self.osizes[:i+1])) for i in range(len(self.osizes)-1)]
+        self.oslices = [
+            (sum(self.osizes[:i]), sum(self.osizes[: i + 1]))
+            for i in range(len(self.osizes) - 1)
+        ]
         self.oslices += [(self.oslices[-1][1], sum(self.osizes))]
 
     @property
@@ -207,6 +215,7 @@ class ProductShape(NamedShape):
 
     def normal(self):
         return sum((s.N for s in self.shapes), start=None)
+
 
 class NamedComboShape(NamedShape):
     """A shape that combines parts of a diag and a regular shape

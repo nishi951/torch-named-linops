@@ -27,9 +27,9 @@ class Dense(NamedLinop):
     oshape: [C, A1, Nx, Ny]
     """
 
-    def __init__(self, weight, weightshape, shape: NamedShape):
+    def __init__(self, weight, weightshape, ishape, oshape):
         """ """
-        super().__init__(shape)
+        super().__init__(NS(ishape, oshape))
         self.weight = weight
         self.weightshape = ND.infer(weightshape)
         self.weight_ishape = set(self.weightshape) & set(self.ishape)
@@ -60,7 +60,8 @@ class Dense(NamedLinop):
         return self.adj_fn(self.fn(x, weight), weight)
 
     def adjoint(self):
-        return type(self)(self.weight.conj(), self.weightshape, self._shape.H)
+        adj = type(self)(self.weight.conj(), self.weightshape, self._shape.H, None)
+        return adj
 
     def normal(self, inner=None):
         """
@@ -101,7 +102,8 @@ class Dense(NamedLinop):
                     new_oshape.append(dim)
             new_shape = copy(self._shape).N
             new_shape.oshape = new_oshape
-            return type(self)(new_weight, new_weightshape, new_shape)
+            normal = type(self)(new_weight, new_weightshape, new_shape, None)
+            return normal
         pre = copy(self)
         pre.oshape = inner.ishape
         post = copy(self).H
