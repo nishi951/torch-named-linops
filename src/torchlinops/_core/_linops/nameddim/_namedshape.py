@@ -104,6 +104,24 @@ class NamedShape:
     def __repr__(self):
         return f"{self.ishape} -> {self.oshape}"
 
+    def flatten(self):
+        return [self]
+
+    def __add__(self, right):
+        if right is None:
+            return self
+        shapes = self.flatten() + right.flatten()
+        return ProductShape(*shapes)
+
+    def __radd__(self, left):
+        if left is None:
+            return self
+        shapes = left.flatten() + self.flatten()
+        return ProductShape(*shapes)
+
+    def __eq__(self, other):
+        return self.ishape == other.ishape and self.oshape == other.oshape
+
 
 class NamedDiagShape(NamedShape):
     """A namedshape where ishape == oshape"""
@@ -150,6 +168,45 @@ class NamedDiagShape(NamedShape):
     def __len__(self):
         return len(self._ioshape)
 
+
+class ProductShape(NamedShape):
+    def __init__(self, *shapes):
+        self.shapes = shapes
+
+        self.isizes = [len(shape.ishape) for shape in shapes]
+        self.islices = [(sum(self.isizes[:i]), sum(self.isizes[:i+1])) for i in range(len(self.isizes)-1)]
+        self.islices += [(self.islices[-1][1], sum(self.isizes))]
+
+        self.osizes = [len(shape.oshape) for shape in shapes]
+        self.oslices = [(sum(self.osizes[:i]), sum(self.osizes[:i+1])) for i in range(len(self.osizes)-1)]
+        self.oslices += [(self.oslices[-1][1], sum(self.osizes))]
+
+    @property
+    def ishape(self):
+        return sum((s.ishape for s in self.shapes), start=tuple())
+
+    @ishape.setter
+    def ishape(self, val):
+        for (l, r), s in zip(self.islices, self.shapes):
+            s.ishape = val[l:r]
+
+    @property
+    def oshape(self):
+        return sum((s.oshape for s in self.shapes), start=tuple())
+
+    @oshape.setter
+    def oshape(self, val):
+        for (l, r), s in zip(self.oslices, self.shapes):
+            s.oshape = val[l:r]
+
+    def flatten(self):
+        return self.shapes
+
+    def adjoint(self):
+        return sum((s.H for s in self.shapes), start=None)
+
+    def normal(self):
+        return sum((s.N for s in self.shapes), start=None)
 
 class NamedComboShape(NamedShape):
     """A shape that combines parts of a diag and a regular shape

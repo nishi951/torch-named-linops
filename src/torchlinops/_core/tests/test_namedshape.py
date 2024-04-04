@@ -52,6 +52,33 @@ def test_diag():
     assert norm_shape.oshape == ("P", "Q")
 
 
+def test_product():
+    shape1 = NamedShape(('A', 'B'), ('C',))
+    shape2 = NamedDiagShape(('E', 'F'))
+
+    shape12 = shape1 + shape2
+    assert shape12.ishape == ('A', 'B', 'E', 'F')
+    assert shape12.oshape == ('C', 'E', 'F')
+
+    shape21 = shape2 + shape1
+    assert shape21.ishape == ('E', 'F', 'A', 'B')
+    assert shape21.oshape == ('E', 'F', 'C')
+
+    adj_shape12 = shape12.H
+    adj_shape12.ishape = ('G', 'H', 'I')
+    assert shape12.ishape == ('A', 'B', 'H', 'I')
+    assert shape12.oshape == ('G', 'H', 'I')
+
+    normal_shape21 = shape21.N
+    # Also changes shape1 and shape 2
+    normal_shape21.ishape = ('J', 'K', 'L', 'M')
+    assert shape21.ishape == ('J', 'K', 'L', 'M')
+
+    # Final shapes are very different
+    assert shape1 == NamedShape(('L', 'M'), ('G',))
+    assert shape2 == NamedDiagShape(('J', 'K'))
+
+
 # def test_combo():
 #     shape = NamedComboShape(("A", "C"), ("Nx", "Ny"), ("T", "R", "K"))
 #     adj_shape = shape.H
