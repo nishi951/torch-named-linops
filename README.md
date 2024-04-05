@@ -9,6 +9,10 @@ Includes:
 
 Note: this project is Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_linops)
 
+## TODO
+- [ ] Deprecate `app`s and only provide linops
+  - [ ] Examples are fine, or reference `fastmrf` for more complete implementations
+
 ## Installation
 For full support, some dependencies need to be installed separately
 - `pytorch >= 2.1`

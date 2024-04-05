@@ -31,6 +31,7 @@ def test_spiral2dsimulator():
     assert tuple(data.img.shape) == config.im_size
 
 
+@pytest.mark.slow
 def test_tgasspisimulator():
     config = TGASSPISimulatorConfig(
         im_size=(64, 64, 64),

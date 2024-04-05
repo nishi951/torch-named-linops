@@ -1,3 +1,4 @@
+from copy import copy
 import torch
 
 from torchlinops._core._linops import (
@@ -5,6 +6,7 @@ from torchlinops._core._linops import (
     Truncate,
     Rearrange,
 )
+from torchlinops import NS
 from torchlinops.utils import end_pad_with_zeros
 
 
@@ -47,39 +49,32 @@ def timeseg(Nufft, num_segments, segment_dim):
 
     """
     segmented_trj, num_to_truncate = segment_helper(Nufft.trj, num_segments, dim=-2)
+
     # Change expected input and output shapes
-    segment_dim = ND.infer(segment_dim)
-    segment_readout_dim = ND.infer(Nufft.out_batch_shape)[-1].next_unused(
-        Nufft.out_batch_shape
-    )
-    segmented_shared_batch_shape = (segment_dim,) + ND.infer(Nufft.shared_batch_shape)
-    segmented_out_batch_shape = ND.infer(Nufft.out_batch_shape)[:-1] + (
-        segment_readout_dim,
+    out_batch_shape = list(Nufft.out_batch_shape)
+    out_batch_shape[-1] = out_batch_shape[-1].next_unused(out_batch_shape)
+    new_shape = (
+        NS((segment_dim,))
+        + NS(Nufft.shared_batch_shape)
+        + NS(Nufft.in_batch_shape)
+        + NS(Nufft.im_shape, out_batch_shape)
     )
 
     # Add segment dim at position 0 of oshape
     # Change name of segmented readout dim
-    F = type(Nufft)(
-        segmented_trj,
-        Nufft.im_size,
-        Nufft.in_batch_shape,
-        segmented_out_batch_shape,
-        segmented_shared_batch_shape,
-        Nufft.extras,
-        Nufft.toeplitz,
-        Nufft.toeplitz_oversamp,
-    )
+    F = copy(Nufft)
+    F.trj.data = segmented_trj
+    F._shape = new_shape
 
     # Recombine segment dim and segmented readout dim
     opattern = (
-        " ".join(str(d) for d in F.oshape[1:-1])
-        + f" ({segment_dim} {segment_readout_dim})"
+        " ".join(str(d) for d in F.oshape[1:-1]) + f" ({F.oshape[0]} {F.oshape[-1]})"
     )
     if num_to_truncate > 0:
         # Add another readout dim name for the
         # rearranged but not truncated readout dimension
-        extended_readout_dim = segment_readout_dim.next_unused(F.out_batch_shape)
-        R_oshape = F.oshape[1:-1] + (extended_readout_dim,)
+        R_oshape = list(F.oshape)[1:]
+        R_oshape[-1] = F.oshape[-1].next_unused(F.oshape)
 
         R = Rearrange(
             ipattern=" ".join(str(d) for d in F.oshape),

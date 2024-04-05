@@ -55,12 +55,10 @@ def toeplitz(
                 zip(Inner.ishape[:n_nufft_batch], Inner.oshape[:n_nufft_batch])
             )
         )
-        kernel_shape = (
-            kernel_changed_shape + nufft_changed_batch_shape + N2K(im_shape)
-        )
+        kernel_shape = kernel_changed_shape + nufft_changed_batch_shape + N2K(im_shape)
         kernel_size = list(_size(d, [Nufft, Inner, Pad], 1) for d in kernel_shape)
 
-        kernel_size[-D :] = Pad.pad_im_size
+        kernel_size[-D:] = Pad.pad_im_size
         kernel_size = tuple(kernel_size)
         weight_shape = Inner.ishape
         weight_size = tuple(_size(d, [Nufft, Inner, Pad], 1) for d in weight_shape)
@@ -90,11 +88,7 @@ def toeplitz(
 
         kernel = F(Nufft_oversamp.H(weight))
         kernel *= oversamp ** Nufft.trj.shape[-1]  # Fix scaling
-        kernel_shape = (
-            Nufft.shared_batch_shape
-            + Nufft.in_batch_shape
-            + F.oshape[-D :]
-        )
+        kernel_shape = Nufft.shared_batch_shape + Nufft.in_batch_shape + F.oshape[-D:]
         Kern = Dense(kernel, kernel_shape, F.oshape, F.H.ishape)
 
     return Pad.normal(F.normal(Kern))

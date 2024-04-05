@@ -3,13 +3,11 @@ from typing import Optional
 
 import torch
 
-from torchlinops.utils import Saveable
-
 __all__ = ["MRIDataset"]
 
 
 @dataclass
-class MRIDataset(Saveable):
+class MRIDataset:
     trj: torch.Tensor
     mps: torch.Tensor
     ksp: torch.Tensor

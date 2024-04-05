@@ -1,3 +1,5 @@
+import pytest
+
 from torchlinops.utils import ceildiv
 
 from torchlinops.mri.sim.spiral2d import (
@@ -42,6 +44,7 @@ def test_spiral2d_timeseg():
     assert Fseg.oshape == ("C", "R", "K")
 
 
+@pytest.mark.slow
 def test_tgasspi_timeseg():
     config = TGASSPISimulatorConfig(
         im_size=(64, 64, 64),

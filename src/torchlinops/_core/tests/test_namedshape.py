@@ -4,11 +4,11 @@ from torchlinops import NamedShape, NamedDiagShape, NamedComboShape, NS
 
 
 def test_empty_dim():
-    shape = NS(None, ('C',))
+    shape = NS(tuple(), ("C",))
     adj_shape = shape.H
     normal_shape = shape.N
 
-    adj_shape.ishape = ('C1',)
+    adj_shape.ishape = ("C1",)
     assert shape.oshape == ("C1",)
 
 
@@ -62,30 +62,30 @@ def test_diag():
 
 
 def test_product():
-    shape1 = NamedShape(('A', 'B'), ('C',))
-    shape2 = NamedDiagShape(('E', 'F'))
+    shape1 = NamedShape(("A", "B"), ("C",))
+    shape2 = NamedDiagShape(("E", "F"))
 
     shape12 = shape1 + shape2
-    assert shape12.ishape == ('A', 'B', 'E', 'F')
-    assert shape12.oshape == ('C', 'E', 'F')
+    assert shape12.ishape == ("A", "B", "E", "F")
+    assert shape12.oshape == ("C", "E", "F")
 
     shape21 = shape2 + shape1
-    assert shape21.ishape == ('E', 'F', 'A', 'B')
-    assert shape21.oshape == ('E', 'F', 'C')
+    assert shape21.ishape == ("E", "F", "A", "B")
+    assert shape21.oshape == ("E", "F", "C")
 
     adj_shape12 = shape12.H
-    adj_shape12.ishape = ('G', 'H', 'I')
-    assert shape12.ishape == ('A', 'B', 'H', 'I')
-    assert shape12.oshape == ('G', 'H', 'I')
+    adj_shape12.ishape = ("G", "H", "I")
+    assert shape12.ishape == ("A", "B", "H", "I")
+    assert shape12.oshape == ("G", "H", "I")
 
     normal_shape21 = shape21.N
     # Also changes shape1 and shape 2
-    normal_shape21.ishape = ('J', 'K', 'L', 'M')
-    assert shape21.ishape == ('J', 'K', 'L', 'M')
+    normal_shape21.ishape = ("J", "K", "L", "M")
+    assert shape21.ishape == ("J", "K", "L", "M")
 
     # Final shapes are very different
-    assert shape1 == NamedShape(('L', 'M'), ('G',))
-    assert shape2 == NamedDiagShape(('J', 'K'))
+    assert shape1 == NamedShape(("L", "M"), ("G",))
+    assert shape2 == NamedDiagShape(("J", "K"))
 
 
 # def test_combo():

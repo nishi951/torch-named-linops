@@ -5,6 +5,7 @@ from copy import copy
 
 from torchlinops.utils import end_pad_with_zeros
 from torchlinops._core._linops.namedlinop import NamedLinop
+from torchlinops._core._linops.nameddim import NS
 
 __all__ = [
     "Truncate",
@@ -25,7 +26,7 @@ class Truncate(NamedLinop):
         self.end_slc = [slice(None)] * len(oshape)
         self.end_slc[dim] = slice(-self.length, None)
         self.end_slc = tuple(self.slc)
-        super().__init__(ishape, oshape)
+        super().__init__(NS(ishape, oshape))
         # self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
 
     def forward(self, x):

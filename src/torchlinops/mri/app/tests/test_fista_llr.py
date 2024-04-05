@@ -4,6 +4,7 @@ from torchlinops.mri.recon.prior.llr import LocallyLowRankConfig, LocallyLowRank
 from torchlinops.mri.app.fista import FISTA
 
 
+@pytest.mark.slow
 def test_fista_llr_mrf_invivo():
     llr_config = LocallyLowRankConfig(
         block_size=(10, 10, 10),
@@ -37,6 +38,7 @@ def test_fista_llr_mrf_invivo():
     breakpoint()
 
 
+@pytest.mark.slow
 def test_fista_llr_mrf_timeseg_invivo():
     llr_config = LocallyLowRankConfig(
         block_size=(10, 10, 10),

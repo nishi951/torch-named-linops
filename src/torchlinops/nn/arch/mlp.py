@@ -2,6 +2,8 @@ from typing import Optional
 
 import torch.nn as nn
 
+__all__ = ["MLP"]
+
 
 class MLP(nn.Module):
     """A simple multilayered perceptron"""
@@ -20,7 +22,7 @@ class MLP(nn.Module):
         channels = [in_chans] + [hidden_chans] * (num_layers - 1) + [out_chans]
 
         layers = []
-        for i, (in_c, out_c) in enumerate(zip(num_layers[:-1], num_layers[1:])):
+        for i, (in_c, out_c) in enumerate(zip(channels[:-1], channels[1:])):
             layers.append(
                 nn.Linear(
                     in_c,
@@ -28,10 +30,10 @@ class MLP(nn.Module):
                     bias=bias,
                 ),
             )
-            if i < len(num_layers) - 1:
+            if i < num_layers - 1:
                 layers.append(activation())
 
-        net = nn.Sequential(layers)
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.net(x)

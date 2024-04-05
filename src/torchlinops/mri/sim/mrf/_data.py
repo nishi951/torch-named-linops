@@ -3,11 +3,9 @@ from typing import Optional, Mapping
 
 import torch
 
-from torchlinops.utils import Saveable
-
 
 @dataclass
-class SubspaceDataset(Saveable):
+class SubspaceDataset:
     trj: torch.Tensor
     """kspace trajectory"""
     mps: torch.Tensor

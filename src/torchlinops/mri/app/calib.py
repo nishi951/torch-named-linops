@@ -1,9 +1,10 @@
 from typing import Tuple, Optional, Mapping
 
+import torch
 import sigpy as sp
 import numpy as np
 
-from torchlinops.mri.calib.coil import get_mps_kgrid
+from torchlinops.mri.data._calib._coil import get_mps_kgrid
 from torchlinops.utils import ordinal
 
 

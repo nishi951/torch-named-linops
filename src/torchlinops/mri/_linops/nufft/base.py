@@ -78,6 +78,7 @@ class NUFFTBase(NamedLinop):
         )
         self.shared_dims = len(shared_batch_shape)
         self.D = len(im_size)
+        self.im_shape = get2dor3d(im_size)
         self.shared_batch_shape = self.ishape[: self.shared_dims]
         self.in_batch_shape = self.ishape[self.shared_dims : -self.D]
         self.out_batch_shape = self.oshape[
@@ -113,7 +114,7 @@ class NUFFTBase(NamedLinop):
 
     def split_forward(self, ibatch, obatch):
         split = copy(self)
-        split.trj = self.split_forward_fn(ibatch, obatch, self.trj)
+        split.trj.data = self.split_forward_fn(ibatch, obatch, self.trj)
         return split
 
     def split_forward_fn(self, ibatch, obatch, /, trj):

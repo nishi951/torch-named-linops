@@ -5,7 +5,7 @@ import torch
 from tqdm import tqdm
 
 import torchlinops
-from ._linops import NamedLinop, ND
+from ._linops import NamedLinop, ND, NS
 from torchlinops.utils import batch_iterator, dict_product
 
 __all__ = ["Batch"]
@@ -22,7 +22,7 @@ class Batch(NamedLinop):
         pbar: bool = False,
         **batch_sizes,
     ):
-        super().__init__(linop.ishape, linop.oshape)
+        super().__init__(NS(linop.ishape, linop.oshape))
         self.linop = linop
         self.input_device = input_device
         self.output_device = output_device

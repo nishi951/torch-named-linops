@@ -18,7 +18,9 @@ class PadLast(NamedLinop):
     """
 
     def __init__(self, pad_im_size, im_size, batch_shape):
-        assert len(pad_im_size) == len(im_size), f'Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}'
+        assert (
+            len(pad_im_size) == len(im_size)
+        ), f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
 
         im_shape = ND.infer(get2dor3d(im_size))
         pad_im_shape = tuple(d.next_unused(im_shape) for d in im_shape)
@@ -32,7 +34,10 @@ class PadLast(NamedLinop):
         for psz in pad_im_size:
             assert not (psz % 2), "Pad sizes must be even"
 
-        sizes = [[(psz - isz) // 2] * 2 for psz, isz in zip(self.out_im_size, self.in_im_size)]
+        sizes = [
+            [(psz - isz) // 2] * 2
+            for psz, isz in zip(self.out_im_size, self.in_im_size)
+        ]
         self.pad = sum(sizes, start=[])
         self.pad.reverse()
 
@@ -82,8 +87,8 @@ class PadLast(NamedLinop):
         return self.size_fn(dim)
 
     def size_fn(self, dim: str, /):
-        if dim in self.ishape[-self.D:]:
+        if dim in self.ishape[-self.D :]:
             return self.in_im_size[self.im_shape.index(dim)]
-        elif dim in self.oshape[-self.D:]:
+        elif dim in self.oshape[-self.D :]:
             return self.out_im_size[self.pad_im_shape.index(dim)]
         return None

@@ -19,7 +19,7 @@ def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None):
     Iif shape is empty, use tuple(), not None
     """
     if ishape is None:
-        return None
+        return NamedShape(tuple(), tuple())
     if oshape is None:
         if isinstance(ishape, NamedShape):
             return ishape

@@ -6,6 +6,7 @@ from .namedlinop import NamedLinop
 from .nameddim import get2dor3d, NS
 from .identity import Identity
 
+
 class FFT(NamedLinop):
     def __init__(self, dim, batch_shape, norm, centered: bool = False):
         """

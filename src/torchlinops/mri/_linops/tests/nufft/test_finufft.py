@@ -60,6 +60,26 @@ def tgas_spi_data():
     return data
 
 
+@pytest.fixture
+def tgas_spi_data_big():
+    config = TGASSPISimulatorConfig(
+        im_size=(220, 220, 220),
+        num_coils=6,
+        num_TRs=500,
+        num_groups=16,
+        groups_undersamp=1,
+        noise_std=0.0,
+        spiral_2d_kwargs={
+            "alpha": 1.5,
+            "f_sampling": 0.1,
+        },
+    )
+
+    simulator = TGASSPISimulator(config).to("cuda")
+    data = simulator.data
+    return data
+
+
 def test_finufft2d(spiral2d_data):
     data = spiral2d_data
     fi_trj = sp2fi(data.trj.clone(), data.img.shape)
@@ -141,12 +161,19 @@ def test_cufinufft2d(spiral2d_data):
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"
 )
-def test_cufinufft3d(tgas_spi_data):
+def test_cufinufft3d(tgas_spi_data_big):
     device = torch.device("cuda")
-    data = tgas_spi_data
+    data = tgas_spi_data_big
     fi_trj = sp2fi(data.trj.clone(), data.img.shape)
     # Test forward
+    from time import perf_counter
+
+    start = perf_counter()
     ksp = fi_nufft(data.img.to(device) * data.mps.to(device), fi_trj.to(device))
+    total = perf_counter() - start
+    print(f"Img shape: {data.img.shape}")
+    print(f"Ksp shape: {ksp.shape}")
+    print(f"Forward: {total}")
     ksp = ksp.cpu()
     assert torch.isclose(ksp, data.ksp, atol=1e-1, rtol=1e-1).all()
 

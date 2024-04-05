@@ -26,8 +26,8 @@ def test_dense():
     # Make sure dense's normal doesn't create a chain (unnecessary)
     # If desired, just make the linop explicitly
     assert not isinstance(A.N, Chain)
-    assert A.N.ishape == ('N',)
-    assert A.N.oshape == ('N1',)
+    assert A.N.ishape == ("N",)
+    assert A.N.oshape == ("N1",)
 
 
 def test_diagonal():

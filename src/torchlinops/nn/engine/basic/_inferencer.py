@@ -10,7 +10,7 @@ from .. import AbstractInferencer
 
 __all__ = [
     "InferenceState",
-    "BasicInferencer",
+    "Inferencer",
 ]
 
 

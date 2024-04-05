@@ -18,9 +18,9 @@ class GriddedNUFFT(NUFFTBase):
         self,
         trj: torch.Tensor,
         im_size: Tuple,
+        shared_batch_shape: Optional[Tuple] = None,
         in_batch_shape: Optional[Tuple] = None,
         out_batch_shape: Optional[Tuple] = None,
-        shared_batch_shape: Optional[Tuple] = None,
         *args,
         **kwargs,
     ):

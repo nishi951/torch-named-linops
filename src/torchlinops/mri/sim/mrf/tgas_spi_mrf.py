@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-from torchlinops._core._tiling import Batch
+from torchlinops._core import Batch
 from torchlinops._core._linops import SumReduce, Diagonal
 from torchlinops.utils import batch_tqdm, ordinal
 from torchlinops.mri._linops import SENSE, NUFFT, DCF
@@ -223,6 +223,7 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
                     self.Asim,
                     input_device=device,
                     output_device=device,
+                    input_dtype=torch.complex64,
                     output_dtype=torch.complex64,
                     pbar=True,
                     T=self.config.tr_batch_size,

@@ -27,7 +27,9 @@ class SENSE(NamedLinop):
             NS(in_batch_shape) + NS(tuple(), (coildim,)) + NS(get2dor3d(self.im_size))
         )
         super().__init__(shape)
+        self.D = len(self.im_size)
         self.mps = nn.Parameter(mps, requires_grad=False)
+        self.coildim = coildim
         self.coil_ax = -(len(self.im_size) + 1)
 
     def forward(self, x):
@@ -47,7 +49,7 @@ class SENSE(NamedLinop):
                     "SENSE currently only supports matched image input/output slicing."
                 )
         split = copy(self)
-        split.mps = self.split_forward_fn(ibatch, obatch, self.mps)
+        split.mps.data = self.split_forward_fn(ibatch, obatch, self.mps)
         return split
 
     def split_forward_fn(self, ibatch, obatch, /, mps):
@@ -57,7 +59,7 @@ class SENSE(NamedLinop):
         return self.size_fn(dim, self.mps)
 
     def size_fn(self, dim: str, mps):
-        forward_oshape = self.out_batch_shape + get2dor3d(self.im_size)
+        forward_oshape = (self.coildim,) + get2dor3d(self.im_size)
         mps_shape = forward_oshape[self.coil_ax :]
         if dim in mps_shape:
             return mps.shape[mps_shape.index(dim)]

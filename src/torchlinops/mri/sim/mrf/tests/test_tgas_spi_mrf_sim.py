@@ -23,6 +23,7 @@ def mask_by_img(x, reference_img, eps=1e-2):
     return out
 
 
+@pytest.mark.slow
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"

@@ -71,7 +71,14 @@ target-version = "py310"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"# --ignore libraries --ignore notebooks"
+addopts = """
+-ra -q \
+-m 'not slow' \
+-m 'not gpu' \
+--ignore mri/_grid/backends/_kgrog/tests \
+--ignore mri/app/tests
+"""
+# --ignore libraries --ignore notebooks"
 testpaths = [
     "test",
 ]
