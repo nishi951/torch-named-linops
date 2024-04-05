@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 
 import torch.fft as fft
 
@@ -57,8 +57,4 @@ class FFT(NamedLinop):
     def normal(self, inner=None):
         if inner is None:
             return Identity(self.ishape)
-        pre = copy(self)
-        pre.oshape = inner.ishape
-        post = copy(self).H
-        post.ishape = inner.oshape
-        return post @ inner @ pre
+        return super().normal(inner)

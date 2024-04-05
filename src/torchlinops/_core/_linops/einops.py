@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 from typing import Optional, Mapping
 
 import torch
@@ -167,7 +167,8 @@ class SumReduce(NamedLinop):
                 if d in post.axes_lengths:
                     # Replace old dimension with a new one
                     new_axes_lengths[new_d] = post.axes_lengths[d]
-        post.oshape = tuple(new_oshape)
+        post._shape = deepcopy(post._shape)
+        post.oshape = new_oshape
         post.axes_lengths = new_axes_lengths
         if inner is not None:
             pre.oshape = inner.ishape

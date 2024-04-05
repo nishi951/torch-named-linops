@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 from typing import List, Optional
 
 import torch
@@ -45,13 +45,7 @@ class Diagonal(NamedLinop):
             return type(self)(
                 torch.abs(self.weight) ** 2, self._shape.N, self.broadcast_dims
             )
-        # Update the shapes
-        pre = copy(self)
-        pre.oshape = inner.ishape
-
-        post = copy(self).H
-        post.ishape = inner.oshape
-        return post @ inner @ pre
+        return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
         weight = self.split_forward_fn(ibatch, obatch, self.weight)

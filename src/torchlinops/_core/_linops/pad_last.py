@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 
 import torch.nn.functional as F
 
@@ -71,7 +71,7 @@ class PadLast(NamedLinop):
         if inner is None:
             # Adjoint is exactly the inverse
             return Identity(self.ishape)
-        return copy(self).H @ inner @ copy(self)
+        return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
         for islc, oslc in zip(ibatch[-self.D :], obatch[-self.D :]):

@@ -1,5 +1,5 @@
 from typing import Optional, Tuple, Mapping, Iterable
-from copy import copy
+from copy import copy, deepcopy
 
 import torch
 import torch.nn as nn
@@ -105,12 +105,7 @@ class NUFFTBase(NamedLinop):
             post = copy(self).H
             return post @ pre
 
-        pre = copy(self)
-        pre.oshape = inner.ishape
-        # Fully overwrite post's shape
-        post = copy(self).H
-        post.ishape = inner.oshape
-        return post @ inner @ pre
+        return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
         split = copy(self)

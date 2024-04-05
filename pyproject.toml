@@ -73,8 +73,7 @@ target-version = "py310"
 minversion = "6.0"
 addopts = """
 -ra -q \
--m 'not slow' \
--m 'not gpu' \
+-m 'not slow and not gpu' \
 --ignore mri/_grid/backends/_kgrog/tests \
 --ignore mri/app/tests
 """

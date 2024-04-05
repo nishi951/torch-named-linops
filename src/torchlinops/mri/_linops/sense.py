@@ -70,8 +70,4 @@ class SENSE(NamedLinop):
             abs_mps = torch.sum(torch.abs(self.mps) ** 2, dim=0)
             normal = Diagonal(abs_mps, get2dor3d(self.im_size))
             return normal
-        pre = copy(self)
-        pre.oshape = inner.ishape
-        post = copy(self).H
-        post.ishape = inner.oshape
-        return post @ inner @ pre
+        return super().normal(inner)

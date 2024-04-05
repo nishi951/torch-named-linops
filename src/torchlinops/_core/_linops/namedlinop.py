@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 import traceback
 
 import torch
@@ -143,8 +143,9 @@ class NamedLinop(nn.Module):
             normal._suffix += ".N"
             return normal
         pre = copy(self)
-        post = copy(self).H
         pre.oshape = inner.ishape
+        post = copy(self).H
+        post._shape = deepcopy(post._shape)
         post.ishape = inner.oshape
         return post @ inner @ pre
 
