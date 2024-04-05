@@ -56,7 +56,15 @@ def toeplitz(
             )
         )
         kernel_shape = kernel_changed_shape + nufft_changed_batch_shape + N2K(im_shape)
-        kernel_size = list(_size(d, [Nufft, Inner, Pad], 1) for d in kernel_shape)
+        # Get the broadcasted dimensions
+        broadcast_dims = []
+        kernel_size = []
+        for d in kernel_shape:
+            size = _size(d, [Nufft, Inner, Pad])
+            if size is None:
+                broadcast_dims.append(d)
+                size = 1
+            kernel_size.append(size)
 
         kernel_size[-D:] = Pad.pad_im_size
         kernel_size = tuple(kernel_size)
@@ -79,17 +87,18 @@ def toeplitz(
             kernel[changed_idx] = weight
         kernel *= oversamp ** Nufft.trj.shape[-1]  # Fix scaling
         kernel_oshape = Inner.oshape[: -len(Nufft.out_batch_shape)] + N2K(im_shape)
-        Kern = Dense(kernel, kernel_shape, F.oshape, kernel_oshape)
+        Kern = Dense(kernel, kernel_shape, F.oshape, kernel_oshape, broadcast_dims)
 
     else:
         weight_shape = Nufft.oshape
-        weight_size = tuple(_size(d, [Nufft, Pad], 1) for d in Nufft.oshape)
+        weight_size = tuple(_size(d, [Nufft, Pad], 1) for d in weight_shape)
         weight = torch.ones(*weight_size, dtype=torch.complex64, device=device)
 
         kernel = F(Nufft_oversamp.H(weight))
         kernel *= oversamp ** Nufft.trj.shape[-1]  # Fix scaling
         kernel_shape = Nufft.shared_batch_shape + Nufft.in_batch_shape + F.oshape[-D:]
-        Kern = Dense(kernel, kernel_shape, F.oshape, F.H.ishape)
+        broadcast_dims = [d for d in kernel_shape if _size(d, [Nufft, Pad]) is None]
+        Kern = Dense(kernel, kernel_shape, F.oshape, F.H.ishape, broadcast_dims)
 
     return Pad.normal(F.normal(Kern))
 

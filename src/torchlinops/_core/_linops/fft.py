@@ -42,10 +42,10 @@ class FFT(NamedLinop):
         return x
 
     def split_forward(self, ibatch, obatch):
-        return self.split_forward_fn(ibatch, obatch)
+        return self
 
     def split_forward_fn(self, ibatch, obatch, /):
-        return type(self)(self.ishape, self.oshape, self.dim, self.norm)
+        return None
 
     def size(self, dim):
         return self.size_fn(dim)

@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 from typing import Optional, Tuple
 
 import torch
@@ -48,8 +48,11 @@ class SENSE(NamedLinop):
                 raise IndexError(
                     "SENSE currently only supports matched image input/output slicing."
                 )
-        split = copy(self)
-        split.mps.data = self.split_forward_fn(ibatch, obatch, self.mps)
+        split = deepcopy(self)
+        split.mps = nn.Parameter(
+            self.split_forward_fn(ibatch, obatch, split.mps),
+            requires_grad=split.mps.requires_grad,
+        )
         return split
 
     def split_forward_fn(self, ibatch, obatch, /, mps):

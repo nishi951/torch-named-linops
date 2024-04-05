@@ -1,5 +1,5 @@
 from copy import copy, deepcopy
-from typing import Optional, Mapping
+from typing import Optional, Mapping, List
 
 import torch
 from einops import rearrange, reduce, repeat
@@ -147,8 +147,9 @@ class SumReduce(NamedLinop):
         return None
 
     def adjoint(self):
-        n_repeats = {d: 1 for d in self.ishape if d not in self.oshape}
-        return Repeat(n_repeats, self._shape.H, None)
+        broadcast_dims = [d for d in self.ishape if d not in self.oshape]
+        n_repeats = {d: 1 for d in broadcast_dims}
+        return Repeat(n_repeats, self._shape.H, None, broadcast_dims)
 
     def normal(self, inner=None):
         pre = copy(self)
@@ -180,13 +181,16 @@ class SumReduce(NamedLinop):
 class Repeat(NamedLinop):
     """Unsqueezes and expands a tensor along dim"""
 
-    def __init__(self, n_repeats: Mapping, ishape, oshape):
+    def __init__(
+        self, n_repeats: Mapping, ishape, oshape, broadcast_dims: Optional[List] = None
+    ):
         super().__init__(NS(ishape, oshape))
         assert len(self.oshape) > len(
             self.ishape
         ), f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
         self.axes_lengths = n_repeats
         self.axes_lengths = {ND.infer(k): v for k, v in self.axes_lengths.items()}
+        self.broadcast_dims = broadcast_dims if broadcast_dims is not None else []
 
     @property
     def adj_ishape(self):
@@ -233,7 +237,7 @@ class Repeat(NamedLinop):
         """Repeat fewer times, depending on the size of obatch"""
         A = copy(self)
         for dim, slc in zip(self.oshape, obatch):
-            if dim in A.axes_lengths:
+            if dim in A.axes_lengths and dim not in self.broadcast_dims:
                 A.axes_lengths[dim] = self.slice_len(slc, self.size(dim))
         return A
 

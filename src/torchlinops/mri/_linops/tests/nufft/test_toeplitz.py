@@ -46,6 +46,7 @@ def spiral2d_data(request):
     return data
 
 
+@pytest.mark.filterwarnings("ignore:No Inner linop")
 @pytest.mark.parametrize("backend", NUFFT_BACKENDS)
 def test_toeplitz_2d_nufft_only(spiral2d_data, backend):
     data = spiral2d_data
@@ -66,6 +67,7 @@ def test_toeplitz_2d_nufft_only(spiral2d_data, backend):
     assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()
 
 
+@pytest.mark.filterwarnings("ignore:No Inner linop")
 @pytest.mark.parametrize("backend", NUFFT_BACKENDS)
 def test_toeplitz_2d_with_coils(spiral2d_data, backend):
     data = spiral2d_data

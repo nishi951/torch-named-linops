@@ -59,13 +59,14 @@ def subspace_linop():
     P = Diagonal(
         repeat(phi, "A T -> A () T () ()"),  # Expand to match
         ioshape=("A", "C", "T", "R", "K"),
+        broadcast_dims=["C", "R", "K"],
     )
     R = SumReduce(
         ishape=("A", "C", "T", "R", "K"),
         oshape=("C", "T", "R", "K"),
     )
     D = Diagonal(dcf, ioshape=("C", "T", "R", "K"))
-    temp = (D**(1/2)) @ R @ P @ F
+    temp = (D ** (1 / 2)) @ R @ P @ F
     return (D ** (1 / 2)) @ R @ P @ F @ S
 
 
@@ -86,5 +87,4 @@ def test_subspace_linop_batching(subspace_linop):
     b = torch.randn(osize, dtype=torch.complex64)
 
     AHAx = A_batch.N(x)
-    breakpoint()
     AHb = A_batch.H(b)

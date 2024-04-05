@@ -22,9 +22,11 @@ class PadLast(NamedLinop):
             len(pad_im_size) == len(im_size)
         ), f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
 
-        im_shape = ND.infer(get2dor3d(im_size))
-        pad_im_shape = tuple(d.next_unused(im_shape) for d in im_shape)
-        shape = NS(batch_shape) + NS(im_shape, pad_im_shape)
+        self.in_im_shape = ND.infer(get2dor3d(im_size))
+        self.out_im_shape = tuple(
+            d.next_unused(self.in_im_shape) for d in self.in_im_shape
+        )
+        shape = NS(batch_shape) + NS(self.in_im_shape, self.out_im_shape)
         super().__init__(shape)
         self.D = len(im_size)
         self.im_size = tuple(im_size)
@@ -64,6 +66,7 @@ class PadLast(NamedLinop):
 
     def adjoint(self):
         adj = super().adjoint()
+        adj.in_im_shape, adj.out_im_shape = self.out_im_shape, self.in_im_shape
         adj.in_im_size, adj.out_im_size = self.out_im_size, self.in_im_size
         return adj
 
@@ -74,13 +77,15 @@ class PadLast(NamedLinop):
         return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
-        for islc, oslc in zip(ibatch[-self.D :], obatch[-self.D :]):
-            raise ValueError(f"{type(self).__name__} cannot be split along image dim")
+        self.split_forward_fn(ibatch, obatch)
         return self
 
     def split_forward_fn(self, ibatch, obatch, /):
         for islc, oslc in zip(ibatch[-self.D :], obatch[-self.D :]):
-            raise ValueError(f"{type(self).__name__} cannot be split along image dim")
+            if islc != slice(None) or oslc != slice(None):
+                raise ValueError(
+                    f"{type(self).__name__} cannot be split along image dim"
+                )
         return None
 
     def size(self, dim: str):
@@ -88,7 +93,7 @@ class PadLast(NamedLinop):
 
     def size_fn(self, dim: str, /):
         if dim in self.ishape[-self.D :]:
-            return self.in_im_size[self.im_shape.index(dim)]
+            return self.in_im_size[self.in_im_shape.index(dim)]
         elif dim in self.oshape[-self.D :]:
-            return self.out_im_size[self.pad_im_shape.index(dim)]
+            return self.out_im_size[self.out_im_shape.index(dim)]
         return None

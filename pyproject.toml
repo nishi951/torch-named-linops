@@ -61,13 +61,12 @@ dev = [
     "pytorch_pfe_extras", # Mempool sharing between cupy and pytorch
 ]
 
-
 [tool.ruff]
-lint.ignore = ["F403"] # from ___ import *
-extend-exclude = ["tests"]
 target-version = "py310"
-# [tool.ruff.format]
-# quote-style = "single"
+
+[tool.ruff.lint]
+ignore = ["F403"] # from ___ import *
+exclude = ["tests"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

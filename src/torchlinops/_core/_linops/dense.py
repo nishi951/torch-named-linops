@@ -1,4 +1,5 @@
 from copy import copy
+from typing import Optional, List
 
 from einops import einsum
 
@@ -27,8 +28,14 @@ class Dense(NamedLinop):
     oshape: [C, A1, Nx, Ny]
     """
 
-    def __init__(self, weight, weightshape, ishape, oshape):
-        """ """
+    def __init__(
+        self, weight, weightshape, ishape, oshape, broadcast_dims: Optional[List] = None
+    ):
+        """
+        broadcast_dims : List
+            A list of the dimensions of weight that are intended to be broadcasted over the input.
+            As such, they are excluded from splitting.
+        """
         super().__init__(NS(ishape, oshape))
         self.weight = weight
         self.weightshape = ND.infer(weightshape)
@@ -36,6 +43,8 @@ class Dense(NamedLinop):
         self.ishape_only = set(self.ishape) - set(self.weight_ishape)
         self.weight_oshape = set(self.weightshape) & set(self.oshape)
         self.oshape_only = set(self.oshape) - set(self.weight_oshape)
+
+        self.broadcast_dims = broadcast_dims if broadcast_dims is not None else []
 
         self.forward_einstr = f"{self.einstr(self.ishape)},{self.einstr(self.weightshape)}->{self.einstr(self.oshape)}"
         self.adj_einstr = f"{self.einstr(self.oshape)},{self.einstr(self.weightshape)}->{self.einstr(self.ishape)}"
@@ -102,13 +111,11 @@ class Dense(NamedLinop):
                     new_oshape.append(dim)
             new_shape = copy(self._shape).N
             new_shape.oshape = new_oshape
-            normal = type(self)(new_weight, new_weightshape, new_shape, None)
+            normal = type(self)(
+                new_weight, new_weightshape, new_shape.ishape, new_shape.oshape
+            )
             return normal
-        pre = copy(self)
-        pre.oshape = inner.ishape
-        post = copy(self).H
-        post.ishape = inner.oshape
-        return post @ inner @ pre
+        return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
         weight = self.split_forward_fn(ibatch, obatch, self.weight)
@@ -117,10 +124,10 @@ class Dense(NamedLinop):
     def split_forward_fn(self, ibatch, obatch, /, weight):
         weightbatch = [slice(None)] * len(self.weightshape)
         for dim, batch in zip(self.ishape, ibatch):
-            if dim in self.weightshape:
+            if dim in self.weightshape and dim not in self.broadcast_dims:
                 weightbatch[self.weightshape.index(dim)] = batch
-        for dim, batch in zip(self.oshape, ibatch):
-            if dim in self.weightshape:
+        for dim, batch in zip(self.oshape, obatch):
+            if dim in self.weightshape and dim not in self.broadcast_dims:
                 weightbatch[self.weightshape.index(dim)] = batch
         return weight[weightbatch]
 

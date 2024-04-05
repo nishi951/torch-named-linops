@@ -12,18 +12,7 @@ class Chain(NamedLinop):
     def __init__(self, *linops):
         super().__init__(NS(linops[-1].ishape, linops[0].oshape))
         self.linops = nn.ModuleList(list(linops))
-        # self.signatures = [signature(linop.fn) for linop in self.linops]
-        # self._check_signatures()
         self._check_inputs_outputs()
-
-    # def _check_signatures(self):
-    #     seen = set()
-    #     for sig in self.signatures:
-    #         for param in sig.parameters.values():
-    #             if param.name in seen:
-    #                 logger.debug(
-    #                     f'{param.name} appears more than once in linop chain.'
-    #                 )
 
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
