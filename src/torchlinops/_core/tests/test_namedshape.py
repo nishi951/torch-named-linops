@@ -1,16 +1,44 @@
 import pytest
+from collections import OrderedDict
 
-from torchlinops import NamedShape, NamedDiagShape, NamedComboShape, NS
+from torchlinops import NamedShape, NS, ND
 
+
+def test_getter_setter():
+    shape = NS(('A', 'B'), ('C',))
+    assert shape.ishape == ('A', 'B')
+    assert shape.oshape == ('C',)
+
+def test_new_batch():
+    shape = NS(('A', 'B'), ('C',))
+    shape.add('shared_batch', ('A',))
+    assert shape.shared_batch == ('A',)
+
+    shape.ishape = ('E', 'F')
+    assert shape.shared_batch == ('E',)
+
+def test_new_dict():
+    shape = NS(('A', 'B'), ('C',))
+    shape.add('axes_lengths', {'A': 2})
+    assert shape.axes_lengths[ND.infer('A')] == 2
+
+    shape.ishape = ('E', 'F')
+    assert shape.axes_lengths[ND.infer('E')] == 2
+
+def test_diag():
+    shape = NS(('A', 'B'))
+    assert shape.ishape == ('A', 'B')
+    assert shape.oshape == ('A', 'B')
+    shape.ishape = ('C', 'D')
+    assert shape.oshape == ('C', 'D')
 
 def test_empty_dim():
     shape = NS(tuple(), ("C",))
     adj_shape = shape.H
-    normal_shape = shape.N
+    #normal_shape = shape.N
 
     adj_shape.ishape = ("C1",)
     assert shape.oshape == ("C1",)
-
 
 def test_adjoint():
     shape = NamedShape(("A", "B"), ("C",))
@@ -18,52 +46,9 @@ def test_adjoint():
     adj_shape.ishape = ("D",)
     assert shape.oshape == ("D",)
 
-
-def test_normal():
-    shape = NamedShape(("A", "B"), ("C",))
-    norm_shape = shape.N
-
-    norm_shape.ishape = ("D", "E")
-    assert shape.ishape == ("D", "E")
-    assert shape.oshape == ("C",)
-
-    shape.ishape = ("F", "G")
-    assert norm_shape.ishape == ("F", "G")
-    assert norm_shape.oshape == ("F1", "G1")
-
-
-def test_adjoint_and_normal():
-    shape = NamedShape(("M", "N"), ("J", "K"))
-    adj_shape = shape.H
-    norm_shape = shape.N
-
-    norm_shape.ishape = ("O", "P")
-    assert adj_shape.ishape == ("J", "K")
-    assert adj_shape.oshape == ("O", "P")
-    assert shape.ishape == ("O", "P")
-    assert shape.oshape == ("J", "K")
-
-    adj_shape.oshape = ("Q", "R")
-    assert shape.ishape == ("Q", "R")
-    assert shape.oshape == ("J", "K")
-    assert norm_shape.ishape == ("Q", "R")
-    assert norm_shape.oshape == ("Q1", "R1")
-
-
-def test_diag():
-    shape = NamedDiagShape(("R", "S"))
-    adj_shape = shape.H
-    norm_shape = shape.H
-    adj_shape.ishape = ("P", "Q")
-    assert shape.ishape == ("P", "Q")
-    assert shape.oshape == ("P", "Q")
-    assert norm_shape.ishape == ("P", "Q")
-    assert norm_shape.oshape == ("P", "Q")
-
-
 def test_product():
-    shape1 = NamedShape(("A", "B"), ("C",))
-    shape2 = NamedDiagShape(("E", "F"))
+    shape1 = NS(("A", "B"), ("C",))
+    shape2 = NS(("E", "F"))
 
     shape12 = shape1 + shape2
     assert shape12.ishape == ("A", "B", "E", "F")
@@ -77,21 +62,3 @@ def test_product():
     adj_shape12.ishape = ("G", "H", "I")
     assert shape12.ishape == ("A", "B", "H", "I")
     assert shape12.oshape == ("G", "H", "I")
-
-    normal_shape21 = shape21.N
-    # Also changes shape1 and shape 2
-    normal_shape21.ishape = ("J", "K", "L", "M")
-    assert shape21.ishape == ("J", "K", "L", "M")
-
-    # Final shapes are very different
-    assert shape1 == NamedShape(("L", "M"), ("G",))
-    assert shape2 == NamedDiagShape(("J", "K"))
-
-
-# def test_combo():
-#     shape = NamedComboShape(("A", "C"), ("Nx", "Ny"), ("T", "R", "K"))
-#     adj_shape = shape.H
-#     adj_shape.ishape = ("A1", "C", "T", "R", "K")
-
-#     assert shape.ishape == ("A1", "C", "Nx", "Ny")
-#     assert shape.oshape == ("A1", "C", "T", "R", "K")

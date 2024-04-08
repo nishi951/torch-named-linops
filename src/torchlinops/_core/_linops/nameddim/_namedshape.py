@@ -1,8 +1,9 @@
 from copy import copy
-from typing import Iterable, Sequence, Tuple, Union, Optional, OrderedDict, Mapping, List
+from typing import Iterable, Sequence, Tuple, Union, Optional, OrderedDict
 from collections import OrderedDict
 
 from ._nameddim import ND
+from ._nameddimcollection import NamedDimCollection
 from ._shapes import get2dor3d
 
 __all__ = [
@@ -23,86 +24,91 @@ def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None):
         if isinstance(ishape, NamedShape):
             return ishape
         return NamedShape(ishape=ishape, oshape=ishape)
-        #return NamedDiagShape(ioshape=ishape)
     return NamedShape(ishape=ishape, oshape=oshape)
 
-
-class NamedDimCollection:
-    """A collection of named dimensions
-    Updating some dimensions updates all of them
+class NamedShape(NamedDimCollection):
+    """A linop shape with input and output dimensions
     Inherit from this to define custom behavior
+    - e.g. splitting ishape and oshape into subparts that are linked
     """
 
-
-    def __init__(self, **shapes):
-        self.__dict__['_idx'] = {}
-        self._dims = []
+    def __init__(self, ishape: Iterable[NDorStr], oshape: Iterable[NDorStr]):
+        super().__init__(_ishape=ishape, _oshape=oshape)
         self._adjoint = None
         self._normal = None
         self._unnormal = None
-        self._updated = {}
-
-        for k, v in shapes.items():
-            self.add(k, v)
-
-    def __getattr__(self, key):
-        if key in self.__dict__['_idx']:
-            return self.lookup(key)
-        raise AttributeError(f'{key} not in index: {list(self._idx.keys())}')
-
-    def __setattr__(self, key, val):
-        if key in self._idx:
-            self.update(key, val)
-        else:
-            # New attributes must be created via `.add` first
-            super().__setattr__(key, val)
+        self._updated = {k: False for k in self.shapes}
 
     @staticmethod
     def convert(a: Iterable[NDorStr]):
         return list(ND.infer(a))
 
-    def index(self, data: Iterable[NDorStr]):
-        if isinstance(data, Mapping):
-            return {self._dims.index(k): v for k, v in data.items()}
-        elif isinstance(data, Iterable):
-            return [self._dims.index(d) for d in data]
-        else:
-            # Singleton
-            return self._dims.index(data)
+    def adjoint(self):
+        """Return the adjoint shape. Don't call this method directly, but definitely override it"""
+        new = type(self)(self.oshape, self.ishape)
+        for shape in self.shapes:
+            if shape not in ['_ishape', '_oshape']:
+                new.add(shape, self.lookup(shape))
+        return new
 
-    def lookup(self, shape_name):
-        data = self._idx[shape_name]
-        if isinstance(data, Mapping):
-            return {self._dims[k]: v for k, v in data.items()}
-        return tuple(self._dims[i] for i in self._idx[shape_name])
+    @property
+    def ishape(self) -> Tuple[ND]:
+        return self._ishape
 
-    def add(self, shape_name, data):
-        """
-        data : Tuple, List, or Mapping
-            If Tuple or List, all values should be nameddim-able
-            IF Mapping, all keys should be nameddim-able
-        """
-        if shape_name in self._idx:
-            raise ValueError(f'{shape_name} already in index of shape: {self}')
-        if isinstance(data, Tuple) or isinstance(data, List):
-            indexed_shape = []
-            for d in data:
-                if d not in self._dims:
-                    self._dims.append(ND.infer(d))
-                indexed_shape.append(self._dims.index(d))
-            indexed_shape = tuple(indexed_shape)
-        elif isinstance(data, Mapping):
-            indexed_shape = {}
-            for d, v in data.items():
-                if d not in self._dims:
-                    self._dims.append(ND.infer(d))
-                indexed_shape[self._dims.index(d)] = v
-        self._idx[shape_name] = indexed_shape
+    @ishape.setter
+    def ishape(self, val: Iterable[NDorStr]):
+        if self._updated['_ishape']:
+            return
+        _ishape = self.convert(val)
+        self._ishape = _ishape
+        self._updated['_ishape'] = True
+        if self._adjoint is not None:
+            self._adjoint.oshape = _ishape
+        self._updated['_ishape'] = False
 
-    def update(self, shape_name, shape):
-        assert len(shape) == len(self._idx[shape_name]), f'Updated shape differs from current (immutable) shape length: shape: {shape} current: {self.lookup(shape_name)}'
-        for i, j in enumerate(self._idx[shape_name]):
-            self._dims[j] = ND.infer(shape[i])
+    @property
+    def oshape(self) -> Tuple[ND]:
+        return self._oshape
+
+    @oshape.setter
+    def oshape(self, val: Iterable[NDorStr]):
+        if self._updated['_oshape']:
+            return
+        _oshape = self.convert(val)
+        self._oshape = _oshape
+        self._updated['_oshape'] = True
+        if self._adjoint is not None:
+            self._adjoint.ishape = _oshape
+        self._updated['_oshape'] = False
+
+    @property
+    def H(self):
+        _adjoint = self.adjoint()
+        _adjoint._adjoint = self
+        self._adjoint = _adjoint
+        return self._adjoint
 
     def __repr__(self):
         return f"{self.ishape} -> {self.oshape}"
+
+    def __add__(self, right):
+        _ishape = self.ishape + right.ishape
+        _oshape = self.oshape + right.oshape
+        new = type(self)(ishape=_ishape, oshape=_oshape)
+        for shape in self.shapes:
+            if shape not in ['_ishape', '_oshape']:
+                new.add(shape, self.lookup(shape))
+        for shape in right.shapes:
+            if shape not in ['_ishape', '_oshape']:
+                new.add(shape, right.lookup(shape))
+        return new
+
+    def __radd__(self, left):
+        if left is None:
+            return self
+        return left.__add__(self)
+
+    def __eq__(self, other):
+        return self.ishape == other.ishape and self.oshape == other.oshape
+
+
