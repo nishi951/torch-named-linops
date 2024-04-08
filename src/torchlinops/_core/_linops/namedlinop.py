@@ -6,7 +6,7 @@ import torch.nn as nn
 
 import torchlinops
 
-from .nameddim import NamedDimension as ND, NamedShape
+from .nameddim import NamedDimension as ND, NamedShape, NS
 
 __all__ = [
     "NamedLinop",
@@ -22,16 +22,16 @@ class NamedLinop(nn.Module):
 
         self._adjoint = None
         self._normal = None
-        self._unnormal = None
 
         self._suffix = ""
 
     # Change the call to self.fn according to the data
     def forward(self, x: torch.Tensor):
-        return self.fn(x)
+        return self.fn(self, x)
 
     # Override
-    def fn(self, x: torch.Tensor, /, data=None):
+    @staticmethod
+    def fn(linop, x: torch.Tensor, /, data=None):
         """Placeholder for functional forwa rd operator.
         Non-input arguments should be keyword-only
         self can still be used - kwargs should contain elements
@@ -41,25 +41,27 @@ class NamedLinop(nn.Module):
         return x
 
     # Override
-    def adj_fn(self, x: torch.Tensor, /, data=None):
+    @staticmethod
+    def adj_fn(linop, x: torch.Tensor, /, data=None):
         """Placeholder for functional adjoint operator.
         Non-input arguments should be keyword-only"""
         return x
 
     # Override
-    def normal_fn(self, x: torch.Tensor, /, data=None):
+    @staticmethod
+    def normal_fn(linop, x: torch.Tensor, /, data=None):
         """Placeholder for efficient functional normal operator"""
-        return self.adj_fn(self.fn(x, data), data)
+        return linop.adj_fn(linop, linop.fn(linop, x, data), data)
 
     # Override
     def split_forward(self, ibatch, obatch):
         """Return a new instance"""
-        raise NotImplementedError(f"{type(self).__name__} cannot be split.")
+        return type(self)(self._shape)
 
     # Override
     def split_forward_fn(self, ibatch, obatch, /, data=None):
         """Return data"""
-        raise NotImplementedError(f"{type(self).__name__} cannot be split.")
+        return None
 
     # Override
     def size(self, dim: str):
@@ -83,7 +85,7 @@ class NamedLinop(nn.Module):
 
     @property
     def H(self):
-        """Adjoint operator"""
+        """Adjoint operator, with caching"""
         if self._adjoint is None:
             try:
                 _adjoint = self.adjoint()
@@ -92,16 +94,20 @@ class NamedLinop(nn.Module):
             except AttributeError as e:
                 traceback.print_exc()
                 raise
+            print(f"{type(self).__name__}: Making new adjoint {_adjoint._shape}")
         return self._adjoint[0]
 
     def adjoint(self):
-        adj = copy(self)
-        adj._shape = self._shape.H
-        # Swap functions
-        adj.fn, adj.adj_fn = self.adj_fn, self.fn
-        adj.split, adj.adj_split = self.adj_split, self.split
-        adj.split_fn, adj.adj_split_fn = self.split_fn, self.adj_split_fn
-        adj._suffix += ".H"
+        adj = copy(self) # Retains data
+        adj._shape = adj._shape.H
+        # Swap functions (requires staticmethod)
+        adj.fn, adj.adj_fn = adj.adj_fn, adj.fn
+        adj.split, adj.adj_split = adj.adj_split, adj.split
+        adj.split_fn, adj.adj_split_fn = adj.split_fn, adj.adj_split_fn
+        if adj._suffix.endswith('.H'):
+            adj._suffix = adj._suffix[:-2]
+        else:
+            adj._suffix += ".H"
         return adj
 
     @property
@@ -115,7 +121,6 @@ class NamedLinop(nn.Module):
         if self._normal is None:
             try:
                 _normal = self.normal()
-                _normal._unnormal = [self]
                 self._normal = [_normal]
             except AttributeError as e:
                 traceback.print_exc()
@@ -128,9 +133,9 @@ class NamedLinop(nn.Module):
         """
         if inner is None:
             normal = copy(self)
-            normal._shape = self._shape.N
-            normal.fn = self.normal_fn
-            normal.adj_fn = self.normal_fn
+            normal._shape = normal._shape.N
+            normal.fn = normal.normal_fn
+            normal.adj_fn = normal.normal_fn
 
             def new_normal(x, *args, **kwargs):
                 x = self.normal_fn(x, *args, **kwargs)
@@ -144,31 +149,38 @@ class NamedLinop(nn.Module):
             return normal
         pre = copy(self)
         pre.oshape = inner.ishape
-        post = copy(self).H
-        post._shape = deepcopy(post._shape)
+        post = self.adjoint() # Copy happens inside adjoint
         post.ishape = inner.oshape
         return post @ inner @ pre
 
-    def split(self, ibatch, obatch):
+    @staticmethod
+    def split(linop, ibatch, obatch):
         """Return a split version of the linop such that`forward`
         performs a split version of the linop
         ibatch: tuple of slices of same length as ishape
         obatch: tuple of slices of same length as oshape
         """
-        return self.split_forward(ibatch, obatch)
+        split = linop.split_forward(ibatch, obatch)
+        split._shape = linop._shape
+        return split
 
-    def adj_split(self, ibatch, obatch):
+    @staticmethod
+    def adj_split(linop, ibatch, obatch):
         """Split the adjoint version"""
-        return self.split_forward(obatch, ibatch).H
+        splitH = linop.H.split_forward(obatch, ibatch).H
+        splitH._shape = linop._shape
+        return splitH
 
-    def split_fn(self, ibatch, obatch, /, **kwargs):
+    @staticmethod
+    def split_fn(linop, ibatch, obatch, /, **kwargs):
         """Return split versions of the data that can be passed
         into fn and adj_fn to produce split versions
         """
-        return self.split_forward_fn(ibatch, obatch, **kwargs)
+        return linop.split_forward_fn(ibatch, obatch, **kwargs)
 
-    def adj_split_fn(self, ibatch, obatch, /, **kwargs):
-        return self.split_forward_fn(obatch, ibatch, **kwargs)
+    @staticmethod
+    def adj_split_fn(linop, ibatch, obatch, /, **kwargs):
+        return linop.split_forward_fn(obatch, ibatch, **kwargs)
 
     def flatten(self):
         """Get a flattened list of constituent linops for composition"""
@@ -226,3 +238,22 @@ class NamedLinop(nn.Module):
     @oshape.setter
     def oshape(self, val):
         self._shape.oshape = val
+
+    def __copy__(self):
+        """
+        copying a linop:
+        - Shares previous data
+        - Removes references to adjoint and normal
+        - Creates a new shape object, rather than using the old one
+        """
+        cls = type(self)
+        new = cls.__new__(cls)
+        new.__dict__.update(self.__dict__)
+
+        # Remove references to other objects
+        new._adjoint = None
+        new._normal = None
+
+        # Reset shape
+        new._shape = deepcopy(self._shape)
+        return new

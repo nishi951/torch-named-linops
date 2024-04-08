@@ -1,4 +1,3 @@
-from copy import copy, deepcopy
 from typing import List, Optional
 
 import torch
@@ -19,11 +18,15 @@ class Diagonal(NamedLinop):
         ), "All dimensions must be named or broadcastable"
         super().__init__(NS(ioshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
-        self.broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        self.broadcast_dims = [ND.infer(d) for d in self.broadcast_dims]
         assert (
             len(self.ishape) >= len(self.weight.shape)
         ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
+        broadcast_dims = broadcast_dims if broadcast_dims is not None else []
+        self._shape.add('broadcast_dims', broadcast_dims)
+
+    @property
+    def broadcast_dims(self):
+        return self._shape.lookup('broadcast_dims')
 
     def forward(self, x):
         return self.fn(x, self.weight)
@@ -38,12 +41,12 @@ class Diagonal(NamedLinop):
         return x * torch.abs(weight) ** 2
 
     def adjoint(self):
-        return type(self)(self.weight.conj(), self._shape.H, self.broadcast_dims)
+        return type(self)(self.weight.conj(), self.ishape, self.broadcast_dims)
 
     def normal(self, inner=None):
         if inner is None:
             return type(self)(
-                torch.abs(self.weight) ** 2, self._shape.N, self.broadcast_dims
+                torch.abs(self.weight) ** 2, self.ishape, self.broadcast_dims
             )
         return super().normal(inner)
 

@@ -73,13 +73,13 @@ minversion = "6.0"
 addopts = """
 -ra -q \
 -m 'not slow and not gpu' \
---ignore mri/_grid/backends/_kgrog/tests \
---ignore mri/app/tests
+--ignore-glob **/mri/_grid/backends/_kgrog/tests/* \
+--ignore-glob **/mri/app/tests/* \
+--ignore libraries \
+--ignore notebooks
+--ignore-glob **/mri/data/*
 """
 # --ignore libraries --ignore notebooks"
-testpaths = [
-    "test",
-]
 filterwarnings = [
     "ignore::DeprecationWarning:sigpy.*",
     "ignore::DeprecationWarning:cupy.*",

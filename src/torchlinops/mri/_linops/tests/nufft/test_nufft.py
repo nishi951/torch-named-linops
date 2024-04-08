@@ -27,7 +27,7 @@ def test_split(nufft):
 
     ibatch = [slice(None), slice(None)]
     obatch = [slice(0, 1), slice(None), slice(None)]
-    F_split = F.split(ibatch, obatch)
+    F_split = F.split(F, ibatch, obatch)
 
     assert tuple(F_split.trj.shape) == (1, 4, 5, 2)
     assert tuple(F.trj.shape) == (3, 4, 5, 2)

@@ -29,8 +29,13 @@ class SENSE(NamedLinop):
         super().__init__(shape)
         self.D = len(self.im_size)
         self.mps = nn.Parameter(mps, requires_grad=False)
-        self.coildim = coildim
+        # self.mps = mps
+        self._shape.add('coildim', coildim)
         self.coil_ax = -(len(self.im_size) + 1)
+
+    @property
+    def coildim(self):
+        return self._shape.lookup('coildim')
 
     def forward(self, x):
         return self.fn(x, self.mps)
@@ -43,19 +48,18 @@ class SENSE(NamedLinop):
 
     def split_forward(self, ibatch, obatch):
         """Split over coil dim only"""
+        return type(self)(
+            self.split_forward_fn(ibatch, obatch, self.mps),
+            self.coildim,
+            self.ishape[:-self.D],
+        )
+
+    def split_forward_fn(self, ibatch, obatch, /, mps):
         for islc, oslc in zip(ibatch[-self.D :], obatch[-self.D :]):
             if islc != oslc:
                 raise IndexError(
                     "SENSE currently only supports matched image input/output slicing."
                 )
-        split = deepcopy(self)
-        split.mps = nn.Parameter(
-            self.split_forward_fn(ibatch, obatch, split.mps),
-            requires_grad=split.mps.requires_grad,
-        )
-        return split
-
-    def split_forward_fn(self, ibatch, obatch, /, mps):
         return mps[obatch[self.coil_ax :]]
 
     def size(self, dim: str):

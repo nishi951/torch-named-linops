@@ -54,13 +54,13 @@ class PadLast(NamedLinop):
         return self.fn(x)
 
     def fn(self, x, /):
-        assert tuple(x.shape[-self.D :]) == self.in_im_size
+        assert tuple(x.shape[-self.D :]) == self.im_size
         pad = self.pad + [0, 0] * (x.ndim - self.D)
         return F.pad(x, pad)
 
     def adj_fn(self, y, /):
         """Crop the last n dimensions of y"""
-        assert tuple(y.shape[-self.D :]) == self.out_im_size
+        assert tuple(y.shape[-self.D :]) == self.pad_im_size
         slc = [slice(None)] * (y.ndim - self.D) + self.crop_slice
         return y[slc]
 

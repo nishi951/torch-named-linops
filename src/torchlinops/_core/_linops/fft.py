@@ -1,5 +1,3 @@
-from copy import copy, deepcopy
-
 import torch.fft as fft
 
 from .namedlinop import NamedLinop
@@ -15,9 +13,14 @@ class FFT(NamedLinop):
         """
         shape = NS(batch_shape) + NS(get2dor3d(dim), get2dor3d(dim, kspace=True))
         super().__init__(shape)
+        self._shape.add('batch_shape', batch_shape)
         self.dim = dim
         self.norm = norm
         self.centered = centered
+
+    @property
+    def batch_shape(self):
+        return self._shape.lookup('batch_shape')
 
     def forward(self, x, /):
         return self.fn(x)
@@ -42,7 +45,7 @@ class FFT(NamedLinop):
         return x
 
     def split_forward(self, ibatch, obatch):
-        return self
+        return type(self)(self.dim, self.batch_shape, self.norm, self.centered)
 
     def split_forward_fn(self, ibatch, obatch, /):
         return None

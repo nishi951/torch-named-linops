@@ -1,3 +1,4 @@
+import traceback
 from typing import Union
 from pprint import pformat
 
@@ -71,11 +72,53 @@ class Batch(NamedLinop):
             obatches = [
                 [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
             ]
-            linop = self.linop.split(*ibatches, *obatches)
+            linop = self.linop.split(self.linop, *ibatches, *obatches)
             xbatch = x[ibatches[-1]].to(self.input_device)
             ybatch = linop(xbatch)
             y[obatches[0]] += ybatch
         return y
+
+
+    def make_tiles(self):
+        # Complete the size specifications
+        for dim, total in zip(self.ishape, x.shape):
+            self.sizes[dim] = total
+        batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
+        ishapes = [linop.ishape for linop in self.linop.flatten()]
+        oshapes = [linop.oshape for linop in self.linop.flatten()]
+        return ishapes, oshapes
+
+
+    def split_forward(self):
+        # Complete the size specifications
+        for dim, total in zip(self.ishape, x.shape):
+            self.sizes[dim] = total
+        batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
+        ishapes = [linop.ishape for linop in self.linop.flatten()]
+        oshapes = [linop.oshape for linop in self.linop.flatten()]
+
+        linops = {}
+        for tile in tqdm(
+            dict_product(batch_iterators),
+            desc=f"Batch({self.batch_sizes})",
+            disable=(not self.pbar),
+        ):
+            ibatches = [
+                [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
+            ]
+            obatches = [
+                [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
+            ]
+            linops[tile] = self.linop.split(*ibatches, *obatches)
+        return linops
+
+    @property
+    def H(self):
+        try:
+            return self.adjoint()
+        except AttributeError as e:
+            traceback.print_exc()
+            raise
 
     def adjoint(self):
         batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
@@ -89,6 +132,14 @@ class Batch(NamedLinop):
             **batch_sizes,
         )
         return adj
+
+    @property
+    def N(self):
+        try:
+            return self.normal()
+        except AttributeError as e:
+            traceback.print_exc()
+            raise
 
     def normal(self, inner=None):
         batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}

@@ -37,8 +37,8 @@ def toeplitz(
     F.ishape = Pad.oshape
 
     # Create oversampled nufft
-    Nufft_oversamp = deepcopy(Nufft)
-    Nufft_oversamp.change_im_size(Pad.pad_im_size)
+    Nufft_oversamp_H = deepcopy(Nufft).adjoint()
+    Nufft_oversamp_H.change_im_size(Pad.pad_im_size)
 
     if Inner is not None:
         assert len(Inner.ishape) == len(
@@ -81,7 +81,7 @@ def toeplitz(
             weight = torch.zeros(*weight_size, dtype=torch.complex64, device=device)
             weight[tuple(idx)].fill_(1.0)
             weight = Inner(weight)
-            weight = F(Nufft_oversamp.H(weight))
+            weight = F(Nufft_oversamp_H(weight))
             changed_idx = tuple(slc for slc, chg in zip(idx, changed) if chg)
             # full_idx = changed_idx + (slice(None),) * len(idx)
             kernel[changed_idx] = weight
@@ -94,12 +94,11 @@ def toeplitz(
         weight_size = tuple(_size(d, [Nufft, Pad], 1) for d in weight_shape)
         weight = torch.ones(*weight_size, dtype=torch.complex64, device=device)
 
-        kernel = F(Nufft_oversamp.H(weight))
+        kernel = F(Nufft_oversamp_H(weight))
         kernel *= oversamp ** Nufft.trj.shape[-1]  # Fix scaling
         kernel_shape = Nufft.shared_batch_shape + Nufft.in_batch_shape + F.oshape[-D:]
         broadcast_dims = [d for d in kernel_shape if _size(d, [Nufft, Pad]) is None]
         Kern = Dense(kernel, kernel_shape, F.oshape, F.H.ishape, broadcast_dims)
-
     return Pad.normal(F.normal(Kern))
 
 

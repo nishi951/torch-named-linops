@@ -18,6 +18,7 @@ class Chain(NamedLinop):
         curr_shape = self.ishape
         for linop in reversed(self.linops):
             if linop.ishape != curr_shape:
+                breakpoint()
                 raise ValueError(
                     f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}"
                 )
@@ -26,6 +27,7 @@ class Chain(NamedLinop):
     def forward(self, x):
         for linop in reversed(self.linops):
             x = linop(x)
+            #print(f'{linop}: {x.shape}')
         return x
 
     def adjoint(self, x):
@@ -33,33 +35,36 @@ class Chain(NamedLinop):
             x = linop(x)
         return x
 
-    def fn(self, x: torch.Tensor, /, data_list):
+    @staticmethod
+    def fn(chain, x: torch.Tensor, /, data_list):
         assert (
-            len(self.linops) == len(data_list)
-        ), f"Length {len(data_list)} data_list does not match length {len(self.linops)} chain linop"
-        for linop, data in zip(reversed(self.linops), reversed(data_list)):
+            len(chain.linops) == len(data_list)
+        ), f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain linop"
+        for linop, data in zip(reversed(chain.linops), reversed(data_list)):
             x = linop.fn(x, *data)
         return x
 
-    def adj_fn(self, x: torch.Tensor, /, data_list):
+    @staticmethod
+    def adj_fn(chain, x: torch.Tensor, /, data_list):
         assert (
-            len(self.linops) == len(data_list)
-        ), f"Length {len(data_list)} data_list does not match length {len(self.linops)} chain adjoint linop"
-        for linop, data in zip(self.linops, data_list):
+            len(chain.linops) == len(data_list)
+        ), f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain adjoint linop"
+        for linop, data in zip(chain.linops, data_list):
             x = linop.adj_fn(x, data)
         return x
 
-    def normal_fn(self, x: torch.Tensor, /, data_list):
+    @staticmethod
+    def normal_fn(chain, x: torch.Tensor, /, data_list):
         # fn does the reversing so it's unnecessary to do it here
         # If the normal hasn't been explicitly formed with`.N`, do things the naive way
-        return self.adj_fn(self.fn(x, data_list), data_list)
+        return chain.adj_fn(chain.fn(x, data_list), data_list)
 
     def split_forward(self, ibatches, obatches):
         """ibatches, obatches specified according to the shape of the
         forward op
         """
         linops = [
-            linop.split(ibatch, obatch)
+            linop.split(linop, ibatch, obatch)
             for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
         ]
         return type(self)(*linops)
@@ -121,31 +126,34 @@ class Chain(NamedLinop):
             inner = linop.normal(inner)
         return inner
 
-    def split(self, *iobatches):
+    @staticmethod
+    def split(chain, *iobatches):
         """For compatibility with NamedLinop"""
         ibatches = iobatches[: len(iobatches) // 2]
         obatches = iobatches[len(iobatches) // 2 :]
-        return self.split_forward(ibatches, obatches)
+        return chain.split_forward(ibatches, obatches)
 
-    def adj_split(self, *iobatches):
+    @staticmethod
+    def adj_split(chain, *iobatches):
         ibatches = iobatches[: len(iobatches) // 2]
         obatches = iobatches[len(iobatches) // 2 :]
-        return self.split_forward(obatches, ibatches).H
+        return chain.split_forward(obatches, ibatches).H
 
-    def split_fn(self, *iobatchesdata):
+    @staticmethod
+    def split_fn(chain, *iobatchesdata):
         """Return split versions of the data that can be passed
         into fn and adj_fn to produce split versions
         """
         ibatches = iobatchesdata[: len(iobatchesdata) // 3]
         obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
         data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
-        return self.split_forward_fn(ibatches, obatches, data)
-
-    def adj_split_fn(self, *iobatchesdata):
+        return chain.split_forward_fn(ibatches, obatches, data)
+    @staticmethod
+    def adj_split_fn(chain, *iobatchesdata):
         ibatches = iobatchesdata[: len(iobatchesdata) // 3]
         obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
         data = iobatchesdata[len(iobatchesdata) * 2 // 3]
-        return self.split_forward_fn(obatches, ibatches, data)
+        return chain.split_forward_fn(obatches, ibatches, data)
 
     def flatten(self):
         return list(self.linops)

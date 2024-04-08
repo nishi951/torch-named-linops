@@ -34,10 +34,6 @@ class NamedShape(NamedDimCollection):
 
     def __init__(self, ishape: Iterable[NDorStr], oshape: Iterable[NDorStr]):
         super().__init__(_ishape=ishape, _oshape=oshape)
-        self._adjoint = None
-        self._normal = None
-        self._unnormal = None
-        self._updated = {k: False for k in self.shapes}
 
     @staticmethod
     def convert(a: Iterable[NDorStr]):
@@ -51,20 +47,22 @@ class NamedShape(NamedDimCollection):
                 new.add(shape, self.lookup(shape))
         return new
 
+    def normal(self):
+        new_oshape = tuple(d.next_unused(self.ishape) for d in self.ishape)
+        new = type(self)(self.ishape, new_oshape)
+        for shape in self.shapes:
+            if shape not in ['_ishape', '_oshape']:
+                new.add(shape, self.lookup(shape))
+        return new
+
     @property
     def ishape(self) -> Tuple[ND]:
         return self._ishape
 
     @ishape.setter
     def ishape(self, val: Iterable[NDorStr]):
-        if self._updated['_ishape']:
-            return
         _ishape = self.convert(val)
         self._ishape = _ishape
-        self._updated['_ishape'] = True
-        if self._adjoint is not None:
-            self._adjoint.oshape = _ishape
-        self._updated['_ishape'] = False
 
     @property
     def oshape(self) -> Tuple[ND]:
@@ -72,21 +70,16 @@ class NamedShape(NamedDimCollection):
 
     @oshape.setter
     def oshape(self, val: Iterable[NDorStr]):
-        if self._updated['_oshape']:
-            return
         _oshape = self.convert(val)
         self._oshape = _oshape
-        self._updated['_oshape'] = True
-        if self._adjoint is not None:
-            self._adjoint.ishape = _oshape
-        self._updated['_oshape'] = False
 
     @property
     def H(self):
-        _adjoint = self.adjoint()
-        _adjoint._adjoint = self
-        self._adjoint = _adjoint
-        return self._adjoint
+        return self.adjoint()
+
+    @property
+    def N(self):
+        return self.normal()
 
     def __repr__(self):
         return f"{self.ishape} -> {self.oshape}"

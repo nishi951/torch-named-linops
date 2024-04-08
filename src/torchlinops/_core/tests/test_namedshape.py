@@ -25,6 +25,11 @@ def test_new_dict():
     shape.ishape = ('E', 'F')
     assert shape.axes_lengths[ND.infer('E')] == 2
 
+def test_random_attribute():
+    shape = NS(('A', 'B', ('C',)))
+    # This should be ok
+    shape.im_size = (64, 64, 64)
+
 def test_diag():
     shape = NS(('A', 'B'))
     assert shape.ishape == ('A', 'B')
@@ -34,17 +39,14 @@ def test_diag():
 
 def test_empty_dim():
     shape = NS(tuple(), ("C",))
-    adj_shape = shape.H
-    #normal_shape = shape.N
+    assert shape.oshape == ("C",)
 
-    adj_shape.ishape = ("C1",)
-    assert shape.oshape == ("C1",)
-
-def test_adjoint():
-    shape = NamedShape(("A", "B"), ("C",))
-    adj_shape = shape.H
-    adj_shape.ishape = ("D",)
-    assert shape.oshape == ("D",)
+# @pytest.mark.skip
+# def test_adjoint():
+#     shape = NamedShape(("A", "B"), ("C",))
+#     adj_shape = shape.H
+#     adj_shape.ishape = ("D",)
+#     assert shape.oshape == ("D",)
 
 def test_product():
     shape1 = NS(("A", "B"), ("C",))
@@ -58,7 +60,7 @@ def test_product():
     assert shape21.ishape == ("E", "F", "A", "B")
     assert shape21.oshape == ("E", "F", "C")
 
-    adj_shape12 = shape12.H
-    adj_shape12.ishape = ("G", "H", "I")
-    assert shape12.ishape == ("A", "B", "H", "I")
-    assert shape12.oshape == ("G", "H", "I")
+    # adj_shape12 = shape12.H
+    # adj_shape12.ishape = ("G", "H", "I")
+    # assert shape12.ishape == ("A", "B", "H", "I")
+    # assert shape12.oshape == ("G", "H", "I")

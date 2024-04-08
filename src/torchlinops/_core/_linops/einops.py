@@ -33,12 +33,15 @@ class Rearrange(NamedLinop):
         self.opattern = opattern
         self.axes_lengths = axes_lengths if axes_lengths is not None else {}
 
+    def copy(self):
+        return type(self)(self.ipattern, self.opattern, self.ishape, self.oshape, self.axes_lengths)
+
     def forward(self, x):
         return self.fn(x)
 
     def normal(self, inner=None):
-        pre = copy(self)
-        post = copy(self).H
+        pre = self.copy()
+        post = self.copy().H
         if inner is not None:
             pre.oshape = inner.ishape
 
@@ -151,9 +154,12 @@ class SumReduce(NamedLinop):
         n_repeats = {d: 1 for d in broadcast_dims}
         return Repeat(n_repeats, self._shape.H, None, broadcast_dims)
 
+    def copy(self):
+        return type(self)(self.ishape, self.oshape)
+
     def normal(self, inner=None):
-        pre = copy(self)
-        post = copy(self).H
+        pre = self.copy()
+        post = self.copy().H
         # New post output shape (post = Repeat)
         # If dimension is not summed over (i.e. it is in pre_adj_ishape) , it stays the same
         # Otherwise, if dimension is summed over, its name changes
@@ -168,7 +174,6 @@ class SumReduce(NamedLinop):
                 if d in post.axes_lengths:
                     # Replace old dimension with a new one
                     new_axes_lengths[new_d] = post.axes_lengths[d]
-        post._shape = deepcopy(post._shape)
         post.oshape = new_oshape
         post.axes_lengths = new_axes_lengths
         if inner is not None:
@@ -191,6 +196,9 @@ class Repeat(NamedLinop):
         self.axes_lengths = n_repeats
         self.axes_lengths = {ND.infer(k): v for k, v in self.axes_lengths.items()}
         self.broadcast_dims = broadcast_dims if broadcast_dims is not None else []
+
+    def copy(self):
+        return type(self)(self.axes_lengths, self.ishape, self.oshape, self.broadcast_dims)
 
     @property
     def adj_ishape(self):
@@ -255,8 +263,8 @@ class Repeat(NamedLinop):
         return SumReduce(self._shape.H, None)
 
     def normal(self, inner=None):
-        pre = copy(self)
-        post = copy(self).H
+        pre = self.copy()
+        post = self.copy().H
         post.oshape = tuple(
             d if d in pre.adj_ishape else d.next_unused(pre.ishape) for d in pre.ishape
         )

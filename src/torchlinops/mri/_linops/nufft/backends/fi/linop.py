@@ -50,8 +50,6 @@ class FiNUFFT(NUFFTBase):
         output: [[S...] N... K...]
         """
         if self.shared_dims == 0:
-            if x.shape[0] == 0:
-                breakpoint()
             return F.nufft(x, sp2fi(trj.clone(), self.im_size))
         assert (
             x.shape[: self.shared_dims] == trj.shape[: self.shared_dims]
@@ -78,8 +76,6 @@ class FiNUFFT(NUFFTBase):
         N = y.shape[self.shared_dims : -nK]
         oshape = (*N, *self.im_size)
         if self.shared_dims == 0:
-            if y.shape[0] == 0:
-                breakpoint()
             return F.nufft_adjoint(y, sp2fi(trj.clone(), self.im_size), oshape)
         assert (
             y.shape[: self.shared_dims] == trj.shape[: self.shared_dims]

@@ -38,16 +38,26 @@ class Dense(NamedLinop):
         """
         super().__init__(NS(ishape, oshape))
         self.weight = weight
-        self.weightshape = ND.infer(weightshape)
-        self.weight_ishape = set(self.weightshape) & set(self.ishape)
-        self.ishape_only = set(self.ishape) - set(self.weight_ishape)
-        self.weight_oshape = set(self.weightshape) & set(self.oshape)
-        self.oshape_only = set(self.oshape) - set(self.weight_oshape)
+        self._shape.add('weightshape', weightshape)
 
-        self.broadcast_dims = broadcast_dims if broadcast_dims is not None else []
+        broadcast_dims = broadcast_dims if broadcast_dims is not None else []
+        self._shape.add('broadcast_dims', broadcast_dims)
 
-        self.forward_einstr = f"{self.einstr(self.ishape)},{self.einstr(self.weightshape)}->{self.einstr(self.oshape)}"
-        self.adj_einstr = f"{self.einstr(self.oshape)},{self.einstr(self.weightshape)}->{self.einstr(self.ishape)}"
+    @property
+    def weightshape(self):
+        return self._shape.lookup('weightshape')
+
+    @property
+    def broadcast_dims(self):
+        return self._shape.lookup('broadcast_dims')
+
+    @property
+    def forward_einstr(self):
+        return f"{self.einstr(self.ishape)},{self.einstr(self.weightshape)}->{self.einstr(self.oshape)}"
+
+    @property
+    def adj_einstr(self):
+        return f"{self.einstr(self.oshape)},{self.einstr(self.weightshape)}->{self.einstr(self.ishape)}"
 
     @staticmethod
     def einstr(arr):
@@ -69,7 +79,7 @@ class Dense(NamedLinop):
         return self.adj_fn(self.fn(x, weight), weight)
 
     def adjoint(self):
-        adj = type(self)(self.weight.conj(), self.weightshape, self._shape.H, None)
+        adj = type(self)(self.weight.conj(), self.weightshape, self._shape.H.ishape, self._shape.H.oshape, self.broadcast_dims)
         return adj
 
     def normal(self, inner=None):
@@ -86,6 +96,20 @@ class Dense(NamedLinop):
 
         New weight is attained as
         einsum(weight.conj(), weight, 'A1 B1 C D, A B C D -> A B A1 B1')
+
+        -----
+        ishape: [C A]
+        oshape: [C1 A]
+        wshape = [C C1]
+
+        Needs to become
+        ishape: [C A]
+        oshape: [C2 A]
+        wshape = [C C2]
+
+        einsum(weight.conj(), weight, 'C1 C2, C C1 -> C C2)
+
+
         """
         if inner is None:
             # Convert weight
@@ -94,11 +118,12 @@ class Dense(NamedLinop):
             for dim in self.weightshape:
                 if dim in self.ishape:
                     # Dense-like
-                    new_dim = dim.next_unused(self.ishape)
-                    weight_conj_shape.append(dim.next_unused(self.ishape))
+                    # Get the new name of the output dim
+                    new_dim = dim.next_unused(self.ishape+self.oshape)
+                    weight_conj_shape.append(new_dim)
                     new_weightshape.extend([dim, new_dim])
                 else:
-                    # Keep/sum over
+                    # Keep/sum over the output dims of the weight
                     weight_conj_shape.append(dim)
             new_weight_einstr = f"{self.einstr(weight_conj_shape)},{self.einstr(self.weightshape)}->{self.einstr(new_weightshape)}"
             new_weight = einsum(self.weight.conj(), self.weight, new_weight_einstr)
@@ -106,13 +131,13 @@ class Dense(NamedLinop):
             new_oshape = []
             for dim in self.ishape:
                 if dim in self.weightshape:
-                    new_oshape.append(dim + 1)
+                    # Re-create the new output dim here
+                    # But now in the order of the ishape
+                    new_oshape.append(dim.next_unused(self.ishape+self.oshape))
                 else:
                     new_oshape.append(dim)
-            new_shape = copy(self._shape).N
-            new_shape.oshape = new_oshape
             normal = type(self)(
-                new_weight, new_weightshape, new_shape.ishape, new_shape.oshape
+                new_weight, new_weightshape, self.ishape, new_oshape
             )
             return normal
         return super().normal(inner)

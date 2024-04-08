@@ -10,22 +10,22 @@ from torchlinops._core._shapes import get2dor3d
 from .toeplitz import toeplitz
 
 
-class NamedNufftShape(NamedShape):
-    def __init__(
-        self,
-        shared_shape: Iterable,
-        batch_shape: Iterable,
-        img_shape: Iterable,
-        ksp_shape: Iterable,
-    ):
-        shared_shape = list(ND.infer(shared_batch_shape))
-        batch_shape = list(ND.infer(in_batch_shape))
-        im_shape = list(ND.infer(get2dor2d(im_size)))
-        ksp_shape = list(ND.infer(out_batch_shape))
-        diag_ishape = shared_shape + batch_shape
-        dense_ishape = img_shape
-        dense_oshape = ksp_shape
-        super().__init__(diag_ishape, dense_ishape, dense_oshape)
+# class NamedNufftShape(NamedShape):
+#     def __init__(
+#         self,
+#         shared_shape: Iterable,
+#         batch_shape: Iterable,
+#         img_shape: Iterable,
+#         ksp_shape: Iterable,
+#     ):
+#         shared_shape = list(ND.infer(shared_batch_shape))
+#         batch_shape = list(ND.infer(in_batch_shape))
+#         im_shape = list(ND.infer(get2dor2d(im_size)))
+#         ksp_shape = list(ND.infer(out_batch_shape))
+#         diag_ishape = shared_shape + batch_shape
+#         dense_ishape = img_shape
+#         dense_oshape = ksp_shape
+#         super().__init__(diag_ishape, dense_ishape, dense_oshape)
 
 
 class NUFFTBase(NamedLinop):
@@ -104,12 +104,19 @@ class NUFFTBase(NamedLinop):
             pre = copy(self)
             post = copy(self).H
             return post @ pre
-
         return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
-        split = copy(self)
-        split.trj.data = self.split_forward_fn(ibatch, obatch, self.trj)
+        return type(self)(
+            trj=self.split_forward_fn(ibatch, obatch, self.trj),
+            im_size=self.im_size,
+            shared_batch_shape=self.shared_batch_shape,
+            in_batch_shape=self.in_batch_shape,
+            out_batch_shape=self.out_batch_shape,
+            extras=self.extras,
+            toeplitz=self.toeplitz,
+            toeplitz_oversamp=self.toeplitz_oversamp,
+        )
         return split
 
     def split_forward_fn(self, ibatch, obatch, /, trj):
