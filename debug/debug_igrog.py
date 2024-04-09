@@ -21,8 +21,8 @@ def main(device_idx: int = -1):
     num_coils = 8
     img = sp.shepp_logan(im_size).astype(np.complex64)
     # trj = np.round(spiral_2d(im_size))
-    trj = spiral_2d(im_size) # Noncartesian
-    trj = rearrange(trj, 'K R D -> R K D')
+    trj = spiral_2d(im_size)  # Noncartesian
+    trj = rearrange(trj, "K R D -> R K D")
     dcf = mri.pipe_menon_dcf(
         trj, im_size, device=sp.Device(device_idx), show_pbar=False
     )
@@ -85,29 +85,32 @@ def main(device_idx: int = -1):
     )
     cgsense_gridded_recon = cgsense_gridded_recon_app.run()
     # Debug
-    matplotlib.use('WebAgg')
+    matplotlib.use("WebAgg")
     fig, ax = plt.subplots(nrows=2, ncols=2)
     ax.flat[0].imshow(np.abs(img))
-    ax.flat[0].set_title('Ground truth')
+    ax.flat[0].set_title("Ground truth")
     ax.flat[1].imshow(np.abs(cgsense_recon.detach().cpu().numpy()))
-    ax.flat[1].set_title('CGSENSE Recon')
+    ax.flat[1].set_title("CGSENSE Recon")
     ax.flat[2].imshow(np.abs(cgsense_rounded_recon.detach().cpu().numpy()))
-    ax.flat[2].set_title('CGSENSE Rounded Recon')
+    ax.flat[2].set_title("CGSENSE Rounded Recon")
     ax.flat[3].imshow(np.abs(cgsense_gridded_recon.detach().cpu().numpy()))
-    ax.flat[3].set_title('CGSENSE igrog Recon')
+    ax.flat[3].set_title("CGSENSE igrog Recon")
 
     fig, ax = plt.subplots(nrows=2, ncols=2)
     ax.flat[0].imshow(np.angle(img), vmin=-np.pi, vmax=np.pi)
-    ax.flat[0].set_title('Ground truth')
-    ax.flat[1].imshow(np.angle(cgsense_recon.detach().cpu().numpy()),
-                      vmin=-np.pi, vmax=np.pi)
-    ax.flat[1].set_title('CGSENSE Recon')
-    ax.flat[2].imshow(np.angle(cgsense_rounded_recon.detach().cpu().numpy()),
-                      vmin=-np.pi, vmax=np.pi)
-    ax.flat[2].set_title('CGSENSE Rounded Recon')
-    ax.flat[3].imshow(np.angle(cgsense_gridded_recon.detach().cpu().numpy()),
-                      vmin=-np.pi, vmax=np.pi)
-    ax.flat[3].set_title('CGSENSE igrog Recon')
+    ax.flat[0].set_title("Ground truth")
+    ax.flat[1].imshow(
+        np.angle(cgsense_recon.detach().cpu().numpy()), vmin=-np.pi, vmax=np.pi
+    )
+    ax.flat[1].set_title("CGSENSE Recon")
+    ax.flat[2].imshow(
+        np.angle(cgsense_rounded_recon.detach().cpu().numpy()), vmin=-np.pi, vmax=np.pi
+    )
+    ax.flat[2].set_title("CGSENSE Rounded Recon")
+    ax.flat[3].imshow(
+        np.angle(cgsense_gridded_recon.detach().cpu().numpy()), vmin=-np.pi, vmax=np.pi
+    )
+    ax.flat[3].set_title("CGSENSE igrog Recon")
     plt.show()
     breakpoint()
     # Run FISTA+LLR Recon
@@ -147,5 +150,5 @@ def main(device_idx: int = -1):
     breakpoint()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tyro.cli(main)

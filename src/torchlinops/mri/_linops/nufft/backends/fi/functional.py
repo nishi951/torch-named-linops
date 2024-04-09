@@ -5,6 +5,7 @@ Does not support differentiation w.r.t. coordinates
 Standalone file (no NamedLinop)
 
 """
+
 from math import prod, sqrt
 from typing import Tuple, Optional
 

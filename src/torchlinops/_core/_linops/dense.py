@@ -38,18 +38,18 @@ class Dense(NamedLinop):
         """
         super().__init__(NS(ishape, oshape))
         self.weight = weight
-        self._shape.add('weightshape', weightshape)
+        self._shape.add("weightshape", weightshape)
 
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        self._shape.add('broadcast_dims', broadcast_dims)
+        self._shape.add("broadcast_dims", broadcast_dims)
 
     @property
     def weightshape(self):
-        return self._shape.lookup('weightshape')
+        return self._shape.lookup("weightshape")
 
     @property
     def broadcast_dims(self):
-        return self._shape.lookup('broadcast_dims')
+        return self._shape.lookup("broadcast_dims")
 
     @property
     def forward_einstr(self):
@@ -79,7 +79,13 @@ class Dense(NamedLinop):
         return self.adj_fn(self.fn(x, weight), weight)
 
     def adjoint(self):
-        adj = type(self)(self.weight.conj(), self.weightshape, self._shape.H.ishape, self._shape.H.oshape, self.broadcast_dims)
+        adj = type(self)(
+            self.weight.conj(),
+            self.weightshape,
+            self._shape.H.ishape,
+            self._shape.H.oshape,
+            self.broadcast_dims,
+        )
         return adj
 
     def normal(self, inner=None):
@@ -119,7 +125,7 @@ class Dense(NamedLinop):
                 if dim in self.ishape:
                     # Dense-like
                     # Get the new name of the output dim
-                    new_dim = dim.next_unused(self.ishape+self.oshape)
+                    new_dim = dim.next_unused(self.ishape + self.oshape)
                     weight_conj_shape.append(new_dim)
                     new_weightshape.extend([dim, new_dim])
                 else:
@@ -133,12 +139,10 @@ class Dense(NamedLinop):
                 if dim in self.weightshape:
                     # Re-create the new output dim here
                     # But now in the order of the ishape
-                    new_oshape.append(dim.next_unused(self.ishape+self.oshape))
+                    new_oshape.append(dim.next_unused(self.ishape + self.oshape))
                 else:
                     new_oshape.append(dim)
-            normal = type(self)(
-                new_weight, new_weightshape, self.ishape, new_oshape
-            )
+            normal = type(self)(new_weight, new_weightshape, self.ishape, new_oshape)
             return normal
         return super().normal(inner)
 

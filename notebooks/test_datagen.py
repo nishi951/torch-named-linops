@@ -19,12 +19,12 @@ def __():
     import matplotlib
     import matplotlib.pyplot as plt
 
-
     from torchlinops.mri.recon.pcg import CGHparams, ConjugateGradient
     from torchlinops.core.linops import Diagonal, Rearrange, Identity, NamedLinop
     from torchlinops.mri.linops import NUFFT, TorchNUFFT, SENSE
 
     from mr_sim.trajectory.trj import spiral_2d, tgas_spi
+
     return (
         CGHparams,
         ConjugateGradient,
@@ -60,7 +60,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md('## Simulation Phase')
+    mo.md("## Simulation Phase")
     return
 
 
@@ -76,12 +76,15 @@ def __(np, sp, spiral_2d, tgas_spi):
         elif len(im_size) == 3:
             trj = tgas_spi(im_size, ntr=500)
         else:
-            raise ValueError(f'Unsupported image dimension: {len(im_size)} (size {im_size})')
+            raise ValueError(
+                f"Unsupported image dimension: {len(im_size)} (size {im_size})"
+            )
 
         # Coils
         mps = sp.mri.birdcage_maps((num_coils, *im_size))
         return img, trj, mps
-    return gen_mri_dataset,
+
+    return (gen_mri_dataset,)
 
 
 @app.cell
@@ -91,41 +94,47 @@ def __(NUFFT, SENSE, TorchNUFFT, Tuple, np, rearrange, torch):
         i.e. in [-N/2, N/2] and shape [..., K, D]
         """
         trj_tkbn = torch.from_numpy(trj)
-        trj_tkbn = trj_tkbn / torch.tensor(im_size).float() * (2*np.pi)
-        trj_tkbn = rearrange(trj_tkbn, '... K D -> ... D K')
+        trj_tkbn = trj_tkbn / torch.tensor(im_size).float() * (2 * np.pi)
+        trj_tkbn = rearrange(trj_tkbn, "... K D -> ... D K")
         return trj_tkbn
 
     def get_linop(im_size: Tuple, trj: np.ndarray, mps: np.ndarray):
-        trj = rearrange(trj, 'K R D -> R K D')
+        trj = rearrange(trj, "K R D -> R K D")
         trj_tkbn = to_tkbn(trj, im_size)
-        F = TorchNUFFT(trj_tkbn, im_size,
-                  in_batch_shape=('C',),
-                  out_batch_shape=('R',),
-                 )
+        F = TorchNUFFT(
+            trj_tkbn,
+            im_size,
+            in_batch_shape=("C",),
+            out_batch_shape=("R",),
+        )
         S = SENSE(torch.from_numpy(mps).to(torch.complex64))
         # R = Repeat(trj_tkbn.shape[0], dim=0, ishape=('C', 'Nx', 'Ny'), oshape=('R', 'C', 'Nx', 'Ny'))
         return F @ S
 
     def get_sp_linop(im_size: Tuple, trj: np.ndarray, mps: np.ndarray):
-        trj = rearrange(trj, 'K R D -> R K D')
+        trj = rearrange(trj, "K R D -> R K D")
         trj = torch.from_numpy(trj)
         # trj_tkbn = to_tkbn(trj, im_size)
-        F = NUFFT(trj, im_size,
-                  in_batch_shape=('C',),
-                  out_batch_shape=('R',),
-                 )
+        F = NUFFT(
+            trj,
+            im_size,
+            in_batch_shape=("C",),
+            out_batch_shape=("R",),
+        )
         S = SENSE(torch.from_numpy(mps).to(torch.complex64))
         # R = Repeat(trj_tkbn.shape[0], dim=0, ishape=('C', 'Nx', 'Ny'), oshape=('R', 'C', 'Nx', 'Ny'))
         return F @ S
+
     return get_linop, get_sp_linop, to_tkbn
 
 
 @app.cell
 def __(NamedLinop, gen_mri_dataset, get_sp_linop, np, torch):
-    def simulate(A: NamedLinop, img: np.ndarray, sigma: float = 0.):
+    def simulate(A: NamedLinop, img: np.ndarray, sigma: float = 0.0):
         ksp = linop(torch.from_numpy(img).to(torch.complex64))
         ksp = ksp + sigma * torch.randn_like(ksp)
         return ksp
+
     im_size = (100, 100)
     num_coils = 8
     img, trj, mps = gen_mri_dataset(im_size, num_coils)
@@ -136,8 +145,8 @@ def __(NamedLinop, gen_mri_dataset, get_sp_linop, np, torch):
 
 @app.cell
 def __(mo, mps, trj):
-    coil_idx = mo.ui.slider(start=0, stop=mps.shape[0]-1, label='Coil Index')
-    trj_idx = mo.ui.slider(start=0, stop=trj.shape[1]-1, label='Trajectory Index')
+    coil_idx = mo.ui.slider(start=0, stop=mps.shape[0] - 1, label="Coil Index")
+    trj_idx = mo.ui.slider(start=0, stop=trj.shape[1] - 1, label="Trajectory Index")
     mo.vstack([trj_idx, coil_idx])
     return coil_idx, trj_idx
 
@@ -146,14 +155,14 @@ def __(mo, mps, trj):
 def __(coil_idx, img, mps, np, plt, trj, trj_idx):
     fig, ax = plt.subplots(nrows=1, ncols=3)
     ax[0].imshow(np.abs(img))
-    ax[0].set_title('Phantom')
+    ax[0].set_title("Phantom")
     ax[1].plot(trj[:, trj_idx.value, 0], trj[:, trj_idx.value, 1])
-    ax[1].axis('square')
-    ax[1].set_xlim(-img.shape[0]//2, img.shape[0]//2)
-    ax[1].set_ylim(-img.shape[1]//2, img.shape[1]//2)
-    ax[1].set_title(f'Trj[{trj_idx.value}]')
+    ax[1].axis("square")
+    ax[1].set_xlim(-img.shape[0] // 2, img.shape[0] // 2)
+    ax[1].set_ylim(-img.shape[1] // 2, img.shape[1] // 2)
+    ax[1].set_title(f"Trj[{trj_idx.value}]")
     ax[2].imshow(np.abs(mps[coil_idx.value]))
-    ax[2].set_title(f'Mps[{coil_idx.value}]')
+    ax[2].set_title(f"Mps[{coil_idx.value}]")
     fig
     return ax, fig
 
@@ -163,21 +172,22 @@ def __(coil_idx, ksp, np, plt, trj_idx):
     # Plot simulated kspace
     readout = ksp[trj_idx.value, coil_idx.value].detach().cpu().numpy()
     plt.plot(np.abs(readout))
-    plt.xlabel('Readout Sample')
-    plt.ylabel('Abs(readout)')
-    plt.title(f'Ksp[trj[{trj_idx.value}], coil[{coil_idx.value}]]')
-    return readout,
+    plt.xlabel("Readout Sample")
+    plt.ylabel("Abs(readout)")
+    plt.title(f"Ksp[trj[{trj_idx.value}], coil[{coil_idx.value}]]")
+    return (readout,)
 
 
 @app.cell
 def __(mo):
-    mo.md('## Reconstruction Phase')
+    mo.md("## Reconstruction Phase")
     return
 
 
 @app.cell
 def __(mo):
-    mo.md("""
+    mo.md(
+        """
     In this phase, we only make use of:
 
     - The kspace data `ksp` (numpy)
@@ -189,7 +199,8 @@ def __(mo):
     - The sensitivity maps `mps`
 
     Once we do that, we can reconstruct the image.
-    """)
+    """
+    )
     return
 
 
@@ -210,26 +221,25 @@ def __(
     def sp_fft(x, dim=None):
         """Matches Sigpy's fft, but in torch"""
         x = fft.ifftshift(x, dim=dim)
-        x = fft.fftn(x, dim=dim, norm='ortho')
+        x = fft.fftn(x, dim=dim, norm="ortho")
         x = fft.fftshift(x, dim=dim)
         return x
 
     def sp_ifft(x, dim=None, norm=None):
         """Matches Sigpy's fft adjoint, but in torch"""
         x = fft.ifftshift(x, dim=dim)
-        x = fft.ifftn(x, dim=dim, norm='ortho')
+        x = fft.ifftn(x, dim=dim, norm="ortho")
         x = fft.fftshift(x, dim=dim)
         return x
 
     def truncate_trj_ksp(trj, ksp, max_k, dcf: Optional[np.ndarray] = None):
         mask = np.all(np.abs(trj) <= max_k, axis=-1)
-        trj_truncated = trj[mask, :] # [B... K D] -> [K' D]
-        ksp_truncated = ksp[:, mask] # [C B... K] -> [C K']
+        trj_truncated = trj[mask, :]  # [B... K D] -> [K' D]
+        ksp_truncated = ksp[:, mask]  # [C B... K] -> [C K']
         if dcf is not None:
-            dcf_truncated = dcf[mask] # [B... K] -> [K']
+            dcf_truncated = dcf[mask]  # [B... K] -> [K']
             return trj_truncated, ksp_truncated, dcf_truncated
         return trj_truncated, ksp_truncated
-
 
     def inufft(
         omega: torch.Tensor,
@@ -237,7 +247,7 @@ def __(
         im_size: Tuple,
         dcf: Optional[torch.Tensor] = None,
         num_iter=10,
-        device='cpu',
+        device="cpu",
     ):
         """Inverse NUFFT aka least squares via PCG
         omega: [B... D K] tkbn-style tensor
@@ -247,17 +257,18 @@ def __(
         hparams = CGHparams(num_iter=num_iter)
         device = ksp.device
         C = ksp.shape[0]
-        batch = tuple(f'B{i}' for i in range(len(ksp.shape[1:-1])))
+        batch = tuple(f"B{i}" for i in range(len(ksp.shape[1:-1])))
         # Create simple linop
-        F = TorchNUFFT(omega, im_size,
-                  in_batch_shape=('C',),
-                  out_batch_shape=batch).to(device)
+        F = TorchNUFFT(omega, im_size, in_batch_shape=("C",), out_batch_shape=batch).to(
+            device
+        )
         if dcf is not None:
-            D = Diagonal(torch.sqrt(dcf),
-                         ioshape=('C', *batch, 'K'),
-                        ).to(device)
+            D = Diagonal(
+                torch.sqrt(dcf),
+                ioshape=("C", *batch, "K"),
+            ).to(device)
         else:
-            D = Identity(ioshape=('C', *batch, 'K')).to(device)
+            D = Identity(ioshape=("C", *batch, "K")).to(device)
         A = D @ F
         AHb = A.H(D(ksp))
         cg = ConjugateGradient(A.N, hparams).to(device)
@@ -268,14 +279,14 @@ def __(
         ksp,
         acs_size: int,
         dcf: Optional[np.ndarray] = None,
-        device: torch.device = 'cpu',
+        device: torch.device = "cpu",
     ):
         D = trj.shape[-1]
         cal_size = (acs_size,) * D
         if dcf is not None:
-            trj, ksp, dcf = truncate_trj_ksp(trj, ksp, max_k=acs_size/2, dcf=dcf)
+            trj, ksp, dcf = truncate_trj_ksp(trj, ksp, max_k=acs_size / 2, dcf=dcf)
         else:
-            trj, ksp = truncate_trj_ksp(trj, ksp, max_k=acs_size/2)
+            trj, ksp = truncate_trj_ksp(trj, ksp, max_k=acs_size / 2)
         omega = to_tkbn(trj, cal_size)
         ksp = torch.from_numpy(ksp).to(torch.complex64)
         if dcf is not None:
@@ -283,21 +294,23 @@ def __(
         img_cal = inufft(omega, ksp, cal_size, dcf=dcf, num_iter=10, device=device)
         kgrid = sp_fft(img_cal, dim=(-2, -1))
         return kgrid.detach().cpu().numpy()
+
     return inufft, sp_fft, sp_ifft, synth_cal, truncate_trj_ksp
 
 
 @app.cell
 def __(im_size, ksp, mri, rearrange, sp, synth_cal, torch, trj):
-    def get_mps_kgrid(trj, ksp, im_size, calib_width, kernel_width, device_idx, **espirit_kwargs):
-        """
-        """
+    def get_mps_kgrid(
+        trj, ksp, im_size, calib_width, kernel_width, device_idx, **espirit_kwargs
+    ):
+        """ """
         if len(espirit_kwargs) == 0:
             # Defaults
             espirit_kwargs = {
-                'crop': 0.8,
-                'thresh': 0.05,
+                "crop": 0.8,
+                "thresh": 0.05,
             }
-        device = torch.device(f'cuda:{device_idx}' if device_idx >= 0 else 'cpu')
+        device = torch.device(f"cuda:{device_idx}" if device_idx >= 0 else "cpu")
         dcf = mri.pipe_menon_dcf(trj, im_size, device=sp.Device(device_idx))
         xp = sp.get_device(dcf).xp
         dcf /= xp.linalg.norm(dcf)
@@ -314,7 +327,7 @@ def __(im_size, ksp, mri, rearrange, sp, synth_cal, torch, trj):
 
     acs_size = 24
     kernel_width = 7
-    trj_np = rearrange(trj, 'K R D -> R K D')
+    trj_np = rearrange(trj, "K R D -> R K D")
     ksp_np = ksp.detach().cpu().numpy()
     mps_recon, kgrid = get_mps_kgrid(
         trj_np,
@@ -322,7 +335,7 @@ def __(im_size, ksp, mri, rearrange, sp, synth_cal, torch, trj):
         im_size,
         calib_width=acs_size,
         kernel_width=kernel_width,
-        device_idx=0
+        device_idx=0,
     )
     return (
         acs_size,
@@ -343,21 +356,21 @@ def __(mps_recon):
 
 @app.cell
 def __(mo, mps_recon):
-    mps_idx = mo.ui.slider(start=0, stop=mps_recon.shape[0]-1, label='mps recon')
+    mps_idx = mo.ui.slider(start=0, stop=mps_recon.shape[0] - 1, label="mps recon")
     mps_idx
-    return mps_idx,
+    return (mps_idx,)
 
 
 @app.cell
 def __(mo):
-    mo.md('### Reconstructed maps')
+    mo.md("### Reconstructed maps")
     return
 
 
 @app.cell
 def __(mps_idx, mps_recon, np, plt):
     plt.imshow(np.abs(mps_recon[mps_idx.value]))
-    plt.title(f'Mps[{mps_idx.value}]')
+    plt.title(f"Mps[{mps_idx.value}]")
     return
 
 
@@ -369,8 +382,10 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    num_iter = mo.ui.slider(start=1, stop=20, label='CG Iters')
-    lam = mo.ui.dropdown(options=['1e-2', '1e-1', '1e0', '1e1'], label='Lambda', value='1e-1')
+    num_iter = mo.ui.slider(start=1, stop=20, label="CG Iters")
+    lam = mo.ui.dropdown(
+        options=["1e-2", "1e-1", "1e0", "1e1"], label="Lambda", value="1e-1"
+    )
     mo.vstack([num_iter, lam])
     return lam, num_iter
 
@@ -404,32 +419,32 @@ def __(
         num_iter=10,
         device_idx: int = -1,
     ):
-        device = torch.device(
-            f'cuda:{device_idx}' if device_idx >= 0 else 'cpu'
-        )
+        device = torch.device(f"cuda:{device_idx}" if device_idx >= 0 else "cpu")
         im_size = mps.shape[1:]
         ksp = torch.from_numpy(ksp).to(device)
         omega = to_tkbn(trj, im_size).to(device).to(torch.float32)
         mps = torch.from_numpy(mps).to(device).to(torch.complex64)
-        batch = tuple(f'B{i}' for i in range(len(ksp.shape[1:-1])))
+        batch = tuple(f"B{i}" for i in range(len(ksp.shape[1:-1])))
         # Create simple linop
-        F = TorchNUFFT(omega, im_size,
-                  in_batch_shape=('C',),
-                  out_batch_shape=batch).to(device)
+        F = TorchNUFFT(omega, im_size, in_batch_shape=("C",), out_batch_shape=batch).to(
+            device
+        )
         if dcf is not None:
-            D = Diagonal(torch.sqrt(dcf),
-                         ioshape=('C', *batch, 'K'),
-                        ).to(device)
+            D = Diagonal(
+                torch.sqrt(dcf),
+                ioshape=("C", *batch, "K"),
+            ).to(device)
         else:
-            D = Identity(ioshape=('C', *batch, 'K')).to(device)
+            D = Identity(ioshape=("C", *batch, "K")).to(device)
         S = SENSE(mps).to(device)
 
         A = (D @ F @ S).to(device)
         AHb = A.H(D(ksp)).to(device)
+
         def A_reg(x):
-            return A.N(x) + lam*x
-        cg = ConjugateGradient(A_reg, hparams=CGHparams(num_iter=num_iter)
-    ).to(device)
+            return A.N(x) + lam * x
+
+        cg = ConjugateGradient(A_reg, hparams=CGHparams(num_iter=num_iter)).to(device)
         recon = cg(AHb, AHb)
         return recon
 
@@ -442,48 +457,56 @@ def __(
         num_iter=10,
         device_idx: int = -1,
     ):
-        device = torch.device(
-            f'cuda:{device_idx}' if device_idx >= 0 else 'cpu'
-        )
+        device = torch.device(f"cuda:{device_idx}" if device_idx >= 0 else "cpu")
         im_size = mps.shape[1:]
         ksp = torch.from_numpy(ksp).to(device)
         # omega = to_tkbn(trj, im_size).to(device).to(torch.float32)
         mps = torch.from_numpy(mps).to(device).to(torch.complex64)
-        batch = tuple(f'B{i}' for i in range(len(ksp.shape[1:-1])))
+        batch = tuple(f"B{i}" for i in range(len(ksp.shape[1:-1])))
         # Create simple linop
-        F = NUFFT(torch.from_numpy(trj), im_size,
-                  in_batch_shape=('C',),
-                  out_batch_shape=batch).to(device)
+        F = NUFFT(
+            torch.from_numpy(trj), im_size, in_batch_shape=("C",), out_batch_shape=batch
+        ).to(device)
         if dcf is not None:
-            D = Diagonal(torch.sqrt(dcf),
-                         ioshape=('C', *batch, 'K'),
-                        ).to(device)
+            D = Diagonal(
+                torch.sqrt(dcf),
+                ioshape=("C", *batch, "K"),
+            ).to(device)
         else:
-            D = Identity(ioshape=('C', *batch, 'K')).to(device)
+            D = Identity(ioshape=("C", *batch, "K")).to(device)
         S = SENSE(mps).to(device)
 
         A = (D @ F @ S).to(device)
         AHb = A.H(D(ksp)).to(device)
+
         def A_reg(x):
-            return A.N(x) + lam*x
-        cg = ConjugateGradient(A_reg, hparams=CGHparams(num_iter=num_iter)
-    ).to(device)
+            return A.N(x) + lam * x
+
+        cg = ConjugateGradient(A_reg, hparams=CGHparams(num_iter=num_iter)).to(device)
         recon = cg(AHb, AHb)
         return recon
 
     @functools.cache
     def recon_interactive(num_iter: int, lam: float):
-        return sp_cgsense(ksp_np, trj_np, mps_recon, lam=lam, num_iter=num_iter, device_idx=0).detach().cpu().numpy()
+        return (
+            sp_cgsense(
+                ksp_np, trj_np, mps_recon, lam=lam, num_iter=num_iter, device_idx=0
+            )
+            .detach()
+            .cpu()
+            .numpy()
+        )
+
     return cgsense, recon_interactive, sp_cgsense
 
 
 @app.cell
 def __(lam, np, num_iter, plt, recon_interactive):
-    #recon = cgsense(ksp_np, trj_np, mps_recon, device_idx=0)
+    # recon = cgsense(ksp_np, trj_np, mps_recon, device_idx=0)
     recon = recon_interactive(num_iter.value, float(lam.value))
     plt.imshow(np.abs(recon))
-    plt.title('Recon (Sigpy backend)')
-    return recon,
+    plt.title("Recon (Sigpy backend)")
+    return (recon,)
 
 
 @app.cell
@@ -495,14 +518,8 @@ def __(mo):
 @app.cell
 def __(mri, sp):
     import sigpy.linop as sp_linop
-    def run_sigpy_sense_recon(
-        ksp,
-        trj,
-        mps,
-        dcf,
-        lam=0.1,
-        device_idx=-1
-    ):
+
+    def run_sigpy_sense_recon(ksp, trj, mps, dcf, lam=0.1, device_idx=-1):
         """
         trj: [B... K D]
         mps: [C *im_size]
@@ -511,8 +528,10 @@ def __(mri, sp):
 
         def mvd(x):
             return sp.to_device(x, sp.Device(device_idx))
+
         def mvc(x):
             return sp.to_device(x, sp.cpu_device)
+
         xp = sp.Device(device_idx).xp
         im_size = mps.shape[1:]
         if dcf is None:
@@ -529,12 +548,13 @@ def __(mri, sp):
             lamda=lam,
             weights=mvd(dcf),
             coord=mvd(trj),
-            device=sp.Device(device_idx)
+            device=sp.Device(device_idx),
         ).run()
         # F = sp_linop.TorchNUFFT(mps.shape, mvd(trj))
         # S = sp_linop.Multiply(im_size, mvd(mps))
         # D = sp_linop.Multiply(dcf.shape, mvd(xp.sqrt(dcf)))
         return recon, A, dcf
+
     return run_sigpy_sense_recon, sp_linop
 
 
@@ -543,9 +563,10 @@ def __(ksp, mps, rearrange, run_sigpy_sense_recon, trj):
     print(ksp.shape)
     print(trj.shape)
     print(mps.shape)
-    ksp_sp = rearrange(ksp.detach().cpu().numpy(),
-                      'C R K -> C K R')
-    recon_sp, A, dcf = run_sigpy_sense_recon(ksp_sp, trj, mps, None, lam=0.1, device_idx=0)
+    ksp_sp = rearrange(ksp.detach().cpu().numpy(), "C R K -> C K R")
+    recon_sp, A, dcf = run_sigpy_sense_recon(
+        ksp_sp, trj, mps, None, lam=0.1, device_idx=0
+    )
     return A, dcf, ksp_sp, recon_sp
 
 
@@ -564,11 +585,14 @@ def __(mo):
 @app.cell
 def __(CGHparams, ConjugateGradient, ksp_sp, sp, torch):
     from sigpy.app import LinearLeastSquares
+
     def sigpy_pytorch_solve(A, dcf, ksp, device_idx):
         def mvd(x):
             return sp.to_device(x, sp.Device(device_idx))
+
         def mvc(x):
             return sp.to_device(x, sp.cpu_device)
+
         xp = sp.Device(device_idx).xp
         AHA = sp.to_pytorch_function(A.N, input_iscomplex=True, output_iscomplex=True)
         AHb = A.H(xp.sqrt(mvd(dcf)) * mvd(ksp_sp))
@@ -576,13 +600,14 @@ def __(CGHparams, ConjugateGradient, ksp_sp, sp, torch):
         cg = ConjugateGradient(AHA.apply, hparams=CGHparams(num_iter=100))
         recon = cg(AHb, AHb)
         return torch.view_as_complex(recon)
+
     return LinearLeastSquares, sigpy_pytorch_solve
 
 
 @app.cell
 def __(A, dcf, ksp_sp, sigpy_pytorch_solve):
     recon_sp2 = sigpy_pytorch_solve(A, dcf, ksp_sp, device_idx=0)
-    return recon_sp2,
+    return (recon_sp2,)
 
 
 @app.cell

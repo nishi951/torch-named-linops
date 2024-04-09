@@ -1,4 +1,5 @@
 """Recursive mapping on data with function"""
+
 from typing import Callable, Mapping, Optional
 
 import torch

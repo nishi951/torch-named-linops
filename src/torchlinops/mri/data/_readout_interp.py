@@ -2,6 +2,7 @@
 https://github.com/danielabrahamgit/igrog/blob/main/src/igrog/readout_interp.py
 Retrieved 25 March 2024
 """
+
 from dataclasses import dataclass
 from typing import Optional
 

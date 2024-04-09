@@ -291,7 +291,10 @@ class CalibRegion:
                     full_ksp, (full_ksp.shape[0], *spatial_oshape)
                 )
             ksp_cal_pre_KB = ksp_cal_pre_KB.reshape(
-                (*output.shape[:-d], *spatial_oshape)
+                (
+                    *output.shape[:-d],
+                    *spatial_oshape,
+                )
             )
             return ksp_cal_pre_KB
 

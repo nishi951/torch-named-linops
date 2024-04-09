@@ -78,7 +78,6 @@ class Batch(NamedLinop):
             y[obatches[0]] += ybatch
         return y
 
-
     def make_tiles(self):
         # Complete the size specifications
         for dim, total in zip(self.ishape, x.shape):
@@ -87,7 +86,6 @@ class Batch(NamedLinop):
         ishapes = [linop.ishape for linop in self.linop.flatten()]
         oshapes = [linop.oshape for linop in self.linop.flatten()]
         return ishapes, oshapes
-
 
     def split_forward(self):
         # Complete the size specifications

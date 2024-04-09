@@ -70,8 +70,9 @@ def __(np, rearrange):
     # img = sp.shepp_logan((64, 64))
     img = np.ones((64, 64))
     # mask = np.random.randint(0, 64, size=(32, 32 ,2))
-    all_inds = rearrange(np.stack(np.meshgrid(range(64), range(64), indexing='ij')),
-                     'd x y -> (x y) d')
+    all_inds = rearrange(
+        np.stack(np.meshgrid(range(64), range(64), indexing="ij")), "d x y -> (x y) d"
+    )
     inds_idx = np.random.choice(64**2, size=32**2, replace=False)
     inds = all_inds[inds_idx]
     mask = inds.reshape(32, 32, 2) - 32
@@ -87,20 +88,25 @@ def __(img, np, plt):
 @app.cell
 def __(copy, img, mask, np, plt):
     masked = copy.deepcopy(img)
-    masked[mask[..., 0], mask[..., 1]] = 0.
+    masked[mask[..., 0], mask[..., 1]] = 0.0
     plt.imshow(np.abs(masked))
-    return masked,
+    return (masked,)
 
 
 @app.cell
 def __(mask, multi_grid, np, plt, torch):
     gridded_vals = np.ones(mask.shape[:-1])
-    #filled = copy.deepcopy(masked)
-    filled = multi_grid(
-        torch.from_numpy(gridded_vals),
-        torch.from_numpy(mask),
-        final_size=(64, 64),
-    ).detach().cpu().numpy()
+    # filled = copy.deepcopy(masked)
+    filled = (
+        multi_grid(
+            torch.from_numpy(gridded_vals),
+            torch.from_numpy(mask),
+            final_size=(64, 64),
+        )
+        .detach()
+        .cpu()
+        .numpy()
+    )
     plt.imshow(np.abs(filled))
     return filled, gridded_vals
 

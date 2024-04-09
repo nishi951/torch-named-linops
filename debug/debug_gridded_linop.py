@@ -78,5 +78,5 @@ def main(device_idx: int = -1):
     breakpoint()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tyro.cli(main)

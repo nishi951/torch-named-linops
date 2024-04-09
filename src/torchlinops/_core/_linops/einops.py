@@ -34,7 +34,9 @@ class Rearrange(NamedLinop):
         self.axes_lengths = axes_lengths if axes_lengths is not None else {}
 
     def copy(self):
-        return type(self)(self.ipattern, self.opattern, self.ishape, self.oshape, self.axes_lengths)
+        return type(self)(
+            self.ipattern, self.opattern, self.ishape, self.oshape, self.axes_lengths
+        )
 
     def forward(self, x):
         return self.fn(x)
@@ -198,7 +200,9 @@ class Repeat(NamedLinop):
         self.broadcast_dims = broadcast_dims if broadcast_dims is not None else []
 
     def copy(self):
-        return type(self)(self.axes_lengths, self.ishape, self.oshape, self.broadcast_dims)
+        return type(self)(
+            self.axes_lengths, self.ishape, self.oshape, self.broadcast_dims
+        )
 
     @property
     def adj_ishape(self):

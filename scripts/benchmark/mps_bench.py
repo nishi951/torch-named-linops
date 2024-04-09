@@ -17,8 +17,6 @@ def main(opt: Config):
     S = torch.randn(num_coils, mat_size, mat_size, dtype=torch.complex64)
 
 
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     opt = tyro.cli(Config)
     main(opt)

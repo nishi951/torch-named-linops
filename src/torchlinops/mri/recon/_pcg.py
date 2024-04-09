@@ -3,6 +3,7 @@ Implementations of various algorithms.
 Written by Christopher M. Sandino (sandino@stanford.edu), 2020.
 Modified by Mark Nishimura, 2023
 """
+
 from dataclasses import dataclass
 from typing import Optional
 import logging

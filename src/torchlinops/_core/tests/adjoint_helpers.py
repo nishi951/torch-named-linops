@@ -2,9 +2,7 @@ import torch
 
 from torchlinops import NamedLinop
 
-__all__ = [
-    'inner', 'is_adjoint'
-]
+__all__ = ["inner", "is_adjoint"]
 
 
 def inner(x, y):

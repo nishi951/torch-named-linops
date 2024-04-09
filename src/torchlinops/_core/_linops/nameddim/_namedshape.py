@@ -26,6 +26,7 @@ def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None):
         return NamedShape(ishape=ishape, oshape=ishape)
     return NamedShape(ishape=ishape, oshape=oshape)
 
+
 class NamedShape(NamedDimCollection):
     """A linop shape with input and output dimensions
     Inherit from this to define custom behavior
@@ -43,7 +44,7 @@ class NamedShape(NamedDimCollection):
         """Return the adjoint shape. Don't call this method directly, but definitely override it"""
         new = type(self)(self.oshape, self.ishape)
         for shape in self.shapes:
-            if shape not in ['_ishape', '_oshape']:
+            if shape not in ["_ishape", "_oshape"]:
                 new.add(shape, self.lookup(shape))
         return new
 
@@ -51,7 +52,7 @@ class NamedShape(NamedDimCollection):
         new_oshape = tuple(d.next_unused(self.ishape) for d in self.ishape)
         new = type(self)(self.ishape, new_oshape)
         for shape in self.shapes:
-            if shape not in ['_ishape', '_oshape']:
+            if shape not in ["_ishape", "_oshape"]:
                 new.add(shape, self.lookup(shape))
         return new
 
@@ -89,10 +90,10 @@ class NamedShape(NamedDimCollection):
         _oshape = self.oshape + right.oshape
         new = type(self)(ishape=_ishape, oshape=_oshape)
         for shape in self.shapes:
-            if shape not in ['_ishape', '_oshape']:
+            if shape not in ["_ishape", "_oshape"]:
                 new.add(shape, self.lookup(shape))
         for shape in right.shapes:
-            if shape not in ['_ishape', '_oshape']:
+            if shape not in ["_ishape", "_oshape"]:
                 new.add(shape, right.lookup(shape))
         return new
 
@@ -103,5 +104,3 @@ class NamedShape(NamedDimCollection):
 
     def __eq__(self, other):
         return self.ishape == other.ishape and self.oshape == other.oshape
-
-

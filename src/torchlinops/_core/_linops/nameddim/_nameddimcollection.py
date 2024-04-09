@@ -1,5 +1,14 @@
 from copy import copy
-from typing import Iterable, Sequence, Tuple, Union, Optional, OrderedDict, Mapping, List
+from typing import (
+    Iterable,
+    Sequence,
+    Tuple,
+    Union,
+    Optional,
+    OrderedDict,
+    Mapping,
+    List,
+)
 from collections import OrderedDict
 
 from ._nameddim import ND
@@ -8,13 +17,15 @@ __all__ = ["NamedDimCollection"]
 
 NDorStr = Union[ND, str]
 
+
 class NamedDimCollection:
     """A collection of named dimensions
     Updating some dimensions updates all of them
     Inherit from this to define custom behavior
     """
+
     def __init__(self, **shapes):
-        self.__dict__['idx'] = {}
+        self.__dict__["idx"] = {}
         self._dims = []
         self._adjoint = None
         self._normal = None
@@ -28,11 +39,11 @@ class NamedDimCollection:
         return list(self.idx.keys())
 
     def __getattr__(self, key):
-        if key.startswith('__'):
-            raise AttributeError(f'Attempted to get missing private attribute: {key}')
-        if key in self.__dict__['idx']:
+        if key.startswith("__"):
+            raise AttributeError(f"Attempted to get missing private attribute: {key}")
+        if key in self.__dict__["idx"]:
             return self.lookup(key)
-        raise AttributeError(f'{key} not in index: {self.shapes}')
+        raise AttributeError(f"{key} not in index: {self.shapes}")
 
     def __setattr__(self, key, val):
         if key in self.idx:
@@ -41,7 +52,6 @@ class NamedDimCollection:
             # New shape attributes must be created via `.add` first
             # This is to maintain the ability to add regular attributes
             super().__setattr__(key, val)
-
 
     def index(self, data: Iterable[NDorStr]):
         if isinstance(data, Mapping):
@@ -68,7 +78,7 @@ class NamedDimCollection:
             IF Mapping, all keys should be nameddim-able
         """
         if shape_name in self.idx:
-            raise ValueError(f'{shape_name} already in index of shape: {self}')
+            raise ValueError(f"{shape_name} already in index of shape: {self}")
         if isinstance(data, Tuple) or isinstance(data, List):
             indexed_shape = []
             for d in data:
@@ -90,7 +100,9 @@ class NamedDimCollection:
         self.idx[shape_name] = indexed_shape
 
     def update(self, shape_name, shape):
-        assert len(shape) == len(self.idx[shape_name]), f'Updated shape differs from current (immutable) shape length: shape: {shape} current: {self.lookup(shape_name)}'
+        assert (
+            len(shape) == len(self.idx[shape_name])
+        ), f"Updated shape differs from current (immutable) shape length: shape: {shape} current: {self.lookup(shape_name)}"
         for i, j in enumerate(self.idx[shape_name]):
             self._dims[j] = ND.infer(shape[i])
 

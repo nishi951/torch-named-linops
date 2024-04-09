@@ -1,4 +1,5 @@
 """A simple spiral2d simulated MRI dataset"""
+
 from dataclasses import dataclass, field
 from typing import Tuple, Mapping, Optional
 

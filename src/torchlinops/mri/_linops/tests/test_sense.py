@@ -38,26 +38,31 @@ def test_split():
     # from pytorch_memlab import MemReporter
     # MemReporter().report()
 
+
 def test_sense_batch():
     mps = torch.randn(4, 8, 8, 8, dtype=torch.complex64)
-    D = Dense(torch.randn(4, 4), weightshape=("C", "C1"),
-              ishape=('C', 'Nx', 'Ny', 'Nz'),
-              oshape=('C1', 'Nx', 'Ny', 'Nz'))
+    D = Dense(
+        torch.randn(4, 4),
+        weightshape=("C", "C1"),
+        ishape=("C", "Nx", "Ny", "Nz"),
+        oshape=("C1", "Nx", "Ny", "Nz"),
+    )
 
     S = SENSE(mps)
     A = D @ S
     A_batch = Batch(
         A,
-        input_device='cpu',
-        output_device='cpu',
+        input_device="cpu",
+        output_device="cpu",
         input_dtype=torch.complex64,
         output_dtype=torch.complex64,
         C=1,
     )
-    #print(A_batch.N)
+    # print(A_batch.N)
     print(A_batch.H)
     print(A.N)
     print(A.H)
+
 
 def test_sense_adjoint_methods():
     mps = torch.randn(4, 8, 8, 8, dtype=torch.complex64)

@@ -10,6 +10,7 @@ def __():
 
     import torch
     import torch.nn as nn
+
     return mo, nn, torch
 
 
@@ -23,10 +24,12 @@ def __(mo, nn, torch):
         def __getitem__(self, idx):
             return BigBoi(self.chonk[idx])
 
-    mo.md("""
+    mo.md(
+        """
     We initialize an object that contains a single parameter.
-    """)
-    return BigBoi,
+    """
+    )
+    return (BigBoi,)
 
 
 @app.cell
@@ -35,9 +38,11 @@ def __(BigBoi, mo, torch):
     obj1 = BigBoi(chonk)
     obj2 = obj1[:2, :]
     print(obj1.chonk)
-    mo.md("""
+    mo.md(
+        """
     We start by setting all the parameters in the module to 0.
-    """)
+    """
+    )
 
     return chonk, obj1, obj2
 
@@ -45,14 +50,16 @@ def __(BigBoi, mo, torch):
 @app.cell
 def __(mo, obj1, obj2, torch):
     state_dict = obj2.state_dict()
-    state_dict['chonk'] = torch.ones_like(state_dict['chonk'])
+    state_dict["chonk"] = torch.ones_like(state_dict["chonk"])
     obj2.load_state_dict(state_dict)
     print(obj1.chonk)
-    mo.md("""
+    mo.md(
+        """
     We then modify the state dict of the derived object and observe
     that the changes propagate to the original object.
-    """)
-    return state_dict,
+    """
+    )
+    return (state_dict,)
 
 
 @app.cell

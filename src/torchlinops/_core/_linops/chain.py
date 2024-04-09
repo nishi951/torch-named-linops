@@ -27,7 +27,7 @@ class Chain(NamedLinop):
     def forward(self, x):
         for linop in reversed(self.linops):
             x = linop(x)
-            #print(f'{linop}: {x.shape}')
+            # print(f'{linop}: {x.shape}')
         return x
 
     def adjoint(self, x):
@@ -99,27 +99,28 @@ class Chain(NamedLinop):
     def dims(self):
         return set().union(*[linop.dims for linop in self.linops])
 
-    @property
-    def H(self):
-        """Adjoint operator"""
-        try:
-            return self.adjoint()
-        except AttributeError as e:
-            traceback.print_exc()
-            raise
+    # @property
+    # def H(self):
+    #     """Adjoint operator"""
+    #     try:
+
+    #         return self.adjoint()
+    #     except AttributeError as e:
+    #         traceback.print_exc()
+    #         raise
 
     def adjoint(self):
-        linops = list(linop.H for linop in reversed(self.linops))
+        linops = list(linop.adjoint() for linop in reversed(self.linops))
         return type(self)(*linops)
 
-    @property
-    def N(self):
-        """Normal operator (is this really necessary?)"""
-        try:
-            return self.normal()
-        except AttributeError as e:
-            traceback.print_exc()
-            raise
+    # @property
+    # def N(self):
+    #     """Normal operator (is this really necessary?)"""
+    #     try:
+    #         return self.normal()
+    #     except AttributeError as e:
+    #         traceback.print_exc()
+    #         raise
 
     def normal(self, inner=None):
         for linop in self.linops:
@@ -148,6 +149,7 @@ class Chain(NamedLinop):
         obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
         data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
         return chain.split_forward_fn(ibatches, obatches, data)
+
     @staticmethod
     def adj_split_fn(chain, *iobatchesdata):
         ibatches = iobatchesdata[: len(iobatchesdata) // 3]

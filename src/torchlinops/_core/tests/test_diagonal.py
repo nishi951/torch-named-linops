@@ -4,6 +4,7 @@ from torchlinops import Diagonal
 
 from adjoint_helpers import inner, is_adjoint
 
+
 def test_diagonal():
     M = 10
     N, P = 5, 7

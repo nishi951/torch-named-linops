@@ -5,41 +5,47 @@ from torchlinops import NamedShape, NS, ND
 
 
 def test_getter_setter():
-    shape = NS(('A', 'B'), ('C',))
-    assert shape.ishape == ('A', 'B')
-    assert shape.oshape == ('C',)
+    shape = NS(("A", "B"), ("C",))
+    assert shape.ishape == ("A", "B")
+    assert shape.oshape == ("C",)
+
 
 def test_new_batch():
-    shape = NS(('A', 'B'), ('C',))
-    shape.add('shared_batch', ('A',))
-    assert shape.shared_batch == ('A',)
+    shape = NS(("A", "B"), ("C",))
+    shape.add("shared_batch", ("A",))
+    assert shape.shared_batch == ("A",)
 
-    shape.ishape = ('E', 'F')
-    assert shape.shared_batch == ('E',)
+    shape.ishape = ("E", "F")
+    assert shape.shared_batch == ("E",)
+
 
 def test_new_dict():
-    shape = NS(('A', 'B'), ('C',))
-    shape.add('axes_lengths', {'A': 2})
-    assert shape.axes_lengths[ND.infer('A')] == 2
+    shape = NS(("A", "B"), ("C",))
+    shape.add("axes_lengths", {"A": 2})
+    assert shape.axes_lengths[ND.infer("A")] == 2
 
-    shape.ishape = ('E', 'F')
-    assert shape.axes_lengths[ND.infer('E')] == 2
+    shape.ishape = ("E", "F")
+    assert shape.axes_lengths[ND.infer("E")] == 2
+
 
 def test_random_attribute():
-    shape = NS(('A', 'B', ('C',)))
+    shape = NS(("A", "B", ("C",)))
     # This should be ok
     shape.im_size = (64, 64, 64)
 
+
 def test_diag():
-    shape = NS(('A', 'B'))
-    assert shape.ishape == ('A', 'B')
-    assert shape.oshape == ('A', 'B')
-    shape.ishape = ('C', 'D')
-    assert shape.oshape == ('C', 'D')
+    shape = NS(("A", "B"))
+    assert shape.ishape == ("A", "B")
+    assert shape.oshape == ("A", "B")
+    shape.ishape = ("C", "D")
+    assert shape.oshape == ("C", "D")
+
 
 def test_empty_dim():
     shape = NS(tuple(), ("C",))
     assert shape.oshape == ("C",)
+
 
 # @pytest.mark.skip
 # def test_adjoint():
@@ -47,6 +53,7 @@ def test_empty_dim():
 #     adj_shape = shape.H
 #     adj_shape.ishape = ("D",)
 #     assert shape.oshape == ("D",)
+
 
 def test_product():
     shape1 = NS(("A", "B"), ("C",))

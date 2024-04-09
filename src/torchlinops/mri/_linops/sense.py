@@ -30,12 +30,12 @@ class SENSE(NamedLinop):
         self.D = len(self.im_size)
         self.mps = nn.Parameter(mps, requires_grad=False)
         # self.mps = mps
-        self._shape.add('coildim', coildim)
+        self._shape.add("coildim", coildim)
         self.coil_ax = -(len(self.im_size) + 1)
 
     @property
     def coildim(self):
-        return self._shape.lookup('coildim')
+        return self._shape.lookup("coildim")
 
     def forward(self, x):
         return self.fn(x, self.mps)
@@ -51,7 +51,7 @@ class SENSE(NamedLinop):
         return type(self)(
             self.split_forward_fn(ibatch, obatch, self.mps),
             self.coildim,
-            self.ishape[:-self.D],
+            self.ishape[: -self.D],
         )
 
     def split_forward_fn(self, ibatch, obatch, /, mps):

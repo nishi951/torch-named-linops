@@ -334,7 +334,10 @@ class TGASSPISubspaceMRFSimulator(nn.Module):
         T1, T2 values specified in ms
         """
         T1 = np.concatenate(
-            (np.array(range(20, 3001, 20)), np.array(range(3200, 5001, 200)))
+            (
+                np.array(range(20, 3001, 20)),
+                np.array(range(3200, 5001, 200)),
+            )
         )
         return torch.from_numpy(T1).float()
 

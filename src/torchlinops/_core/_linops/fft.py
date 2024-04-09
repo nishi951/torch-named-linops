@@ -13,14 +13,14 @@ class FFT(NamedLinop):
         """
         shape = NS(batch_shape) + NS(get2dor3d(dim), get2dor3d(dim, kspace=True))
         super().__init__(shape)
-        self._shape.add('batch_shape', batch_shape)
+        self._shape.add("batch_shape", batch_shape)
         self.dim = dim
         self.norm = norm
         self.centered = centered
 
     @property
     def batch_shape(self):
-        return self._shape.lookup('batch_shape')
+        return self._shape.lookup("batch_shape")
 
     def forward(self, x, /):
         return self.fn(x)

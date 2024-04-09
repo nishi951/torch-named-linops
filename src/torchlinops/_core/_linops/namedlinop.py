@@ -98,13 +98,13 @@ class NamedLinop(nn.Module):
         return self._adjoint[0]
 
     def adjoint(self):
-        adj = copy(self) # Retains data
+        adj = copy(self)  # Retains data
         adj._shape = adj._shape.H
         # Swap functions (requires staticmethod)
         adj.fn, adj.adj_fn = adj.adj_fn, adj.fn
         adj.split, adj.adj_split = adj.adj_split, adj.split
         adj.split_fn, adj.adj_split_fn = adj.split_fn, adj.adj_split_fn
-        if adj._suffix.endswith('.H'):
+        if adj._suffix.endswith(".H"):
             adj._suffix = adj._suffix[:-2]
         else:
             adj._suffix += ".H"
@@ -149,7 +149,7 @@ class NamedLinop(nn.Module):
             return normal
         pre = copy(self)
         pre.oshape = inner.ishape
-        post = self.adjoint() # Copy happens inside adjoint
+        post = self.adjoint()  # Copy happens inside adjoint
         post.ishape = inner.oshape
         return post @ inner @ pre
 

@@ -1,4 +1,5 @@
 """TODO: Fix this and make it workable"""
+
 from math import prod
 from typing import Optional, Tuple
 

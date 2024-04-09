@@ -4,6 +4,7 @@ from adjoint_helpers import inner, is_adjoint
 
 from torchlinops import Dense
 
+
 def test_dense():
     M, N = 9, 3
     weight = torch.randn(M, N, dtype=torch.complex64)

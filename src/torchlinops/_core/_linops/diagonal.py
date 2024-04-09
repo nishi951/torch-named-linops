@@ -22,11 +22,11 @@ class Diagonal(NamedLinop):
             len(self.ishape) >= len(self.weight.shape)
         ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        self._shape.add('broadcast_dims', broadcast_dims)
+        self._shape.add("broadcast_dims", broadcast_dims)
 
     @property
     def broadcast_dims(self):
-        return self._shape.lookup('broadcast_dims')
+        return self._shape.lookup("broadcast_dims")
 
     def forward(self, x):
         return self.fn(x, self.weight)

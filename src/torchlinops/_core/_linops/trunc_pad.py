@@ -1,6 +1,7 @@
 """Truncate/Pad
 Maybe replace with more generic slicing linop later
 """
+
 from copy import copy
 
 from torchlinops.utils import end_pad_with_zeros

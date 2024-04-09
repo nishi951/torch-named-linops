@@ -22,6 +22,7 @@ def __():
     from torchlinops.core.linops import Diagonal, Repeat
     from torchlinops.core.tiling import Batch
     from torchlinops.mri.linops import NUFFT, SENSE
+
     return (
         Batch,
         Chain,
@@ -46,13 +47,12 @@ def __():
 
 @app.cell
 def __(Diagonal, torch):
-    d = Diagonal(torch.randn(3, 3), ('a', 'b'), ('a','b'))
+    d = Diagonal(torch.randn(3, 3), ("a", "b"), ("a", "b"))
     d2 = d.split(ibatch=(slice(0, 2), slice(None)), obatch=(slice(0, 2), slice(None)))
     d2.weight.shape
     print(d.weight)
     print(d2.weight)
     print(d2.H.weight)
-
 
     return d, d2
 
@@ -79,24 +79,30 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
         gm=40e-3,
         sm=100,
     )
-    trj = rearrange(trj, '(r k) d -> r k d', r=num_interleaves)
+    trj = rearrange(trj, "(r k) d -> r k d", r=num_interleaves)
     # print(trj.shape)
 
     x = torch.randn((Nx, Ny), dtype=torch.complex64)
-    x_dims = ('B', 'Nx', 'Ny')
+    x_dims = ("B", "Nx", "Ny")
     # Convert sigpy trj to tkbn trj
     trj = torch.from_numpy(trj)
-    trj = rearrange(trj, '... k d -> ... d k')
+    trj = rearrange(trj, "... k d -> ... d k")
     trj = trj * 2 * np.pi
 
     mps = torch.randn((C, Nx, Ny), dtype=torch.complex64)
-    F = NUFFT(trj, im_size=(Nx, Ny),
-              img_batch_shape=('R', 'C'),
-              trj_batch_shape=('R',),
-             )
+    F = NUFFT(
+        trj,
+        im_size=(Nx, Ny),
+        img_batch_shape=("R", "C"),
+        trj_batch_shape=("R",),
+    )
     S = SENSE(mps)
-    R = Repeat(n_repeats=num_interleaves, dim=0,
-               ishape=('C', 'Nx', 'Ny'), oshape=('R', 'C', 'Nx', 'Ny'))
+    R = Repeat(
+        n_repeats=num_interleaves,
+        dim=0,
+        ishape=("C", "Nx", "Ny"),
+        oshape=("R", "C", "Nx", "Ny"),
+    )
     # BC = Broadcast(('B', 'Nx', 'Ny'), ('B', '1', 'Nx', 'Ny'))
     A = F @ R @ S
 
@@ -133,7 +139,6 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
     Ax = A.fn(x, [trj, num_interleaves, mps])
     print(FRSx.isclose(Ax).all())
 
-
     return (
         A,
         Ax,
@@ -164,15 +169,14 @@ def __(NUFFT, Repeat, SENSE, mri, np, rearrange, torch):
 @app.cell
 def __(A):
     for dim in A.dims:
-        print(dim, ':', A.size(dim))
-
+        print(dim, ":", A.size(dim))
 
     # Phi = Dense(phi)
     # D = Diagonal(dcf)
     # T = ImplicitGROGToepNUFFT(trj, inner=(Phi.H @ D @ Phi)
     # A = S.H @ T @ Sj
 
-    return dim,
+    return (dim,)
 
 
 @app.cell
