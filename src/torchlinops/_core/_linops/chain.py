@@ -30,11 +30,6 @@ class Chain(NamedLinop):
             # print(f'{linop}: {x.shape}')
         return x
 
-    def adjoint(self, x):
-        for linop in self.linops:
-            x = linop(x)
-        return x
-
     @staticmethod
     def fn(chain, x: torch.Tensor, /, data_list):
         assert (
@@ -99,28 +94,9 @@ class Chain(NamedLinop):
     def dims(self):
         return set().union(*[linop.dims for linop in self.linops])
 
-    # @property
-    # def H(self):
-    #     """Adjoint operator"""
-    #     try:
-
-    #         return self.adjoint()
-    #     except AttributeError as e:
-    #         traceback.print_exc()
-    #         raise
-
     def adjoint(self):
         linops = list(linop.adjoint() for linop in reversed(self.linops))
         return type(self)(*linops)
-
-    # @property
-    # def N(self):
-    #     """Normal operator (is this really necessary?)"""
-    #     try:
-    #         return self.normal()
-    #     except AttributeError as e:
-    #         traceback.print_exc()
-    #         raise
 
     def normal(self, inner=None):
         for linop in self.linops:

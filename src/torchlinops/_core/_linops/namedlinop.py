@@ -1,5 +1,6 @@
 from copy import copy, deepcopy
 import traceback
+import logging
 
 import torch
 import torch.nn as nn
@@ -12,6 +13,7 @@ __all__ = [
     "NamedLinop",
 ]
 
+logger = logging.getLogger(__name__)
 
 class NamedLinop(nn.Module):
     """Base Class for all NamedLinops"""
@@ -32,11 +34,14 @@ class NamedLinop(nn.Module):
     # Override
     @staticmethod
     def fn(linop, x: torch.Tensor, /, data=None):
-        """Placeholder for functional forwa rd operator.
+        """Functional forward operator.
         Non-input arguments should be keyword-only
         self can still be used - kwargs should contain elements
         that may change frequently (e.g. trajectories) and can
         ignore hyperparameters (e.g. normalization modes)
+
+        Staticmethod because it needs to be unbound to swap for the adjoint
+
         """
         return x
 
@@ -44,13 +49,18 @@ class NamedLinop(nn.Module):
     @staticmethod
     def adj_fn(linop, x: torch.Tensor, /, data=None):
         """Placeholder for functional adjoint operator.
-        Non-input arguments should be keyword-only"""
+        Non-input arguments should be keyword-only
+
+        Staticmethod because it needs to be unbound to swap for adjoint
+        """
         return x
 
     # Override
     @staticmethod
     def normal_fn(linop, x: torch.Tensor, /, data=None):
-        """Placeholder for efficient functional normal operator"""
+        """Placeholder for efficient functional normal operator
+        Staticmethod because it needs to be unbound to swap for normal
+        """
         return linop.adj_fn(linop, linop.fn(linop, x, data), data)
 
     # Override
@@ -94,10 +104,12 @@ class NamedLinop(nn.Module):
             except AttributeError as e:
                 traceback.print_exc()
                 raise
-            print(f"{type(self).__name__}: Making new adjoint {_adjoint._shape}")
+            logger.debug(f"{type(self).__name__}: Making new adjoint {_adjoint._shape}")
         return self._adjoint[0]
 
     def adjoint(self):
+        """Create a new adjoint linop
+        """
         adj = copy(self)  # Retains data
         adj._shape = adj._shape.H
         # Swap functions (requires staticmethod)
@@ -128,7 +140,7 @@ class NamedLinop(nn.Module):
         return self._normal[0]
 
     def normal(self, inner=None):
-        """
+        """Create a new normal linop
         inner: Optional linop for toeplitz embedding
         """
         if inner is None:
@@ -137,9 +149,9 @@ class NamedLinop(nn.Module):
             normal.fn = normal.normal_fn
             normal.adj_fn = normal.normal_fn
 
-            def new_normal(x, *args, **kwargs):
-                x = self.normal_fn(x, *args, **kwargs)
-                return self.normal_fn(x, *args, **kwargs)
+            def new_normal(linop, x, *args, **kwargs):
+                x = linop.normal_fn(linop, x, *args, **kwargs)
+                return linop.normal_fn(linop, x, *args, **kwargs)
 
             normal.normal_fn = new_normal
             # Assume that none of the dims are the same anymore
