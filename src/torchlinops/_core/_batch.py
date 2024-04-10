@@ -56,42 +56,24 @@ class Batch(NamedLinop):
         # Complete the size specifications
         for dim, total in zip(self.ishape, x.shape):
             self.sizes[dim] = total
-        # batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
-        # ishapes = [linop.ishape for linop in self.linop.flatten()]
-        # oshapes = [linop.oshape for linop in self.linop.flatten()]
 
         y = torch.zeros(
             tuple(self.sizes[dim] for dim in self.oshape),
             dtype=self.output_dtype,
             device=self.output_device,
         )
-        # for tile in tqdm(
-        #     dict_product(batch_iterators),
-        #     desc=f"Batch({self.batch_sizes})",
-        #     disable=(not self.pbar),
-        # ):
         for linop, in_batch, out_batch in tqdm(
             zip(self._linops, self._input_batches, self._output_batches),
             total=len(self._linops),
             desc=f"Batch({self.name}: {self.batch_sizes})",
             disable=(not self.pbar),
         ):
-            # ibatches = [
-            #     [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
-            # ]
-            # obatches = [
-            #     [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
-            # ]
-            # linop = self.linop.split(self.linop, *ibatches, *obatches)
             xbatch = x[in_batch]
             ybatch = linop(xbatch)
             y[out_batch] += ybatch
         return y
 
     def make_tiles(self):
-        # Complete the size specifications
-        # for dim, total in zip(self.ishape, x.shape):
-        #     self.sizes[dim] = total
         batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
         ishapes = [linop.ishape for linop in self.linop.flatten()]
         oshapes = [linop.oshape for linop in self.linop.flatten()]
@@ -111,29 +93,6 @@ class Batch(NamedLinop):
             input_batches.append(ibatches[-1])
             output_batches.append(obatches[0])
         return linops, input_batches, output_batches
-
-    def split_forward(self):
-        # Complete the size specifications
-        for dim, total in zip(self.ishape, x.shape):
-            self.sizes[dim] = total
-        batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
-        ishapes = [linop.ishape for linop in self.linop.flatten()]
-        oshapes = [linop.oshape for linop in self.linop.flatten()]
-
-        linops = {}
-        for tile in tqdm(
-            dict_product(batch_iterators),
-            desc=f"Batch({self.batch_sizes})",
-            disable=(not self.pbar),
-        ):
-            ibatches = [
-                [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
-            ]
-            obatches = [
-                [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
-            ]
-            linops[tile] = self.linop.split(*ibatches, *obatches)
-        return linops
 
     @property
     def H(self):
@@ -186,6 +145,7 @@ class Batch(NamedLinop):
         )
         return normal
 
+    @staticmethod
     def fn(self, x, /, data):
         """TODO: Functional interface
         Specify data as a tuple of data entries, one for each linop in linops"""
@@ -220,6 +180,7 @@ class Batch(NamedLinop):
             y[obatches[0]] += ybatch
         return y
 
+    @staticmethod
     def adj_fn(self, x, /, data):
         raise NotImplementedError("Batched linop has no adjoint (yet).")
 
@@ -270,4 +231,4 @@ class Batch(NamedLinop):
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        return f"{self.__class__.__name__ + self._suffix}(\n\t{self.linop}, {pformat(self.batch_sizes)})"
+        return f"{self.__class__.__name__ + self._suffix}(\n\t{self.linop}, {pformat(self.batch_sizes)}\n)"
