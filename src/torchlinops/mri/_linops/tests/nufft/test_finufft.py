@@ -71,7 +71,7 @@ def tgas_spi_data_big():
         noise_std=0.0,
         spiral_2d_kwargs={
             "alpha": 1.5,
-            "f_sampling": 0.1,
+            "f_sampling": 1.0,
         },
     )
 
