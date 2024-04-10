@@ -59,6 +59,20 @@ def flatten(x, start_dim=0, end_dim=-1):
 def unflatten(x, orig_shape):
     return torch.reshape(x, orig_shape)
 
+def get_finufft_kwargs(dev, upsampfac):
+    """Helper function for making the (cu)finufft backend stop
+    complaining so much...
+
+    - upsampfac should only be one of {0, 1.25, 2.0}
+    - kernel eval method must be 0 if upsampfac is not 2.0
+
+    """
+    if dev == "cpu":
+        kwargs = {"spread_kerevalmeth": 1 if upsampfac == 2.0 else 0}
+    else:
+        kwargs = {"gpu_kerevalmeth": 1 if upsampfac == 2.0 else 0}
+    return kwargs
+
 
 def _nufft(
     input: torch.Tensor,
@@ -79,10 +93,7 @@ def _nufft(
         [N... K...]
     """
     dev = "cpu" if input.device == torch.device("cpu") else "gpu"
-    if dev == "cpu":
-        kwargs = {"spread_kerevalmeth": 1 if upsampfac == 2.0 else 0}
-    else:
-        kwargs = {"gpu_kerevalmeth": 1 if upsampfac == 2.0 else 0}
+    kwargs = get_finufft_kwargs(dev, upsampfac)
     dim = coord.shape[-1]
     nK = len(coord.shape[:-1])
     flat_input, input_shape = flatten(input, start_dim=0, end_dim=-(dim + 1))
@@ -149,19 +160,21 @@ def _nufft_adjoint(
         [N... *oshape]
     """
     dev = "cpu" if input.device == torch.device("cpu") else "gpu"
-    if dev == "cpu":
-        kwargs = {"spread_kerevalmeth": 1 if upsampfac == 2.0 else 0}
-    else:
-        kwargs = {"gpu_kerevalmeth": 1 if upsampfac == 2.0 else 0}
+    kwargs = get_finufft_kwargs(dev, upsampfac)
     dim = coord.shape[-1]
-    coord_batch_len = len(coord.shape) - 1
-    # out_batch = input.shape[:-coord_batch_len]
-    flat_input, _ = flatten(input, start_dim=0, end_dim=-(coord_batch_len + 1))
-    flat_input, _ = flatten(flat_input, start_dim=-coord_batch_len, end_dim=-1)
+    K = coord.shape[:-1]
+    nK = len(K)
+    N = input.shape[:-nK]
+    nN = len(N)
+    # out_batch = input.shape[:-nK]
+    flat_input = input
+    if nN > 0:
+        flat_input, _ = flatten(flat_input, start_dim=0, end_dim=-(nK + 1))
+    flat_input, _ = flatten(flat_input, start_dim=-nK, end_dim=-1)
     flat_coord, _ = flatten(coord, start_dim=0, end_dim=-2)
     flat_out = None
     if out is not None:
-        flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(coord_batch_len + 1))
+        flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(nK + 1))
 
     adj_nufft_fn = get_nufft[dev][dim][1]
 

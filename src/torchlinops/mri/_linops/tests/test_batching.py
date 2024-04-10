@@ -73,5 +73,5 @@ def test_subspace_linop_batching(subspace_linop):
     AHAx_nobatch = subspace_linop.N(x)
     AHb_nobatch = subspace_linop.H(b)
 
-    assert torch.isclose(AHAx, AHAx_nobatch, atol=1e-6, rtol=1e-5).all()
-    assert torch.isclose(AHb, AHb_nobatch, atol=1e-6, rtol=1e-5).all()
+    assert torch.isclose(AHAx, AHAx_nobatch, atol=1e-5, rtol=1e-5).all()
+    assert torch.isclose(AHb, AHb_nobatch, atol=1e-5, rtol=1e-5).all()

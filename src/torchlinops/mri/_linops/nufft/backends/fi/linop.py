@@ -8,6 +8,7 @@ from torchlinops.mri._linops.nufft.base import NUFFTBase
 from . import functional as F
 from .convert_trj import sp2fi, fi2sp
 
+DEFAULT_UPSAMPFAC = 2.0
 
 class FiNUFFT(NUFFTBase):
     def __init__(
@@ -45,13 +46,17 @@ class FiNUFFT(NUFFTBase):
         if extras is not None and "oversamp" in extras:
             self.upsampfac = extras["oversamp"]
         else:
-            self.upsampfac = 2.0
+            self.upsampfac = DEFAULT_UPSAMPFAC
         self.trj = sp2fi(self.trj, self.im_size)
         self.plan = False
         self._plans = []
         self._adj_plans = []
         if extras is not None and "plan_ahead" in extras:
             self.make_plans(extras["plan_ahead"], extras["img_batch_size"])
+
+    def change_im_size(self, new_im_size):
+        self.im_size = new_im_size
+        return self
 
     def forward(self, x: torch.Tensor):
         return self.fn(self, x, self.trj)
@@ -147,7 +152,7 @@ class FiNUFFT(NUFFTBase):
 
     def split_forward(self, ibatch, obatch):
         """Override to undo effects of sp2fi"""
-        return type(self)(
+        new = type(self)(
             trj=self.split_forward_fn(ibatch, obatch, fi2sp(self.trj, self.im_size)),
             im_size=self.im_size,
             shared_batch_shape=self.shared_batch_shape,
@@ -157,20 +162,40 @@ class FiNUFFT(NUFFTBase):
             toeplitz=self.toeplitz,
             toeplitz_oversamp=self.toeplitz_oversamp,
         )
+        if self.upsampfac != DEFAULT_UPSAMPFAC:
+            new.upsampfac = self.upsampfac
+        if self.plan:
+            if (self.trj == new.trj).all():
+                # Zero-duplication of plans
+                new._plans = self._plans
+                new._adj_plans = self._adj_plans
+                new.plan = self.plan
+                new.plan_device = self.plan_device
+                new.plan_type = self.plan_type
+        return new
 
     def make_plans(self, plan_type: str, n_trans: int):
         """Make some FiNUFFT plan objects ahead of time
 
+        TODO: pull some of these arguments out and make them configurable
+        TODO: Share some functionality with the Functional interface
+
         plan_type : str
             Either 'cpu' or 'gpu' or 'gpu:i' where i is the
             device index
+        n_trans : int
+            The number of transforms to perform. This is not typically known
+            from the trajectory alone, so must be externally specified.
+                Should also account for batching. E.g. if you have image
+                batch dimensions (B1, B2), but you're batching over B1 with size 1,
+                then the number of transforms n_trans should be the size of B2.
         """
         if plan_type == "cpu":
             plan_backend = finufft
             kwargs = {
                 "upsampfac": self.upsampfac,
                 "spread_kerevalmeth": 1 if self.upsampfac == 2.0 else 0,
-                "maxbatchsize": 1,
+                "maxbatchsize": 1, # For memory reasons
             }
             self.plan_device = torch.device("cpu")
 
@@ -184,7 +209,7 @@ class FiNUFFT(NUFFTBase):
             kwargs = {
                 "upsampfac": self.upsampfac,
                 "gpu_kerevalmeth": 1 if self.upsampfac == 2.0 else 0,
-                "gpu_maxbatchsize": 1,
+                "gpu_maxbatchsize": 1, # for memory reasons
             }
             self.plan_device = torch.device(f"cuda:{device_idx}")
         else:
