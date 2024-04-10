@@ -15,6 +15,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 class NamedLinop(nn.Module):
     """Base Class for all NamedLinops"""
 
@@ -22,8 +23,7 @@ class NamedLinop(nn.Module):
         super().__init__()
         self._shape = shape
 
-        self._adjoint = None
-        self._normal = None
+        self.reset()
 
         self._suffix = ""
 
@@ -108,8 +108,7 @@ class NamedLinop(nn.Module):
         return self._adjoint[0]
 
     def adjoint(self):
-        """Create a new adjoint linop
-        """
+        """Create a new adjoint linop"""
         adj = copy(self)  # Retains data
         adj._shape = adj._shape.H
         # Swap functions (requires staticmethod)
@@ -234,6 +233,11 @@ class NamedLinop(nn.Module):
             f"{self.__class__.__name__ + self._suffix}({self.ishape} -> {self.oshape})"
         )
 
+    def reset(self):
+        """Clean up cached stuff."""
+        self._adjoint = None
+        self._normal = None
+
     # Pass these through to the shape representation
     @property
     def ishape(self):
@@ -263,8 +267,7 @@ class NamedLinop(nn.Module):
         new.__dict__.update(self.__dict__)
 
         # Remove references to other objects
-        new._adjoint = None
-        new._normal = None
+        new.reset()
 
         # Reset shape
         new._shape = deepcopy(self._shape)

@@ -114,7 +114,7 @@ class Chain(NamedLinop):
     def adj_split(chain, *iobatches):
         ibatches = iobatches[: len(iobatches) // 2]
         obatches = iobatches[len(iobatches) // 2 :]
-        return chain.split_forward(obatches, ibatches).H
+        return chain.H.split_forward(obatches, ibatches).H
 
     @staticmethod
     def split_fn(chain, *iobatchesdata):

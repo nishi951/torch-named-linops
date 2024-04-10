@@ -17,24 +17,6 @@ from torchlinops.mri import SENSE, NUFFT
 
 
 @pytest.fixture
-def spiral2d_data():
-    config = Spiral2dSimulatorConfig(
-        im_size=(64, 128),
-        num_coils=8,
-        noise_std=0.0,
-        spiral_2d_kwargs={
-            "n_shots": 16,
-            "alpha": 1.5,
-            "f_sampling": 1.0,
-        },
-    )
-
-    simulator = Spiral2dSimulator(config)
-    data = simulator.data
-    return data
-
-
-@pytest.fixture
 def subspace_linop():
     num_coils = 6
     N = 64

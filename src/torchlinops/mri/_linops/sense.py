@@ -38,13 +38,15 @@ class SENSE(NamedLinop):
         return self._shape.lookup("coildim")
 
     def forward(self, x):
-        return self.fn(x, self.mps)
+        return self.fn(self, x, self.mps)
 
-    def fn(self, x, /, mps):
-        return x.unsqueeze(self.coil_ax) * mps
+    @staticmethod
+    def fn(linop, x, /, mps):
+        return x.unsqueeze(linop.coil_ax) * mps
 
-    def adj_fn(self, x, /, mps):
-        return torch.sum(x * torch.conj(mps), dim=self.coil_ax)
+    @staticmethod
+    def adj_fn(linop, x, /, mps):
+        return torch.sum(x * torch.conj(mps), dim=linop.coil_ax)
 
     def split_forward(self, ibatch, obatch):
         """Split over coil dim only"""

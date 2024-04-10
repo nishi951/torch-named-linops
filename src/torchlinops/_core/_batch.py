@@ -1,5 +1,5 @@
 import traceback
-from typing import Union
+from typing import Union, Optional
 from pprint import pformat
 
 import torch
@@ -21,6 +21,7 @@ class Batch(NamedLinop):
         input_dtype: Union[str, torch.dtype],
         output_dtype: Union[str, torch.dtype],
         pbar: bool = False,
+        name: Optional[str] = None,
         **batch_sizes,
     ):
         super().__init__(NS(linop.ishape, linop.oshape))
@@ -30,8 +31,11 @@ class Batch(NamedLinop):
         self.input_dtype = input_dtype
         self.output_dtype = output_dtype
         self.pbar = pbar
+        self.name = name if name is not None else ""
         self.batch_sizes = {ND.infer(k): v for k, v in batch_sizes.items()}
         self.sizes = self._precompute_sizes()
+        self._linops, self._input_batches, self._output_batches = self.make_tiles()
+        self.reset()
 
     def _precompute_sizes(self):
         sizes = {dim: self.linop.size(dim) for dim in self.linop.dims}
@@ -52,20 +56,50 @@ class Batch(NamedLinop):
         # Complete the size specifications
         for dim, total in zip(self.ishape, x.shape):
             self.sizes[dim] = total
-        batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
-        ishapes = [linop.ishape for linop in self.linop.flatten()]
-        oshapes = [linop.oshape for linop in self.linop.flatten()]
+        # batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
+        # ishapes = [linop.ishape for linop in self.linop.flatten()]
+        # oshapes = [linop.oshape for linop in self.linop.flatten()]
 
         y = torch.zeros(
             tuple(self.sizes[dim] for dim in self.oshape),
             dtype=self.output_dtype,
             device=self.output_device,
         )
-        for tile in tqdm(
-            dict_product(batch_iterators),
-            desc=f"Batch({self.batch_sizes})",
+        # for tile in tqdm(
+        #     dict_product(batch_iterators),
+        #     desc=f"Batch({self.batch_sizes})",
+        #     disable=(not self.pbar),
+        # ):
+        for linop, in_batch, out_batch in tqdm(
+            zip(self._linops, self._input_batches, self._output_batches),
+            total=len(self._linops),
+            desc=f"Batch({self.name}: {self.batch_sizes})",
             disable=(not self.pbar),
         ):
+            # ibatches = [
+            #     [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
+            # ]
+            # obatches = [
+            #     [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
+            # ]
+            # linop = self.linop.split(self.linop, *ibatches, *obatches)
+            xbatch = x[in_batch]
+            ybatch = linop(xbatch)
+            y[out_batch] += ybatch
+        return y
+
+    def make_tiles(self):
+        # Complete the size specifications
+        # for dim, total in zip(self.ishape, x.shape):
+        #     self.sizes[dim] = total
+        batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
+        ishapes = [linop.ishape for linop in self.linop.flatten()]
+        oshapes = [linop.oshape for linop in self.linop.flatten()]
+        tiles = list(dict_product(batch_iterators))
+        linops = []
+        input_batches = []
+        output_batches = []
+        for tile in tiles:
             ibatches = [
                 [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
             ]
@@ -73,19 +107,10 @@ class Batch(NamedLinop):
                 [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
             ]
             linop = self.linop.split(self.linop, *ibatches, *obatches)
-            xbatch = x[ibatches[-1]].to(self.input_device)
-            ybatch = linop(xbatch)
-            y[obatches[0]] += ybatch
-        return y
-
-    def make_tiles(self):
-        # Complete the size specifications
-        for dim, total in zip(self.ishape, x.shape):
-            self.sizes[dim] = total
-        batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
-        ishapes = [linop.ishape for linop in self.linop.flatten()]
-        oshapes = [linop.oshape for linop in self.linop.flatten()]
-        return ishapes, oshapes
+            linops.append(linop)
+            input_batches.append(ibatches[-1])
+            output_batches.append(obatches[0])
+        return linops, input_batches, output_batches
 
     def split_forward(self):
         # Complete the size specifications
@@ -112,11 +137,15 @@ class Batch(NamedLinop):
 
     @property
     def H(self):
-        try:
-            return self.adjoint()
-        except AttributeError as e:
-            traceback.print_exc()
-            raise
+        if self._adjoint is None:
+            try:
+                _adjoint = self.adjoint()
+                _adjoint._adjoint = [self]
+                self._adjoint = [_adjoint]
+            except AttributeError as e:
+                traceback.print_exc()
+                raise
+        return self._adjoint[0]
 
     def adjoint(self):
         batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
@@ -126,6 +155,7 @@ class Batch(NamedLinop):
             output_device=self.input_device,
             input_dtype=self.output_dtype,
             output_dtype=self.input_dtype,
+            name=self.name + ".H",
             pbar=self.pbar,
             **batch_sizes,
         )
@@ -133,11 +163,14 @@ class Batch(NamedLinop):
 
     @property
     def N(self):
-        try:
-            return self.normal()
-        except AttributeError as e:
-            traceback.print_exc()
-            raise
+        if self._normal is None:
+            try:
+                _normal = self.normal()
+                self._normal = [_normal]
+            except AttributeError as e:
+                traceback.print_exc()
+                raise
+        return self._normal[0]
 
     def normal(self, inner=None):
         batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
@@ -147,6 +180,7 @@ class Batch(NamedLinop):
             output_device=self.input_device,
             input_dtype=self.input_dtype,
             output_dtype=self.input_dtype,
+            name=self.name + ".N",
             pbar=self.pbar,
             **batch_sizes,
         )

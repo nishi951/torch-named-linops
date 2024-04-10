@@ -23,25 +23,28 @@ class FFT(NamedLinop):
         return self._shape.lookup("batch_shape")
 
     def forward(self, x, /):
-        return self.fn(x)
+        return self.fn(self, x)
 
-    def fn(self, x):
-        if self.centered:
-            x = fft.ifftshift(x, dim=self.dim)
-        x = fft.fftn(x, dim=self.dim, norm=self.norm)
-        if self.centered:
-            x = fft.fftshift(x, dim=self.dim)
+    @staticmethod
+    def fn(linop, x):
+        if linop.centered:
+            x = fft.ifftshift(x, dim=linop.dim)
+        x = fft.fftn(x, dim=linop.dim, norm=linop.norm)
+        if linop.centered:
+            x = fft.fftshift(x, dim=linop.dim)
         return x
 
-    def adj_fn(self, x):
-        if self.centered:
-            x = fft.ifftshift(x, dim=self.dim)
-        x = fft.ifftn(x, dim=self.dim, norm=self.norm)
-        if self.centered:
-            x = fft.fftshift(x, dim=self.dim)
+    @staticmethod
+    def adj_fn(linop, x):
+        if linop.centered:
+            x = fft.ifftshift(x, dim=linop.dim)
+        x = fft.ifftn(x, dim=linop.dim, norm=linop.norm)
+        if linop.centered:
+            x = fft.fftshift(x, dim=linop.dim)
         return x
 
-    def normal_fn(self, x):
+    @staticmethod
+    def normal_fn(linop, x):
         return x
 
     def split_forward(self, ibatch, obatch):
