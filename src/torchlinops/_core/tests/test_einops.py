@@ -2,7 +2,7 @@ import torch
 
 from torchlinops import SumReduce, Repeat
 
-from adjoint_helpers import is_adjoint
+from torchlinops.utils import is_adjoint
 
 
 def test_reduce_repeat():

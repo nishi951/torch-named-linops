@@ -1,6 +1,6 @@
 import torch
 
-from adjoint_helpers import inner, is_adjoint
+from torchlinops.utils import inner, is_adjoint
 
 from torchlinops import Dense
 

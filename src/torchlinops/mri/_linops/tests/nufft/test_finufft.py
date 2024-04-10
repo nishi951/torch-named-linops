@@ -63,7 +63,7 @@ def tgas_spi_data():
 @pytest.fixture
 def tgas_spi_data_big():
     config = TGASSPISimulatorConfig(
-        im_size=(220, 220, 220),
+        im_size=(224, 224, 224),
         num_coils=6,
         num_TRs=500,
         num_groups=16,
@@ -80,20 +80,28 @@ def tgas_spi_data_big():
     return data
 
 
-def test_finufft2d(spiral2d_data):
+@pytest.mark.parametrize("upsampfac", [2.0, 1.25])
+def test_finufft2d(spiral2d_data, upsampfac):
     data = spiral2d_data
     fi_trj = sp2fi(data.trj.clone(), data.img.shape)
     # Test forward
-    fi_ksp = fi_nufft(data.img * data.mps, fi_trj)
+    fi_ksp = fi_nufft(data.img * data.mps, fi_trj, upsampfac=upsampfac)
     assert torch.isclose(fi_ksp, data.ksp, atol=1e-2, rtol=1e-2).all()
 
     # Test adjoint
     sp_img_adjoint = sp_nufft_adjoint(data.ksp, data.trj, data.mps.shape)
-    fi_img_adjoint = fi_nufft_adjoint(data.ksp, fi_trj, tuple(data.mps.shape))
+    fi_img_adjoint = fi_nufft_adjoint(
+        data.ksp, fi_trj, tuple(data.mps.shape), upsampfac=upsampfac
+    )
     assert torch.isclose(fi_img_adjoint, sp_img_adjoint, atol=1e-1, rtol=1e-2).all()
 
     # Test normal
-    fi_normal = fi_nufft_adjoint(fi_nufft(data.img, fi_trj), fi_trj, data.img.shape)
+    fi_normal = fi_nufft_adjoint(
+        fi_nufft(data.img, fi_trj, upsampfac=upsampfac),
+        fi_trj,
+        data.img.shape,
+        upsampfac=upsampfac,
+    )
     sp_normal = sp_nufft_adjoint(sp_nufft(data.img, data.trj), data.trj, data.img.shape)
     assert torch.isclose(fi_normal, sp_normal, atol=1e-1, rtol=1e-2).all()
 
@@ -158,10 +166,11 @@ def test_cufinufft2d(spiral2d_data):
 
 @pytest.mark.slow
 @pytest.mark.gpu
+@pytest.mark.parametrize("upsampfac", [2.0])
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"
 )
-def test_cufinufft3d(tgas_spi_data_big):
+def test_cufinufft3d(tgas_spi_data_big, upsampfac):
     device = torch.device("cuda")
     data = tgas_spi_data_big
     fi_trj = sp2fi(data.trj.clone(), data.img.shape)
@@ -169,7 +178,11 @@ def test_cufinufft3d(tgas_spi_data_big):
     from time import perf_counter
 
     start = perf_counter()
-    ksp = fi_nufft(data.img.to(device) * data.mps.to(device), fi_trj.to(device))
+    ksp = fi_nufft(
+        data.img.to(device) * data.mps.to(device),
+        fi_trj.to(device),
+        upsampfac=upsampfac,
+    )
     total = perf_counter() - start
     print(f"Img shape: {data.img.shape}")
     print(f"Ksp shape: {ksp.shape}")
@@ -179,13 +192,20 @@ def test_cufinufft3d(tgas_spi_data_big):
 
     # Test adjoint
     sp_img_adjoint = sp_nufft_adjoint(
-        data.ksp.to(device), data.trj.to(device), data.mps.shape
+        data.ksp.to(device),
+        data.trj.to(device),
+        data.mps.shape,
+        oversamp=upsampfac,
     )
+    start = perf_counter()
     fi_img_adjoint = fi_nufft_adjoint(
         data.ksp.to(device),
         fi_trj.to(device),
         tuple(data.mps.shape),
+        upsampfac=upsampfac,
     )
+    total = perf_counter() - start
+    print(f"Adjoint: {total} s")
     assert torch.isclose(
         fi_img_adjoint.cpu(), sp_img_adjoint.cpu(), atol=1e-1, rtol=1e-1
     ).all()

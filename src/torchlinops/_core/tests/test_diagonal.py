@@ -2,7 +2,7 @@ import torch
 
 from torchlinops import Diagonal
 
-from adjoint_helpers import inner, is_adjoint
+from torchlinops.utils import inner, is_adjoint
 
 
 def test_diagonal():

@@ -1,6 +1,6 @@
-import torch
+from typing import Callable
 
-from torchlinops import NamedLinop
+import torch
 
 __all__ = ["inner", "is_adjoint"]
 
@@ -11,7 +11,7 @@ def inner(x, y):
 
 
 def is_adjoint(
-    A: NamedLinop,
+    A: Callable,
     x: torch.Tensor,
     y: torch.Tensor,
     atol: float = 1e-5,
@@ -21,4 +21,6 @@ def is_adjoint(
     The adjoint test states that if A and AH are adjoints, then
     inner(y, Ax) = inner(AHy, x)
     """
-    return torch.isclose(inner(y, A(x)), inner(A.H(y), x), atol=atol, rtol=rtol).all()
+    yAx = inner(y, A(x))
+    xAHy = inner(A.H(y), x)
+    return torch.isclose(yAx, xAHy, atol=atol, rtol=rtol).all()

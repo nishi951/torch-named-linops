@@ -4,7 +4,7 @@ import torch
 
 from torchlinops import PadLast
 
-from adjoint_helpers import is_adjoint
+from torchlinops.utils import is_adjoint
 
 
 @pytest.fixture
