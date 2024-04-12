@@ -103,7 +103,7 @@ class NamedLinop(nn.Module):
                 self._adjoint = [_adjoint]  # Prevent registration as a submodule
             except AttributeError as e:
                 traceback.print_exc()
-                raise
+                raise e
             logger.debug(f"{type(self).__name__}: Making new adjoint {_adjoint._shape}")
         return self._adjoint[0]
 
@@ -135,7 +135,7 @@ class NamedLinop(nn.Module):
                 self._normal = [_normal]
             except AttributeError as e:
                 traceback.print_exc()
-                raise
+                raise e
         return self._normal[0]
 
     def normal(self, inner=None):

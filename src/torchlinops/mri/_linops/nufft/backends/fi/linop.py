@@ -1,14 +1,17 @@
-from math import prod
+from math import prod, sqrt
 from typing import Optional, Tuple, Mapping
 
 import torch
 import cufinufft, finufft
 
 from torchlinops.mri._linops.nufft.base import NUFFTBase
+from torchlinops.utils import multi_flatten
 from . import functional as F
+from . import planned as P
 from .convert_trj import sp2fi, fi2sp
 
 DEFAULT_UPSAMPFAC = 2.0
+
 
 class FiNUFFT(NUFFTBase):
     def __init__(
@@ -61,18 +64,68 @@ class FiNUFFT(NUFFTBase):
     def forward(self, x: torch.Tensor):
         return self.fn(self, x, self.trj)
 
-    def _plan_helper(self, plan, x, out=None):
-        """Dealing with lots of edge cases"""
-        if self.plan_type == "cpu":
-            x = x.detach().cpu().numpy()
-        if out is not None:
-            plan.execute(x, out)
-            return
+    def _flatten_image(self, img):
+        partitions = (self.nS, self.nN)
+        flat_img, img_shape = multi_flatten(img, partitions)
+        return flat_img, img_shape
+
+    def _flatten_trj(self, trj):
+        partitions = (self.nS, self.nK)
+        flat_trj, trj_shape = multi_flatten(trj, partitions)
+        return flat_trj, trj_shape
+
+    def _flatten_ksp(self, ksp):
+        partitions = (self.nS, self.nN, self.nK)
+        flat_ksp, ksp_shape = multi_flatten(ksp, partitions)
+        return flat_ksp, ksp_shape
+
+    def fn_noshared(
+        self, x, trj, out=None, plan: Optional[P.FiNUFFTCombinedPlan] = None
+    ):
+        """
+        x: [N... *im_size]
+        trj: [K... D]
+
+        Returns
+        -------
+        [N... K...] torch.Tensor
+
+        """
+        N_shape = x.shape[: -self.nD]
+        K_shape = trj.shape[:-1]
+        oshape = (*N_shape, *K_shape)
+        x, _ = self._flatten_image(x)
+        if plan is not None:
+            out_ = P.nufft(x, plan, out)
         else:
-            y = plan.execute(x)
-        if self.plan_type == "cpu":
-            return torch.from_numpy(y)
-        return y
+            trj, _ = self._flatten_trj(trj)
+            out_ = F.nufft(x, trj, out=out, upsampfac=self.upsampfac)
+        if out is None:
+            out = out_
+        return torch.reshape(out, oshape)
+
+    def adj_fn_noshared(
+        self, y, trj, im_size, out=None, plan: Optional[P.FiNUFFTCombinedPlan] = None
+    ):
+        """
+        y: [N... K...]
+        trj: [K... D]
+
+        Returns
+        -------
+        [N... *im_size] torch.Tensor
+        """
+        N_shape = y.shape[: -self.nK]
+        oshape = (*N_shape, *self.im_size)
+        y, _ = self._flatten_ksp(y)
+        if plan is not None:
+            out_ = P.nufft_adjoint(y, plan, out)
+        else:
+            trj, _ = self._flatten_trj(trj)
+            out_ = F.nufft_adjoint(y, trj, im_size, out=out, upsampfac=self.upsampfac)
+        if out is None:
+            out = out_
+        return torch.reshape(out, oshape)
 
     @staticmethod
     def fn(linop, x, /, trj):
@@ -81,27 +134,25 @@ class FiNUFFT(NUFFTBase):
         trj: [[S...] K... D] (sigpy-style)
         output: [[S...] N... K...]
         """
-        N = x.shape[linop.shared_dims : -linop.D]
-        K = trj.shape[linop.shared_dims : -1]
-        if linop.shared_dims == 0:
-            if len(linop._plans) > 0:
-                oshape = (*N, *K)
-                y = linop._plan_helper(linop._plans[0], x)
-                return torch.reshape(y, oshape)
-            return F.nufft(x, trj, upsampfac=linop.upsampfac)
+        if linop.nS == 0:
+            plan = linop._plans[0] if linop.plan else None
+            return linop.fn_noshared(x, trj, plan=plan)
         assert (
             x.shape[: linop.shared_dims] == trj.shape[: linop.shared_dims]
         ), f"First {linop.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}"
-        S = x.shape[: linop.shared_dims]
-        output_shape = (*S, *N, *K)
-        x = torch.flatten(x, start_dim=0, end_dim=linop.shared_dims - 1)
-        trj = torch.flatten(trj, start_dim=0, end_dim=linop.shared_dims - 1)
-        y = torch.zeros((prod(S), *N, *K), dtype=x.dtype, device=x.device)
+        S_shape = x.shape[: linop.nS]
+        N_shape = x.shape[linop.nS : -linop.nD]
+        K_shape = trj.shape[:-1]
+        output_shape = (*S_shape, *N_shape, *K_shape)
+        y = torch.zeros(
+            (prod(S_shape), prod(N_shape), prod(K_shape)),
+            dtype=x.dtype,
+            device=x.device,
+        )
+        trj, _ = multi_flatten(trj, linop.nS)
         for i in range(y.shape[0]):
-            if len(linop._plans) > 0:
-                linop._plan_helper(linop._plans[i], x[i], y[i])
-            else:
-                F.nufft(x[i], trj[i], out=y[i], upsampfac=linop.upsampfac)
+            plan = linop._plans[i] if linop.plan else None
+            y[i] = linop.fn_noshared(x[i], trj[i], plan=plan)
         y = torch.reshape(y, output_shape)
         return y
 
@@ -112,37 +163,26 @@ class FiNUFFT(NUFFTBase):
         trj: [[S...] K... D] (sigpy-style)
         output: [[S...] N...  Nx Ny [Nz]]
         """
-        nK = len(linop.out_batch_shape)
-        N = y.shape[linop.shared_dims : -nK]
-        oshape = (*N, *linop.im_size)
-        if linop.shared_dims == 0:
-            if len(linop._adj_plans) > 0:
-                # y = [N..., K...]
-                if len(N) > 0:
-                    y = torch.flatten(y, start_dim=0, end_dim=-(nK + 1))
-                # y = [(N...), K...]
-                y = torch.flatten(y, start_dim=-nK, end_dim=-1)
-                # y = [(N...), (K...)]
-                x = linop._plan_helper(linop._adj_plans[0], y)
-                return x
-            return F.nufft_adjoint(y, trj, oshape, upsampfac=linop.upsampfac)
+        N_shape = y.shape[linop.nS : -linop.nK]
+        batch_oshape = (*N_shape, *linop.im_size)
+        if linop.nS == 0:
+            plan = linop._plans[0] if linop.plan else None
+            return linop.adj_fn_noshared(y, trj, batch_oshape, plan=plan)
+
         assert (
             y.shape[: linop.shared_dims] == trj.shape[: linop.shared_dims]
         ), f"First {linop.shared_dims} dims of y, trj  must match but got y: {y.shape}, trj: {trj.shape}"
-        S = y.shape[: linop.shared_dims]
-        N = y.shape[linop.shared_dims : -linop.D]
-        oshape = (*N, *linop.im_size)
-        output_shape = (*S, *N, *linop.im_size)
-        y = torch.flatten(y, start_dim=0, end_dim=linop.shared_dims - 1)
-        trj = torch.flatten(trj, start_dim=0, end_dim=linop.shared_dims - 1)
-        x = torch.zeros((prod(S), *N, *linop.im_size), dtype=y.dtype, device=y.device)
+        S_shape = y.shape[: linop.nS]
+        output_shape = (*S_shape, *N_shape, *linop.im_size)
+        x = torch.zeros(
+            (prod(S_shape), prod(N_shape), *linop.im_size),
+            dtype=y.dtype,
+            device=y.device,
+        )
+        trj, _ = multi_flatten(trj, linop.S)
         for i in range(x.shape[0]):
-            if len(linop._adj_plans) > 0:
-                linop._plan_helper(linop._adj_plans[i], y[i], x[i])
-            else:
-                F.nufft_adjoint(
-                    y[i], trj[i], oshape, out=x[i], upsampfac=linop.upsampfac
-                )
+            plan = linop._plans[i] if linop.plan else None
+            x[i] = linop.adj_fn_noshared(y[i], trj[i], batch_oshape, plan)
         x = torch.reshape(x, output_shape)
         return x
 
@@ -166,9 +206,8 @@ class FiNUFFT(NUFFTBase):
             new.upsampfac = self.upsampfac
         if self.plan:
             if (self.trj == new.trj).all():
-                # Zero-duplication of plans
+                # Avoid unnecessary duplication of plans
                 new._plans = self._plans
-                new._adj_plans = self._adj_plans
                 new.plan = self.plan
                 new.plan_device = self.plan_device
                 new.plan_type = self.plan_type
@@ -195,7 +234,7 @@ class FiNUFFT(NUFFTBase):
             kwargs = {
                 "upsampfac": self.upsampfac,
                 "spread_kerevalmeth": 1 if self.upsampfac == 2.0 else 0,
-                "maxbatchsize": 1, # For memory reasons
+                "maxbatchsize": 1,  # For memory reasons
             }
             self.plan_device = torch.device("cpu")
 
@@ -209,54 +248,38 @@ class FiNUFFT(NUFFTBase):
             kwargs = {
                 "upsampfac": self.upsampfac,
                 "gpu_kerevalmeth": 1 if self.upsampfac == 2.0 else 0,
-                "gpu_maxbatchsize": 1, # for memory reasons
+                "gpu_maxbatchsize": 1,  # for memory reasons
             }
             self.plan_device = torch.device(f"cuda:{device_idx}")
         else:
-            raise ValueError(f'Unrecognized plan type: {extras["plan_ahead"]}')
+            raise ValueError(f"Unrecognized plan type: {plan_type}")
 
         # n_trans = prod(self.trj.shape[self.shared_dims : -self.D])
-        def makeplans():
+        def makeplans(trj):
             """Helper function to quickly create new plans"""
             # Nufft type. 1=adjoint, 2=forward
-            return (
+            plan = P.FiNUFFTCombinedPlan(
                 plan_backend.Plan(
                     2, self.im_size, n_trans, isign=-1, dtype="complex64", **kwargs
                 ),
                 plan_backend.Plan(
                     1, self.im_size, n_trans, isign=1, dtype="complex64", **kwargs
                 ),
+                plan_type=plan_type,
             )
-
-        if self.shared_dims > 0:
-            n_shared = prod(self.trj.shape[: self.shared_dims])
-            trj_flat = torch.flatten(
-                self.trj, start_dim=0, end_dim=self.shared_dims - 1
-            )
-            for i in range(n_shared):
-                _plan, _adj_plan = makeplans()
-                coords = torch.flatten(trj_flat[i], start_dim=0, end_dim=-2)
-                coords = F.coord2contig(coords)
-                if plan_type == "cpu":
-                    flat_coords = tuple(c.detach().numpy() for c in flat_coords)
-                else:
-                    coords = tuple(c.to(self.plan_device) for c in coords)
-                _plan.setpts(*coords)
-                _adj_plan.setpts(*coords)
-                self._plans.append(_plan)
-                self._adj_plans.append(_adj_plan)
-        else:
-            trj_flat = torch.flatten
-            _plan, _adj_plan = makeplans()
-            coords = torch.flatten(self.trj, start_dim=0, end_dim=-2)
+            coords, _ = multi_flatten(trj, self.nK)
             coords = F.coord2contig(coords)
             if plan_type == "cpu":
-                coords = tuple(c.detach().numpy() for c in coords)
-            else:
-                coords = tuple(c.to(self.plan_device) for c in coords)
-            _plan.setpts(*coords)
-            _adj_plan.setpts(*coords)
-            self._plans.append(_plan)
-            self._adj_plans.append(_adj_plan)
+                coords = tuple(c.detach().cpu().numpy() for c in coords)
+            plan._forward.setpts(*coords)
+            plan._adjoint.setpts(*coords)
+            return plan
+
+        if self.nS > 0:
+            trj, _ = multi_flatten(self.trj, self.nS)
+            for i in range(trj.shape[0]):
+                self._plans.append(makeplans(trj[i]))
+        else:
+            self._plans.append(makeplans(self.trj))
         self.plan = True
         self.plan_type = plan_type

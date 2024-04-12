@@ -42,22 +42,23 @@ def slicelen(n, start=None, end=None, step=None):
     return len(range(*slice(start, end, step).indices(n)))
 
 
-def flatten(x, start_dim=0, end_dim=-1):
-    """Get size of batch dimension
-    coord: [K... D]
-    Returns
-    -------
-    torch.Tensor [(K...) D] : The trajectory with batch dimensions squeezed
-    K...: The actual batch shapes
-    """
-    orig_shape = x.shape
-    if slicelen(len(x.shape), start=start_dim, end=end_dim) > 0:
-        x = torch.flatten(x, start_dim, end_dim)
-    return x, orig_shape
+# def flatten(x, start_dim=0, end_dim=-1):
+#     """Get size of batch dimension
+#     coord: [K... D]
+#     Returns
+#     -------
+#     torch.Tensor [(K...) D] : The trajectory with batch dimensions squeezed
+#     K...: The actual batch shapes
+#     """
+#     orig_shape = x.shape
+#     if slicelen(len(x.shape), start=start_dim, end=end_dim) > 0:
+#         x = torch.flatten(x, start_dim, end_dim)
+#     return x, orig_shape
 
 
-def unflatten(x, orig_shape):
-    return torch.reshape(x, orig_shape)
+# def unflatten(x, orig_shape):
+#     return torch.reshape(x, orig_shape)
+
 
 def get_finufft_kwargs(dev, upsampfac):
     """Helper function for making the (cu)finufft backend stop
@@ -82,57 +83,41 @@ def _nufft(
 ) -> torch.Tensor:
     """
     input : torch.Tensor
-        Shape [N... *im_size]
+        Shape [N *im_size]
     coord : torch.Tensor
-        Has scaling [-pi/2, pi/2]. Shape [K... D]
+        Has scaling [-pi/2, pi/2]. Shape [K D]
+    out : torch.Tensor
+        Optional output to be populated. Shape [N K]
     upsampfac : float
         Upsampling factor for grid
     Returns
     -------
     output : torch.Tensor
-        [N... K...]
+        [N K]
     """
     dev = "cpu" if input.device == torch.device("cpu") else "gpu"
     kwargs = get_finufft_kwargs(dev, upsampfac)
     dim = coord.shape[-1]
-    nK = len(coord.shape[:-1])
-    flat_input, input_shape = flatten(input, start_dim=0, end_dim=-(dim + 1))
-    flat_coord, coord_shape = flatten(coord, start_dim=0, end_dim=-2)
-    flat_out = None
-
-    if out is not None:
-        flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(nK + 1))
-        flat_out, _ = flatten(flat_out, start_dim=1, end_dim=-1)
 
     nufft_fn = get_nufft[dev][dim][0]
 
-    coord_components = coord2contig(flat_coord)
+    coord_components = coord2contig(coord)
     if dev == "cpu":
         coord_components = tuple(c.detach().numpy() for c in coord_components)
-        flat_input = flat_input.detach().numpy()
-
-    if flat_out is not None:
-        nufft_fn(
-            *coord_components,
-            flat_input,
-            isign=-1,
-            out=flat_out,
-            upsampfac=upsampfac,
-            **kwargs,
-        ) / sqrt(prod(input_shape[-dim:]))
-    else:
-        flat_out = nufft_fn(
-            *coord_components,
-            flat_input,
-            isign=-1,
-            upsampfac=upsampfac,
-            **kwargs,
-        ) / sqrt(prod(input_shape[-dim:]))
-
+        input = input.detach().numpy()
+    out_ = nufft_fn(
+        *coord_components,
+        input,
+        isign=-1,
+        out=out,
+        upsampfac=upsampfac,
+        **kwargs,
+    ) / sqrt(prod(input.shape[-dim:]))
+    if out is None:
+        out = out_
     if dev == "cpu":
-        flat_out = torch.from_numpy(flat_out)
-    output = unflatten(flat_out, (*input_shape[:-dim], *coord_shape[:-1]))
-    return output
+        out = torch.from_numpy(out)
+    return out
 
 
 def _nufft_adjoint(
@@ -162,52 +147,29 @@ def _nufft_adjoint(
     dev = "cpu" if input.device == torch.device("cpu") else "gpu"
     kwargs = get_finufft_kwargs(dev, upsampfac)
     dim = coord.shape[-1]
-    K = coord.shape[:-1]
-    nK = len(K)
-    N = input.shape[:-nK]
-    nN = len(N)
-    # out_batch = input.shape[:-nK]
-    flat_input = input
-    if nN > 0:
-        flat_input, _ = flatten(flat_input, start_dim=0, end_dim=-(nK + 1))
-    flat_input, _ = flatten(flat_input, start_dim=-nK, end_dim=-1)
-    flat_coord, _ = flatten(coord, start_dim=0, end_dim=-2)
-    flat_out = None
-    if out is not None:
-        flat_out, out_shape = flatten(out, start_dim=0, end_dim=-(nK + 1))
 
     adj_nufft_fn = get_nufft[dev][dim][1]
 
-    coord_components = coord2contig(flat_coord)
+    coord_components = coord2contig(coord)
     if dev == "cpu":
         coord_components = tuple(c.detach().numpy() for c in coord_components)
-        flat_input = flat_input.detach().numpy()
+        input = input.detach().numpy()
 
     im_size = oshape[-dim:]
-    if flat_out is not None:
-        adj_nufft_fn(
-            *coord_components,
-            flat_input,
-            im_size,
-            isign=1,
-            out=flat_out,
-            upsampfac=upsampfac,
-            **kwargs,
-        ) / sqrt(prod(im_size))
-    else:
-        flat_out = adj_nufft_fn(
-            *coord_components,
-            flat_input,
-            im_size,
-            isign=1,
-            upsampfac=upsampfac,
-            **kwargs,
-        ) / sqrt(prod(im_size))
-
+    out_ = adj_nufft_fn(
+        *coord_components,
+        input,
+        im_size,
+        isign=1,
+        out=out,
+        upsampfac=upsampfac,
+        **kwargs,
+    ) / sqrt(prod(im_size))
+    if out is None:
+        out = out_
     if dev == "cpu":
-        flat_out = torch.from_numpy(flat_out)
-    output = unflatten(flat_out, oshape)
-    return output
+        out = torch.from_numpy(out)
+    return out
 
 
 class FiNUFFT(Function):
@@ -239,7 +201,7 @@ class FiNUFFT(Function):
                 ctx.oshape,
                 upsampfac=ctx.upsampfac,
             )
-        return grad_input, grad_coord, grad_out
+        return grad_input, grad_coord, grad_out, grad_upsampfac
 
 
 def nufft(input, coord, out=None, upsampfac=2.0):

@@ -76,14 +76,16 @@ class NUFFTBase(NamedLinop):
         shared_batch_shape = (
             shared_batch_shape if shared_batch_shape is not None else tuple()
         )
-        self.shared_dims = len(shared_batch_shape)
-        self.D = len(im_size)
+        self.nS = len(shared_batch_shape)
+        self.shared_batch_shape = self.ishape[: self.nS]
+        self.nD = len(im_size)
         self.im_shape = get2dor3d(im_size)
-        self.shared_batch_shape = self.ishape[: self.shared_dims]
-        self.in_batch_shape = self.ishape[self.shared_dims : -self.D]
-        self.out_batch_shape = self.oshape[
-            self.shared_dims + len(self.in_batch_shape) :
-        ]
+        self.in_batch_shape = self.ishape[self.nS : -self.nD]
+        self.nN = len(self.in_batch_shape)
+        self.out_batch_shape = self.oshape[self.nS + self.nN :]
+        self.nK = len(self.out_batch_shape)
+        # Legacy
+        self.shared_dims = self.nS
 
     def forward(self):
         raise NotImplementedError(f"{type(self).__name__} cannot be used directly")

@@ -103,7 +103,7 @@ class Batch(NamedLinop):
                 self._adjoint = [_adjoint]
             except AttributeError as e:
                 traceback.print_exc()
-                raise
+                raise e
         return self._adjoint[0]
 
     def adjoint(self):
@@ -128,7 +128,7 @@ class Batch(NamedLinop):
                 self._normal = [_normal]
             except AttributeError as e:
                 traceback.print_exc()
-                raise
+                raise e
         return self._normal[0]
 
     def normal(self, inner=None):
