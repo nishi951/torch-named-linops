@@ -3,8 +3,8 @@ from .nameddim import NS
 
 
 class Identity(NamedLinop):
-    def __init__(self, ioshape):
-        super().__init__(NS(ioshape))
+    def __init__(self, ishape, oshape=None):
+        super().__init__(NS(ishape, oshape))
 
     def forward(self, x):
         return x

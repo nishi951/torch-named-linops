@@ -73,7 +73,7 @@ exclude = ["tests"]
 minversion = "6.0"
 addopts = """
 -ra -q \
--m 'not slow and not gpu' \
+-m 'not slow and not gpu and not plot' \
 --ignore-glob **/mri/_grid/backends/_kgrog/tests/* \
 --ignore-glob **/mri/app/tests/* \
 --ignore libraries \
@@ -89,4 +89,5 @@ markers = [
     "slow: tests that are slow (deselect with '-m \"not slow\"')",
     "big: tests that require large memory (cpu or gpu)",
     "gpu: tests that require a gpu",
+    "plot: tests that involve plotting",
 ]

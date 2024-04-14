@@ -7,14 +7,13 @@ __all__ = ["Add"]
 
 
 class Add(NamedLinop):
-    def __init__(self, *linops, strict=True):
-        if strict:
-            assert all(
-                linop.ishape == linops[0].ishape for linop in linops
-            ), "All linops must share same ishape"
-            assert all(
-                linop.oshape == linops[0].oshape for linop in linops
-            ), "All linops must share same oshape"
+    def __init__(self, *linops):
+        assert all(
+            linop.ishape == linops[0].ishape for linop in linops
+        ), "All linops must share same ishape"
+        assert all(
+            linop.oshape == linops[0].oshape for linop in linops
+        ), "All linops must share same oshape"
         super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = linops
 
