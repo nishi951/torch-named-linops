@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "torchlinops"
 description = "A library for MRI reconstruction with a torch linear operator abstraction."
-version = "0.1.3"
+version = "0.1.4"
 authors = [
     { name = "Mark Nishimura", email = "markn1@stanford.edu" }
 ]
 dependencies = [
     # NUFFT
-    "finufft",
+    "finufft>=2.2.0",
     # Sigpy for various utils
     # Other versions locked for compatibility (may change soon)
     "sigpy == 0.1.25",
@@ -32,7 +32,7 @@ requires-python = ">=3.10"
 
 [project.optional-dependencies]
 cuda12 = [
-    "cufinufft",
+    "cufinufft>=2.2.0",
     # Versions compatible with sigpy
     "cupy-cuda12x<13.0", # Avoid cublas error
     "cutensor-cu12",
@@ -42,7 +42,7 @@ cuda12 = [
     # ```
 ]
 cuda11 = [
-    "cufinufft",
+    "cufinufft>=2.2.0",
     # Versions compatible with sigpy
     "cupy-cuda11x<13.0", # Avoid cublas error
     "cutensor-cu11",
