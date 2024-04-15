@@ -2,7 +2,7 @@ import pytest
 
 import torch
 
-from torchlinops.utils import multi_flatten
+from torchlinops.mri._linops.nufft.backends.fi._flatten import multi_flatten
 
 
 @pytest.fixture

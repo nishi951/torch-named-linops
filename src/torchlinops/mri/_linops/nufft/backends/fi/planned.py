@@ -1,8 +1,10 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Tuple
 
 import torch
 from torch.autograd import Function
+
+from ._flatten import multi_flatten
 
 
 __all__ = [
@@ -18,9 +20,17 @@ __all__ = [
 class FiNUFFTCombinedPlan:
     _forward: Any
     _adjoint: Any
+    im_size: int
+    N_shape: Tuple
+    K_shape: Tuple
     plan_type: str = "cpu"
 
     def execute(self, x: torch.Tensor, out=None) -> torch.Tensor:
+        """
+        Does broadcasting
+        """
+        output_shape = self.N_shape + self.K_shape
+        x, _ = multi_flatten(x, len(self.N_shape))
         if self.plan_type == "cpu":
             x = x.detach().cpu().numpy()
         y = self._forward.execute(x, out)
@@ -28,9 +38,14 @@ class FiNUFFTCombinedPlan:
             out = y
         if self.plan_type == "cpu":
             out = torch.from_numpy(out)
-        return out
+        return torch.reshape(out, output_shape)
 
     def adj_execute(self, x: torch.Tensor, out=None):
+        """
+        Does broadcasting
+        """
+        output_shape = self.N_shape + self.im_size
+        x, _ = multi_flatten(x, (len(self.N_shape), len(self.K_shape)))
         if self.plan_type == "cpu":
             x = x.detach().cpu().numpy()
         y = self._adjoint.execute(x, out)
@@ -38,7 +53,7 @@ class FiNUFFTCombinedPlan:
             out = y
         if self.plan_type == "cpu":
             out = torch.from_numpy(out)
-        return out
+        return torch.reshape(out, output_shape)
 
 
 class PlannedFiNUFFT(Function):

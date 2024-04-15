@@ -5,5 +5,4 @@ from ._complex import *
 from ._device import *
 from ._event import *
 from ._fft import *
-from ._flatten import *
 from ._pad import *

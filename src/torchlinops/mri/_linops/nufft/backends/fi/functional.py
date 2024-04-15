@@ -7,7 +7,7 @@ Standalone file (no NamedLinop)
 """
 
 from math import prod, sqrt
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 
 import finufft as F
 import cufinufft as cF
@@ -15,7 +15,10 @@ import cufinufft as cF
 import torch
 from torch.autograd import Function
 
+from ._flatten import multi_flatten
+
 __all__ = ["nufft", "nufft_adjoint"]
+
 
 # lookup[(<device>, <im_dim>)] -> (forward, adjoint)
 # Type-2 NUFFT = "forward" NUFFT (uniform to nonuniform)
@@ -129,13 +132,13 @@ def _nufft_adjoint(
 ) -> torch.Tensor:
     """
     input : torch.Tensor
-        Shape [N... K...]
+        Shape [N K]
     coord : torch.Tensor
-        Shape [K... D], has scaling [-pi/2, pi/2]
+        Shape [K D], has scaling [-pi/2, pi/2]
     oshape : Tuple
         Desired output image shape (with batch dimensinos).
     out : Optional[torch.Tensor]
-        Shape [N..., *im_size] optional output image
+        Shape [N, *im_size] optional output image
     upsampfac : float
         Upsampling factor for regular grid
 
@@ -147,6 +150,7 @@ def _nufft_adjoint(
     dev = "cpu" if input.device == torch.device("cpu") else "gpu"
     kwargs = get_finufft_kwargs(dev, upsampfac)
     dim = coord.shape[-1]
+    im_size = tuple(oshape[-dim:])
 
     adj_nufft_fn = get_nufft[dev][dim][1]
 
@@ -171,6 +175,45 @@ def _nufft_adjoint(
         out = torch.from_numpy(out)
     return out
 
+def _nufft_broadcast(input, coord, out, upsampfac):
+    """
+    input: [N..., *im_size]
+    coord: [K..., D]
+    out: [N... K...]
+    """
+    nD = coord.shape[-1]
+    K_shape = tuple(coord.shape[:-1])
+    N_shape = tuple(input.shape[:-nD])
+    output_shape = N_shape + K_shape
+    input, _ = multi_flatten(input, len(N_shape))
+    coord, _ = multi_flatten(coord, len(K_shape))
+
+    out_ = _nufft(input, coord, out, upsampfac)
+    if out is None:
+        out = out_
+
+    return torch.reshape(out, output_shape)
+
+def _nufft_adjoint_broadcast(input, coord, oshape, out, upsampfac):
+    """
+    input: [N..., K...]
+    coord: [K..., D]
+    oshape: Output shape [N..., *im_size]
+    out: [N..., *oshape]
+    """
+    nD = coord.shape[-1]
+    nK = len(coord.shape[:-1])
+    N_shape = tuple(input.shape[:-nK])
+
+    input, _ = multi_flatten(input, (len(N_shape), nK))
+    coord, _ = multi_flatten(coord, nK)
+
+    out_ = _nufft_adjoint(input, coord, oshape, out, upsampfac)
+    if out is None:
+        out = out_
+
+    return torch.reshape(out, oshape)
+
 
 class FiNUFFT(Function):
     @staticmethod
@@ -180,7 +223,8 @@ class FiNUFFT(Function):
         out: torch.Tensor,
         upsampfac: float,
     ) -> torch.Tensor:
-        return _nufft(input, coord, out, upsampfac)
+        return _nufft_broadcast(input, coord, out, upsampfac)
+
 
     @staticmethod
     def setup_context(ctx, inputs, output):
@@ -195,7 +239,7 @@ class FiNUFFT(Function):
         grad_input = grad_coord = grad_out = grad_upsampfac = None
 
         if ctx.needs_input_grad[0]:
-            grad_input = _nufft_adjoint(
+            grad_input = _nufft_adjoint_broadcast(
                 grad_output,
                 coord,
                 ctx.oshape,
@@ -220,7 +264,7 @@ class FiNUFFTAdjoint(Function):
         out: Optional[torch.Tensor],
         upsampfac: float,
     ) -> torch.Tensor:
-        return _nufft_adjoint(input, coord, oshape, out, upsampfac)
+        return _nufft_adjoint_broadcast(input, coord, oshape, out, upsampfac)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
@@ -234,7 +278,7 @@ class FiNUFFTAdjoint(Function):
         grad_input = grad_coord = grad_oshape = grad_out = grad_upsampfac = None
 
         if ctx.needs_input_grad[0]:
-            grad_input = _nufft(grad_output, coord, upsampfac=ctx.upsampfac)
+            grad_input = _nufft_broadcast(grad_output, coord, upsampfac=ctx.upsampfac)
         return grad_input, grad_coord, grad_oshape, grad_out, grad_upsampfac
 
 

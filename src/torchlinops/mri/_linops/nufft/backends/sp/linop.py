@@ -70,8 +70,11 @@ class SigpyNUFFT(NUFFTBase):
         S_shape = x.shape[: linop.nS]
         N_shape = x.shape[linop.nS : -linop.nD]
         K_shape = trj.shape[linop.nS : -1]
-        x, _ = multi_flatten(x, (linop.nS, linop.nN))
-        trj, _ = multi_flatten(trj, (linop.nS, linop.nK))
+        x = torch.flatten(x, start_dim=0, end_dim=linop.nS)
+        trj = torch.flatten(trj, start_dim=0, end_dim=linop.nS)
+
+        # x, _ = multi_flatten(x, (linop.nS, linop.nN))
+        # trj, _ = multi_flatten(trj, (linop.nS, linop.nK))
         output_shape = (*S_shape, *N_shape, *K_shape)
         y = torch.zeros(
             (prod(S_shape), *N_shape, *K_shape), dtype=x.dtype, device=x.device
@@ -101,11 +104,13 @@ class SigpyNUFFT(NUFFTBase):
         N_shape = y.shape[linop.nS : -linop.D]
         oshape = (*N, *linop.im_size)
         output_shape = (*S_shape, *N_shape, *linop.im_size)
-        y, _ = multi_flatten(y, (linop.nS, linop.nN, linop.nK))
-        trj, _ = multi_flatten(trj, (linop.nS, linop.nK))
+        y = torch.flatten(y, start_dim=0, end_dim=linop.nS)
+        trj = torch.flatten(trj, start_dim=0, end_dim=linop.nS)
+        # y, _ = multi_flatten(y, (linop.nS, linop.nN, linop.nK))
+        # trj, _ = multi_flatten(trj, (linop.nS, linop.nK))
 
         x = torch.zeros(
-            (prod(S_shape), prod(N_shape), *linop.im_size),
+            (prod(S_shape), *N_shape, *linop.im_size),
             dtype=y.dtype,
             device=y.device,
         )

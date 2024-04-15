@@ -20,7 +20,6 @@ from torchlinops.mri._linops.nufft.backends.sp.functional import (
     nufft_adjoint as sp_nufft_adjoint,
 )
 from torchlinops.mri._linops.nufft.backends.fi.convert_trj import sp2fi
-from torchlinops.utils import multi_flatten
 
 
 @pytest.fixture
@@ -85,15 +84,12 @@ def tgas_spi_data_big():
 def test_finufft2d(spiral2d_data, upsampfac):
     data = spiral2d_data
     fi_trj = sp2fi(data.trj.clone(), data.img.shape)
-    fi_trj, trj_shape = multi_flatten(fi_trj, 2)
 
     # Test forward
     fi_ksp = fi_nufft(data.img * data.mps, fi_trj, upsampfac=upsampfac)
-    fi_ksp = fi_ksp.reshape(-1, *trj_shape[:-1])
     assert torch.isclose(fi_ksp, data.ksp, atol=1e-2, rtol=1e-2).all()
 
     # Test adjoint
-    fi_ksp, _ = multi_flatten(data.ksp, (1, 2))
     sp_img_adjoint = sp_nufft_adjoint(data.ksp, data.trj, data.mps.shape)
     fi_img_adjoint = fi_nufft_adjoint(
         fi_ksp, fi_trj, tuple(data.mps.shape), upsampfac=upsampfac
@@ -115,14 +111,11 @@ def test_finufft2d(spiral2d_data, upsampfac):
 def test_finufft3d(tgas_spi_data):
     data = tgas_spi_data
     fi_trj = sp2fi(data.trj.clone(), data.img.shape)
-    fi_trj, trj_shape = multi_flatten(fi_trj, 3)
     # Test forward
     fi_ksp = fi_nufft(data.img * data.mps, fi_trj)
-    fi_ksp = fi_ksp.reshape(-1, *trj_shape[:-1])
     assert torch.isclose(fi_ksp, data.ksp, atol=1e-1, rtol=1e-1).all()
 
     sp_img_adjoint = sp_nufft_adjoint(data.ksp, data.trj, data.mps.shape)
-    fi_ksp, _ = multi_flatten(data.ksp, (1, 3))
     fi_img_adjoint = fi_nufft_adjoint(fi_ksp, fi_trj, tuple(data.mps.shape))
     assert torch.isclose(fi_img_adjoint, sp_img_adjoint, atol=1e-1, rtol=1e-1).all()
 
@@ -140,19 +133,16 @@ def test_cufinufft2d(spiral2d_data):
     device = torch.device("cuda")
     data = spiral2d_data
     fi_trj = sp2fi(data.trj.clone(), data.img.shape)
-    fi_trj, trj_shape = multi_flatten(fi_trj, 2)
 
     # Test forward
     ksp = fi_nufft(data.img.to(device) * data.mps.to(device), fi_trj.to(device))
     ksp = ksp.cpu()
-    ksp = ksp.reshape(-1, *trj_shape[:-1])
     assert torch.isclose(ksp, data.ksp, atol=1e-2, rtol=1e-2).all()
 
     # Test adjoint
     sp_img_adjoint = sp_nufft_adjoint(
         data.ksp.to(device), data.trj.to(device), data.mps.shape
     )
-    fi_ksp, _ = multi_flatten(data.ksp, (1, 2))
     fi_img_adjoint = fi_nufft_adjoint(
         fi_ksp.to(device),
         fi_trj.to(device),
@@ -186,7 +176,6 @@ def test_cufinufft3d(tgas_spi_data_big, upsampfac):
     device = torch.device("cuda")
     data = tgas_spi_data_big
     fi_trj = sp2fi(data.trj.clone(), data.img.shape)
-    fi_trj, trj_shape = multi_flatten(fi_trj, 3)
     # Test forward
     from time import perf_counter
 
@@ -211,7 +200,6 @@ def test_cufinufft3d(tgas_spi_data_big, upsampfac):
         data.mps.shape,
         oversamp=upsampfac,
     )
-    fi_ksp, _ = multi_flatten(data.ksp, (1, 3))
     start = perf_counter()
     fi_img_adjoint = fi_nufft_adjoint(
         fi_ksp.to(device),

@@ -5,7 +5,7 @@ import torch
 import cufinufft, finufft
 
 from torchlinops.mri._linops.nufft.base import NUFFTBase
-from torchlinops.utils import multi_flatten
+from ._flatten import multi_flatten
 from . import functional as F
 from . import planned as P
 from .convert_trj import sp2fi, fi2sp
@@ -55,7 +55,7 @@ class FiNUFFT(NUFFTBase):
         self._plans = []
         self._adj_plans = []
         if extras is not None and "plan_ahead" in extras:
-            self.make_plans(extras["plan_ahead"], extras["img_batch_size"])
+            self.make_plans(extras["plan_ahead"], extras["N_shape"])
 
     def change_im_size(self, new_im_size):
         self.im_size = new_im_size
@@ -64,20 +64,20 @@ class FiNUFFT(NUFFTBase):
     def forward(self, x: torch.Tensor):
         return self.fn(self, x, self.trj)
 
-    def _flatten_image(self, img):
-        partitions = (self.nS, self.nN)
-        flat_img, img_shape = multi_flatten(img, partitions)
-        return flat_img, img_shape
+    # def _flatten_image(self, img):
+    #     partitions = (self.nS, self.nN)
+    #     flat_img, img_shape = multi_flatten(img, partitions)
+    #     return flat_img, img_shape
 
-    def _flatten_trj(self, trj):
-        partitions = (self.nS, self.nK)
-        flat_trj, trj_shape = multi_flatten(trj, partitions)
-        return flat_trj, trj_shape
+    # def _flatten_trj(self, trj):
+    #     partitions = (self.nS, self.nK)
+    #     flat_trj, trj_shape = multi_flatten(trj, partitions)
+    #     return flat_trj, trj_shape
 
-    def _flatten_ksp(self, ksp):
-        partitions = (self.nS, self.nN, self.nK)
-        flat_ksp, ksp_shape = multi_flatten(ksp, partitions)
-        return flat_ksp, ksp_shape
+    # def _flatten_ksp(self, ksp):
+    #     partitions = (self.nS, self.nN, self.nK)
+    #     flat_ksp, ksp_shape = multi_flatten(ksp, partitions)
+    #     return flat_ksp, ksp_shape
 
     def fn_noshared(
         self, x, trj, out=None, plan: Optional[P.FiNUFFTCombinedPlan] = None
@@ -91,18 +91,19 @@ class FiNUFFT(NUFFTBase):
         [N... K...] torch.Tensor
 
         """
-        N_shape = x.shape[: -self.nD]
-        K_shape = trj.shape[:-1]
-        oshape = (*N_shape, *K_shape)
-        x, _ = self._flatten_image(x)
+        # N_shape = x.shape[: -self.nD]
+        # K_shape = trj.shape[:-1]
+        # oshape = (*N_shape, *K_shape)
+        #x, _ = self._flatten_image(x)
         if plan is not None:
             out_ = P.nufft(x, plan, out)
         else:
-            trj, _ = self._flatten_trj(trj)
+#            trj, _ = self._flatten_trj(trj)
             out_ = F.nufft(x, trj, out=out, upsampfac=self.upsampfac)
         if out is None:
             out = out_
-        return torch.reshape(out, oshape)
+        #return torch.reshape(out, oshape)
+        return out
 
     def adj_fn_noshared(
         self, y, trj, im_size, out=None, plan: Optional[P.FiNUFFTCombinedPlan] = None
@@ -117,15 +118,16 @@ class FiNUFFT(NUFFTBase):
         """
         N_shape = y.shape[: -self.nK]
         oshape = (*N_shape, *self.im_size)
-        y, _ = self._flatten_ksp(y)
+        # y, _ = self._flatten_ksp(y)
         if plan is not None:
             out_ = P.nufft_adjoint(y, plan, out)
         else:
-            trj, _ = self._flatten_trj(trj)
-            out_ = F.nufft_adjoint(y, trj, im_size, out=out, upsampfac=self.upsampfac)
+        #     trj, _ = self._flatten_trj(trj)
+            out_ = F.nufft_adjoint(y, trj, oshape, out=out, upsampfac=self.upsampfac)
         if out is None:
             out = out_
-        return torch.reshape(out, oshape)
+        #return torch.reshape(out, oshape)
+        return out
 
     @staticmethod
     def fn(linop, x, /, trj):
@@ -145,7 +147,7 @@ class FiNUFFT(NUFFTBase):
         K_shape = trj.shape[:-1]
         output_shape = (*S_shape, *N_shape, *K_shape)
         y = torch.zeros(
-            (prod(S_shape), prod(N_shape), prod(K_shape)),
+            (prod(S_shape), *N_shape, *K_shape),
             dtype=x.dtype,
             device=x.device,
         )
@@ -175,7 +177,7 @@ class FiNUFFT(NUFFTBase):
         S_shape = y.shape[: linop.nS]
         output_shape = (*S_shape, *N_shape, *linop.im_size)
         x = torch.zeros(
-            (prod(S_shape), prod(N_shape), *linop.im_size),
+            (prod(S_shape), *N_shape, *linop.im_size),
             dtype=y.dtype,
             device=y.device,
         )
@@ -213,7 +215,7 @@ class FiNUFFT(NUFFTBase):
                 new.plan_type = self.plan_type
         return new
 
-    def make_plans(self, plan_type: str, n_trans: int):
+    def make_plans(self, plan_type: str, N_shape: Tuple):
         """Make some FiNUFFT plan objects ahead of time
 
         TODO: pull some of these arguments out and make them configurable
@@ -222,12 +224,12 @@ class FiNUFFT(NUFFTBase):
         plan_type : str
             Either 'cpu' or 'gpu' or 'gpu:i' where i is the
             device index
-        n_trans : int
-            The number of transforms to perform. This is not typically known
+        N_shape : int
+            The shape of the input batch dimension. This is not typically known
             from the trajectory alone, so must be externally specified.
                 Should also account for batching. E.g. if you have image
                 batch dimensions (B1, B2), but you're batching over B1 with size 1,
-                then the number of transforms n_trans should be the size of B2.
+                then N_shape should be (1, B2)
         """
         if plan_type == "cpu":
             plan_backend = finufft
@@ -254,17 +256,19 @@ class FiNUFFT(NUFFTBase):
         else:
             raise ValueError(f"Unrecognized plan type: {plan_type}")
 
-        # n_trans = prod(self.trj.shape[self.shared_dims : -self.D])
         def makeplans(trj):
             """Helper function to quickly create new plans"""
             # Nufft type. 1=adjoint, 2=forward
             plan = P.FiNUFFTCombinedPlan(
                 plan_backend.Plan(
-                    2, self.im_size, n_trans, isign=-1, dtype="complex64", **kwargs
+                    2, self.im_size, prod(N_shape), isign=-1, dtype="complex64", **kwargs
                 ),
                 plan_backend.Plan(
-                    1, self.im_size, n_trans, isign=1, dtype="complex64", **kwargs
+                    1, self.im_size, prod(N_shape), isign=1, dtype="complex64", **kwargs
                 ),
+                im_size=self.im_size,
+                N_shape=N_shape,
+                K_shape=tuple(trj.shape[:-1]),
                 plan_type=plan_type,
             )
             coords, _ = multi_flatten(trj, self.nK)
