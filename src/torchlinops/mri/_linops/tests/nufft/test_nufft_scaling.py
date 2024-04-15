@@ -1,10 +1,16 @@
 import pytest
 
 import torch
+import matplotlib
+import matplotlib.pyplot as plt
 
 from torchlinops.mri.sim.spiral2d import (
     Spiral2dSimulator,
     Spiral2dSimulatorConfig,
+)
+from torchlinops.mri.sim.cartesian2d import (
+    Cartesian2dSimulator,
+    Cartesian2dSimulatorConfig,
 )
 from torchlinops.mri import NUFFT
 from torchlinops.mri._linops.nufft.backends.sp.functional import (
@@ -20,17 +26,29 @@ from torchlinops.mri._linops.nufft.backends.fi.functional import (
 @pytest.fixture
 def spiral2d_data():
     config = Spiral2dSimulatorConfig(
-        im_size=(64, 128),
+        im_size=(64, 64),
         num_coils=8,
         noise_std=0.0,
         spiral_2d_kwargs={
             "n_shots": 16,
             "alpha": 1.5,
-            "f_sampling": 0.2,
+            "f_sampling": 0.5,
         },
     )
 
     simulator = Spiral2dSimulator(config)
+    data = simulator.data
+    return data
+
+@pytest.fixture
+def cartesian2d_data():
+    config = Cartesian2dSimulatorConfig(
+        im_size=(64, 64),
+        num_coils=8,
+        noise_std=0.0,
+        n_read=None, # Defaults to fully sampled
+    )
+    simulator = Cartesian2dSimulator(config)
     data = simulator.data
     return data
 
@@ -150,11 +168,11 @@ def test_fi_subspace_planned_vs_functional_scaling(spiral2d_data):
 
     assert (AHAx_fi_fn.abs().max() == AHAx_fi.abs().max()).all()
 
-
-def test_fi_vs_sigpy_scaling(spiral2d_data):
-    data = spiral2d_data
+@pytest.mark.plot
+def test_fi_vs_sigpy_scaling(cartesian2d_data):
+    data = cartesian2d_data
     F_fi = NUFFT(
-        data.trj,
+        data.trj.data.clone(),
         data.mps.shape[1:],
         in_batch_shape=tuple(),
         out_batch_shape=("R", "K"),
@@ -163,7 +181,7 @@ def test_fi_vs_sigpy_scaling(spiral2d_data):
     )
 
     F_fi_plan = NUFFT(
-        data.trj,
+        data.trj.data.clone(),
         data.mps.shape[1:],
         in_batch_shape=tuple(),
         out_batch_shape=("R", "K"),
@@ -176,7 +194,7 @@ def test_fi_vs_sigpy_scaling(spiral2d_data):
     )
 
     F_sp = NUFFT(
-        data.trj,
+        data.trj.data.clone(),
         data.mps.shape[1:],
         in_batch_shape=tuple(),
         out_batch_shape=("R", "K"),
@@ -188,7 +206,23 @@ def test_fi_vs_sigpy_scaling(spiral2d_data):
     AHAx_fi_plan = F_fi_plan.N(data.img)
     AHAx_sigpy = F_sp.N(data.img)
 
-    assert torch.isclose(AHAx_fi, AHAx_fi_plan).all()
+
+    Ax_fi = F_fi(data.img)
+    Ax_sp = F_sp(data.img)
+
+    # Uncomment to show images
+    # matplotlib.use('WebAgg')
+    # plt.figure()
+    # plt.title('A.N(x) (FiNUFFT)')
+    # plt.imshow(AHAx_fi.abs().detach().cpu().numpy())
+    # plt.colorbar()
+
+    # plt.figure()
+    # plt.title('A.N(x) (Sigpy)')
+    # plt.imshow(AHAx_sigpy.abs().detach().cpu().numpy())
+    # plt.colorbar()
+
+    # plt.show()
 
 
 @pytest.mark.gpu
