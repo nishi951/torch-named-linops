@@ -58,7 +58,7 @@ dev = [
     "gdown", # Downloading test files
     "marimo", # Better notebooks
     "matplotlib", # Visualization
-    "pytorch_pfe_extras", # Mempool sharing between cupy and pytorch
+    "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
 ]
 
 [tool.ruff]
@@ -77,8 +77,9 @@ addopts = """
 --ignore-glob **/mri/_grid/backends/_kgrog/tests/* \
 --ignore-glob **/mri/app/tests/* \
 --ignore libraries \
---ignore notebooks
---ignore-glob **/mri/data/*
+--ignore notebooks \
+--ignore-glob **/mri/data/* \
+--ignore-glob **/mri/sim/*
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [

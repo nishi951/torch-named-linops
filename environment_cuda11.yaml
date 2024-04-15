@@ -1,0 +1,18 @@
+name: torchlinops
+channels:
+  - nvidia
+  - pytorch
+  - conda-forge
+dependencies:
+  - numpy=1.22
+  - python=3.10
+  - pytorch=2.1
+  - pytorch-cuda=11.8
+  - torchvision
+  - torchaudio
+  - pip
+  - pip:
+     - -e .[dev,cuda11]
+     - -e ./libraries/igrog
+     - -e ./libraries/igrog/mr_recon
+     - -e ./libraries/optimized-mrf

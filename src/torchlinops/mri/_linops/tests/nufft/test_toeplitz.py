@@ -111,10 +111,6 @@ def test_toeplitz_2d_full(spiral2d_data, backend):
     assert torch.isclose(toep, notoep, **TOLERANCES[backend]).all()
 
 
-@pytest.mark.gpu
-@pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="GPU is required but not available"
-)
 @pytest.fixture
 def tgas_spi_data():
     config = TGASSPISimulatorConfig(

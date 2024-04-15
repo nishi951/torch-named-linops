@@ -58,4 +58,3 @@ dependencies:
      - wandb
      - wget
      - wonderwords
-     #- git+ssh://git@github.com/nishi951/pytorch-flows.git@main # Unnecessary now
