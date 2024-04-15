@@ -31,5 +31,5 @@ def DCF(
         show_pbar=show_pbar,
     )
     dcf = sp.to_pytorch(dcf, requires_grad=False)
-    dcf /= torch.max(dcf)
+    dcf /= torch.linalg.norm(dcf)
     return Diagonal(dcf, ioshape)

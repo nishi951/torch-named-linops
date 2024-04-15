@@ -175,6 +175,7 @@ def _nufft_adjoint(
         out = torch.from_numpy(out)
     return out
 
+
 def _nufft_broadcast(input, coord, out, upsampfac):
     """
     input: [N..., *im_size]
@@ -193,6 +194,7 @@ def _nufft_broadcast(input, coord, out, upsampfac):
         out = out_
 
     return torch.reshape(out, output_shape)
+
 
 def _nufft_adjoint_broadcast(input, coord, oshape, out, upsampfac):
     """
@@ -224,7 +226,6 @@ class FiNUFFT(Function):
         upsampfac: float,
     ) -> torch.Tensor:
         return _nufft_broadcast(input, coord, out, upsampfac)
-
 
     @staticmethod
     def setup_context(ctx, inputs, output):

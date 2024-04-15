@@ -35,6 +35,7 @@ def spiral2d_data():
     return data
 
 
+# Sigpy tests
 def test_sigpy_linop_vs_functional_scaling(spiral2d_data):
     data = spiral2d_data
     F_sp = NUFFT(
@@ -52,6 +53,25 @@ def test_sigpy_linop_vs_functional_scaling(spiral2d_data):
     assert (AHAx_sp_fn.abs().max() == AHAx_sp.abs().max()).all()
 
 
+def test_sigpy_subspace_linop_vs_functional_scaling(spiral2d_data):
+    data = spiral2d_data
+    F_sp = NUFFT(
+        data.trj,
+        data.mps.shape[1:],
+        in_batch_shape=("A",),
+        out_batch_shape=("R", "K"),
+        toeplitz=False,
+        backend="sigpy",
+    )
+    subspace_img = data.img[None] * torch.randn(5, 1, 1)
+    AHAx_sp = F_sp.N(subspace_img)
+    Ax_sp_fn = sp_nufft(subspace_img, data.trj)
+    AHAx_sp_fn = sp_nufft_adjoint(Ax_sp_fn, data.trj, oshape=subspace_img.shape)
+
+    assert (AHAx_sp_fn.abs().max() == AHAx_sp.abs().max()).all()
+
+
+# Fi tests
 def test_fi_linop_vs_functional_scaling(spiral2d_data):
     data = spiral2d_data
     F_fi = NUFFT(
@@ -65,6 +85,68 @@ def test_fi_linop_vs_functional_scaling(spiral2d_data):
     AHAx_fi = F_fi.N(data.img)
     Ax_fi_fn = fi_nufft(data.img, data.trj)
     AHAx_fi_fn = fi_nufft_adjoint(Ax_fi_fn, data.trj, oshape=data.mps.shape[1:])
+
+    assert (AHAx_fi_fn.abs().max() == AHAx_fi.abs().max()).all()
+
+
+def test_fi_linop_vs_functional_scaling(spiral2d_data):
+    data = spiral2d_data
+    F_fi = NUFFT(
+        data.trj,
+        data.mps.shape[1:],
+        in_batch_shape=tuple(),
+        out_batch_shape=("R", "K"),
+        toeplitz=False,
+        backend="fi",
+    )
+    subspace_img = data.img[None] * torch.randn(5, 1, 1)
+    AHAx_fi = F_fi.N(subspace_img)
+    Ax_fi_fn = fi_nufft(subspace_img, data.trj)
+    AHAx_fi_fn = fi_nufft_adjoint(Ax_fi_fn, data.trj, oshape=subspace_img.shape)
+
+    assert (AHAx_fi_fn.abs().max() == AHAx_fi.abs().max()).all()
+
+
+def test_fi_planned_vs_functional_scaling(spiral2d_data):
+    data = spiral2d_data
+    F_fi = NUFFT(
+        data.trj,
+        data.mps.shape[1:],
+        in_batch_shape=tuple(),
+        out_batch_shape=("R", "K"),
+        toeplitz=False,
+        backend="fi",
+        extras={
+            "plan_ahead": "cpu",
+            "N_shape": (1,),
+        },
+    )
+    AHAx_fi = F_fi.N(data.img)
+    Ax_fi_fn = fi_nufft(data.img, data.trj)
+    AHAx_fi_fn = fi_nufft_adjoint(Ax_fi_fn, data.trj, oshape=data.mps.shape[1:])
+
+    assert (AHAx_fi_fn.abs().max() == AHAx_fi.abs().max()).all()
+
+
+def test_fi_subspace_planned_vs_functional_scaling(spiral2d_data):
+    data = spiral2d_data
+    A = 5
+    F_fi = NUFFT(
+        data.trj,
+        data.mps.shape[1:],
+        in_batch_shape=("A",),
+        out_batch_shape=("R", "K"),
+        toeplitz=False,
+        backend="fi",
+        extras={
+            "plan_ahead": "cpu",
+            "N_shape": (A,),
+        },
+    )
+    subspace_img = data.img[None] * torch.randn(A, 1, 1)
+    AHAx_fi = F_fi.N(subspace_img)
+    Ax_fi_fn = fi_nufft(subspace_img, data.trj)
+    AHAx_fi_fn = fi_nufft_adjoint(Ax_fi_fn, data.trj, oshape=subspace_img.shape)
 
     assert (AHAx_fi_fn.abs().max() == AHAx_fi.abs().max()).all()
 
@@ -105,6 +187,8 @@ def test_fi_vs_sigpy_scaling(spiral2d_data):
     AHAx_fi = F_fi.N(data.img)
     AHAx_fi_plan = F_fi_plan.N(data.img)
     AHAx_sigpy = F_sp.N(data.img)
+
+    assert torch.isclose(AHAx_fi, AHAx_fi_plan).all()
 
 
 @pytest.mark.gpu

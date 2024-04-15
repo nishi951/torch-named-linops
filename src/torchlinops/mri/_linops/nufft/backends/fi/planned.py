@@ -1,3 +1,4 @@
+from math import prod, sqrt
 from dataclasses import dataclass
 from typing import Any, Tuple
 
@@ -20,7 +21,7 @@ __all__ = [
 class FiNUFFTCombinedPlan:
     _forward: Any
     _adjoint: Any
-    im_size: int
+    im_size: Tuple
     N_shape: Tuple
     K_shape: Tuple
     plan_type: str = "cpu"
@@ -33,7 +34,7 @@ class FiNUFFTCombinedPlan:
         x, _ = multi_flatten(x, len(self.N_shape))
         if self.plan_type == "cpu":
             x = x.detach().cpu().numpy()
-        y = self._forward.execute(x, out)
+        y = self._forward.execute(x, out) / sqrt(prod(self.im_size))
         if out is None:
             out = y
         if self.plan_type == "cpu":
@@ -48,7 +49,7 @@ class FiNUFFTCombinedPlan:
         x, _ = multi_flatten(x, (len(self.N_shape), len(self.K_shape)))
         if self.plan_type == "cpu":
             x = x.detach().cpu().numpy()
-        y = self._adjoint.execute(x, out)
+        y = self._adjoint.execute(x, out) / sqrt(prod(self.im_size))
         if out is None:
             out = y
         if self.plan_type == "cpu":

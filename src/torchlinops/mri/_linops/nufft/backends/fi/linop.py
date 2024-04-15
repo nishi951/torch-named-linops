@@ -64,21 +64,6 @@ class FiNUFFT(NUFFTBase):
     def forward(self, x: torch.Tensor):
         return self.fn(self, x, self.trj)
 
-    # def _flatten_image(self, img):
-    #     partitions = (self.nS, self.nN)
-    #     flat_img, img_shape = multi_flatten(img, partitions)
-    #     return flat_img, img_shape
-
-    # def _flatten_trj(self, trj):
-    #     partitions = (self.nS, self.nK)
-    #     flat_trj, trj_shape = multi_flatten(trj, partitions)
-    #     return flat_trj, trj_shape
-
-    # def _flatten_ksp(self, ksp):
-    #     partitions = (self.nS, self.nN, self.nK)
-    #     flat_ksp, ksp_shape = multi_flatten(ksp, partitions)
-    #     return flat_ksp, ksp_shape
-
     def fn_noshared(
         self, x, trj, out=None, plan: Optional[P.FiNUFFTCombinedPlan] = None
     ):
@@ -91,18 +76,12 @@ class FiNUFFT(NUFFTBase):
         [N... K...] torch.Tensor
 
         """
-        # N_shape = x.shape[: -self.nD]
-        # K_shape = trj.shape[:-1]
-        # oshape = (*N_shape, *K_shape)
-        #x, _ = self._flatten_image(x)
         if plan is not None:
             out_ = P.nufft(x, plan, out)
         else:
-#            trj, _ = self._flatten_trj(trj)
             out_ = F.nufft(x, trj, out=out, upsampfac=self.upsampfac)
         if out is None:
             out = out_
-        #return torch.reshape(out, oshape)
         return out
 
     def adj_fn_noshared(
@@ -118,15 +97,12 @@ class FiNUFFT(NUFFTBase):
         """
         N_shape = y.shape[: -self.nK]
         oshape = (*N_shape, *self.im_size)
-        # y, _ = self._flatten_ksp(y)
         if plan is not None:
             out_ = P.nufft_adjoint(y, plan, out)
         else:
-        #     trj, _ = self._flatten_trj(trj)
             out_ = F.nufft_adjoint(y, trj, oshape, out=out, upsampfac=self.upsampfac)
         if out is None:
             out = out_
-        #return torch.reshape(out, oshape)
         return out
 
     @staticmethod
@@ -261,7 +237,12 @@ class FiNUFFT(NUFFTBase):
             # Nufft type. 1=adjoint, 2=forward
             plan = P.FiNUFFTCombinedPlan(
                 plan_backend.Plan(
-                    2, self.im_size, prod(N_shape), isign=-1, dtype="complex64", **kwargs
+                    2,
+                    self.im_size,
+                    prod(N_shape),
+                    isign=-1,
+                    dtype="complex64",
+                    **kwargs,
                 ),
                 plan_backend.Plan(
                     1, self.im_size, prod(N_shape), isign=1, dtype="complex64", **kwargs
