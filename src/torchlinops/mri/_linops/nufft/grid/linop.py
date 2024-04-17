@@ -49,7 +49,7 @@ class GriddedNUFFT(NUFFTBase):
             *args,
             **kwargs,
         )
-        self.fft_dim = tuple(range(-self.D, 0))
+        self.fft_dim = tuple(range(-self.nD, 0))
         # Convert to integer-valued for indexing
         self.trj = nn.Parameter(self.trj.data.long(), requires_grad=False)
 
@@ -76,7 +76,7 @@ class GriddedNUFFT(NUFFTBase):
         Fx = torch.fft.fftn(x, dim=self.fft_dim, norm="ortho")
 
         # Index
-        N = x.shape[: -self.D]
+        N = x.shape[: -self.nD]
         batch_slc = (slice(None),) * len(N)
         trj_split = tuple(trj[..., i] for i in range(trj.shape[-1]))
         omega_slc = (*batch_slc, *trj_split)

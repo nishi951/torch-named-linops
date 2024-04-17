@@ -1,5 +1,6 @@
 @dataclass
-class KCalConfig: ...
+class KCalConfig:
+    ...
 
 
 class KCalGridding(GriddingBase):
@@ -31,4 +32,5 @@ class KCalGridding(GriddingBase):
     def model(self):
         return KCalModel(self.config.model_config)
 
-    def grid(self, test_results, trj, ksp): ...
+    def grid(self, test_results, trj, ksp):
+        ...

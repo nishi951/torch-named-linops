@@ -18,7 +18,7 @@ class Chain(NamedLinop):
         curr_shape = self.ishape
         for linop in reversed(self.linops):
             if linop.ishape != curr_shape:
-                breakpoint()
+                # breakpoint()
                 raise ValueError(
                     f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}"
                 )

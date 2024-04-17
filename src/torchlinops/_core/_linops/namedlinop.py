@@ -141,6 +141,7 @@ class NamedLinop(nn.Module):
     def normal(self, inner=None):
         """Create a new normal linop
         inner: Optional linop for toeplitz embedding
+        TODO: Add splitting for normal ops created this way.
         """
         if inner is None:
             normal = copy(self)
@@ -172,14 +173,16 @@ class NamedLinop(nn.Module):
         obatch: tuple of slices of same length as oshape
         """
         split = linop.split_forward(ibatch, obatch)
-        split._shape = linop._shape
+        split._shape.ishape = linop._shape.ishape
+        split._shape.oshape = linop._shape.oshape
         return split
 
     @staticmethod
     def adj_split(linop, ibatch, obatch):
         """Split the adjoint version"""
         splitH = linop.H.split_forward(obatch, ibatch).H
-        splitH._shape = linop._shape
+        splitH._shape.ishape = linop._shape.ishape
+        splitH._shape.oshape = linop._shape.oshape
         return splitH
 
     @staticmethod

@@ -6,13 +6,14 @@ from einops import repeat
 import torch
 import torch.nn as nn
 
-from torchlinops import NamedLinop, Identity, get2dor3d, ND
+from torchlinops import NamedLinop, Identity, get2dor3d, ND, NS
 
 
 class B0Timeseg(NamedLinop):
     def __init__(
         self,
         phase_map: torch.Tensor,
+        im_size: Tuple,
         in_batch_shape: Optional[Tuple] = None,
         b0_dim: str = "B",
     ):
@@ -26,14 +27,14 @@ class B0Timeseg(NamedLinop):
         b0_dim : str or NamedDimension
             Name of the new dimension
         """
-        self.im_size = phase_map.shape[1:]
+        self.im_size = im_size
         self.D = len(self.im_size)
         # self.ts = ts
         self.in_batch_shape = in_batch_shape if in_batch_shape is not None else tuple()
         self.out_batch_shape = (b0_dim,) + self.in_batch_shape
         ishape = self.in_batch_shape + get2dor3d(self.im_size)
         oshape = self.out_batch_shape + get2dor3d(self.im_size)
-        super().__init__(ishape, oshape)
+        super().__init__(NS(ishape, oshape))
         self.b0_dim = ND.infer(b0_dim)
         # self.ts = self.get_segment_ts(self.nro, self.dt, self.nseg)
         # phase_map = torch.exp(-2j * pi * self.b0_map * self.ts) # TODO check the sign on this
@@ -59,25 +60,44 @@ class B0Timeseg(NamedLinop):
         out_batch_shape = (b0_dim,) + in_batch_shape
         oshape = out_batch_shape + get2dor3d(im_size)
         ts = repeat(ts, "T -> T" + " ()" * (len(oshape) - 1))  # Unsqueeze image dims
+        ts = ts.to(b0_map.device)
         phase_map = torch.exp(-2j * pi * b0_map * ts)  # TODO check the sign on this
-        return cls(phase_map, in_batch_shape, b0_dim)
+        return cls(phase_map, im_size, in_batch_shape, b0_dim)
 
     @staticmethod
     def get_segment_ts(
         nro: int, dt: float, nseg: int, mode: Literal["center", "first"] = "center"
     ):
+        """
+        Parameters
+        ----------
+        nro : int
+            Total number of readout points in un-segmented readout
+        dt : float
+            Sampling time in seconds between the readout points
+        nseg : int
+            Number of segments
+        mode : 'center' or 'first'
+            Whether to center the ts on the middle or first point of each segment
+
+        Returns
+        -------
+        1D float torch.Tensor of representative times for each segment.
+        """
         tseg = dt * float(nro) / nseg
         t0 = tseg / 2 if mode == "center" else 0.0
         segment_ts = [t0 + tseg * i for i in range(nseg)]
         return torch.tensor(segment_ts)
 
     def forward(self, x):
-        return self.fn(x, self.phase_map)
+        return self.fn(self, x, self.phase_map)
 
-    def fn(self, x, /, phase_map):
+    @staticmethod
+    def fn(linop, x, /, phase_map):
         return x[None, ...] * phase_map
 
-    def adj_fn(self, y, /, phase_map):
+    @staticmethod
+    def adj_fn(linop, y, /, phase_map):
         return torch.sum(y * torch.conj(phase_map), dim=0)
 
     def split_forward(self, ibatch, obatch):
@@ -88,7 +108,8 @@ class B0Timeseg(NamedLinop):
                     "B0Timeseg currently only supports matched image input/output slicing."
                 )
         return type(self)(
-            self.split_forward_function(ibatch, obatch, self.phase_map),
+            self.split_forward_fn(ibatch, obatch, self.phase_map),
+            self.im_size,
             self.in_batch_shape,
             self.b0_dim,
         )
@@ -104,10 +125,10 @@ class B0Timeseg(NamedLinop):
         if dim == self.b0_dim:  # Segment dim
             return phase_map.shape[0]
         elif dim in self.oshape[-self.D :]:  # Spatial dim
-            return phase_map[0].shape[self.oshape[-self.D].index(dim)]
+            return phase_map[0].shape[self.oshape[-self.D :].index(dim)]
         return None
 
     def normal(self, inner=None):
         if inner is None:
             return Identity(self.ishape)
-        return copy(self).H @ inner @ copy(self)
+        return super().normal(inner)

@@ -70,8 +70,8 @@ class SigpyNUFFT(NUFFTBase):
         S_shape = x.shape[: linop.nS]
         N_shape = x.shape[linop.nS : -linop.nD]
         K_shape = trj.shape[linop.nS : -1]
-        x = torch.flatten(x, start_dim=0, end_dim=linop.nS)
-        trj = torch.flatten(trj, start_dim=0, end_dim=linop.nS)
+        x = torch.flatten(x, start_dim=0, end_dim=linop.nS - 1)
+        trj = torch.flatten(trj, start_dim=0, end_dim=linop.nS - 1)
 
         # x, _ = multi_flatten(x, (linop.nS, linop.nN))
         # trj, _ = multi_flatten(trj, (linop.nS, linop.nK))
@@ -101,11 +101,11 @@ class SigpyNUFFT(NUFFTBase):
             y.shape[: linop.nS] == trj.shape[: linop.nS]
         ), f"First {linop.nS} dims of y, trj  must match but got y: {y.shape}, trj: {trj.shape}"
         S_shape = y.shape[: linop.nS]
-        N_shape = y.shape[linop.nS : -linop.D]
-        oshape = (*N, *linop.im_size)
+        N_shape = y.shape[linop.nS : -linop.nD]
+        oshape = (*N_shape, *linop.im_size)
         output_shape = (*S_shape, *N_shape, *linop.im_size)
-        y = torch.flatten(y, start_dim=0, end_dim=linop.nS)
-        trj = torch.flatten(trj, start_dim=0, end_dim=linop.nS)
+        y = torch.flatten(y, start_dim=0, end_dim=linop.nS - 1)
+        trj = torch.flatten(trj, start_dim=0, end_dim=linop.nS - 1)
         # y, _ = multi_flatten(y, (linop.nS, linop.nN, linop.nK))
         # trj, _ = multi_flatten(trj, (linop.nS, linop.nK))
 

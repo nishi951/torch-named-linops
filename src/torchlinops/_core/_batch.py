@@ -234,9 +234,9 @@ class Batch(NamedLinop):
         return NotImplemented
 
     def __matmul__(self, right):
-         self = self.compose(right)
-         self.setup_batching()
-         return self
+        self = self.compose(right)
+        self.setup_batching()
+        return self
 
     def __rmatmul__(self, left):
         self = left.compose(self)

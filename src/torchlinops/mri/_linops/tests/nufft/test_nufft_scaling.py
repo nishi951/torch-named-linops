@@ -40,13 +40,14 @@ def spiral2d_data():
     data = simulator.data
     return data
 
+
 @pytest.fixture
 def cartesian2d_data():
     config = Cartesian2dSimulatorConfig(
         im_size=(64, 64),
         num_coils=8,
         noise_std=0.0,
-        n_read=None, # Defaults to fully sampled
+        n_read=None,  # Defaults to fully sampled
     )
     simulator = Cartesian2dSimulator(config)
     data = simulator.data
@@ -143,7 +144,7 @@ def test_fi_planned_vs_functional_scaling(spiral2d_data):
     Ax_fi_fn = fi_nufft(data.img, data.trj)
     AHAx_fi_fn = fi_nufft_adjoint(Ax_fi_fn, data.trj, oshape=data.mps.shape[1:])
 
-    assert (AHAx_fi_fn.abs().max() == AHAx_fi.abs().max()).all()
+    assert torch.isclose(AHAx_fi_fn.abs().max(), AHAx_fi.abs().max()).all()
 
 
 def test_fi_subspace_planned_vs_functional_scaling(spiral2d_data):
@@ -166,7 +167,8 @@ def test_fi_subspace_planned_vs_functional_scaling(spiral2d_data):
     Ax_fi_fn = fi_nufft(subspace_img, data.trj)
     AHAx_fi_fn = fi_nufft_adjoint(Ax_fi_fn, data.trj, oshape=subspace_img.shape)
 
-    assert (AHAx_fi_fn.abs().max() == AHAx_fi.abs().max()).all()
+    assert torch.isclose(AHAx_fi_fn.abs().max(), AHAx_fi.abs().max()).all()
+
 
 @pytest.mark.plot
 def test_fi_vs_sigpy_scaling(cartesian2d_data):
@@ -205,7 +207,6 @@ def test_fi_vs_sigpy_scaling(cartesian2d_data):
     AHAx_fi = F_fi.N(data.img)
     AHAx_fi_plan = F_fi_plan.N(data.img)
     AHAx_sigpy = F_sp.N(data.img)
-
 
     Ax_fi = F_fi(data.img)
     Ax_sp = F_sp(data.img)

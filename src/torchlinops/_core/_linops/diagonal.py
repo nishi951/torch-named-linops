@@ -28,16 +28,23 @@ class Diagonal(NamedLinop):
     def broadcast_dims(self):
         return self._shape.lookup("broadcast_dims")
 
-    def forward(self, x):
-        return self.fn(x, self.weight)
+    @broadcast_dims.setter
+    def broadcast_dims(self, val):
+        self._shape.broadcast_dims = val
 
-    def fn(self, x, /, weight):
+    def forward(self, x):
+        return self.fn(self, x, self.weight)
+
+    @staticmethod
+    def fn(linop, x, /, weight):
         return x * weight
 
-    def adj_fn(self, x, /, weight):
+    @staticmethod
+    def adj_fn(linop, x, /, weight):
         return x * torch.conj(weight)
 
-    def normal_fn(self, x, /, weight):
+    @staticmethod
+    def normal_fn(linop, x, /, weight):
         return x * torch.abs(weight) ** 2
 
     def adjoint(self):
@@ -76,4 +83,4 @@ class Diagonal(NamedLinop):
         return None
 
     def __pow__(self, exponent):
-        return type(self)(self.weight**exponent, self.ishape)
+        return type(self)(self.weight**exponent, self.ishape, self.broadcast_dims)

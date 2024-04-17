@@ -31,22 +31,25 @@ class Truncate(NamedLinop):
         # self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
 
     def forward(self, x):
-        return self.fn(x)
+        return self.fn(self, x)
 
-    def fn(self, x, /):
-        return x[self.slc]
+    @staticmethod
+    def fn(linop, x, /):
+        return x[linop.slc]
 
-    def adj_fn(self, y, /):
-        return end_pad_with_zeros(y, self.dim, self.length)
+    @staticmethod
+    def adj_fn(linop, y, /):
+        return end_pad_with_zeros(y, linop.dim, linop.length)
 
-    def normal_fn(self, x, /):
-        x[self.end_slc] = 0.0
+    @staticmethod
+    def normal_fn(linop, x, /):
+        x[linop.end_slc] = 0.0
         return x
 
     def split_forward(self, ibatch, obatch):
         if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
             raise ValueError("Cannot slice a Truncate linop along truncation dimension")
-        return self
+        return type(self)(self.dim, self.length, self.ishape, self.oshape)
 
     def split_forward_fn(self, ibatch, obatch, /, data=None):
         if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
@@ -66,7 +69,7 @@ class Truncate(NamedLinop):
     def normal(self, inner=None):
         """Diagonal in all dims except the last one"""
         pre = copy(self)
-        post = copy(self).H
+        post = self.adjoint()
         if inner is None:
             return post @ pre
         pre.oshape = inner.ishape
@@ -100,11 +103,11 @@ class PadDim(NamedLinop):
         self.end_slc = [slice(None)] * len(oshape)
         self.end_slc[dim] = slice(-self.length, 0)
         self.end_slc = tuple(self.end_slc)
-        super().__init__(ishape, oshape)
+        super().__init__(NS(ishape, oshape))
         # self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
 
     def forward(self, x):
-        return self.fn(x)
+        return self.fn(self, x)
 
     def adjoint(self):
         return Truncate(self.dim, self.length, self.oshape, self.ishape)
@@ -119,20 +122,23 @@ class PadDim(NamedLinop):
         post.ishape = inner.oshape
         return post @ inner @ pre
 
-    def fn(self, x, /):
-        return end_pad_with_zeros(x, self.dim, self.length)
+    @staticmethod
+    def fn(linop, x, /):
+        return end_pad_with_zeros(x, linop.dim, linop.length)
 
-    def adj_fn(self, y, /):
-        return y[self.slc]
+    @staticmethod
+    def adj_fn(linop, y, /):
+        return y[linop.slc]
 
-    def normal_fn(self, x, /):
-        x[self.end_slc] = 0.0
+    @staticmethod
+    def normal_fn(linop, x, /):
+        x[linop.end_slc] = 0.0
         return x
 
     def split_forward(self, ibatch, obatch):
         if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
             raise ValueError("Cannot slice a PadEnd linop along truncation dimension")
-        return self
+        return type(self)(self.dim, self.length, self.ishape, self.oshape)
 
     def split_forward_fn(self, ibatch, obatch, /, data=None):
         if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):

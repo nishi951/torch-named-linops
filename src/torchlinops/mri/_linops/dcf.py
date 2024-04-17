@@ -32,4 +32,5 @@ def DCF(
     )
     dcf = sp.to_pytorch(dcf, requires_grad=False)
     dcf /= torch.linalg.norm(dcf)
-    return Diagonal(dcf, ioshape)
+    broadcast_dims = ioshape[: -len(dcf.shape)]
+    return Diagonal(dcf, ioshape, broadcast_dims)
