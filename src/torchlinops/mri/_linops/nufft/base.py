@@ -77,15 +77,31 @@ class NUFFTBase(NamedLinop):
             shared_batch_shape if shared_batch_shape is not None else tuple()
         )
         self.nS = len(shared_batch_shape)
-        self.shared_batch_shape = self.ishape[: self.nS]
+        self._shape.add("shared_batch_shape", self.ishape[: self.nS])
         self.nD = len(im_size)
-        self.im_shape = get2dor3d(im_size)
-        self.in_batch_shape = self.ishape[self.nS : -self.nD]
+        self._shape.add("im_shape", get2dor3d(im_size))
+        self._shape.add("in_batch_shape", self.ishape[self.nS : -self.nD])
         self.nN = len(self.in_batch_shape)
-        self.out_batch_shape = self.oshape[self.nS + self.nN :]
+        self._shape.add("out_batch_shape", self.oshape[self.nS + self.nN :])
         self.nK = len(self.out_batch_shape)
         # Legacy
         self.shared_dims = self.nS
+
+    @property
+    def im_shape(self):
+        return self._shape.im_shape
+
+    @property
+    def shared_batch_shape(self):
+        return self._shape.shared_batch_shape
+
+    @property
+    def in_batch_shape(self):
+        return self._shape.in_batch_shape
+
+    @property
+    def out_batch_shape(self):
+        return self._shape.out_batch_shape
 
     def forward(self):
         raise NotImplementedError(f"{type(self).__name__} cannot be used directly")
@@ -139,3 +155,6 @@ class NUFFTBase(NamedLinop):
         else:
             return None
         return trj.shape[idx]
+
+    def plan(self, device):
+        pass

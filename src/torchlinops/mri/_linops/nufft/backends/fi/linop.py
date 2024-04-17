@@ -1,5 +1,6 @@
 from math import prod, sqrt
 from typing import Optional, Tuple, Mapping
+import logging
 
 import torch
 import cufinufft, finufft
@@ -11,6 +12,8 @@ from . import planned as P
 from .convert_trj import sp2fi, fi2sp
 
 DEFAULT_UPSAMPFAC = 2.0
+
+logger = logging.getLogger(__name__)
 
 
 class FiNUFFT(NUFFTBase):
@@ -51,7 +54,7 @@ class FiNUFFT(NUFFTBase):
         else:
             self.upsampfac = DEFAULT_UPSAMPFAC
         self.trj = sp2fi(self.trj, self.im_size)
-        self.plan = False
+        self.planned = False
         self._plans = []
 
     def change_im_size(self, new_im_size):
@@ -110,7 +113,7 @@ class FiNUFFT(NUFFTBase):
         output: [[S...] N... K...]
         """
         if linop.nS == 0:
-            plan = linop._plans[0] if linop.plan else None
+            plan = linop._plans[0] if linop.planned else None
             return linop.fn_noshared(x, trj, plan=plan)
         assert (
             x.shape[: linop.shared_dims] == trj.shape[: linop.shared_dims]
@@ -126,7 +129,7 @@ class FiNUFFT(NUFFTBase):
         )
         trj, _ = multi_flatten(trj, linop.nS)
         for i in range(y.shape[0]):
-            plan = linop._plans[i] if linop.plan else None
+            plan = linop._plans[i] if linop.planned else None
             y[i] = linop.fn_noshared(x[i], trj[i], plan=plan)
         y = torch.reshape(y, output_shape)
         return y
@@ -141,7 +144,7 @@ class FiNUFFT(NUFFTBase):
         N_shape = y.shape[linop.nS : -linop.nK]
         batch_oshape = (*N_shape, *linop.im_size)
         if linop.nS == 0:
-            plan = linop._plans[0] if linop.plan else None
+            plan = linop._plans[0] if linop.planned else None
             return linop.adj_fn_noshared(y, trj, batch_oshape, plan=plan)
 
         assert (
@@ -156,7 +159,7 @@ class FiNUFFT(NUFFTBase):
         )
         trj, _ = multi_flatten(trj, linop.S)
         for i in range(x.shape[0]):
-            plan = linop._plans[i] if linop.plan else None
+            plan = linop._plans[i] if linop.planned else None
             x[i] = linop.adj_fn_noshared(y[i], trj[i], batch_oshape, plan)
         x = torch.reshape(x, output_shape)
         return x
@@ -179,7 +182,7 @@ class FiNUFFT(NUFFTBase):
         )
         if self.upsampfac != DEFAULT_UPSAMPFAC:
             new.upsampfac = self.upsampfac
-        if self.plan:
+        if self.planned:
             if (self.trj == new.trj).all():
                 # Avoid unnecessary duplication of plans
                 new._plans = self._plans
@@ -188,7 +191,7 @@ class FiNUFFT(NUFFTBase):
                 new.plan_type = self.plan_type
         return new
 
-    def make_plans(self, plan_type: str, N_shape: Tuple):
+    def plan(self, device: torch.device = None):
         """Make some FiNUFFT plan objects ahead of time
 
         TODO: pull some of these arguments out and make them configurable
@@ -204,6 +207,12 @@ class FiNUFFT(NUFFTBase):
                 batch dimensions (B1, B2), but you're batching over B1 with size 1,
                 then N_shape should be (1, B2)
         """
+        device = device if device is not None else torch.device("cpu")
+        plan_type = str(device)
+        N_shape = self.extras["plan"]["N_shape"]
+        logger.info(
+            f"Precomputing plans on device {plan_type}, with image batch {N_shape}"
+        )
         if plan_type == "cpu":
             plan_backend = finufft
             kwargs = {
@@ -213,7 +222,7 @@ class FiNUFFT(NUFFTBase):
             }
             self.plan_device = torch.device("cpu")
 
-        elif plan_type.startswith("gpu"):
+        elif plan_type.startswith("cuda"):
             # 'gpu' or 'gpu:{index}'
             if ":" in plan_type:
                 device_idx = int(plan_type.split(":")[1])
@@ -263,5 +272,5 @@ class FiNUFFT(NUFFTBase):
                 self._plans.append(makeplans(trj[i]))
         else:
             self._plans.append(makeplans(self.trj))
-        self.plan = True
+        self.planned = True
         self.plan_type = plan_type
