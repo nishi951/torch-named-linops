@@ -20,55 +20,56 @@ class Add(NamedLinop):
     def forward(self, x):
         return sum(linop(x) for linop in self.linops)
 
-    def adjoint(self, x):
-        return sum(linop.H(x) for linop in self.linops)
-
-    def fn(self, x: torch.Tensor, /, data_list):
+    @staticmethod
+    def fn(linop, x: torch.Tensor, /, data_list):
         assert (
-            len(self.linops) == len(data_list)
-        ), f"Length {len(data_list)} data_list does not match length {len(self.linops)} chain linop"
-        return sum(linop.fn(x, *data) for linop, data in zip(self.linops, data_list))
+            len(linop.linops) == len(data_list)
+        ), f"Length {len(data_list)} data_list does not match length {len(linop.linops)} chain linop"
+        return sum(linop.fn(x, *data) for linop, data in zip(linop.linops, data_list))
 
-    def adj_fn(self, x: torch.Tensor, /, data_list):
+    @staticmethod
+    def adj_fn(linop, x: torch.Tensor, /, data_list):
         assert (
-            len(self.linops) == len(data_list)
-        ), f"Length {len(data_list)} data_list does not match length {len(self.linops)} chain adjoint linop"
+            len(linop.linops) == len(data_list)
+        ), f"Length {len(data_list)} data_list does not match length {len(linop.linops)} chain adjoint linop"
         return sum(
-            linop.adj_fn(x, *data) for linop, data in zip(self.linops, data_list)
+            linop.adj_fn(x, *data) for linop, data in zip(linop.linops, data_list)
         )
 
-    def normal_fn(self, x: torch.Tensor, /, data_list):
+    @staticmethod
+    def normal_fn(linop, x: torch.Tensor, /, data_list):
         # Note: Alternatively, make every possible combination of terms? Might be faster in some cases?
-        return self.adj_fn(self.fn(x, data_list), data_list)
+        return linop.adj_fn(linop.fn(x, data_list), data_list)
 
-    def split_forward(self, ibatches, obatches):
-        """ibatches, obatches specified according to the shape of the
+    def split_forward(self, ibatch, obatch):
+        """ibatch, obatch specified according to the shape of the
         forward op
         """
         linops = [
-            linop.split(ibatch, obatch)
-            for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
+            linop.split_forward(ibatch, obatch) for linop in self.linops
         ]
         return type(self)(*linops)
 
-    def split_forward_fn(self, ibatches, obatches, data_list):
+    def split_forward_fn(self, ibatch, obatch, data_list):
         """Split data into batches
         ibatches, obatches specified according to the shape of the
         forward op
         """
         data = [
-            linop.split_forward_fn(ibatch, obatch, *data)
-            for linop, ibatch, obatch, data in zip(
-                self.linops, ibatches, obatches, data_list
-            )
+            linop.split_forward_fn(ibatch, obatch, data)
+            for linop, data in zip(self.linops, data_list)
         ]
         return data
+
+    def adjoint(self):
+        return type(self)(*(linop.adjoint() for linop in self.linops))
 
     def size(self, dim):
         for linop in self.linops:
             out = linop.size(dim)
             if out is not None:
                 return out
+        return None
 
     def size_fn(self, dim, data):
         for linop, data in zip(self.linops, data):
@@ -85,7 +86,7 @@ class Add(NamedLinop):
     def H(self):
         """Adjoint operator"""
         if self._adj is None:
-            linops = list(linop.H for linop in reversed(self.linops))
+            linops = list(linop.adjoint() for linop in self.linops)
             _adj = type(self)(*linops)
             self._adj = [_adj]  # Prevent registration as a submodule
         return self._adj[0]
@@ -94,41 +95,13 @@ class Add(NamedLinop):
     def N(self):
         """Normal operator (is this really necessary?)"""
         if self._normal is None:
-            linops = list(linop.H for linop in reversed(self.linops)) + list(
-                self.linops
-            )
+            linops = list(linop.normal() for linop in self.linops)
             _normal = type(self)(*linops)
             self._normal = [_normal]  # Prevent registration as a submodule
         return self._normal[0]
 
-    def split(self, *iobatches):
-        """For compatibility with NamedLinop"""
-        ibatches = iobatches[: len(iobatches) // 2]
-        obatches = iobatches[len(iobatches) // 2 :]
-        return self.split_forward(ibatches, obatches)
-
-    def adj_split(self, *iobatches):
-        ibatches = iobatches[: len(iobatches) // 2]
-        obatches = iobatches[len(iobatches) // 2 :]
-        return self.split_forward(obatches, ibatches).H
-
-    def split_fn(self, *iobatchesdata):
-        """Return split versions of the data that can be passed
-        into fn and adj_fn to produce split versions
-        """
-        ibatches = iobatchesdata[: len(iobatchesdata) // 3]
-        obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
-        return self.split_forward_fn(ibatches, obatches, data)
-
-    def adj_split_fn(self, *iobatchesdata):
-        ibatches = iobatchesdata[: len(iobatchesdata) // 3]
-        obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2 // 3]
-        return self.split_forward_fn(obatches, ibatches, data)
-
     def flatten(self):
-        return list(self.linops)
+        return [self]
 
     def __getitem__(self, idx):
         return self.linops[idx]
@@ -137,5 +110,5 @@ class Add(NamedLinop):
         return len(self.linops)
 
     def __repr__(self):
-        linop_chain = "\n\t".join(repr(linop) for linop in self.linops)
-        return f"{self.__class__.__name__}(\n\t{linop_chain}\n)"
+        linop_chain = " + ".join(repr(linop) for linop in self.linops)
+        return linop_chain

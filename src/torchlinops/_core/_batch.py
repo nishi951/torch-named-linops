@@ -208,13 +208,12 @@ class Batch(NamedLinop):
         return self
 
     def __add__(self, right):
+        """Only reset batching on compose, not add"""
         self.linop = torchlinops.Add(self.linop, right)
-        self.setup_batching()
         return self
 
     def __radd__(self, left):
         self.linop = torchlinops.Add(left, self.linop)
-        self.setup_batching()
         return self
 
     def __mul__(self, right):

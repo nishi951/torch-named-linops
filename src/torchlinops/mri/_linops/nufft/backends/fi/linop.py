@@ -186,7 +186,7 @@ class FiNUFFT(NUFFTBase):
             if (self.trj == new.trj).all():
                 # Avoid unnecessary duplication of plans
                 new._plans = self._plans
-                new.plan = self.plan
+                new.planned = True
                 new.plan_device = self.plan_device
                 new.plan_type = self.plan_type
         return new
@@ -207,6 +207,8 @@ class FiNUFFT(NUFFTBase):
                 batch dimensions (B1, B2), but you're batching over B1 with size 1,
                 then N_shape should be (1, B2)
         """
+        if "plan" not in self.extras:
+            return self
         device = device if device is not None else torch.device("cpu")
         plan_type = str(device)
         N_shape = self.extras["plan"]["N_shape"]

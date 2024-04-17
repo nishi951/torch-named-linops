@@ -82,6 +82,7 @@ class Chain(NamedLinop):
             out = linop.size(dim)
             if out is not None:
                 return out
+        return None
 
     def size_fn(self, dim, data):
         for linop, data in zip(self.linops, data):
