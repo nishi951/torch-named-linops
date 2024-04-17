@@ -53,9 +53,6 @@ class FiNUFFT(NUFFTBase):
         self.trj = sp2fi(self.trj, self.im_size)
         self.plan = False
         self._plans = []
-        self._adj_plans = []
-        if extras is not None and "plan_ahead" in extras:
-            self.make_plans(extras["plan_ahead"], extras["N_shape"])
 
     def change_im_size(self, new_im_size):
         self.im_size = new_im_size

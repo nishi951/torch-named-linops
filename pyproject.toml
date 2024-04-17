@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "torchlinops"
 description = "A library for MRI reconstruction with a torch linear operator abstraction."
-version = "0.1.5"
+version = "0.1.6"
 authors = [
     { name = "Mark Nishimura", email = "markn1@stanford.edu" }
 ]
