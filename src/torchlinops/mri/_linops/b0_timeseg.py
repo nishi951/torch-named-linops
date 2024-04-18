@@ -30,15 +30,29 @@ class B0Timeseg(NamedLinop):
         self.im_size = im_size
         self.D = len(self.im_size)
         # self.ts = ts
-        self.in_batch_shape = in_batch_shape if in_batch_shape is not None else tuple()
-        self.out_batch_shape = (b0_dim,) + self.in_batch_shape
-        ishape = self.in_batch_shape + get2dor3d(self.im_size)
-        oshape = self.out_batch_shape + get2dor3d(self.im_size)
+        in_batch_shape = in_batch_shape if in_batch_shape is not None else tuple()
+        out_batch_shape = (b0_dim,) + in_batch_shape
+        ishape = in_batch_shape + get2dor3d(self.im_size)
+        oshape = out_batch_shape + get2dor3d(self.im_size)
         super().__init__(NS(ishape, oshape))
-        self.b0_dim = ND.infer(b0_dim)
+        self._shape.add('in_batch_shape', in_batch_shape)
+        self._shape.add('out_batch_shape', out_batch_shape)
+        self._shape.add('b0_dim', b0_dim)
         # self.ts = self.get_segment_ts(self.nro, self.dt, self.nseg)
         # phase_map = torch.exp(-2j * pi * self.b0_map * self.ts) # TODO check the sign on this
         self.phase_map = nn.Parameter(phase_map, requires_grad=False)
+
+    @property
+    def in_batch_shape(self):
+        return self._shape.in_batch_shape
+
+    @property
+    def out_batch_shape(self):
+        return self._shape.out_batch_shape
+
+    @property
+    def b0_dim(self):
+        return self._shape.b0_dim
 
     @classmethod
     def from_b0_map(

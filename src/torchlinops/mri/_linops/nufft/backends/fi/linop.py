@@ -3,7 +3,8 @@ from typing import Optional, Tuple, Mapping
 import logging
 
 import torch
-import cufinufft, finufft
+import finufft
+import cufinufft
 
 from torchlinops.mri._linops.nufft.base import NUFFTBase
 from ._flatten import multi_flatten
@@ -120,7 +121,7 @@ class FiNUFFT(NUFFTBase):
         ), f"First {linop.shared_dims} dims of x, trj  must match but got x: {x.shape}, trj: {trj.shape}"
         S_shape = x.shape[: linop.nS]
         N_shape = x.shape[linop.nS : -linop.nD]
-        K_shape = trj.shape[:-1]
+        K_shape = trj.shape[linop.nS : -1]
         output_shape = (*S_shape, *N_shape, *K_shape)
         y = torch.zeros(
             (prod(S_shape), *N_shape, *K_shape),

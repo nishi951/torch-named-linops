@@ -1,4 +1,5 @@
 from .add import *
+from .breakpt import *
 from .chain import *
 from .dense import *
 from .diagonal import *

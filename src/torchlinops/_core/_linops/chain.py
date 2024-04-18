@@ -27,7 +27,6 @@ class Chain(NamedLinop):
     def forward(self, x):
         for linop in reversed(self.linops):
             x = linop(x)
-            # print(f'{linop}: {x.shape}')
         return x
 
     @staticmethod

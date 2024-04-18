@@ -103,6 +103,8 @@ Custom linops should satisfy the following:
 
 ## Batching strategy
 - Batch object in tiling.py
+- Only applies to chains - don't batch over Adds
+  - TODO: Figure out batching with Adds inside other Chains etc...
 
 # MRI
 
