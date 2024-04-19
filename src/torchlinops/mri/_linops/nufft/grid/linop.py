@@ -82,12 +82,12 @@ class GriddedNUFFT(NUFFTBase):
             trj_split = tuple(trj[..., i] for i in range(trj.shape[-1]))
             omega_slc = (*batch_slc, *trj_split)
             return Fx[omega_slc]
-        S_shape = Fx.shape[:linop.nS]
+        S_shape = Fx.shape[: linop.nS]
         N_shape = Fx.shape[linop.nS : -linop.nD]
         K_shape = trj.shape[linop.nS : -1]
         output_shape = (*S_shape, *N_shape, *K_shape)
-        Fx = torch.flatten(Fx, start_dim=0, end_dim=linop.nS-1)
-        trj = torch.flatten(trj, start_dim=0, end_dim=linop.nS-1)
+        Fx = torch.flatten(Fx, start_dim=0, end_dim=linop.nS - 1)
+        trj = torch.flatten(trj, start_dim=0, end_dim=linop.nS - 1)
         out = torch.zeros(
             (prod(S_shape), *N_shape, *K_shape),
             dtype=Fx.dtype,
@@ -95,7 +95,7 @@ class GriddedNUFFT(NUFFTBase):
         )
         for s in range(out.shape[0]):
             trj_split = tuple(trj[s, ..., i] for i in range(trj.shape[-1]))
-            omega_slc = (*batch_slc, *trj_split) # [N... slice_x, slice_y, slice_z]
+            omega_slc = (*batch_slc, *trj_split)  # [N... slice_x, slice_y, slice_z]
             out[s] = Fx[s][omega_slc]
         out = torch.reshape(out, output_shape)
         return out

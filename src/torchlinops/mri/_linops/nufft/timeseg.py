@@ -35,7 +35,7 @@ def segment_helper(t, num_segments, dim):
     return torch.stack(segments, dim=0), num_to_truncate
 
 
-def Z_segmented(nseg, num_readout_extra, num_readout, ioshape):
+def Z_segmented(num_segments, num_readout_extra, num_readout, ioshape):
     """Make a linop that zeros out the last few readout points
     of a trajectory.
     Example: with 5 time segments and original trajectory with readout dim 450
@@ -57,7 +57,9 @@ def Z_segmented(nseg, num_readout_extra, num_readout, ioshape):
     zero_out = torch.ones(num_readout_extra)
     zero_out[num_readout:] = 0.0
     n_broadcast = len(ioshape) - 2
-    zero_out = rearrange(zero_out, "(B K) -> B" + " ()" * n_broadcast + "K", B=nseg)
+    zero_out = rearrange(
+        zero_out, "(B K) -> B" + " ()" * n_broadcast + "K", B=num_segments
+    )
     Z = Diagonal(
         weight=zero_out,
         ioshape=ioshape,
@@ -142,6 +144,8 @@ def timeseg(
     Nufft, num_segments, segment_dim, mode: Literal["truncate", "zero"] = "zero"
 ):
     """
+    DEPRECATED
+
     Convert a NUFFT-style linop to a segmented linop
 
     Parameters

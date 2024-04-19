@@ -1,7 +1,8 @@
 from .namedlinop import NamedLinop
 from .nameddim import NS
 
-__all__ = ['BreakpointLinop']
+__all__ = ["BreakpointLinop"]
+
 
 class BreakpointLinop(NamedLinop):
     def __init__(self, ioshape):

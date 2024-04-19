@@ -10,10 +10,10 @@ class Add(NamedLinop):
     def __init__(self, *linops):
         assert all(
             linop.ishape == linops[0].ishape for linop in linops
-        ), "All linops must share same ishape"
+        ), f"Add: All linops must share same ishape. Found {linops}"
         assert all(
             linop.oshape == linops[0].oshape for linop in linops
-        ), "All linops must share same oshape"
+        ), f"Add: All linops must share same oshape. Linops: {linops}"
         super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = linops
 
@@ -45,9 +45,7 @@ class Add(NamedLinop):
         """ibatch, obatch specified according to the shape of the
         forward op
         """
-        linops = [
-            linop.split_forward(ibatch, obatch) for linop in self.linops
-        ]
+        linops = [linop.split_forward(ibatch, obatch) for linop in self.linops]
         return type(self)(*linops)
 
     def split_forward_fn(self, ibatch, obatch, data_list):

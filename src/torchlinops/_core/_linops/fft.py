@@ -1,3 +1,4 @@
+from copy import deepcopy
 import torch.fft as fft
 
 from .namedlinop import NamedLinop
@@ -48,7 +49,9 @@ class FFT(NamedLinop):
         return x
 
     def split_forward(self, ibatch, obatch):
-        return type(self)(self.dim, self.batch_shape, self.norm, self.centered)
+        new = type(self)(self.dim, self.batch_shape, self.norm, self.centered)
+        new._shape = deepcopy(self._shape)
+        return new
 
     def split_forward_fn(self, ibatch, obatch, /):
         return None

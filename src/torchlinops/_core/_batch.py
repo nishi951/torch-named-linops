@@ -24,6 +24,7 @@ class Batch(NamedLinop):
         name: Optional[str] = None,
         **batch_sizes,
     ):
+        # TODO: Should batch even have a shape???
         super().__init__(NS(linop.ishape, linop.oshape))
         self.linop = linop
         self.input_device = input_device
@@ -40,6 +41,7 @@ class Batch(NamedLinop):
         self.batch_sizes = {ND.infer(k): v for k, v in self.batch_sizes.items()}
         self.sizes = self._precompute_sizes()
         self._linops, self._input_batches, self._output_batches = self.make_tiles()
+        self._shape = NS(self.linop.ishape, self.linop.oshape)
         super().reset()
 
     def _precompute_sizes(self):
@@ -194,53 +196,6 @@ class Batch(NamedLinop):
 
     def size_fn(self, dim, /, data=None):
         raise NotImplementedError()
-
-    def flatten(self):
-        """Get a flattened list of constituent linops for composition
-        Removes batching
-        """
-        return self.linop.flatten()
-
-    def compose(self, inner):
-        """Do self AFTER inner"""
-        self.linop = self.linop.compose(inner)
-        self.setup_batching()
-        return self
-
-    def __add__(self, right):
-        """Only reset batching on compose, not add"""
-        self.linop = torchlinops.Add(self.linop, right)
-        return self
-
-    def __radd__(self, left):
-        self.linop = torchlinops.Add(left, self.linop)
-        return self
-
-    def __mul__(self, right):
-        if isinstance(right, float) or isinstance(right, torch.Tensor):
-            right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
-            self.linop = self.linop.compose(right)
-            self.setup_batching()
-            return self
-        return NotImplemented
-
-    def __rmul__(self, left):
-        if isinstance(left, float) or isinstance(left, torch.Tensor):
-            left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
-            self.linop = left.compose(self.linop)
-            self.setup_batching()
-            return self
-        return NotImplemented
-
-    def __matmul__(self, right):
-        self = self.compose(right)
-        self.setup_batching()
-        return self
-
-    def __rmatmul__(self, left):
-        self = left.compose(self)
-        self.setup_batching()
-        return self
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""

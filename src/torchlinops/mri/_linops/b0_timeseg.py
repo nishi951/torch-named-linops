@@ -35,9 +35,9 @@ class B0Timeseg(NamedLinop):
         ishape = in_batch_shape + get2dor3d(self.im_size)
         oshape = out_batch_shape + get2dor3d(self.im_size)
         super().__init__(NS(ishape, oshape))
-        self._shape.add('in_batch_shape', in_batch_shape)
-        self._shape.add('out_batch_shape', out_batch_shape)
-        self._shape.add('b0_dim', b0_dim)
+        self._shape.add("in_batch_shape", in_batch_shape)
+        self._shape.add("out_batch_shape", out_batch_shape)
+        self._shape.add("b0_dim", b0_dim)
         # self.ts = self.get_segment_ts(self.nro, self.dt, self.nseg)
         # phase_map = torch.exp(-2j * pi * self.b0_map * self.ts) # TODO check the sign on this
         self.phase_map = nn.Parameter(phase_map, requires_grad=False)

@@ -11,7 +11,7 @@ from torchlinops.mri.sim.tgas_spi import (
     TGASSPISimulatorConfig,
 )
 from torchlinops.mri._linops.nufft import NUFFT
-from torchlinops.mri._linops.nufft.timeseg import timeseg
+from torchlinops.mri._linops.nufft.timeseg import F_segmented, Z_segmented, D_segmented
 
 
 def test_spiral2d_timeseg():
@@ -37,11 +37,17 @@ def test_spiral2d_timeseg():
         out_batch_shape=("R", "K"),
         backend="fi",
     )
-    Fseg = timeseg(F, num_segments, "B")
+    Fseg = F_segmented(F, num_segments, "B")
+    Zseg = Z_segmented(
+        num_segments,
+        num_readout_extra=Fseg.size("B") * Fseg.size("K"),
+        num_readout=F.size("K"),
+        ioshape=Fseg.oshape,
+    )
 
-    assert Fseg[-1].trj.shape[-2] == ceildiv(data.trj.shape[-2], num_segments)
+    assert Fseg.trj.shape[-2] == ceildiv(data.trj.shape[-2], num_segments)
     assert Fseg.ishape == ("B", "C", "Nx", "Ny")
-    assert Fseg.oshape == ("C", "R", "K")
+    assert Zseg.oshape == ("B", "C", "R", "K")
 
 
 @pytest.mark.slow
@@ -70,8 +76,14 @@ def test_tgasspi_timeseg():
         out_batch_shape=("R", "T", "K"),
         backend="fi",
     )
-    Fseg = timeseg(F, num_segments, "B")
+    Fseg = F_segmented(F, num_segments, "B")
+    Zseg = Z_segmented(
+        num_segments,
+        num_readout_extra=Fseg.size("B") * Fseg.size("K"),
+        num_readout=F.size("K"),
+        ioshape=Fseg.oshape,
+    )
 
-    assert Fseg[-1].trj.shape[-2] == ceildiv(data.trj.shape[-2], num_segments)
+    assert Fseg.trj.shape[-2] == ceildiv(data.trj.shape[-2], num_segments)
     assert Fseg.ishape == ("B", "C", "Nx", "Ny", "Nz")
-    assert Fseg.oshape == ("C", "R", "T", "K")
+    assert Zseg.oshape == ("B", "C", "R", "T", "K")
