@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "torchlinops"
 description = "A library for MRI reconstruction with a torch linear operator abstraction."
-version = "0.1.10"
+version = "0.1.11"
 authors = [
     { name = "Mark Nishimura", email = "markn1@stanford.edu" }
 ]
@@ -70,7 +70,7 @@ ignore = [
     "F403", # from ___ import *
     "F401", # unused imports
 ]
-exclude = ["tests"]
+exclude = ["**/tests/**"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

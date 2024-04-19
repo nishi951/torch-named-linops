@@ -30,7 +30,6 @@ def toeplitz(
     nufft_batch_shape = Nufft.ishape[:-D]
     Pad = _pad(Nufft.im_size, oversamp, nufft_batch_shape)
     im_shape = Pad.ishape[-D:]
-    pad_im_shape = Pad.oshape[-D:]
 
     # Get FFT
     F = _fft(len(Pad.im_size), nufft_batch_shape)
@@ -47,7 +46,6 @@ def toeplitz(
 
         # Collect all combinations of input/output pairs
         kernel_changed_shape, changed = _changed_shape(Inner.ishape, Inner.oshape)
-        n_changed = len(kernel_changed_shape)
         n_nufft_batch = len(nufft_batch_shape)
         nufft_changed_batch_shape = tuple(
             odim if changed[i] else idim

@@ -203,7 +203,6 @@ def _nufft_adjoint_broadcast(input, coord, oshape, out, upsampfac):
     oshape: Output shape [N..., *im_size]
     out: [N..., *oshape]
     """
-    nD = coord.shape[-1]
     nK = len(coord.shape[:-1])
     N_shape = tuple(input.shape[:-nK])
 

@@ -135,7 +135,6 @@ class NUFFTBase(NamedLinop):
             toeplitz=self.toeplitz,
             toeplitz_oversamp=self.toeplitz_oversamp,
         )
-        return split
 
     def split_forward_fn(self, ibatch, obatch, /, trj):
         shared_batch = obatch[: self.shared_dims]

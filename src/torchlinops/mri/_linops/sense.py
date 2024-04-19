@@ -35,7 +35,7 @@ class SENSE(NamedLinop):
 
     @property
     def coildim(self):
-        return self._shape.lookup("coildim")
+        return self._shape.coildim
 
     def forward(self, x):
         return self.fn(self, x, self.mps)
