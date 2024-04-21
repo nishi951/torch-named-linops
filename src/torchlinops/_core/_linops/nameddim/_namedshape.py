@@ -86,8 +86,18 @@ class NamedShape(NamedDimCollection):
         return f"{self.ishape} -> {self.oshape}"
 
     def __add__(self, right):
-        _ishape = self.ishape + right.ishape
-        _oshape = self.oshape + right.oshape
+        try:
+            _ishape = self.ishape + right.ishape
+        except TypeError as e:
+            raise TypeError(
+                f"Problem combining shapes {self.ishape} + {right.ishape}"
+            ) from e
+        try:
+            _oshape = self.oshape + right.oshape
+        except TypeError as e:
+            raise TypeError(
+                f"Problem combining shapes {self.oshape} + {right.oshape}"
+            ) from e
         new = type(self)(ishape=_ishape, oshape=_oshape)
         for shape in self.shapes:
             if shape not in ["_ishape", "_oshape"]:

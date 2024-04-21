@@ -130,58 +130,8 @@ def create_kernel(window_size: Tuple, eps: float = 1e-6) -> torch.Tensor:
     r"""Creates a binary kernel to extract the patches. If the window size
     is HxW[xD] will create a (H*W[*D])xHxW[xD] kernel.
     """
-    dim = len(window_size)
     window_range: int = np.prod(window_size)
     kernel: torch.Tensor = torch.zeros((window_range, window_range)) + eps
     for i in range(window_range):
         kernel[i, i] += 1.0
     return kernel.view(*((window_range,) + (1,) + window_size))
-
-
-####################################
-# Worse version that uses indexing #
-# ABANDONED                        #
-####################################
-def get_block_select(x, window_size: Tuple, stride: Tuple):
-    """
-    Select version is not memory efficient
-    """
-    N, C, *im_size = x.shape
-    assert len(im_size) == len(window_size)
-    dim = len(im_size)
-
-    window_size = torch.tensor(window_size)
-    im_size = torch.tensor(im_size)
-    n_windows = torch.floor(im_size / window_size).long()
-    window_idx = torch.stack(
-        torch.meshgrid([torch.arange(d) for d in n_windows], indexing="ij"), dim=-1
-    )
-    window_topleft = window_idx * window_size
-
-    subidx = torch.stack(
-        torch.meshgrid([torch.arange(d) for d in window_size], indexing="ij"), dim=-1
-    )
-
-    subidx = unsqueeze_multiple(subidx, num_unsqueeze=dim, start=dim)
-    idx = subidx + window_topleft
-    return idx
-
-
-def unsqueeze_multiple(t: torch.Tensor, num_unsqueeze: int, start: int):
-    """Expand the dimensions of a tensor multiple times at some index"""
-    dim = t.dim()
-    assert start < dim
-    slc = (
-        (slice(None),) * start
-        + (None,) * num_unsqueeze
-        + (slice(None),) * (dim - start)
-    )
-    return t[slc]
-
-
-if __name__ == "__main__":
-    # test_kernel()
-    # test_block_select()
-    test_blocking_easy()
-    # test_blocking_medium()
-    test_blocking_norm()

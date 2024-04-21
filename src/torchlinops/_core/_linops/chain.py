@@ -16,10 +16,11 @@ class Chain(NamedLinop):
 
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
-        for linop in reversed(self.linops):
+        for i, linop in enumerate(reversed(self.linops)):
+            j = len(self.linops) - i - 1
             if linop.ishape != curr_shape:
                 raise ValueError(
-                    f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}"
+                    f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {j}"
                 )
             curr_shape = linop.oshape
 

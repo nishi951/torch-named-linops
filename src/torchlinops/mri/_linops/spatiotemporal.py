@@ -30,11 +30,16 @@ class SpatialBasis(NamedLinop):
         self.D = len(self.im_size)
         super().__init__(shape)
         self._shape.add("basis_dim", basis_dim)
+        self._shape.add("in_batch_shape", in_batch_shape)
         self.basis = nn.Parameter(spatial_basis, requires_grad=False)
 
     @property
     def basis_dim(self):
         return self._shape.basis_dim
+
+    @property
+    def in_batch_shape(self):
+        return self._shape.in_batch_shape
 
     def forward(self, x):
         return self.fn(self, x, self.basis)
@@ -48,7 +53,7 @@ class SpatialBasis(NamedLinop):
         return torch.sum(x * torch.conj(basis), dim=linop.basis_ax)
 
     def split_forward(self, ibatch, obatch):
-        """Split over coil dim only"""
+        """Split over batch dim only"""
         return type(self)(
             self.split_forward_fn(ibatch, obatch, self.basis),
             self.basis_dim,
@@ -64,13 +69,13 @@ class SpatialBasis(NamedLinop):
         return basis[obatch[self.basis_ax :]]
 
     def size(self, dim: str):
-        return self.size_fn(dim, self.mps)
+        return self.size_fn(dim, self.basis)
 
     def size_fn(self, dim: str, basis):
         forward_oshape = (self.basis_dim,) + self.oshape[-self.D :]
         basis_shape = forward_oshape[self.basis_ax :]
         if dim in basis_shape:
-            return basis_shape[basis_shape.index(dim)]
+            return basis.shape[basis_shape.index(dim)]
         return None
 
     def normal(self, inner=None):
@@ -103,11 +108,21 @@ class TemporalBasis(NamedLinop):
         self.K = len(out_batch_shape)
         super().__init__(shape)
         self._shape.add("basis_dim", basis_dim)
+        self._shape.add("in_batch_shape", in_batch_shape)
+        self._shape.add("out_batch_shape", out_batch_shape)
         self.basis = nn.Parameter(temporal_basis, requires_grad=False)
 
     @property
     def basis_dim(self):
         return self._shape.basis_dim
+
+    @property
+    def in_batch_shape(self):
+        return self._shape.in_batch_shape
+
+    @property
+    def out_batch_shape(self):
+        return self._shape.out_batch_shape
 
     def forward(self, x):
         return self.fn(self, x, self.basis)
@@ -121,15 +136,16 @@ class TemporalBasis(NamedLinop):
         return x.unsqueeze(linop.basis_ax) * torch.conj(basis)
 
     def split_forward(self, ibatch, obatch):
-        """Split over coil dim only"""
+        """Split over batch dim only"""
         return type(self)(
             self.split_forward_fn(ibatch, obatch, self.basis),
+            self.out_batch_shape,
             self.basis_dim,
-            self.ishape[: -self.D],
+            self.in_batch_shape,
         )
 
     def split_forward_fn(self, ibatch, obatch, /, basis):
-        for islc, oslc in zip(ibatch[-self.D :], obatch[-self.D :]):
+        for islc, oslc in zip(ibatch[-self.K :], obatch[-self.K :]):
             if islc != oslc:
                 raise IndexError(
                     "TemporalBasis currently only supports matched image input/output slicing."
@@ -137,18 +153,18 @@ class TemporalBasis(NamedLinop):
         return basis[obatch[self.basis_ax :]]
 
     def size(self, dim: str):
-        return self.size_fn(dim, self.mps)
+        return self.size_fn(dim, self.basis)
 
     def size_fn(self, dim: str, basis):
-        forward_oshape = (self.basis_dim,) + self.oshape[-self.D :]
+        forward_oshape = (self.basis_dim,) + self.oshape[-self.K :]
         basis_shape = forward_oshape[self.basis_ax :]
         if dim in basis_shape:
-            return basis_shape[basis_shape.index(dim)]
+            return basis.shape[basis_shape.index(dim)]
         return None
 
     def normal(self, inner=None):
         if inner is None:
             abs_basis = torch.sum(torch.abs(self.basis) ** 2, dim=0)
-            normal = Diagonal(abs_basis, self.oshape[-self.D :])
+            normal = Diagonal(abs_basis, self.oshape[-self.K :])
             return normal
         return super().normal(inner)
