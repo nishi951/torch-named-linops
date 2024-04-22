@@ -155,5 +155,5 @@ class NUFFTBase(NamedLinop):
             return None
         return trj.shape[idx]
 
-    def plan(self, device):
+    def plan(self, device: torch.device = None):
         pass
