@@ -13,21 +13,15 @@ __all__ = [
 ]
 
 
-def NUFFT(*args, backend: Literal["sigpy", "torch", "fi", "grid"] = "fi", **kwargs):
+def NUFFT(trj, im_size, backend: Literal["sigpy", "torch", "fi", "grid"] = "fi", *args, **kwargs):
     if backend == "sigpy":
-        return SigpyNUFFT(*args, **kwargs)
+        return SigpyNUFFT(trj, im_size, *args, **kwargs)
     elif backend == "torch":
-        return TorchNUFFT(*args, **kwargs)
+        return TorchNUFFT(trj, im_size, *args, **kwargs)
     elif backend == "fi":
-        trj = kwargs.get("trj")
-        im_size = kwargs.get("im_size")
-        if trj is None:
-            trj = args[0]
-        if im_size is None:
-            im_size = args[1]
         trj.copy_(sp2fi(trj.clone(), im_size))
-        return FiNUFFT(*args, **kwargs)
+        return FiNUFFT(trj, im_size, *args, **kwargs)
     elif backend == "grid":
-        return GriddedNUFFT(*args, **kwargs)
+        return GriddedNUFFT(trj, im_size, *args, **kwargs)
     else:
         raise ValueError(f"Unrecognized NUFFT backend: {backend}")
