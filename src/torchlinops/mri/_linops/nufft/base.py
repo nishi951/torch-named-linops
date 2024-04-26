@@ -107,11 +107,7 @@ class NUFFTBase(NamedLinop):
         raise NotImplementedError(f"{type(self).__name__} cannot be used directly")
 
     def change_im_size(self, new_im_size):
-        # Necessary for sigpy scaling
-        for i in range(self.trj.shape[-1]):
-            self.trj[..., i] *= new_im_size[i] / self.im_size[i]
-        self.im_size = new_im_size
-        return self
+        raise NotImplementedError()
 
     def normal(self, inner=None):
         if self.toeplitz:

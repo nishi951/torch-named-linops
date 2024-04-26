@@ -72,9 +72,15 @@ def get_finufft_kwargs(dev, upsampfac):
 
     """
     if dev == "cpu":
-        kwargs = {"spread_kerevalmeth": 1 if upsampfac == 2.0 else 0}
+        kwargs = {
+            "spread_kerevalmeth": 1 if upsampfac == 2.0 else 0,
+            "maxbatchsize": 1,  # Memory reasons
+        }
     else:
-        kwargs = {"gpu_kerevalmeth": 1 if upsampfac == 2.0 else 0}
+        kwargs = {
+            "gpu_kerevalmeth": 1 if upsampfac == 2.0 else 0,
+            "gpu_maxbatchsize": 1,  # Memory reasons
+        }
     return kwargs
 
 

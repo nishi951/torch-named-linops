@@ -51,6 +51,13 @@ class SigpyNUFFT(NUFFTBase):
         else:
             self.width = 4
 
+    def change_im_size(self, new_im_size):
+        # Necessary for sigpy scaling
+        for i in range(self.trj.shape[-1]):
+            self.trj[..., i] *= new_im_size[i] / self.im_size[i]
+        self.im_size = new_im_size
+        return self
+
     def forward(self, x: torch.Tensor):
         return self.fn(self, x, self.trj)
 

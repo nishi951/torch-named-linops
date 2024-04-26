@@ -10,7 +10,6 @@ from torchlinops.mri._linops.nufft.base import NUFFTBase
 from ._flatten import multi_flatten
 from . import functional as F
 from . import planned as P
-from .convert_trj import sp2fi, fi2sp
 
 DEFAULT_UPSAMPFAC = 2.0
 
@@ -31,7 +30,7 @@ class FiNUFFT(NUFFTBase):
     ):
         """
         img (input) [S... N... Nx Ny [Nz]]
-        trj: [S... K..., D] in sigpy style [-N/2, N/2]
+        trj: [S... K..., D] in finufft style [-pi, pi]
         in_batch_shape : Tuple
             The shape of [N...] in img
         out_batch_shape : Tuple
@@ -54,7 +53,6 @@ class FiNUFFT(NUFFTBase):
             self.upsampfac = extras["oversamp"]
         else:
             self.upsampfac = DEFAULT_UPSAMPFAC
-        self.trj = sp2fi(self.trj, self.im_size)
         self.planned = False
         self._plans = []
 
@@ -158,7 +156,7 @@ class FiNUFFT(NUFFTBase):
             dtype=y.dtype,
             device=y.device,
         )
-        trj, _ = multi_flatten(trj, linop.S)
+        trj, _ = multi_flatten(trj, linop.nS)
         for i in range(x.shape[0]):
             plan = linop._plans[i] if linop.planned else None
             x[i] = linop.adj_fn_noshared(y[i], trj[i], batch_oshape, plan)
@@ -172,7 +170,7 @@ class FiNUFFT(NUFFTBase):
     def split_forward(self, ibatch, obatch):
         """Override to undo effects of sp2fi"""
         new = type(self)(
-            trj=self.split_forward_fn(ibatch, obatch, fi2sp(self.trj, self.im_size)),
+            trj=self.split_forward_fn(ibatch, obatch, self.trj),
             im_size=self.im_size,
             shared_batch_shape=self.shared_batch_shape,
             in_batch_shape=self.in_batch_shape,
