@@ -72,13 +72,14 @@ class Spiral2dSimulator(nn.Module):
             )
         return self._data
 
-    def make_linop(self, trj: torch.Tensor, mps: torch.Tensor):
+    def make_linop(self, trj: torch.Tensor, mps: torch.Tensor, toeplitz=False):
         S = SENSE(mps)
         F = NUFFT(
             trj,
             self.config.im_size,
             in_batch_shape=S.oshape[:-2],
-            out_batch_shape=("R",),
+            out_batch_shape=("R","K"),
             backend=self.config.nufft_backend,
+            toeplitz=toeplitz,
         )
         return F @ S

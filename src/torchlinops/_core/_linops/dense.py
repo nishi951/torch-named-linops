@@ -2,6 +2,7 @@ from copy import copy
 from typing import Optional, List
 
 from einops import einsum
+import torch.nn as nn
 
 from .namedlinop import NamedLinop
 from .nameddim import ND, NS, NamedShape
@@ -37,7 +38,7 @@ class Dense(NamedLinop):
             As such, they are excluded from splitting.
         """
         super().__init__(NS(ishape, oshape))
-        self.weight = weight
+        self.weight = nn.Parameter(weight, requires_grad=False)
         self._shape.add("weightshape", weightshape)
 
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
