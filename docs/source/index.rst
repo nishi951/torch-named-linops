@@ -7,6 +7,7 @@ Welcome to torchlinops's documentation!
 =======================================
 
 .. toctree::
+   getting_started
    :maxdepth: 2
    :caption: Contents:
 
