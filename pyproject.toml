@@ -60,6 +60,10 @@ dev = [
     "matplotlib", # Visualization
     "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
 ]
+docs = [
+    "sphinx", # Build system
+    "furo",   # Theme
+]
 
 [tool.ruff]
 target-version = "py310"
