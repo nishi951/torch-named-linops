@@ -7,7 +7,7 @@ Welcome to torchlinops's documentation!
 =======================================
 
 .. toctree::
-   getting_started
+   installation
    :maxdepth: 2
    :caption: Contents:
 
