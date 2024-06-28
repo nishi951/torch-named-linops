@@ -10,12 +10,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.10'
+    # - name: Set up Python 3.10
+    #   uses: actions/setup-python@v3
+    #   with:
+    #     python-version: '3.10'
     - name: setup-micromamba
       uses: mamba-org/setup-micromamba@v1.9.0
+      with:
+        micromamba-version: '1.5.8-0'
+        environment-file: environment.yaml
+        environment-name: base
+        init-shell: bash
+        cache-environment: true
+        cache-downloads: false
     - name: Install dependencies
       run: |
         mamba env update --file environment.yaml --name base
