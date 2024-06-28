@@ -8,7 +8,7 @@ Welcome to torchlinops's documentation!
 
 .. toctree::
    installation
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
 

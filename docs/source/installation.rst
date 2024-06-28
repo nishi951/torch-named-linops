@@ -1,18 +1,31 @@
 Installation
 ============
 
-The following packages should be installed prior to using torchlinops.
+Anaconda (recommended)
+----------------------
+`mamba <https://mamba.readthedocs.io/en/latest/>`_ is the recommended conda-based installer.
 
-* ``pytorch >= 2.1``
-* ``torchvision``
-* ``torchaudio``
+1. Install pytorch, torchvision, and torchaudio. Refer to `https://pytorch.org <https://pytorch.org>`_ for the most up-to-date info.
 
-Then, install torchlinops with:
+
+2. Install torchlinops with:
 
 .. code-block:: console
 
    $ pip install torchlinops[cuda11] # Cuda 11 versions of things
    $ pip install torchlinops[cuda12] # Cuda 12 versions of things
+
+   Make sure to install the version of torchlinops that corresponds to your cuda version.
+
+Pip
+---
+The pip install uses the Pypy versions of pytorch.
+
+1. Install torchlinops with
+   .. code-block:: console
+
+        $ pip install torchlinops[cuda11] # Cuda 11 versions of things
+        $ pip install torchlinops[cuda12] # Cuda 12 versions of things
 
 .. note ::
 
