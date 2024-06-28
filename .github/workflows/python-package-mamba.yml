@@ -1,35 +1,49 @@
-name: Python Package using Conda
+name: Install, Lint, and Test
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  python-install-lint-test:
+    name: ${{ matrix.os }} - Python ${{ matrix.python-version }}[ ${{ matrix.deps }} ]
+    runs-on: ${{ matrix.os  }}
+    timeout-minutes: 15
+    concurrency:
+      group: python-group
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
     strategy:
       max-parallel: 5
+      matrix:
+        os: [ubuntu-latest]
+        deps: ['dev,test-cpu'] # 'test-cuda11' coming soon? https://github.com/github/roadmap/issues/961
+        python-version: ['3.9', '3.10', '3.11']
 
     steps:
-    - uses: actions/checkout@v4
-    # - name: Set up Python 3.10
-    #   uses: actions/setup-python@v3
-    #   with:
-    #     python-version: '3.10'
-    - name: setup-micromamba@v1
-      uses: mamba-org/setup-micromamba@v1.9.0
+    - name: Checkout repo
+      uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
       with:
-        micromamba-version: '1.5.8-0'
-        environment-file: environment.yaml
-        init-shell: bash
-        cache-environment: true
-        cache-downloads: false
-    - name: Install dependencies
-      run: |
-        mamba env update --file environment.yaml --name base
-    - name: lint with ruff
-      run: |
-        mamba install ruff -c conda-forge
-        ruff check
-    - name: test with pytest
-      run: |
-        mamba install pytest -c conda-forge
-        pytest
+        python-version: ${{ matrix.python-version }}
+        cache: "pip"
+    - name: Set up venv
+      uses: yezz123/setup-uv@v4
+    - run: uv
+
+    # - name: Install with deps
+    #   run: |
+
+    # - name: lint with ruff
+    #   run: |
+    #     mamba install ruff -c conda-forge
+    #     ruff check
+    # - name: test with pytest
+    #   run: |
+    #     mamba install pytest -c conda-forge
+    #     pytest
