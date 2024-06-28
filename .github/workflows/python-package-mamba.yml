@@ -19,7 +19,6 @@ jobs:
       with:
         micromamba-version: '1.5.8-0'
         environment-file: environment.yaml
-        environment-name: base
         init-shell: bash
         cache-environment: true
         cache-downloads: false
