@@ -10,18 +10,14 @@ authors = [
     { name = "Mark Nishimura", email = "markn1@stanford.edu" }
 ]
 dependencies = [
+    "torch>=2.1",
+    "torchvision",
+    "torchaudio",
+
     # NUFFT
     "finufft>=2.2.0",
-    # Sigpy for various utils
-    # Other versions locked for compatibility (may change soon)
-    "sigpy == 0.1.25",
-    "numpy == 1.22",
-    "scipy",
-    "torchkbnufft",
-    # User should install these themselves
-    # "pytorch >= 2.1",
-    # "torchvision",
-    # "torchaudio,"
+    "cufinufft>=2.2.0",
+
     # Misc utilities
     "einops",
     "tqdm",
@@ -31,24 +27,40 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 [project.optional-dependencies]
-cuda12 = [
-    "cufinufft>=2.2.0",
-    # Versions compatible with sigpy
-    "cupy-cuda12x<13.0", # Avoid cublas error
-    "cutensor-cu12",
-    #"nvidia-nccl-cu12", # install via conda or cupy install command
-    # ``` sh
-    # python -m cupyx.tools.install_library --library nccl --cuda 12.x
-    # ```
+test-cpu = [
+    # Sigpy for various utils
+    # Other versions locked for compatibility (may change soon)
+    "sigpy == 0.1.25",
+    "numpy == 1.22",
+    "scipy",
 ]
-cuda11 = [
-    "cufinufft>=2.2.0",
+test-cuda11 = [
+    # Sigpy for various utils
+    # Other versions locked for compatibility (may change soon)
+    "sigpy == 0.1.25",
+    "numpy == 1.22",
+    "scipy",
     # Versions compatible with sigpy
     "cupy-cuda11x<13.0", # Avoid cublas error
     "cutensor-cu11",
     #"nvidia-nccl-cu11", # install via conda or cupy install command
     # ``` sh
     # python -m cupyx.tools.install_library --library nccl --cuda 11.x
+    # ```
+
+]
+test-cuda12 = [
+    # Sigpy for various utils
+    # Other versions locked for compatibility (may change soon)
+    "sigpy == 0.1.25",
+    "numpy == 1.22",
+    "scipy",
+    # Versions compatible with sigpy
+    "cupy-cuda12x<13.0", # Avoid cublas error
+    "cutensor-cu12",
+    #"nvidia-nccl-cu12", # install via conda or cupy install command
+    # ``` sh
+    # python -m cupyx.tools.install_library --library nccl --cuda 12.x
     # ```
 ]
 dev = [
@@ -59,8 +71,6 @@ dev = [
     "marimo", # Better notebooks
     "matplotlib", # Visualization
     "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
-]
-docs = [
     "sphinx", # Build system
     "furo",   # Theme
 ]
