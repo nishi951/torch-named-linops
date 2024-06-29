@@ -41,7 +41,7 @@ jobs:
       run: uv pip install .[${{ matrix.deps }}]
     - name: Lint with ruff
       run: ruff check
-    - name Run tests
+    - name: Run tests
       run: pytest
 
 
