@@ -24,6 +24,7 @@ jobs:
         os: [ubuntu-latest]
         deps: ['dev,test-cpu'] # 'test-cuda11' coming soon? https://github.com/github/roadmap/issues/961
         python-version: ['3.9', '3.10', '3.11']
+      fail-fast: false
 
     steps:
     - name: Checkout repo
