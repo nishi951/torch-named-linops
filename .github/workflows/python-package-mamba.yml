@@ -6,15 +6,15 @@ on:
       - main
   pull_request: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   python-install-lint-test:
     name: ${{ matrix.os }} - Python ${{ matrix.python-version }}[ ${{ matrix.deps }} ]
     runs-on: ${{ matrix.os  }}
     timeout-minutes: 15
-    concurrency:
-      group: python-group
-      cancel-in-progress: true
     defaults:
       run:
         shell: bash
@@ -35,7 +35,8 @@ jobs:
         cache: "pip"
     - name: Set up venv
       uses: yezz123/setup-uv@v4
-    - run: uv
+    - name: Test UV
+      run: uv --version
 
     # - name: Install with deps
     #   run: |
