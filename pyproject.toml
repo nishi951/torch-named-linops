@@ -3,7 +3,7 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "torchlinops"
+name = "torch-mri-linops"
 description = "A library for MRI reconstruction with a torch linear operator abstraction."
 version = "0.1.12"
 authors = [
@@ -27,7 +27,11 @@ readme = "README.md"
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
-test-cpu = [
+test = [
+    "gdown", # Downloading test files
+    "marimo", # Better notebooks
+    "matplotlib", # Visualization
+    "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
     # Sigpy for various utils
     # Other versions locked for compatibility (may change soon)
     "sigpy == 0.1.25",
@@ -35,12 +39,7 @@ test-cpu = [
     "scipy",
 ]
 test-cuda11 = [
-    # Sigpy for various utils
-    # Other versions locked for compatibility (may change soon)
-    "sigpy == 0.1.25",
-    "numpy == 1.22",
-    "scipy",
-    # Versions compatible with sigpy
+    "torch-mri-linops[test]",
     "cupy-cuda11x<13.0", # Avoid cublas error
     "cutensor-cu11",
     #"nvidia-nccl-cu11", # install via conda or cupy install command
@@ -50,12 +49,7 @@ test-cuda11 = [
 
 ]
 test-cuda12 = [
-    # Sigpy for various utils
-    # Other versions locked for compatibility (may change soon)
-    "sigpy == 0.1.25",
-    "numpy == 1.22",
-    "scipy",
-    # Versions compatible with sigpy
+    "torch-mri-linops[test]",
     "cupy-cuda12x<13.0", # Avoid cublas error
     "cutensor-cu12",
     #"nvidia-nccl-cu12", # install via conda or cupy install command
@@ -67,10 +61,6 @@ dev = [
     "pytest", # Unit tests
     "ruff", # Linting
     "pre-commit",
-    "gdown", # Downloading test files
-    "marimo", # Better notebooks
-    "matplotlib", # Visualization
-    "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
     "sphinx", # Build system
     "furo",   # Theme
 ]
