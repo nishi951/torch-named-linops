@@ -69,6 +69,7 @@ dev = [
     "sphinx", # Build system
     "furo",   # Theme
 ]
+all = ["torch-mri-linops[test, dev]"]
 
 # TODO: Deprecate this once the other packages are established
 [tool.setuptools.package-dir]
