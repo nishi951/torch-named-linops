@@ -22,6 +22,12 @@ dependencies = [
     "einops",
     "tqdm",
     "pyyaml",
+
+    # TODO: remove these dependencies
+    "sigpy == 0.1.25", # Good nufft, other mri utils
+    "numpy == 1.22",   # Here because sigpy is legacy
+    "scipy",           # also here for sigpy
+    "torchkbnufft",    # Also a good nufft
 ]
 readme = "README.md"
 requires-python = ">=3.9"
@@ -34,12 +40,12 @@ test = [
     "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
     # Sigpy for various utils
     # Other versions locked for compatibility (may change soon)
-    "sigpy == 0.1.25",
-    "numpy == 1.22",
-    "scipy",
+    # "sigpy == 0.1.25",
+    # "numpy == 1.22",
+    # "scipy",
+
 ]
-test-cuda11 = [
-    "torch-mri-linops[test]",
+cuda11 = [
     "cupy-cuda11x<13.0", # Avoid cublas error
     "cutensor-cu11",
     #"nvidia-nccl-cu11", # install via conda or cupy install command
@@ -48,8 +54,7 @@ test-cuda11 = [
     # ```
 
 ]
-test-cuda12 = [
-    "torch-mri-linops[test]",
+cuda12 = [
     "cupy-cuda12x<13.0", # Avoid cublas error
     "cutensor-cu12",
     #"nvidia-nccl-cu12", # install via conda or cupy install command
@@ -64,6 +69,15 @@ dev = [
     "sphinx", # Build system
     "furo",   # Theme
 ]
+
+# TODO: Deprecate this once the other packages are established
+[tool.setuptools.package-dir]
+torchlinops = "src/torchlinops"
+igrog = "libraries/igrog/src/igrog"
+mr_recon = "libraries/igrog/mr_recon/src/mr_recon"
+optim_mrf = "libraries/optimized-mrf/src/optim_mrf"
+mr_sim = "libraries/mr_sim/src/mr_sim"
+
 
 [tool.ruff]
 target-version = "py310"
