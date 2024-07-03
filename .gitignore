@@ -7,6 +7,7 @@ tmp/
 *.egg
 *.egg-info
 build
+dist
 htmlcov
 
 # Data files
