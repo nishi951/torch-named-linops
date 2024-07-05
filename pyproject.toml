@@ -3,7 +3,7 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "torch-mri-linops"
+name = "torch-named-linops"
 description = "A library for MRI reconstruction with a torch linear operator abstraction."
 version = "0.1.12"
 authors = [

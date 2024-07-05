@@ -53,16 +53,6 @@ class FFT(NamedLinop):
         new._shape = deepcopy(self._shape)
         return new
 
-    def split_forward_fn(self, ibatch, obatch, /):
-        return None
-
-    def size(self, dim):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim: str, /):
-        """FFT doesn't determine any dimensions"""
-        return None
-
     def normal(self, inner=None):
         if inner is None:
             return Identity(self.ishape)
