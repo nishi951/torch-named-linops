@@ -32,12 +32,6 @@ class Identity(NamedLinop):
         assert ibatch == obatch, "Identity linop must be split identically"
         return None
 
-    def size(self, dim: str):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim: str):
-        return None
-
 
 class Zero(NamedLinop):
     """Simple linop that always outputs 0, but with the same shape as the input"""
@@ -62,12 +56,3 @@ class Zero(NamedLinop):
 
     def split_forward(self, ibatch, obatch):
         return self
-
-    def split_forward_fn(self, ibatch, obatch, /):
-        return None
-
-    def size(self, dim: str):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim: str):
-        return None

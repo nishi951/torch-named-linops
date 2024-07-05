@@ -1,56 +1,70 @@
-# Torchlinops
-A library for fast MRI reconstruction and prototyping.
+# torch-named-linops
+A flexible linear operator abstraction implemented in PyTorch.
 
 Includes:
 
-- A selection of linop abstractions implemented in PyTorch.
-  - Supports named dimensions and slicing/batching over them.
-- A set of `app`s that encapsulate common recon or prototyping tasks.
+- Functionality for creating and manipulating linop dimensions.
+- A useful set of core linops, including dense, diagonal, padding/cropping, and FFTs.
+- Tools for composing or decomposing linops, including Chaining, Adding, and Batching
+  (splitting) them.
+
+- A set of mri-specific functionality including:
+  - Special linops for sensitivity maps, density compensation, and non-uniform FFTs (NUFFTs)
+  - Coil sensitivity map estimation
+  - Functions for reconstruction such as conjugate gradient and FISTA, as well as
+    implementations of certain priors.
 
 Note: this project is Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_linops)
 
-## TODO
-- [ ] Deprecate `app`s and only provide linops
-  - [ ] Examples are fine, or reference `fastmrf` for more complete implementations
 
-## Installation
-For full support, some dependencies need to be installed separately
-- `pytorch >= 2.1`
-- `torchvision`
-- `torchaudio`
-
-A simple dev environment with all needed deps can be created via `conda` or `mamba` with one of:
-
-``` sh
-$ mamba env install -f environment_cuda12.yaml
-$ mamba env install -f environment_cuda11.yaml
-```
+## A note on monorepo-style git submodule dependencies
+Many of my projects begin as isolated repos with self-contained pyproject.toml
+files for ease of installation. However, this can make it inconvenient to
+include these repos as git submodules in other repos, because they come with all
+the "extra" python packaging files. These modules end up clogging up the source tree.
 
 
+## Roadmap
+Features
+- [ ] Automatic shape determination, where possible (or at least some good defaults)
+- [ ] Better error messages for linop chains and batches
+- [ ] NUFFT backend checks for installed modules
+- [ ] Batching over `Add`
+- [ ] Unitary minus and `Subtract`
+- [ ] `Stack` - combine linops across dimensions
 
-### CuPy workaround (March 2024)
-Cupy doesn't like `nccl` dependencies installed as wheels from pip. Importing
-cupy the first time will present an import error with a python command that can
-be used to manually install the nccl library, e.g. (for cuda 12.x - replace with
-relevant cuda version) 
-``` sh
-python -m cupyx.tools.install_library --library nccl --cuda 12.x
-```
-For more up-to-date info, can follow the issue here:
-https://github.com/cupy/cupy/issues/8227
+Unit testing
+- [ ] All linops adjoint tested
+- [ ] All linops .to(device) tested
+- [ ] Add code coverage
 
-## API
-### Modules
-Module summary:
-- `torchlinops` : Base module with all linops
-  - `.app` : Special "apps" for convenient wrapping of lower-level functionality
-  - `.mri` : Submodule with mri-specific functionality
-    - `.app` : MRI-specific apps
-    - `.data` : Data processing functions
-    - `.recon` : Reconstruction techniques
-    - `.sim` : Simulation functions
-  - `.utils` : Utilities
+Infrastructure
+- [ ] pre-commit with ruff
+- [ ] Automatic dependency range management (dependabot?)
+- [ ] Github actions including `build` and `twine`
 
+Documentation
+- [ ] MyST (Markdown intead of ReST)
+- [ ] How-to guide for making new NamedLinops
+- [ ] How-to guides for spiral SENSE, gridding recon, and maybe time segmentation
+- [ ] Marimo notebook tutorials
+- [ ] Autodoc - scraping docs from docstrings
+- [ ] Explanation docs to catalog design decisions
+
+PyPI (0.2 milestone)
+Reducing dependencies
+- [ ] (sigpy) NUFFT backend check for sigpy nufft backend
+- [ ] (igrog) Self-contained fallback implicit GROG implementation?
+- [ ] (optimized-mrf) Merge with or add as dependency to mr_sim repo
+- [ ] (mr_sim) Remove entirely (simulation is not core functionality)
+  - [ ] Save some of it for testing?
+  - [ ] Add some simulation in `examples` directory?
+- [ ] (mr_recon) Remove entirely (exists within igrog)
+
+S-LORAKS
+- [ ] S-LORAKS operator
+- [ ] S-LORAKS proximal operator
+- [ ] S-LORAKS majorization minimization operator
 
 ## Features
 - Full support for complex numbers
