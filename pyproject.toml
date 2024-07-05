@@ -64,8 +64,9 @@ cuda12 = [
 ]
 dev = [
     "pytest", # Unit tests
+    "pytest-codecov", # Code coverage via codecov
     "ruff", # Linting
-    "pre-commit",
+    "pre-commit", # pre-commit hooks
     "sphinx", # Build system
     "furo",   # Theme
 ]
