@@ -72,15 +72,6 @@ dev = [
 ]
 all = ["torch-mri-linops[test, dev]"]
 
-# TODO: Deprecate this once the other packages are established
-[tool.setuptools.package-dir]
-torchlinops = "src/torchlinops"
-# igrog = "libraries/igrog/src/igrog"
-# mr_recon = "libraries/igrog/mr_recon/src/mr_recon"
-# optim_mrf = "libraries/optimized-mrf/src/optim_mrf"
-# mr_sim = "libraries/mr_sim/src/mr_sim"
-
-
 [tool.ruff]
 target-version = "py310"
 extend-exclude = ["**/libraries/*"]
@@ -97,7 +88,7 @@ minversion = "6.0"
 addopts = """
 -ra -q \
 -m 'not slow and not gpu and not plot' \
---cov-report html
+--cov --cov-report html
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [
