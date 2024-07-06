@@ -9,6 +9,7 @@ tmp/
 build
 dist
 htmlcov
+.coverage
 
 # Data files
 *.np[yz]

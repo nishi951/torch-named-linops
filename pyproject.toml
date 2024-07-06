@@ -64,7 +64,7 @@ cuda12 = [
 ]
 dev = [
     "pytest", # Unit tests
-    "pytest-codecov", # Code coverage via codecov
+    "pytest-cov", # Code coverage
     "ruff", # Linting
     "pre-commit", # pre-commit hooks
     "sphinx", # Build system
@@ -110,3 +110,6 @@ markers = [
     "gpu: tests that require a gpu",
     "plot: tests that involve plotting",
 ]
+
+[tool.coverage.run]
+omit = ["*/test[s?]/*"] # Both */test/* and */tests/*
