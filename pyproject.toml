@@ -87,8 +87,7 @@ exclude = ["**/tests/**"]
 minversion = "6.0"
 addopts = """
 -ra -q \
--m 'not slow and not gpu and not plot' \
---cov --cov-report html
+-m 'not slow and not gpu and not plot'
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [
