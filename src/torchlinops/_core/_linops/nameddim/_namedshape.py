@@ -1,5 +1,5 @@
 from copy import copy
-from typing import Iterable, Sequence, Tuple, Union, Optional, OrderedDict
+from typing import Iterable, Sequence, Tuple, Union, Optional
 from collections import OrderedDict
 
 from ._nameddim import ND
