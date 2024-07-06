@@ -15,8 +15,8 @@ dependencies = [
     "torchaudio",
 
     # NUFFT
-    "finufft>=2.2.0",
-    "cufinufft>=2.2.0",
+    # "finufft>=2.2.0",
+    # "cufinufft>=2.2.0",
 
     # Misc utilities
     "einops",
@@ -24,10 +24,10 @@ dependencies = [
     "pyyaml",
 
     # TODO: remove these dependencies
-    "sigpy == 0.1.25", # Good nufft, other mri utils
-    "numpy == 1.22",   # Here because sigpy is legacy
-    "scipy",           # also here for sigpy
-    "torchkbnufft",    # Also a good nufft
+    # "sigpy == 0.1.25", # Good nufft, other mri utils
+    # "numpy == 1.22",   # Here because sigpy is legacy
+    # "scipy",           # also here for sigpy
+    # "torchkbnufft",    # Also a good nufft
 ]
 readme = "README.md"
 requires-python = ">=3.9"
@@ -37,7 +37,7 @@ test = [
     "gdown", # Downloading test files
     "marimo", # Better notebooks
     "matplotlib", # Visualization
-    "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
+    # "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
     # Sigpy for various utils
     # Other versions locked for compatibility (may change soon)
     # "sigpy == 0.1.25",
@@ -75,10 +75,10 @@ all = ["torch-mri-linops[test, dev]"]
 # TODO: Deprecate this once the other packages are established
 [tool.setuptools.package-dir]
 torchlinops = "src/torchlinops"
-igrog = "libraries/igrog/src/igrog"
-mr_recon = "libraries/igrog/mr_recon/src/mr_recon"
-optim_mrf = "libraries/optimized-mrf/src/optim_mrf"
-mr_sim = "libraries/mr_sim/src/mr_sim"
+# igrog = "libraries/igrog/src/igrog"
+# mr_recon = "libraries/igrog/mr_recon/src/mr_recon"
+# optim_mrf = "libraries/optimized-mrf/src/optim_mrf"
+# mr_sim = "libraries/mr_sim/src/mr_sim"
 
 
 [tool.ruff]
@@ -97,12 +97,7 @@ minversion = "6.0"
 addopts = """
 -ra -q \
 -m 'not slow and not gpu and not plot' \
---ignore-glob **/mri/_grid/backends/_kgrog/tests/* \
---ignore-glob **/mri/app/tests/* \
---ignore libraries \
---ignore notebooks \
---ignore-glob **/mri/data/* \
---ignore-glob **/mri/sim/*
+--cov
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [
