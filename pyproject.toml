@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "torch-named-linops"
-description = "A library for MRI reconstruction with a torch linear operator abstraction."
-version = "0.1.12"
+description = "A flexible linear operator abstraction in pytorch."
+version = "0.2.0"
 authors = [
     { name = "Mark Nishimura", email = "markn1@stanford.edu" }
 ]
@@ -97,7 +97,7 @@ minversion = "6.0"
 addopts = """
 -ra -q \
 -m 'not slow and not gpu and not plot' \
---cov
+--cov-report html
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [

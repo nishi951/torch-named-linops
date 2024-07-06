@@ -5,6 +5,7 @@ from typing import Optional, Mapping, List
 import torch
 from einops import rearrange, reduce, repeat
 
+from .identity import Identity
 from .namedlinop import NamedLinop
 from .nameddim import ND, NS, NamedShape
 
@@ -228,7 +229,7 @@ class Repeat(NamedLinop):
         new_axes_lengths = deepcopy(self.axes_lengths)
         for dim, slc in zip(self.oshape, obatch):
             if dim in self.axes_lengths and dim not in self.broadcast_dims:
-                axes_lengths[dim] = slicelen(self.size(dim), slc)
+                self.axes_lengths[dim] = slicelen(self.size(dim), slc)
         return type(self)(
             new_axes_lengths, self.ishape, self.oshape, self.broadcast_dims
         )
