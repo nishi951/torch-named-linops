@@ -39,7 +39,7 @@ jobs:
       with:
         uv-venv: "test-env"
     - name: Install repo
-      run: uv pip install .[${{ matrix.deps }}]
+      run: uv pip install -e .[${{ matrix.deps }}]
     - name: Lint with ruff
       run: ruff check
     - name: Run tests with coverage
