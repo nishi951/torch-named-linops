@@ -69,6 +69,7 @@ dev = [
     "pre-commit", # pre-commit hooks
     "sphinx", # Build system
     "furo",   # Theme
+    "myst-parser", # Markdown instead of reStructuredText
 ]
 all = ["torch-mri-linops[test, dev]"]
 
