@@ -1,13 +1,8 @@
-from typing import Tuple
+from typing import Tuple, Any, Sequence
 
 from ._nameddim import NamedDimension as ND
 
-__all__ = [
-    "fake_dims",
-    "get2dor3d",
-    "N2K",
-    "K2N",
-]
+__all__ = ["fake_dims", "get2dor3d", "N2K", "K2N"]
 
 
 def get2dor3d(im_size, kspace=False):
@@ -49,3 +44,9 @@ def K2N(tup: Tuple[ND]):
         else:
             out.append(d)
     return tuple(out)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

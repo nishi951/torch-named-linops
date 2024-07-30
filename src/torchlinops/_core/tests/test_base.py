@@ -1,3 +1,4 @@
+from typing import Literal
 import pytest
 
 from abc import ABC, abstractmethod

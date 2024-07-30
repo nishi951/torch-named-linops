@@ -1,6 +1,6 @@
 import copy
 
-from torchlinops._core._linops.nameddim import NamedDimension
+from torchlinops._core._linops.nameddim import NamedDimension, ND
 
 
 def test_nameddim():
@@ -34,3 +34,9 @@ def test_nameddim_add():
     K = NamedDimension("K")
     K4 = K + 4
     assert K4.i == 4, K4.name == "K"
+
+
+def test_nameddim_ellipsis():
+    ellipsis = ND("...")
+    assert ellipsis == "..."
+    assert ellipsis == ND("...")
