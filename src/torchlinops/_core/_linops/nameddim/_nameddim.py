@@ -27,6 +27,8 @@ class NamedDimension:
     def next_unused(self, tup):
         """Get the next dim by index that does not occur in tup"""
         curr = copy(self)
+        if self.name == "...":
+            return curr
         while curr in tup:
             curr = curr + 1
         return curr
@@ -35,6 +37,8 @@ class NamedDimension:
         return self.name + ("" if self.i == 0 else str(self.i))
 
     def __add__(self, k):
+        if self.name == "...":
+            return self
         try:
             return type(self)(self.name, self.i + k)
         except TypeError as e:

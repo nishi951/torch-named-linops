@@ -67,7 +67,16 @@ def test_product():
     assert shape21.ishape == ("E", "F", "A", "B")
     assert shape21.oshape == ("E", "F", "C")
 
-    # adj_shape12 = shape12.H
-    # adj_shape12.ishape = ("G", "H", "I")
-    # assert shape12.ishape == ("A", "B", "H", "I")
-    # assert shape12.oshape == ("G", "H", "I")
+
+def test_ellipses():
+    shape1 = NS(("...", "A"))
+    shape2 = NS(("C", "A"))
+    assert shape1 == shape2
+
+    shape1 = NS(("A", "B"))
+    shape2 = NS(("C", "A"))
+    assert shape1 != shape2
+
+    shape1 = NS(("...", "C"), ("...", "D"))
+    shape2 = NS(("...",))
+    assert shape1 == shape2
