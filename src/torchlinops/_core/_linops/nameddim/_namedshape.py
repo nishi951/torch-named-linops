@@ -15,17 +15,22 @@ __all__ = [
 NDorStr = Union[ND, str]
 
 
-def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None):
+def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None, **additional_shapes):
     """
-    Iif shape is empty, use tuple(), not None
+    If shape is empty, use tuple(), not None
     """
     if ishape is None:
-        return NamedShape(ishape=tuple(), oshape=tuple())
+        shape = NamedShape(ishape=("...",), oshape=("...",))
     if oshape is None:
         if isinstance(ishape, NamedShape):
             return ishape
-        return NamedShape(ishape=ishape, oshape=ishape)
-    return NamedShape(ishape=ishape, oshape=oshape)
+        shape = NamedShape(ishape=ishape, oshape=ishape)
+    else:
+        shape = NamedShape(ishape=ishape, oshape=oshape)
+    # Option to add extra shapes
+    for k, v in additional_shapes.items():
+        shape.add(k, v)
+    return shape
 
 
 class NamedShape(NamedDimCollection):
@@ -100,6 +105,7 @@ class NamedShape(NamedDimCollection):
                 f"Problem combining shapes {self.oshape} + {right.oshape}"
             ) from e
         new = type(self)(ishape=_ishape, oshape=_oshape)
+        # Add all the subshapes
         for shape in self.shapes:
             if shape not in ["_ishape", "_oshape"]:
                 new.add(shape, self.lookup(shape))
