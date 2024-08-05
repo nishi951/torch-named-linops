@@ -1,6 +1,6 @@
 import torch
 
-from .nameddim import NS
+from .nameddim import NS, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Add"]
@@ -9,11 +9,12 @@ __all__ = ["Add"]
 class Add(NamedLinop):
     def __init__(self, *linops):
         assert all(
-            linop.ishape == linops[0].ishape for linop in linops
+            isequal(linop.ishape, linops[0].ishape) for linop in linops
         ), f"Add: All linops must share same ishape. Found {linops}"
         assert all(
-            linop.oshape == linops[0].oshape for linop in linops
+            isequal(linop.oshape, linops[0].oshape) for linop in linops
         ), f"Add: All linops must share same oshape. Linops: {linops}"
+        # TODO: specialize the ishape and oshape on most specific one
         super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = linops
 

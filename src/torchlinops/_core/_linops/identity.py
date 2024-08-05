@@ -5,7 +5,7 @@ __all__ = ["Identity", "Zero"]
 
 
 class Identity(NamedLinop):
-    def __init__(self, ishape, oshape=None):
+    def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
 
     def forward(self, x):
@@ -36,7 +36,7 @@ class Identity(NamedLinop):
 class Zero(NamedLinop):
     """Simple linop that always outputs 0, but with the same shape as the input"""
 
-    def __init__(self, ishape, oshape=None):
+    def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
 
     def forward(self, x):
