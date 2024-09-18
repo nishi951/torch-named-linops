@@ -7,7 +7,13 @@ from torchlinops.utils import inner
 
 
 class BaseNamedLinopTests(ABC):
-    """Abstract base class for all tests that any linop should satisfy."""
+    """Abstract base class for all tests that any linop should satisfy.
+
+    To test a new linop:
+    1. Create a class that inherits from this one
+    2. Override the `linop_input_output` method to return a parameterized linop, and a test input and output`.
+    3. If desired, add additional methods to the class (beginning with `test_`) to test additional functionality.
+    """
 
     equality_check: Literal["exact", "approx"] = "exact"
 
@@ -23,6 +29,7 @@ class BaseNamedLinopTests(ABC):
         pass
 
     def test_adjoint(self, linop_input_output):
+        A, x, y = linop_input_output
         yAx = inner(y, A(x))
         xAHy = inner(A.H(y), x)
         if self.equality_check == "exact":
