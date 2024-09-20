@@ -3,6 +3,7 @@ import pytest
 
 from abc import ABC, abstractmethod
 
+import torch
 from torchlinops.utils import inner
 
 
@@ -16,6 +17,7 @@ class BaseNamedLinopTests(ABC):
     """
 
     equality_check: Literal["exact", "approx"] = "exact"
+    isclose_kwargs: dict = {}
 
     @pytest.fixture
     @abstractmethod
@@ -35,7 +37,7 @@ class BaseNamedLinopTests(ABC):
         if self.equality_check == "exact":
             assert yAx == xAHy
         elif self.equality_check == "approx":
-            return torch.isclose(yAx, xAHy).all()
+            assert torch.isclose(yAx, xAHy, **self.isclose_kwargs).all()
         else:
             raise ValueError(f"Unrecognized equality_check mode: {self.equality_check}")
 
@@ -46,7 +48,7 @@ class BaseNamedLinopTests(ABC):
         if self.equality_check == "exact":
             assert AHAx == ANx
         elif self.equality_check == "approx":
-            assert torch.isclose(AHAx, ANx).all()
+            assert torch.isclose(AHAx, ANx, **self.isclose_kwargs).all()
         else:
             raise ValueError(f"Unrecognized equality_check mode: {self.equality_check}")
 
