@@ -149,7 +149,10 @@ class SumReduce(NamedLinop):
         # If dimension is not summed over (i.e. it is in pre_adj_ishape) , it stays the same
         # Otherwise, if dimension is summed over, its name changes
         # This automatically updates the axes_lengths as well.
-        post.oshape = tuple(d.next_unused(self.ishape) for d in post.oshape)
+        post.oshape = tuple(
+            d.next_unused(self.ishape) if d not in post.ishape else d
+            for d in post.oshape
+        )
         if inner is not None:
             pre.oshape = inner.ishape
             post.ishape = inner.oshape
