@@ -1,8 +1,25 @@
+import pytest
+
 import torch
 
 from torchlinops import SumReduce, Repeat
 
 from torchlinops.utils import is_adjoint
+from torchlinops._core.tests.test_base import BaseNamedLinopTests
+
+
+class TestSumReduce(BaseNamedLinopTests):
+    equality_check = "approx"
+
+    @pytest.fixture(scope="class", params=["fullshape", "ellipses"])
+    def linop_input_output(self, request):
+        x = torch.randn(5, 2, 3)
+        y = torch.randn(5, 2)
+        if request.param == "fullshape":
+            linop = SumReduce(("A", "B", "C"), ("A", "B"))
+        elif request.param == "ellipses":
+            linop = SumReduce(("...", "C"), ("...",))
+        return linop, x, y
 
 
 def test_reduce_repeat():
