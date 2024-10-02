@@ -10,7 +10,7 @@ from typing import (
 )
 from collections import OrderedDict
 
-from ._nameddim import NamedDimension, ND, ELLIPSES
+from ._nameddim import NamedDimension, ND, ELLIPSES, ANY
 from ._matching import iscompatible
 
 __all__ = ["NamedDimCollection"]
@@ -124,14 +124,14 @@ class NamedDimCollection:
             iscompat
         ), f"Updated shape {newshape} not compatible with current: {oldshape}"
         for i, olddim in enumerate(oldshape):
-            if olddim != ELLIPSES:
+            if olddim != ELLIPSES and olddim != ANY:
                 newdims_i = assignments[i]
                 assert (
                     len(newdims_i) == 1
                 ), f"Non-ellipses dim {olddim} received multiple assignment dims {[newshape[j] for j in newdims_i]}"
                 j = newdims_i[0]
                 newdim = newshape[j]
-                if newdim != ELLIPSES:
+                if newdim != ELLIPSES and newdim != ANY:
                     k = self.index(olddim)
                     self._dims[k] = ND.infer(newdim)
 

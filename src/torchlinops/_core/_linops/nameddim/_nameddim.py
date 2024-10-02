@@ -7,7 +7,9 @@ __all__ = [
     "NamedDimension",
 ]
 
+# Special dim names
 ELLIPSES = "..."
+ANY = "()"
 
 
 @dataclass(slots=True, frozen=True)
@@ -31,7 +33,7 @@ class NamedDimension:
     def next_unused(self, tup):
         """Get the next dim by index that does not occur in tup"""
         curr = copy(self)
-        if self.name == "...":
+        if self.name == ELLIPSES or self.name == ANY:
             return curr
         while curr in tup:
             curr = curr + 1
