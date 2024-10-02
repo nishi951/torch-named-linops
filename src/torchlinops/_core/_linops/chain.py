@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from .namedlinop import NamedLinop
-from .nameddim import NS
+from .nameddim import NS, isequal
 
 
 class Chain(NamedLinop):
@@ -18,7 +18,7 @@ class Chain(NamedLinop):
         curr_shape = self.ishape
         for i, linop in enumerate(reversed(self.linops)):
             j = len(self.linops) - i - 1
-            if linop.ishape != curr_shape:
+            if not isequal(linop.ishape, curr_shape):
                 raise ValueError(
                     f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {j}"
                 )
