@@ -10,7 +10,8 @@ from typing import (
 )
 from collections import OrderedDict
 
-from ._nameddim import ND
+from ._nameddim import NamedDimension, ND, ELLIPSES
+from ._matching import iscompatible
 
 __all__ = ["NamedDimCollection"]
 
@@ -21,10 +22,15 @@ class NamedDimCollection:
     """A collection of named dimensions
     Updating some dimensions updates all of them
     Inherit from this to define custom behavior
+
+    self.idx :
+        Maps from a shape name to a data structure of indices into self._dims
+    self._dims : List
+        A List of all the dims in this shape
     """
 
     def __init__(self, **shapes):
-        self.__dict__["idx"] = {}
+        self.__dict__["idx"] = {}  # Avoids setattr weirdness
         self._dims = []
         self._adjoint = None
         self._normal = None
@@ -53,6 +59,7 @@ class NamedDimCollection:
             super().__setattr__(key, val)
 
     def index(self, data: Iterable[NDorStr]):
+        """Get index i of data stream (integer-valued)"""
         if isinstance(data, Mapping):
             return {self._dims.index(k): v for k, v in data.items()}
         elif isinstance(data, Iterable):
@@ -62,6 +69,7 @@ class NamedDimCollection:
             return self._dims.index(data)
 
     def lookup(self, shape_name):
+        """Lookup a shape by its name"""
         data = self.idx[shape_name]
         if isinstance(data, Mapping):
             return {self._dims[k]: v for k, v in data.items()}
@@ -98,12 +106,34 @@ class NamedDimCollection:
             indexed_shape = self._dims.index(data)
         self.idx[shape_name] = indexed_shape
 
-    def update(self, shape_name, shape):
+    def update(self, oldshape_name, newshape):
+        """Update some shape with a new shape"""
+        oldshape = self.lookup(oldshape_name)
+        if isinstance(oldshape, NamedDimension):  # Singleton
+            if not isinstance(newshape, NamedDimension):
+                raise ValueError(
+                    f"Trying to update singleton shape {oldshape_name} with non-singleton {newshape}"
+                )
+            self._dims[self.index(oldshape)] = ND.infer(newshape)
+            return
+        # List, Tuple, or Mapping
+        iscompat, assignments = iscompatible(
+            oldshape, newshape, return_assignments=True
+        )
         assert (
-            len(shape) == len(self.idx[shape_name])
-        ), f"Updated shape differs from current (immutable) shape length: shape: {shape} current: {self.lookup(shape_name)}"
-        for i, j in enumerate(self.idx[shape_name]):
-            self._dims[j] = ND.infer(shape[i])
+            iscompat
+        ), f"Updated shape {newshape} not compatible with current: {oldshape}"
+        for i, olddim in enumerate(oldshape):
+            if olddim != ELLIPSES:
+                newdims_i = assignments[i]
+                assert (
+                    len(newdims_i) == 1
+                ), f"Non-ellipses dim {olddim} received multiple assignment dims {[newshape[j] for j in newdims_i]}"
+                j = newdims_i[0]
+                newdim = newshape[j]
+                if newdim != ELLIPSES:
+                    k = self.index(olddim)
+                    self._dims[k] = ND.infer(newdim)
 
     def __repr__(self):
         return f"{type(self).__name__}({self._dims})"

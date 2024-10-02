@@ -7,6 +7,8 @@ __all__ = [
     "NamedDimension",
 ]
 
+ELLIPSES = "..."
+
 
 @dataclass(slots=True, frozen=True)
 class NamedDimension:
@@ -20,6 +22,8 @@ class NamedDimension:
         if isinstance(dim, str) and len(dim) == 2:
             if dim[1].isdigit():
                 return cls(dim[0], int(dim[1]))
+        elif dim == ELLIPSES:
+            return cls(ELLIPSES)
         elif isinstance(dim, Tuple) or isinstance(dim, List):
             return type(dim)(cls.infer(d) for d in dim)
         return cls(dim)
@@ -37,7 +41,7 @@ class NamedDimension:
         return self.name + ("" if self.i == 0 else str(self.i))
 
     def __add__(self, k):
-        if self.name == "...":
+        if self.name == ELLIPSES:
             return self
         try:
             return type(self)(self.name, self.i + k)
