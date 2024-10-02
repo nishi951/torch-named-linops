@@ -4,7 +4,9 @@ from typing import Sequence, Any, Tuple
 from pprint import pprint
 from warnings import warn
 
-__all__ = ["partition", "isequal"]
+from ._nameddim import ELLIPSES, ANY
+
+__all__ = ["partition", "isequal", "iscompatible"]
 
 
 def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
@@ -35,7 +37,6 @@ def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
 def isequal(
     shape1: Sequence,
     shape2: Sequence,
-    ELLIPSES: str = "...",
     return_assignments: bool = False,
 ) -> bool:
     """Test if two sequences with ellipses are compatible
@@ -74,6 +75,12 @@ def isequal(
     >>> isequal(("...", "A", "C"), ("B", "C"))
     False
 
+    # Wildcards
+    >>> isequal(("A", "B"), ("A", "()"))
+    True
+    >>> isequal(("A",), ("()", "()"))
+    False
+
     # Think about this one...
     >>> isequal(("...", "A", "C", "..."), ("...", "A"))
     True
@@ -91,6 +98,8 @@ def isequal(
                 if shape1[i - 1] == ELLIPSES or shape2[j - 1] == ELLIPSES:
                     val = (-1, -1)
                 elif shape1[i - 1] == shape2[j - 1]:
+                    val = (-1, -1)
+                elif shape1[i - 1] == ANY or shape2[j - 1] == ANY:
                     val = (-1, -1)
                 else:
                     val = None
@@ -139,8 +148,6 @@ def isequal(
 def iscompatible(
     shape1: Sequence,
     shape2: Sequence,
-    ELLIPSES: str = "...",
-    ANY: str = "_",
     return_assignments: bool = False,
 ):
     """Whether the two shapes are length-compatible.
