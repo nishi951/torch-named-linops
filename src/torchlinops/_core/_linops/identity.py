@@ -1,7 +1,7 @@
 from .namedlinop import NamedLinop
 from .nameddim import NS
 
-__all__ = ["Identity", "Zero"]
+__all__ = ["Identity", "Zero", "ShapeSpec"]
 
 
 class Identity(NamedLinop):
@@ -10,6 +10,14 @@ class Identity(NamedLinop):
 
     def forward(self, x):
         return self.fn(self, x)
+
+    def adjoint(self):
+        return self
+
+    def normal(self, inner=None):
+        if inner is None:
+            return self
+        return inner
 
     @staticmethod
     def fn(linop, x, /):
@@ -56,3 +64,14 @@ class Zero(NamedLinop):
 
     def split_forward(self, ibatch, obatch):
         return self
+
+
+# Alias for changing input and output shapes
+class ShapeSpec(Identity):
+    def adjoint(self):
+        return type(self)(self.oshape, self.ishape)
+
+    def normal(self, inner=None):
+        if inner is None:
+            return self
+        return self.H @ inner @ self
