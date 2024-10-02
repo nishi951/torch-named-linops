@@ -210,13 +210,13 @@ class NamedLinop(nn.Module):
 
     def __mul__(self, right):
         if isinstance(right, float) or isinstance(right, torch.Tensor):
-            right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
+            right = torchlinops.Scalar(weight=right)
             return self.compose(right)
         return NotImplemented
 
     def __rmul__(self, left):
         if isinstance(left, float) or isinstance(left, torch.Tensor):
-            left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
+            left = torchlinops.Scalar(weight=left)
             return left.compose(self)
         return NotImplemented
 
