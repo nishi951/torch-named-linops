@@ -6,7 +6,6 @@ import torch
 from tqdm import tqdm
 
 import torchlinops
-from torchlinops import ShapeSpec
 from ._linops import NamedLinop, ND, NS
 from torchlinops.utils import batch_iterator, dict_product
 
@@ -32,9 +31,9 @@ class Batch(NamedLinop):
 
         self.linop = linop
         if input_shape is not None:
-            self.linop = self.linop @ ShapeSpec(input_shape)
+            self.linop = self.linop @ torchlinops.ShapeSpec(input_shape)
         if output_shape is not None:
-            self.linop = ShapeSpec(output_shape) @ self.linop
+            self.linop = torchlinops.ShapeSpec(output_shape) @ self.linop
         self.input_device = input_device
         self.output_device = output_device
         self.input_dtype = input_dtype
