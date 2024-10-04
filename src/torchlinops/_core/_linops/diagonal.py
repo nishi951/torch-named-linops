@@ -1,5 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
+from warnings import warn
+
+from einops import repeat
 import torch
 import torch.nn as nn
 
@@ -11,11 +14,21 @@ __all__ = ["Diagonal"]
 
 class Diagonal(NamedLinop):
     def __init__(
-        self, weight: torch.Tensor, ioshape, broadcast_dims: Optional[List[str]] = None
+        self,
+        weight: torch.Tensor,
+        ioshape: Tuple,
+        broadcast_dims: Optional[List[str]] = None,
     ):
-        assert len(weight.shape) <= len(
-            ioshape
-        ), "All dimensions must be named or broadcastable"
+        if len(weight.shape) > len(ioshape):
+            raise ValueError(
+                f"All dimensions must be named or broadcastable, but got weight shape {weight.shape} and ioshape {ioshape}"
+            )
+        if broadcast_dims is not None:
+            warn(
+                f"broadcast_dims argument is deprecated for torchlinops Diagonal but got {broadcast_dims}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         super().__init__(NS(ioshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
         # assert (
@@ -23,6 +36,15 @@ class Diagonal(NamedLinop):
         # ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         self._shape.add("broadcast_dims", broadcast_dims)
+
+    @classmethod
+    def from_weight(cls, weight, weight_shape, ioshape):
+        if len(weight.shape) > len(ioshape):
+            raise ValueError(
+                f"All dimensions must be named or broadcastable, but got weight shape {weight.shape} and ioshape {ioshape}"
+            )
+        weight = repeat(weight, f"{' '.join(weight_shape)} -> {' '.join(ioshape)}")
+        return cls(weight, ioshape)
 
     @property
     def broadcast_dims(self):
