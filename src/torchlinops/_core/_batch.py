@@ -1,11 +1,12 @@
 import traceback
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 from pprint import pformat
 
 import torch
 from tqdm import tqdm
 
 import torchlinops
+from torchlinops import ShapeSpec
 from ._linops import NamedLinop, ND, NS
 from torchlinops.utils import batch_iterator, dict_product
 
@@ -20,13 +21,20 @@ class Batch(NamedLinop):
         output_device: torch.device,
         input_dtype: Union[str, torch.dtype],
         output_dtype: Union[str, torch.dtype],
+        input_shape: Optional[Tuple] = None,
+        output_shape: Optional[Tuple] = None,
         pbar: bool = False,
         name: Optional[str] = None,
         **batch_sizes,
     ):
         # TODO: Should batch even have a shape???
         super().__init__(NS(linop.ishape, linop.oshape))
+
         self.linop = linop
+        if input_shape is not None:
+            self.linop = self.linop @ ShapeSpec(input_shape)
+        if output_shape is not None:
+            self.linop = ShapeSpec(output_shape) @ self.linop
         self.input_device = input_device
         self.output_device = output_device
         self.input_dtype = input_dtype
