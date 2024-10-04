@@ -39,7 +39,7 @@ Unit testing
 - [ ] Add code coverage
 
 Infrastructure
-- [ ] pre-commit with ruff
+- [x] pre-commit with ruff
 - [ ] Automatic dependency range management (dependabot?)
 - [ ] Github actions including `build` and `twine`
 
@@ -51,7 +51,7 @@ Documentation
 - [ ] Autodoc - scraping docs from docstrings
 - [ ] Explanation docs to catalog design decisions
 
-PyPI (0.2 milestone)
+PyPI (0.2 milestone) - Moved to torchmri
 Reducing dependencies
 - [ ] (sigpy) NUFFT backend check for sigpy nufft backend
 - [ ] (igrog) Self-contained fallback implicit GROG implementation?
