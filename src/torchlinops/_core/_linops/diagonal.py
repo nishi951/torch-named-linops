@@ -38,12 +38,19 @@ class Diagonal(NamedLinop):
         self._shape.add("broadcast_dims", broadcast_dims)
 
     @classmethod
-    def from_weight(cls, weight, weight_shape, ioshape):
+    def from_weight(
+        cls, weight, weight_shape, ioshape, shape_kwargs: Optional[dict] = None
+    ):
+        shape_kwargs = shape_kwargs if shape_kwargs is not None else {}
         if len(weight.shape) > len(ioshape):
             raise ValueError(
                 f"All dimensions must be named or broadcastable, but got weight shape {weight.shape} and ioshape {ioshape}"
             )
-        weight = repeat(weight, f"{' '.join(weight_shape)} -> {' '.join(ioshape)}")
+        weight = repeat(
+            weight,
+            f"{' '.join(weight_shape)} -> {' '.join(ioshape)}",
+            **shape_kwargs,
+        )
         return cls(weight, ioshape)
 
     @property
