@@ -12,16 +12,13 @@ dependencies = [
     "torch>=2.1",
     "torchvision",
     "torchaudio",
-
     # NUFFT
     # "finufft>=2.2.0",
     # "cufinufft>=2.2.0",
-
     # Misc utilities
     "einops",
     "tqdm",
     "pyyaml",
-
     # TODO: remove these dependencies
     # "sigpy == 0.1.25", # Good nufft, other mri utils
     # "numpy == 1.22",   # Here because sigpy is legacy
