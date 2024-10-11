@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "torch-named-linops"
 description = "A flexible linear operator abstraction in pytorch."
@@ -12,74 +8,17 @@ dependencies = [
     "torch>=2.1",
     "torchvision",
     "torchaudio",
-    # NUFFT
-    # "finufft>=2.2.0",
-    # "cufinufft>=2.2.0",
-    # Misc utilities
     "einops",
     "tqdm",
     "pyyaml",
-    # TODO: remove these dependencies
-    # "sigpy == 0.1.25", # Good nufft, other mri utils
-    # "numpy == 1.22",   # Here because sigpy is legacy
-    # "scipy",           # also here for sigpy
-    # "torchkbnufft",    # Also a good nufft
 ]
 readme = "README.md"
 requires-python = ">=3.9"
 dynamic = ["version"]
 
-[project.optional-dependencies]
-test = [
-    "gdown", # Downloading test files
-    "marimo", # Better notebooks
-    "matplotlib", # Visualization
-    # "pytorch_pfn_extras", # Mempool sharing between cupy and pytorch
-    # Sigpy for various utils
-    # Other versions locked for compatibility (may change soon)
-    # "sigpy == 0.1.25",
-    # "numpy == 1.22",
-    # "scipy",
-
-]
-cuda11 = [
-    "cupy-cuda11x<13.0", # Avoid cublas error
-    "cutensor-cu11",
-    #"nvidia-nccl-cu11", # install via conda or cupy install command
-    # ``` sh
-    # python -m cupyx.tools.install_library --library nccl --cuda 11.x
-    # ```
-
-]
-cuda12 = [
-    "cupy-cuda12x<13.0", # Avoid cublas error
-    "cutensor-cu12",
-    #"nvidia-nccl-cu12", # install via conda or cupy install command
-    # ``` sh
-    # python -m cupyx.tools.install_library --library nccl --cuda 12.x
-    # ```
-]
-dev = [
-    "pytest", # Unit tests
-    "pytest-cov", # Code coverage
-    "ruff", # Linting
-    "pre-commit", # pre-commit hooks
-    "sphinx", # Build system
-    "furo",   # Theme
-    "myst-parser", # Markdown instead of reStructuredText
-]
-all = ["torch-mri-linops[test, dev]"]
-
-[tool.ruff]
-target-version = "py310"
-extend-exclude = ["**/libraries/*"]
-
-[tool.ruff.lint]
-ignore = [
-    "F403", # from ___ import *
-    "F401", # unused imports
-]
-exclude = ["**/tests/**"]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -99,8 +38,36 @@ markers = [
     "plot: tests that involve plotting",
 ]
 
-[tool.coverage.run]
-omit = ["*/test[s?]/*"] # Both */test/* and */tests/*
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "gdown", # Downloading test files
+    "marimo", # Better notebooks
+    "matplotlib", # Visualization
+    "pytest", # Unit tests
+    "pytest-cov", # Code coverage
+    "ruff", # Linting
+    "pre-commit", # pre-commit hooks
+    "sphinx", # Build system
+    "furo",   # Theme
+    "myst-parser", # Markdown instead of reStructuredText
+]
 
-[tool.setuptools.dynamic]
-version = {attr = "torchlinops.__version__"}
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/torchlinops"]
+
+[tool.hatch.version]
+path = "src/torchlinops/__init__.py"
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+ignore = [
+    "F403", # from ___ import *
+    "F401", # unused imports
+]
+exclude = ["**/tests/**"]
