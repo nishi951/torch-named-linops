@@ -14,8 +14,3 @@ htmlcov
 # Data files
 *.np[yz]
 *.mat
-
-# Rye
-requirements.lock
-requirements-dev.lock
-.python-version
