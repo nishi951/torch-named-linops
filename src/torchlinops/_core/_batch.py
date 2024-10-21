@@ -51,6 +51,13 @@ class Batch(NamedLinop):
         self._shape = NS(self.linop.ishape, self.linop.oshape)
         super().reset()
 
+    def to(self, device):
+        self.input_device = device
+        self.output_device = device
+        self.linop.to(device)
+        self.setup_batching()
+        super().to(device)
+
     def _precompute_sizes(self):
         sizes = {dim: self.linop.size(dim) for dim in self.linop.dims}
         return sizes
