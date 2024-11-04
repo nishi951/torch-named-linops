@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 
 from .nameddim import NS, isequal
 from .namedlinop import NamedLinop
@@ -16,7 +17,7 @@ class Add(NamedLinop):
         ), f"Add: All linops must share same oshape. Linops: {linops}"
         # TODO: specialize the ishape and oshape on most specific one
         super().__init__(NS(linops[0].ishape, linops[0].oshape))
-        self.linops = linops
+        self.linops = nn.ModuleList(linops)
 
     def forward(self, x):
         return sum(linop(x) for linop in self.linops)
