@@ -126,9 +126,12 @@ class NamedDimCollection:
         for i, olddim in enumerate(oldshape):
             if olddim != ELLIPSES and olddim != ANY:
                 newdims_i = assignments[i]
-                assert (
-                    len(newdims_i) == 1
-                ), f"Non-ellipses dim {olddim} received multiple assignment dims {[newshape[j] for j in newdims_i]}"
+                if len(newdims_i) != 1:
+                    raise ValueError(
+                        f"Non-ellipses dim {olddim} received invalid number of assignment dims {[newshape[j] for j in newdims_i]}."
+                        + " If this happens, try specifying the shapes further."
+                        + f"oldshape: {oldshape} newshape: {newshape}"
+                    )
                 j = newdims_i[0]
                 newdim = newshape[j]
                 if newdim != ELLIPSES and newdim != ANY:
