@@ -1,5 +1,7 @@
-import traceback
 from typing import Union, Optional, Tuple
+from torch import Tensor
+
+import traceback
 from pprint import pformat
 
 import torch
@@ -170,6 +172,7 @@ class Batch(NamedLinop):
     def fn(self, x, /, data):
         """TODO: Functional interface
         Specify data as a tuple of data entries, one for each linop in linops"""
+        raise NotImplementedError(f"Batched functional interface not available yet.")
         sizes = {}
         for dim in self.linop.dims:
             sizes[dim] = self.linop.size_fn(dim, data)
