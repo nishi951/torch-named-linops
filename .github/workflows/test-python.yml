@@ -22,7 +22,7 @@ jobs:
       max-parallel: 5
       matrix:
         os: [ubuntu-latest]
-        deps: ['dev'] # 'test-cuda11' coming soon? https://github.com/github/roadmap/issues/961
+        # deps: ['dev'] # 'test-cuda11' coming soon? https://github.com/github/roadmap/issues/961
         python-version: ['3.10', '3.11', '3.12']
       fail-fast: false
 
@@ -34,16 +34,26 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         # cache: "pip" # deprecated: Use UV instead?
-    - name: Set up venv
-      uses: yezz123/setup-uv@v4
+    - name: Set up rye
+      uses: eifinger/setup-rye@v4
       with:
-        uv-venv: "test-env"
-    - name: Install repo
-      run: uv pip install -e .[${{ matrix.deps }}]
-    - name: Lint with ruff
-      run: ruff check
-    - name: Run tests with coverage
-      run: pytest --cov .
+        enable-cache: true
+    # - name: Set up venv
+    #   uses: yezz123/setup-uv@v4
+    #   with:
+    #     uv-venv: "test-env"
+    # - name: Install repo
+    #   run: uv pip install -e .[${{ matrix.deps }}]
+    # - name: Lint with ruff
+    #   run: ruff check
+    # - name: Run tests with coverage
+    #   run: pytest --cov .
+    - name Sync dependencies
+      run: rye sync
+    - name: Lint
+      run: rye lint
+    - name: Test
+      run: rye test --cov .
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.0.1
       with:

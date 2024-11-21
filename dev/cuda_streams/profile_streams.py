@@ -8,7 +8,7 @@ def main():
     device_idxs = [0, 1]
     devices = [torch.device(f"cuda:{idx}") for idx in device_idxs]
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    B, M, N = 5, 100000, 10000
+    B, M, N = 6, 100000, 10000
     # Set up
     weight = torch.randn(B, M, N, device=devices[0])
     A = Dense(weight, ("B", "M", "N"), ishape=("N",), oshape=("B", "M"))
