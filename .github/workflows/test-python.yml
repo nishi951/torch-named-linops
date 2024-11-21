@@ -49,7 +49,7 @@ jobs:
     #   run: ruff check
     # - name: Run tests with coverage
     #   run: pytest --cov .
-    - name Sync dependencies
+    - name: Sync dependencies
       run: rye sync
     - name: Lint
       run: rye lint
