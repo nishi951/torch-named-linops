@@ -71,7 +71,7 @@ ignore = [
     "F401", # unused imports
     "F541", # f-string without placeholders
 ]
-extend-exclude = [
+exclude = [
     "**/tests/**",
     "dev",
 ]
