@@ -80,18 +80,6 @@ class DistributedBatch(Batch):
         )
         return adj
 
-    # @property
-    # def N(self):
-    #     breakpoint()
-    #     if self._normal is None:
-    #         try:
-    #             _normal = self.normal()
-    #             self._normal = [_normal]
-    #         except AttributeError as e:
-    #             traceback.print_exc()
-    #             raise e
-    #     return self._normal[0]
-
     def normal(self, inner=None):
         batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
         normal = type(self)(
@@ -107,15 +95,3 @@ class DistributedBatch(Batch):
             **batch_sizes,
         )
         return normal
-
-    # def batch_linops(self, **batch_sizes):
-    #     """Further subdivide on each device"""
-    #     for i, (linop, device) in enumerate(zip(self._linops, cycle(self.devices))):
-    #         self._linops[i] = Batch(
-    #             linop,
-    #             device,
-    #             device,
-    #             self.input_dtype,
-    #             self.output_dtype,
-    #             **batch_sizes,
-    #         )

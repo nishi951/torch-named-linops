@@ -75,9 +75,6 @@ class Batch(NamedLinop):
         sizes = {dim: self.linop.size(dim) for dim in self.linop.dims}
         return sizes
 
-    def size(self, dim):
-        return self.linop.size(dim)
-
     @staticmethod
     def _make_batch_iterators(total_sizes, batch_sizes):
         batch_iterators = {}
@@ -130,58 +127,6 @@ class Batch(NamedLinop):
             input_batches.append(ibatches[-1])
             output_batches.append(obatches[0])
         return linops, input_batches, output_batches
-
-    # @staticmethod
-    # def split(linop, *iobatches):
-    #     """
-    #     linop should be a Batch linop
-    #     """
-    #     assert isinstance(linop, Batch)
-    #     batch_sizes = {str(k): v for k, v in linop.batch_sizes.items()}
-    #     # Add one level of indirection
-    #     split = linop.linop.split_forward(*iobatches)
-    #     split = type(linop)(
-    #         split,
-    #         linop.input_device,
-    #         linop.output_device,
-    #         linop.input_dtype,
-    #         linop.output_dtype,
-    #         linop.ishape,
-    #         linop.oshape,
-    #         **batch_sizes,
-    #     )
-    #     return split
-
-    # @staticmethod
-    # def adj_split(linop, *iobatches):
-    #     batch_sizes = {str(k): v for k, v in linop.batch_sizes.items()}
-    #     splitH = linop.linop.adjoint().split_forward(*iobatches).adjoint()
-    #     splitH = type(linop)(
-    #         splitH,
-    #         linop.output_device,
-    #         linop.input_device,
-    #         linop.output_dtype,
-    #         linop.input_dtype,
-    #         linop.oshape,
-    #         linop.ishape,
-    #         **batch_sizes,
-    #     )
-    #     return splitH
-
-    # def split_forward(self, *iobatches):
-    #     """ibatches, obatches specified according to the shape of the
-    #     forward op
-    #     """
-    #     ibatches = iobatches[: len(iobatches) // 2]
-    #     obatches = iobatches[len(iobatches) // 2 :]
-    #     linops = [
-    #         linop.split(linop, ibatch, obatch)
-    #         for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
-    #     ]
-    #     return type(self)(*linops)
-
-    # def flatten(self):
-    #     return self.linop.flatten()
 
     @property
     def H(self):
