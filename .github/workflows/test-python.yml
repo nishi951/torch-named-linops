@@ -30,36 +30,20 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
-    # - name: Set up Python ${{ matrix.python-version }}
-    #   uses: actions/setup-python@v5
-    #   with:
-    #     python-version: ${{ matrix.python-version }}
+    # uv setup
     - name: Set up python with uv
       uses: astral-sh/setup-uv@v3
     - name: Install python
       run: uv python install ${{ matrix.python-version }}
     - name: Initialize environment
       run: uv sync
-    # name: Install repo
-    #   run: uv pip install -e .[${{ matrix.deps }}]
+    # uv lint and test
     - name: Lint with ruff
       run: uv run ruff check
     - name: Run tests with coverage
       run: uv run pytest --cov .
 
-    # Rye version
-    # - name: Set up rye
-    #   uses: eifinger/setup-rye@v4
-    #   with:
-    #     enable-cache: true
-    # - name: Set python version
-    #   run: rye pin ${{ matrix.python-version }}
-    # - name: Sync dependencies
-    #   run: rye sync
-    # - name: Lint
-    #   run: rye lint
-    # - name: Test
-    #   run: rye test --cov .
+    # Generates warnings but still works?
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.0.1
       with:
