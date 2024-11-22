@@ -38,7 +38,7 @@ markers = [
     "plot: tests that involve plotting",
 ]
 
-[tool.rye]
+[tool.uv]
 managed = true
 dev-dependencies = [
     "gdown", # Downloading test files
@@ -73,5 +73,5 @@ ignore = [
 ]
 exclude = [
     "**/tests/**",
-    "dev",
+    "dev/**",
 ]
