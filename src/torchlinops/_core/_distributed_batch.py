@@ -25,8 +25,8 @@ class DistributedBatch(Batch):
 
 
         """
-        super().__init__(*args, **kwargs)
         self.devices = devices
+        super().__init__(*args, **kwargs)
 
     def forward(self, x: Tensor):
         # Complete the size specifications
