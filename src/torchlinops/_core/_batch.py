@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Union, Optional, Tuple
 from torch import Tensor
 
@@ -26,16 +27,23 @@ class Batch(NamedLinop):
         output_shape: Optional[Tuple] = None,
         pbar: bool = False,
         name: Optional[str] = None,
+        post_batch_hook: Optional[Callable] = None,
         **batch_sizes,
     ):
+        """
+        hook : Callable, optional
+            Function that takes in the newly-created batch object and does stuff
+        """
         # TODO: Should batch even have a shape???
         super().__init__(NS(linop.ishape, linop.oshape))
 
         self.linop = linop
         if input_shape is not None:
-            self.linop = self.linop @ torchlinops.ShapeSpec(input_shape)
+            if input_shape != self.linop.ishape:
+                self.linop = self.linop @ torchlinops.ShapeSpec(input_shape)
         if output_shape is not None:
-            self.linop = torchlinops.ShapeSpec(output_shape) @ self.linop
+            if output_shape != self.linop.oshape:
+                self.linop = torchlinops.ShapeSpec(output_shape) @ self.linop
         self.input_device = input_device
         self.output_device = output_device
         self.input_dtype = input_dtype
@@ -43,15 +51,18 @@ class Batch(NamedLinop):
         self.pbar = pbar
         self.name = name if name is not None else ""
         self.batch_sizes = batch_sizes
+        self.post_batch_hook = post_batch_hook
         self.setup_batching()
 
-    def setup_batching(self):
+    def setup_batching(self, hook: Optional[Callable] = None):
         self._linops = None
         self.batch_sizes = {ND.infer(k): v for k, v in self.batch_sizes.items()}
         self.sizes = self._precompute_sizes()
         self._linops, self._input_batches, self._output_batches = self.make_tiles()
         self._shape = NS(self.linop.ishape, self.linop.oshape)
         super().reset()
+        if self.post_batch_hook is not None:
+            self.post_batch_hook(self)
 
     def to(self, device):
         self.input_device = device
@@ -63,6 +74,9 @@ class Batch(NamedLinop):
     def _precompute_sizes(self):
         sizes = {dim: self.linop.size(dim) for dim in self.linop.dims}
         return sizes
+
+    def size(self, dim):
+        return self.linop.size(dim)
 
     @staticmethod
     def _make_batch_iterators(total_sizes, batch_sizes):
@@ -117,6 +131,58 @@ class Batch(NamedLinop):
             output_batches.append(obatches[0])
         return linops, input_batches, output_batches
 
+    # @staticmethod
+    # def split(linop, *iobatches):
+    #     """
+    #     linop should be a Batch linop
+    #     """
+    #     assert isinstance(linop, Batch)
+    #     batch_sizes = {str(k): v for k, v in linop.batch_sizes.items()}
+    #     # Add one level of indirection
+    #     split = linop.linop.split_forward(*iobatches)
+    #     split = type(linop)(
+    #         split,
+    #         linop.input_device,
+    #         linop.output_device,
+    #         linop.input_dtype,
+    #         linop.output_dtype,
+    #         linop.ishape,
+    #         linop.oshape,
+    #         **batch_sizes,
+    #     )
+    #     return split
+
+    # @staticmethod
+    # def adj_split(linop, *iobatches):
+    #     batch_sizes = {str(k): v for k, v in linop.batch_sizes.items()}
+    #     splitH = linop.linop.adjoint().split_forward(*iobatches).adjoint()
+    #     splitH = type(linop)(
+    #         splitH,
+    #         linop.output_device,
+    #         linop.input_device,
+    #         linop.output_dtype,
+    #         linop.input_dtype,
+    #         linop.oshape,
+    #         linop.ishape,
+    #         **batch_sizes,
+    #     )
+    #     return splitH
+
+    # def split_forward(self, *iobatches):
+    #     """ibatches, obatches specified according to the shape of the
+    #     forward op
+    #     """
+    #     ibatches = iobatches[: len(iobatches) // 2]
+    #     obatches = iobatches[len(iobatches) // 2 :]
+    #     linops = [
+    #         linop.split(linop, ibatch, obatch)
+    #         for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
+    #     ]
+    #     return type(self)(*linops)
+
+    # def flatten(self):
+    #     return self.linop.flatten()
+
     @property
     def H(self):
         if self._adjoint is None:
@@ -139,6 +205,7 @@ class Batch(NamedLinop):
             output_dtype=self.input_dtype,
             name=self.name + ".H",
             pbar=self.pbar,
+            post_batch_hook=self.post_batch_hook,
             **batch_sizes,
         )
         return adj
@@ -164,8 +231,10 @@ class Batch(NamedLinop):
             output_dtype=self.input_dtype,
             name=self.name + ".N",
             pbar=self.pbar,
+            post_batch_hook=self.post_batch_hook,
             **batch_sizes,
         )
+
         return normal
 
     @staticmethod

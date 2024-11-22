@@ -42,7 +42,7 @@ class DistributedBatch(Batch):
             self._linops, self._input_batches, cycle(self.devices)
         ):
             linop.to(device)
-            xs.append(x[in_batch].clone().to(device))
+            xs.append(x[in_batch].to(device))
 
         # Run linops on inputs
         for linop, xbatch in tqdm(
@@ -63,3 +63,59 @@ class DistributedBatch(Batch):
         for ybatch, out_batch in zip(ys, self._output_batches):
             y[out_batch] += ybatch.to(self.output_device)
         return y
+
+    def adjoint(self):
+        batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
+        adj = type(self)(
+            linop=self.linop.H,
+            input_device=self.output_device,
+            output_device=self.input_device,
+            input_dtype=self.output_dtype,
+            output_dtype=self.input_dtype,
+            name=self.name + ".H",
+            pbar=self.pbar,
+            devices=self.devices,
+            post_batch_hook=self.post_batch_hook,
+            **batch_sizes,
+        )
+        return adj
+
+    # @property
+    # def N(self):
+    #     breakpoint()
+    #     if self._normal is None:
+    #         try:
+    #             _normal = self.normal()
+    #             self._normal = [_normal]
+    #         except AttributeError as e:
+    #             traceback.print_exc()
+    #             raise e
+    #     return self._normal[0]
+
+    def normal(self, inner=None):
+        batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
+        normal = type(self)(
+            linop=self.linop.N,
+            input_device=self.input_device,
+            output_device=self.input_device,
+            input_dtype=self.input_dtype,
+            output_dtype=self.input_dtype,
+            name=self.name + ".N",
+            pbar=self.pbar,
+            devices=self.devices,
+            post_batch_hook=self.post_batch_hook,
+            **batch_sizes,
+        )
+        return normal
+
+    # def batch_linops(self, **batch_sizes):
+    #     """Further subdivide on each device"""
+    #     for i, (linop, device) in enumerate(zip(self._linops, cycle(self.devices))):
+    #         self._linops[i] = Batch(
+    #             linop,
+    #             device,
+    #             device,
+    #             self.input_dtype,
+    #             self.output_dtype,
+    #             **batch_sizes,
+    #         )
