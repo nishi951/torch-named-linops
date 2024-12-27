@@ -150,3 +150,14 @@ def large3d():
         "stride": (64, 64, 64),
     }
     return spec
+
+
+@pytest.fixture
+def verylarge3d():
+    spec = {
+        "N": (1, 1),
+        "shape": (256, 256, 256),
+        "block_size": (192, 192, 192),
+        "stride": (64, 64, 64),
+    }
+    return spec
