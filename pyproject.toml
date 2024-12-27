@@ -44,6 +44,7 @@ sigpy = [
     "sigpy==0.1.26",
     "cupy-cuda12x>=13.3.0",
 ]
+all = [{include-group="dev"}, {include-group="sigpy"}]
 
 [tool.hatch.metadata]
 allow-direct-references = true
