@@ -1,10 +1,11 @@
 from math import prod
 import torch
 
-from unfold import unfold
 import sigpy as sp
 import cupy as cp
 import numpy as np
+
+from torchlinops.functional import unfold
 
 from utils.benchmark import benchmark
 from utils import Indenter, device_ordinal
