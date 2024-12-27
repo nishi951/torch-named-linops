@@ -43,6 +43,7 @@ sigpy = [
     "llvmlite==0.43.0",
     "sigpy==0.1.26",
     "cupy-cuda12x>=13.3.0",
+    "easydict>=1.13",
 ]
 all = [{include-group="dev"}, {include-group="sigpy"}]
 

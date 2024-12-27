@@ -1,6 +1,6 @@
 import torch
 
-from unfold import unfold
+from torchlinops.functional import unfold
 import sigpy as sp
 import cupy as cp
 import numpy as np
@@ -21,8 +21,8 @@ def main():
     dtype = torch.complex64
     cp_complex: bool = True
 
-    mask = torch.zeros(*block_dim, dtype=bool)
-    mask[::2, ::2] = 1
+    # mask = torch.zeros(*block_dim, dtype=bool)
+    # mask[::2, ::2] = 1
 
     ### Triton Version ###
     def random_unfold_triton():
@@ -63,10 +63,9 @@ def main():
 
     # Test correctness
     x = torch.randn((N, Nx, Ny), device=device)
-    Bx_triton = unfold(x, block_dim, stride, mask)
-    # Bx_sp = sp.array_to_blocks(from_pytorch(x), block_dim, stride)
-    # assert torch.allclose(Bx_triton, to_pytorch(Bx_sp))
-    breakpoint()
+    Bx_triton = unfold(x, block_dim, stride)
+    Bx_sp = sp.array_to_blocks(from_pytorch(x), block_dim, stride)
+    assert torch.allclose(Bx_triton, to_pytorch(Bx_sp))
 
 
 def summarize(benchmark_result, name: str):

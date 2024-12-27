@@ -17,6 +17,8 @@ __all__ = ["unfold"]
 # 3 dimensions maximum
 MAX_GRID_PER_DIM = 1024
 
+MAX_TENSOR_POW_OF_2 = 20
+
 
 def unfold(
     x,
@@ -72,7 +74,11 @@ def _unfold(
             )
             grid = _get_grid(ndim, nbatch, nblocks)
             BLOCK_SIZE = tuple(
-                triton.next_power_of_2(blk_size) for blk_size in block_size
+                min(
+                    triton.next_power_of_2(blk_size),
+                    2 ** (MAX_TENSOR_POW_OF_2 // ndim),
+                )
+                for blk_size in block_size
             )
             UNFOLD[ndim][grid](
                 x,
@@ -115,6 +121,9 @@ def _get_grid(ndim: int, nbatch, nblocks: tuple[int, ...]):
         "x_blocks_per_grid": lambda args: max(
             1, triton.cdiv(args["x_nblocks"], MAX_GRID_PER_DIM)
         ),
+        "x_BLOCKS_per_block": lambda args: max(
+            1, triton.cdiv(args["x_block_dim"], 2**MAX_TENSOR_POW_OF_2)
+        ),
     },
 )
 @triton.jit
@@ -135,6 +144,8 @@ def _unfold1d(
     X_BLOCK_SIZE: tl.constexpr,
     # Number of blocks per grid pid
     x_blocks_per_grid: int,
+    # Number of triton blocks per block
+    x_BLOCKS_per_block: int,
 ):
     """
     Note: Cannot use make_block_ptr for out_ptr because the output block
@@ -157,21 +168,27 @@ def _unfold1d(
         block_shape=(1, X_BLOCK_SIZE),
         order=(0, 1),
     )
-    x_range = tl.arange(0, X_BLOCK_SIZE)
-    x_mask = x_range < x_block_dim
-    blk_range = x_range
-    blk_mask = x_mask
-
-    out_range = blk_range[None, :]
-    out_mask = blk_mask[None, :]
-
+    x_base_range = tl.arange(0, X_BLOCK_SIZE)
     for i in range(x_blocks_per_grid):
         if Bx + i < x_nblocks:
-            blk = tl.load(in_blk_ptr)
-            # Save block to output
-            out_offset = N * nblocks * block_dim + (Bx + i) * block_dim
-            tl.store(out_ptr + out_offset + out_range, blk, out_mask)
+            for u in range(x_BLOCKS_per_block):
+                x_range = x_base_range + u * X_BLOCK_SIZE
+                x_mask = x_range < x_block_dim
+                blk_range = x_range
+                blk_mask = x_mask
+
+                out_range = blk_range[None]
+                out_mask = blk_mask[None]
+                blk = load_subblock1d(in_blk_ptr, u, X_BLOCK_SIZE)
+                # Save block to output
+                out_offset = N * nblocks * block_dim + (Bx + i) * block_dim
+                tl.store(out_ptr + out_offset + out_range, blk, out_mask)
         in_blk_ptr = tl.advance(in_blk_ptr, (0, x_stride))
+
+
+@triton.jit
+def load_subblock1d(in_blk_ptr, x_idx: int, X_BLOCK_SIZE: tl.constexpr):
+    return tl.load(in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE)))
 
 
 @triton.heuristics(
@@ -181,6 +198,12 @@ def _unfold1d(
         ),
         "y_blocks_per_grid": lambda args: max(
             1, triton.cdiv(args["y_nblocks"], MAX_GRID_PER_DIM)
+        ),
+        "x_BLOCKS_per_block": lambda args: max(
+            1, triton.cdiv(args["x_block_dim"], 2 ** (MAX_TENSOR_POW_OF_2 // 2))
+        ),
+        "y_BLOCKS_per_block": lambda args: max(
+            1, triton.cdiv(args["y_block_dim"], 2 ** (MAX_TENSOR_POW_OF_2 // 2))
         ),
     },
 )
@@ -208,6 +231,9 @@ def _unfold2d(
     # Number of blocks per grid pid
     x_blocks_per_grid: int,
     y_blocks_per_grid: int,
+    # Number of triton blocks per block
+    x_BLOCKS_per_block: int,
+    y_BLOCKS_per_block: int,
 ):
     pid_0 = tl.program_id(0)
     pid_1 = tl.program_id(1)
@@ -229,16 +255,8 @@ def _unfold2d(
         block_shape=(1, X_BLOCK_SIZE, Y_BLOCK_SIZE),
         order=(0, 1, 2),
     )
-    x_range = tl.arange(0, X_BLOCK_SIZE)
-    y_range = tl.arange(0, Y_BLOCK_SIZE)
-    x_mask = x_range < x_block_dim
-    y_mask = y_range < y_block_dim
-    blk_range = x_range[:, None] * y_block_dim + y_range[None, :]
-    blk_mask = x_mask[:, None] & y_mask[None, :]
-    # out_offset = N * x_nblocks * x_block_dim + Bx * x_block_dim
-    # add batch dim
-    out_range = blk_range[None, :, :]
-    out_mask = blk_mask[None, :, :]
+    x_base_range = tl.arange(0, X_BLOCK_SIZE)
+    y_base_range = tl.arange(0, Y_BLOCK_SIZE)
 
     for i in range(x_blocks_per_grid):
         if Bx + i < x_nblocks:
@@ -247,12 +265,37 @@ def _unfold2d(
             for j in range(y_blocks_per_grid):
                 if By + j < y_nblocks:
                     y_blk_offset = (By + j) * block_dim
-                    blk = tl.load(in_blk_ptr)
-                    out_offset = N * nblocks * block_dim + x_blk_offset + y_blk_offset
-                    tl.store(out_ptr + out_offset + out_range, blk, out_mask)
+                    # Loop over blocks within block
+                    for u in range(x_BLOCKS_per_block):
+                        for v in range(y_BLOCKS_per_block):
+                            x_range = x_base_range + u * X_BLOCK_SIZE
+                            y_range = y_base_range + v * Y_BLOCK_SIZE
+                            x_mask = x_range < x_block_dim
+                            y_mask = y_range < y_block_dim
+                            blk_range = (
+                                x_range[:, None] * y_block_dim + y_range[None, :]
+                            )
+                            blk_mask = x_mask[:, None] & y_mask[None, :]
+                            # out_offset = N * x_nblocks * x_block_dim + Bx * x_block_dim
+                            # add batch dim
+                            out_range = blk_range[None, :, :]
+                            out_mask = blk_mask[None, :, :]
+                            # blk = tl.load(in_blk_ptr)
+                            blk = load_subblock2d(
+                                in_blk_ptr, u, v, X_BLOCK_SIZE, Y_BLOCK_SIZE
+                            )
+                            out_offset = (
+                                N * nblocks * block_dim + x_blk_offset + y_blk_offset
+                            )
+                            tl.store(out_ptr + out_offset + out_range, blk, out_mask)
                 in_blk_ptr = tl.advance(in_blk_ptr, (0, 0, y_stride))
             in_blk_ptr = in_blk_ptr_x
         in_blk_ptr = tl.advance(in_blk_ptr, (0, x_stride, 0))
+
+
+@triton.jit
+def load_subblock2d(in_blk_ptr, x_idx, y_idx, X_BLOCK_SIZE, Y_BLOCK_SIZE):
+    return tl.load(in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE, y_idx * Y_BLOCK_SIZE)))
 
 
 @triton.heuristics(
@@ -265,6 +308,15 @@ def _unfold2d(
         ),
         "z_blocks_per_grid": lambda args: max(
             1, triton.cdiv(args["z_nblocks"], MAX_GRID_PER_DIM)
+        ),
+        "x_BLOCKS_per_block": lambda args: max(
+            1, triton.cdiv(args["x_block_dim"], 2 ** (MAX_TENSOR_POW_OF_2 // 3))
+        ),
+        "y_BLOCKS_per_block": lambda args: max(
+            1, triton.cdiv(args["y_block_dim"], 2 ** (MAX_TENSOR_POW_OF_2 // 3))
+        ),
+        "z_BLOCKS_per_block": lambda args: max(
+            1, triton.cdiv(args["z_block_dim"], 2 ** (MAX_TENSOR_POW_OF_2 // 3))
         ),
     },
 )
@@ -298,6 +350,10 @@ def _unfold3d(
     x_blocks_per_grid: int,
     y_blocks_per_grid: int,
     z_blocks_per_grid: int,
+    # Number of triton blocks per block
+    x_BLOCKS_per_block: int,
+    y_BLOCKS_per_block: int,
+    z_BLOCKS_per_block: int,
 ):
     """"""
     pid_0 = tl.program_id(0)
@@ -322,20 +378,9 @@ def _unfold3d(
         block_shape=(1, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE),
         order=(0, 1, 2, 3),
     )
-    x_range = tl.arange(0, X_BLOCK_SIZE)
-    y_range = tl.arange(0, Y_BLOCK_SIZE)
-    z_range = tl.arange(0, Z_BLOCK_SIZE)
-    x_mask = x_range < x_block_dim
-    y_mask = y_range < y_block_dim
-    z_mask = z_range < z_block_dim
-
-    blk_range = (
-        x_range[:, None, None] * y_block_dim + y_range[None, :, None]
-    ) * z_block_dim + z_range[None, None, :]
-    blk_mask = x_mask[:, None, None] & (y_mask[None, :, None] & z_mask[None, None, :])
-
-    out_range = blk_range[None, :, :, :]
-    out_mask = blk_mask[None, :, :, :]
+    x_base_range = tl.arange(0, X_BLOCK_SIZE)
+    y_base_range = tl.arange(0, Y_BLOCK_SIZE)
+    z_base_range = tl.arange(0, Z_BLOCK_SIZE)
 
     for i in range(x_blocks_per_grid):
         if Bx + i < x_nblocks:
@@ -348,21 +393,65 @@ def _unfold3d(
                     for k in range(z_blocks_per_grid):
                         if Bz + k < z_nblocks:
                             z_blk_offset = (Bz + k) * block_dim
+                            # Loop over subblocks
+                            for u in range(x_BLOCKS_per_block):
+                                for v in range(y_BLOCKS_per_block):
+                                    for w in range(z_BLOCKS_per_block):
+                                        x_range = x_base_range + u * X_BLOCK_SIZE
+                                        y_range = y_base_range + v * Y_BLOCK_SIZE
+                                        z_range = z_base_range + w * Z_BLOCK_SIZE
+                                        x_mask = x_range < x_block_dim
+                                        y_mask = y_range < y_block_dim
+                                        z_mask = z_range < z_block_dim
 
-                            # Load/Store
-                            blk = tl.load(in_blk_ptr)
-                            out_offset = (
-                                N * nblocks * block_dim
-                                + x_blk_offset
-                                + y_blk_offset
-                                + z_blk_offset
-                            )
-                            tl.store(out_ptr + out_offset + out_range, blk, out_mask)
+                                        blk_range = (
+                                            x_range[:, None, None] * y_block_dim
+                                            + y_range[None, :, None]
+                                        ) * z_block_dim + z_range[None, None, :]
+                                        blk_mask = x_mask[:, None, None] & (
+                                            y_mask[None, :, None]
+                                            & z_mask[None, None, :]
+                                        )
+
+                                        out_range = blk_range[None]
+                                        out_mask = blk_mask[None]
+                                        # Load/Store
+                                        blk = load_subblock3d(
+                                            in_blk_ptr,
+                                            u,
+                                            v,
+                                            w,
+                                            X_BLOCK_SIZE,
+                                            Y_BLOCK_SIZE,
+                                            Z_BLOCK_SIZE,
+                                        )
+                                        out_offset = (
+                                            N * nblocks * block_dim
+                                            + x_blk_offset
+                                            + y_blk_offset
+                                            + z_blk_offset
+                                        )
+                                        tl.store(
+                                            out_ptr + out_offset + out_range,
+                                            blk,
+                                            out_mask,
+                                        )
                         in_blk_ptr = tl.advance(in_blk_ptr, (0, 0, 0, z_stride))
                     in_blk_ptr = in_blk_ptr_y
                 in_blk_ptr = tl.advance(in_blk_ptr, (0, 0, y_stride, 0))
             in_blk_ptr = in_blk_ptr_x
         in_blk_ptr = tl.advance(in_blk_ptr, (0, x_stride, 0, 0))
+
+
+@triton.jit
+def load_subblock3d(
+    in_blk_ptr, x_idx, y_idx, z_idx, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE
+):
+    return tl.load(
+        in_blk_ptr.advance(
+            (0, x_idx * X_BLOCK_SIZE, y_idx * Y_BLOCK_SIZE, z_idx * Z_BLOCK_SIZE)
+        )
+    )
 
 
 UNFOLD = {1: _unfold1d, 2: _unfold2d, 3: _unfold3d}
