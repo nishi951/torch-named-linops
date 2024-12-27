@@ -11,6 +11,9 @@ dependencies = [
     "einops",
     "tqdm",
     "pyyaml",
+    "triton>=3.0",
+    "jaxtyping>=0.2.36",
+    "setuptools>=75.6.0", # For triton
 ]
 readme = "README.md"
 requires-python = ">=3.9"
@@ -20,27 +23,10 @@ dynamic = ["version"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = """
--ra -q \
--m 'not slow and not gpu and not plot'
-"""
-# --ignore libraries --ignore notebooks"
-filterwarnings = [
-    "ignore::DeprecationWarning:sigpy.*",
-    "ignore::DeprecationWarning:cupy.*",
-]
-markers = [
-    "slow: tests that are slow (deselect with '-m \"not slow\"')",
-    "big: tests that require large memory (cpu or gpu)",
-    "gpu: tests that require a gpu",
-    "plot: tests that involve plotting",
-]
-
-[tool.uv]
-managed = true
-dev-dependencies = [
+# [tool.uv]
+# managed = true
+[dependency-groups]
+dev = [
     "gdown", # Downloading test files
     "marimo", # Better notebooks
     "matplotlib", # Visualization
@@ -49,8 +35,14 @@ dev-dependencies = [
     "ruff", # Linting
     "pre-commit", # pre-commit hooks
     "sphinx", # Build system
-    "furo",   # Theme
+    "furo", # Theme
     "myst-parser", # Markdown instead of reStructuredText
+]
+sigpy = [
+    "numba==0.60.0",
+    "llvmlite==0.43.0",
+    "sigpy==0.1.26",
+    "cupy-cuda12x>=13.3.0",
 ]
 
 [tool.hatch.metadata]
@@ -74,4 +66,23 @@ ignore = [
 exclude = [
     "**/tests/**",
     "dev/**",
+]
+
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = """
+-ra -q \
+-m 'not slow and not gpu and not plot'
+"""
+# --ignore libraries --ignore notebooks"
+filterwarnings = [
+    "ignore::DeprecationWarning:sigpy.*",
+    "ignore::DeprecationWarning:cupy.*",
+]
+markers = [
+    "slow: tests that are slow (deselect with '-m \"not slow\"')",
+    "big: tests that require large memory (cpu or gpu)",
+    "gpu: tests that require a gpu",
+    "plot: tests that involve plotting",
 ]
