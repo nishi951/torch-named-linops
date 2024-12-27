@@ -34,6 +34,7 @@ PYTEST_GPU_MARKS = [
         pytest.param("small3d", marks=PYTEST_GPU_MARKS),
         pytest.param("medium3d", marks=PYTEST_GPU_MARKS),
         pytest.param("large3d", marks=PYTEST_GPU_MARKS),
+        pytest.param("verylarge3d", marks=PYTEST_GPU_MARKS),
     ],
 )
 def test_unfold(dev, dtype, spec, request):
