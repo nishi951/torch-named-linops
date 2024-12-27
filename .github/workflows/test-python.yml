@@ -36,7 +36,7 @@ jobs:
     - name: Install python
       run: uv python install ${{ matrix.python-version }}
     - name: Initialize environment
-      run: uv sync
+      run: uv sync --group all
     # uv lint and test
     - name: Lint with ruff
       run: uv run ruff check
