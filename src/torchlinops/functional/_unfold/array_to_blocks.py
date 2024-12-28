@@ -5,6 +5,7 @@ from jaxtyping import Bool
 from torch import Tensor
 from torch.autograd import Function
 
+import torch
 from .unfold import unfold
 from .fold import fold
 
@@ -106,3 +107,21 @@ def blocks_to_array(
 ):
     """Wrapper for default arguments"""
     return BlocksToArrayFn.apply(input, im_size, block_shape, stride, mask)
+
+
+def get_norm_weights(
+    im_size: tuple[int, ...],
+    block_shape: tuple[int, ...],
+    stride: Optional[tuple[int, ...]] = None,
+    mask: Optional[Bool[Tensor, "..."]] = None,
+    device: torch.device = "cpu",
+):
+    """Compute normalizing weights
+
+    1./weights * blocks_to_array(array_to_blocks(x)) == x
+
+    """
+    x = torch.ones(im_size, device=device)
+    Ax = array_to_blocks(x, block_shape, stride, mask)
+    weights = blocks_to_array(Ax, im_size, block_shape, stride, mask)
+    return weights
