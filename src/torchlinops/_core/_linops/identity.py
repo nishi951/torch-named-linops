@@ -40,6 +40,9 @@ class Identity(NamedLinop):
         assert ibatch == obatch, "Identity linop must be split identically"
         return None
 
+    def __pow__(self, exponent):
+        return type(self)(self.ishape, self.oshape)
+
 
 class Zero(NamedLinop):
     """Simple linop that always outputs 0, but with the same shape as the input"""
