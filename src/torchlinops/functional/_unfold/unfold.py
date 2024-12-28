@@ -26,7 +26,9 @@ def unfold(
     stride: Optional[tuple] = None,
     mask: Optional[Bool[Tensor, "..."]] = None,
 ) -> Tensor:
-    """Wrapper that dispatches complex and real tensors"""
+    """Wrapper that dispatches complex and real tensors
+    Also precomputes some shapes
+    """
     x_flat, shapes = prep_unfold_shapes(x, block_size, stride, mask)
     if torch.is_complex(x_flat):
         x_flat = torch.view_as_real(x_flat)
