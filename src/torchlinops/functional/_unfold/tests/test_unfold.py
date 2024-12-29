@@ -43,7 +43,7 @@ def test_unfold(dev, dtype, spec, request):
     dtype = torch.complex64 if dtype == "complex" else torch.float32
 
     ishape = (*spec["N"], *spec["shape"])
-    x = torch.arange(prod(ishape)).reshape(ishape)
+    x = torch.randn(prod(ishape)).reshape(ishape)
     # x = torch.ones(prod(ishape)).reshape(ishape)
     x = x.to(device).to(dtype)
 

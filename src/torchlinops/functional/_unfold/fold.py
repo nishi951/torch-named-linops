@@ -452,6 +452,10 @@ def prep_fold_shapes(x, im_size, block_size, stride, mask):
     ndim = len(block_size)
     stride = stride if stride is not None else (1,) * ndim
     nblocks = get_nblocks(im_size, block_size, stride)
+    if any(b == 0 for b in nblocks):
+        raise ValueError(
+            f"Found 0 in nblocks: {nblocks} with im_size {im_size}, block_size {block_size} and stride {stride} - make sure there is at least one block in each direction."
+        )
     if torch.is_complex(x):
         im_size = list(im_size)
         im_size[-1] *= 2
