@@ -213,7 +213,6 @@ def _grid1d(
                 # Load
                 pt_val = tl.load(in_ptr + in_batch_offset + p)
                 out = weights * pt_val
-                tl.device_print("out", out)
 
                 # Store
                 tl.atomic_add(out_ptr + out_batch_offset + x_range, out, x_mask)
