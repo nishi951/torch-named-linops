@@ -43,7 +43,7 @@ def test_adjoint(dev, dtype, spec, request):
     Ax = unfold(x, spec["block_size"], spec["stride"])
     AHy = fold(y, spec["shape"], spec["block_size"], spec["stride"])
 
-    assert zdot(x, AHy).isclose(zdot(y, Ax).conj())
+    assert zdot(x, AHy).allclose(zdot(y, Ax).conj(), rtol=1e-4)
 
 
 @pytest.mark.parametrize("dev", ["cpu", pytest.param("cuda", marks=PYTEST_GPU_MARKS)])

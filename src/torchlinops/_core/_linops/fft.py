@@ -1,21 +1,43 @@
+from typing import Optional
+
 from copy import deepcopy
 import torch.fft as fft
 
 from .namedlinop import NamedLinop
-from .nameddim import get2dor3d, NS
+from .nameddim import get_nd_shape, NS
 from .identity import Identity
 
 
 class FFT(NamedLinop):
-    def __init__(self, dim, batch_shape, norm, centered: bool = False):
+    def __init__(
+        self,
+        ndim: int,
+        batch_shape: Optional = None,
+        grid_shapes: Optional = None,
+        norm: str = "ortho",
+        centered: bool = False,
+    ):
         """
         Currently only supports 2D and 3D FFTs
         centered=True mimicks sigpy behavior
+
+        batch_shape: NamedShape
+        grid_shapes:
+
+
         """
-        shape = NS(batch_shape) + NS(get2dor3d(dim), get2dor3d(dim, kspace=True))
+        self.dim = tuple(range(-ndim, 0))
+        if grid_shapes is None:
+            dim_shape = NS(get_nd_shape(self.dim), get_nd_shape(self.dim, kspace=True))
+        else:
+            if len(grid_shapes) != 2:
+                raise ValueError(
+                    f"grid_shapes should consist of two shape tuples but got {grid_shapes}"
+                )
+            dim_shape = NS(*grid_shapes)
+        shape = NS(batch_shape) + dim_shape
         super().__init__(shape)
         self._shape.add("batch_shape", batch_shape)
-        self.dim = dim
         self.norm = norm
         self.centered = centered
 

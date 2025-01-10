@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from .namedlinop import NamedLinop
 from . import Identity
-from .nameddim import NamedDimension as ND, get2dor3d, NS
+from .nameddim import NamedDimension as ND, get_nd_shape, NS
 
 
 __all__ = ["PadLast"]
@@ -22,7 +22,7 @@ class PadLast(NamedLinop):
             len(pad_im_size) == len(im_size)
         ), f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
 
-        self.in_im_shape = ND.infer(get2dor3d(im_size))
+        self.in_im_shape = ND.infer(get_nd_shape(im_size))
         self.out_im_shape = tuple(
             d.next_unused(self.in_im_shape) for d in self.in_im_shape
         )
