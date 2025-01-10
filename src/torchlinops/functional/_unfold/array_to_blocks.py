@@ -39,8 +39,7 @@ class ArrayToBlocksFn(Function):
         ctx.save_for_backward(mask)
 
     @staticmethod
-    def backward(ctx, grad_output, *args):
-        """Discard grads for nblocks"""
+    def backward(ctx, grad_output):
         grad_input = grad_block_shape = grad_stride = grad_mask = None
 
         if ctx.needs_input_grad[0]:
