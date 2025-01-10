@@ -1,5 +1,9 @@
 import logging
 
+from textwrap import indent
+
+__all__ = ["setup_console_logger", "Indenter"]
+
 
 def setup_console_logger(
     logger,
@@ -17,3 +21,30 @@ def setup_console_logger(
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
+
+class Indenter:
+    """Special context manager for indented formatting
+
+    Example usage:
+
+    with Indenter() as ident:
+        ident.print("[DRY RUN]") # Not indented
+        with ident:
+            ident.print(pipeline.pprint()) # Indented one level
+    """
+
+    def __init__(self):
+        self.level = -1
+
+    def print(self, text):
+        for _ in range(self.level):
+            text = indent(text, "    ")
+        print(text)
+
+    def __enter__(self):
+        self.level += 1
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.level -= 1

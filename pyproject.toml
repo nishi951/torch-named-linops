@@ -75,7 +75,7 @@ exclude = [
 minversion = "6.0"
 addopts = """
 -ra -q \
--m 'not slow and not gpu and not plot'
+-m 'not slow'
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [
