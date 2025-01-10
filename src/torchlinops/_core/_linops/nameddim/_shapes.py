@@ -2,11 +2,13 @@ from typing import Tuple, Any, Sequence
 
 from ._nameddim import NamedDimension as ND
 
-__all__ = ["fake_dims", "get2dor3d", "N2K", "K2N"]
+__all__ = ["fake_dims", "get_nd_shape", "N2K", "K2N"]
 
 
-def get2dor3d(im_size, kspace=False):
-    if len(im_size) == 2:
+def get_nd_shape(im_size, kspace=False):
+    if len(im_size) == 1:
+        im_dim = ("Kx",) if kspace else ("Nx",)
+    elif len(im_size) == 2:
         im_dim = ("Kx", "Ky") if kspace else ("Nx", "Ny")
     elif len(im_size) == 3:
         im_dim = ("Kx", "Ky", "Kz") if kspace else ("Nx", "Ny", "Nz")

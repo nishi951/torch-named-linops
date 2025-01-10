@@ -4,7 +4,6 @@ from collections import OrderedDict
 
 from ._nameddim import ND
 from ._nameddimcollection import NamedDimCollection
-from ._shapes import get2dor3d
 from ._matching import isequal
 
 __all__ = [
