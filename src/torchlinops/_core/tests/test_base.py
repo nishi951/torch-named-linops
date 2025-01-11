@@ -55,7 +55,7 @@ class BaseNamedLinopTests(ABC):
     def test_adjoint_level2(self, linop_input_output):
         A, x, y = linop_input_output
         self.test_adjoint((A.H, y, x))
-        self.test_normal((A.H, y, x))
+        self.test_normal((A.H, y, y))
 
     def test_normal_level2(self, linop_input_output):
         A, x, y = linop_input_output

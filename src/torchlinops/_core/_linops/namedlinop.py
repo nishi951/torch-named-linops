@@ -56,12 +56,12 @@ class NamedLinop(nn.Module):
         return x
 
     # Override
-    @staticmethod
-    def normal_fn(linop, x: torch.Tensor, /, data=None):
+    # @staticmethod
+    def normal_fn(self, x: torch.Tensor, /, data=None):
         """Placeholder for efficient functional normal operator
         Staticmethod because it needs to be unbound to swap for normal
         """
-        return linop.adj_fn(linop, linop.fn(linop, x, data), data)
+        return self.adj_fn(self.fn(x, data), data)
 
     # Override
     def split_forward(self, ibatch, obatch):
@@ -145,15 +145,19 @@ class NamedLinop(nn.Module):
         """
         if inner is None:
             normal = copy(self)
-            normal._shape = normal._shape.N
-            normal.fn = normal.normal_fn
-            normal.adj_fn = normal.normal_fn
+            normal._shape = self._shape.N
 
-            def new_normal(linop, x, *args, **kwargs):
-                x = linop.normal_fn(linop, x, *args, **kwargs)
-                return linop.normal_fn(linop, x, *args, **kwargs)
+            def new_forward_adjoint_fn(linop, x, *args, **kwargs):
+                return self.normal_fn(self, x, *args, **kwargs)
 
-            normal.normal_fn = new_normal
+            normal.fn = new_forward_adjoint_fn
+            normal.adj_fn = new_forward_adjoint_fn
+
+            def new_normal_fn(linop, x, *args, **kwargs):
+                AHAx = self.normal_fn(self, x, *args, **kwargs)
+                return self.normal_fn(self, AHAx, *args, **kwargs)
+
+            normal.normal_fn = new_normal_fn
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
             normal.oshape = tuple(d.next_unused(normal.ishape) for d in normal.oshape)
