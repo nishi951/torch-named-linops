@@ -28,17 +28,22 @@ def fold(
     mask: Optional[Bool[Tensor, "..."]] = None,
 ) -> Tensor:
     """Cube-like unfolding"""
-    x_flat, shapes = prep_fold_shapes(x, im_size, block_size, stride, mask)
     if mask is not None:
+        nblocks = get_nblocks(im_size, block_size, stride)
+        if len(x.shape) > len(nblocks) + 1:
+            x_batch_shape = x.shape[: -(len(nblocks) + 1)]
+        else:
+            x_batch_shape = []
         tmp = torch.zeros(
-            shapes["nbatch"],
-            *shapes["nblocks"],
-            *shapes["block_size"],
+            *x_batch_shape,
+            *nblocks,
+            *block_size,
             dtype=x.dtype,
             device=x.device,
         )
-        tmp[..., mask] = x_flat
-        x_flat = tmp
+        tmp[..., mask] = x
+        x = tmp
+    x_flat, shapes = prep_fold_shapes(x, im_size, block_size, stride, mask)
 
     if torch.is_complex(x_flat):
         x_flat = torch.view_as_real(x_flat)

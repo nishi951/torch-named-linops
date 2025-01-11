@@ -31,9 +31,9 @@ class Interpolate(NamedLinop):
         grid_shape = default_to(("...",), grid_shape)
         shape = NS(batch_shape) + NS(grid_shape, locs_batch_shape)
         super().__init__(shape)
-        self._shape.locs_batch_shape = locs_batch_shape
-        self._shape.grid_shape = grid_shape
-        self._shape.batch_shape = batch_shape
+        self._shape.add("batch_shape", batch_shape)
+        self._shape.add("locs_batch_shape", locs_batch_shape)
+        self._shape.add("grid_shape", grid_shape)
         self.locs = nn.Parameter(locs, requires_grad=False)
         self.grid_size = grid_size
 
