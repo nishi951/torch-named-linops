@@ -5,6 +5,8 @@ from typing import Any, Tuple, List
 __all__ = [
     "ND",
     "NamedDimension",
+    "ELLIPSES",
+    "ANY",
 ]
 
 # Special dim names
