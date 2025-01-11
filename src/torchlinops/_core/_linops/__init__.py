@@ -1,4 +1,5 @@
 from .add import *
+from .array_to_blocks import *
 from .breakpt import *
 from .chain import *
 from .dense import *

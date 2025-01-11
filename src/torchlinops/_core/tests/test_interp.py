@@ -77,4 +77,4 @@ def test_interp_slc():
     obatch = [slice(None), slice(0, 4), slice(2, 3)]
     linop_split = linop.split(linop, ibatch, obatch)
     assert linop_split.locs.shape == (8, 4, 1, 3)
-    assert (linop_split.locs == linop.locs[obatch]).al()
+    assert (linop_split.locs == linop.locs[obatch]).all()

@@ -1,6 +1,7 @@
 from copy import copy, deepcopy
 import traceback
 import logging
+import types
 
 import torch
 import torch.nn as nn
@@ -56,12 +57,12 @@ class NamedLinop(nn.Module):
         return x
 
     # Override
-    # @staticmethod
-    def normal_fn(self, x: torch.Tensor, /, data=None):
+    @staticmethod
+    def normal_fn(linop, x: torch.Tensor, /, data=None):
         """Placeholder for efficient functional normal operator
         Staticmethod because it needs to be unbound to swap for normal
         """
-        return self.adj_fn(self.fn(x, data), data)
+        return linop.adj_fn(linop, linop.fn(linop, x, data), data)
 
     # Override
     def split_forward(self, ibatch, obatch):
@@ -147,17 +148,32 @@ class NamedLinop(nn.Module):
             normal = copy(self)
             normal._shape = self._shape.N
 
+            # Replace forward/adjoint with normal fn from self
             def new_forward_adjoint_fn(linop, x, *args, **kwargs):
                 return self.normal_fn(self, x, *args, **kwargs)
 
             normal.fn = new_forward_adjoint_fn
             normal.adj_fn = new_forward_adjoint_fn
 
+            # Replace adjoint() constructor with trivial copy
+            def new_adjoint(self):
+                return copy(self)
+
+            normal.adjoint = types.MethodType(new_adjoint, normal)
+
+            # Replace normal fn with normal_fn(normal_fn(  ))
             def new_normal_fn(linop, x, *args, **kwargs):
                 AHAx = self.normal_fn(self, x, *args, **kwargs)
                 return self.normal_fn(self, AHAx, *args, **kwargs)
 
             normal.normal_fn = new_normal_fn
+
+            # Replace normal() constructor with chain
+            def new_normal(self):
+                return self.adjoint() @ self
+
+            normal.normal = types.MethodType(new_normal, normal)
+
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
             normal.oshape = tuple(d.next_unused(normal.ishape) for d in normal.oshape)
