@@ -1,28 +1,14 @@
 # Installation
 
-## Anaconda (recommended)
+## Simple Install
+### uv (recommended)
 
-[mamba](https://mamba.readthedocs.io/en/latest/) is the recommended conda-based installer.
+Simply install `torch-named-linops` with `$ uv add torch-named-linops`
 
-1. Install pytorch, torchvision, and torchaudio. Refer to [https://pytorch.org](https://pytorch.org) for the most up-to-date info.
-2. Install torchlinops with:
-
-```console
-$ pip install torchlinops[cuda11] # Cuda 11 versions of things
-$ pip install torchlinops[cuda12] # Cuda 12 versions of things
-
-Make sure to install the version of torchlinops that corresponds to your cuda version.
-```
-
-## Pip
-
-The pip install uses the Pypy versions of pytorch.
-
-1. Install torchlinops with
+### Pip
    .. code-block:: console
 
-   > \$ pip install torchlinops\[cuda11\] # Cuda 11 versions of things
-   > \$ pip install torchlinops\[cuda12\] # Cuda 12 versions of things
+   > \$ pip install torch-named-linops
 
 :::{note}
 Cupy doesn't like `nccl` dependencies installed as wheels from pip. Importing
@@ -36,3 +22,26 @@ $ python -m cupyx.tools.install_library --library nccl --cuda 12.x
 
 For more up-to-date info, can follow the issue [here](https://github.com/cupy/cupy/issues/8227).
 :::
+
+## Installing from source (development)
+Clone the repo, then choose from the following:
+
+### uv
+```console
+$ uv add path/to/torch-named-linops
+```
+This will install the library in **editable**[https://docs.astral.sh/uv/concepts/projects/dependencies/#editable-dependencies] form.
+
+### pip
+```console
+$ pip install -e path/to/torch-named-linops
+```
+This installs in editable form as well.
+
+
+### Notes for development
+- Installation with optional dependency specifiers:
+  - `[dev]` - installs with development capabilities (e.g. docs, pytest, cov)
+  - `[sigpy]` - installs with sigpy to enable unit testing against `sp.ArrayToBlocks` and `sp.Interpolate`
+    - Careful doing this, as [sigpy](https://github.com/mikgroup/sigpy) might not like certain package versions of things.
+  - `[all]` - installs all optional dependencies!

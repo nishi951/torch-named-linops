@@ -37,6 +37,7 @@ dev = [
     "sphinx", # Build system
     "furo", # Theme
     "myst-parser", # Markdown instead of reStructuredText
+    "sphinx-autobuild>=2024.10.3", # Automatically build sphinx
 ]
 sigpy = [
     "numba==0.60.0",

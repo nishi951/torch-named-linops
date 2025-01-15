@@ -15,5 +15,3 @@ htmlcov
 *.np[yz]
 *.mat
 
-# uv
-uv.lock
