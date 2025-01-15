@@ -5,15 +5,14 @@ authors = [
     { name = "Mark Nishimura", email = "markn1@stanford.edu" }
 ]
 dependencies = [
-    "torch>=2.1",
-    "torchvision",
-    "torchaudio",
-    "einops",
-    "tqdm",
-    "pyyaml",
     "triton>=3.0",
     "jaxtyping>=0.2.36",
     "setuptools>=75.6.0", # For triton
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1",
+    "einops>=0.8.0",
+    "tqdm>=4.67.1",
 ]
 readme = "README.md"
 requires-python = ">=3.9"
@@ -23,21 +22,16 @@ dynamic = ["version"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# [tool.uv]
-# managed = true
 [dependency-groups]
 dev = [
-    "gdown", # Downloading test files
-    "marimo", # Better notebooks
-    "matplotlib", # Visualization
-    "pytest", # Unit tests
-    "pytest-cov", # Code coverage
-    "ruff", # Linting
-    "pre-commit", # pre-commit hooks
-    "sphinx", # Build system
-    "furo", # Theme
-    "myst-parser", # Markdown instead of reStructuredText
-    "sphinx-autobuild>=2024.10.3", # Automatically build sphinx
+    "furo>=2024.8.6",
+    "myst-parser>=3.0.1",
+    "pre-commit>=4.0.1",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.4",
+    "sphinx>=7.4.7",
+    "sphinx-autobuild>=2024.10.3",
 ]
 sigpy = [
     "numba==0.60.0",
