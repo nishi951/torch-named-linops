@@ -566,6 +566,8 @@ def grid_torch(
     npts = vals.shape[1]
     locs = locs.reshape(-1, ndim)  # [npts, ndim]
     locs_lower = locs_lower.reshape(-1, ndim)  # [npts, ndim]
+    # Prepare batch indices (memory efficient because of expand())
+    batch_indices = torch.arange(nbatch).view(-1, 1, 1)  # [B npts ngrid]
     for p0, p1 in batch_iterator(npts, batch_size):
         # [npts, npatch, ndim]
         grid_locs = locs_lower[p0:p1, None] + diff
@@ -581,11 +583,13 @@ def grid_torch(
         )
         val = vals[:, p0:p1, None]  # [nbatch, npts, 1]
         patches = weights * mask * val
-        grid_locs_slc = tuple(grid_locs[..., i] for i in range(ndim))
-        for b in range(nbatch):
-            out[b].index_put_(
-                grid_locs_slc,
-                patches[b],
-                accumulate=True,
-            )
+
+        # Expand patch indices
+        npts = p1 - p0
+        ngrid = patches.shape[-1]
+        batch_indices = batch_indices.expand(-1, npts, ngrid)
+
+        # Perform indexing
+        grid_locs_slc = (batch_indices, *(grid_locs[..., i] for i in range(ndim)))
+        out.index_put_(grid_locs_slc, patches, accumulate=True)
     return out
