@@ -1,3 +1,5 @@
+from copy import copy
+
 from .namedlinop import NamedLinop
 from .nameddim import NS
 
@@ -76,5 +78,12 @@ class ShapeSpec(Identity):
 
     def normal(self, inner=None):
         if inner is None:
-            return self
-        return self.H @ inner @ self
+            # Behaves like a diagonal linop
+            return ShapeSpec(self.ishape, self.ishape)
+        pre = copy(self)
+        post = self.adjoint()
+        pre.oshape = inner.ishape
+        post.ishape = inner.oshape
+        normal = post @ inner @ pre
+        normal._shape_updates = getattr(inner, "_shape_updates", {})
+        return normal
