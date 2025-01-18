@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 from typing import Optional, List
 
 from einops import einsum
@@ -122,31 +122,51 @@ class Dense(NamedLinop):
 
         """
         if inner is None:
-            # Convert weight
-            weight_conj_shape = []
-            new_weightshape = []
-            for dim in self.weightshape:
-                if dim in self.ishape:
-                    # Dense-like
-                    # Get the new name of the output dim
-                    new_dim = dim.next_unused(self.ishape + self.oshape)
-                    weight_conj_shape.append(new_dim)
-                    new_weightshape.extend([dim, new_dim])
-                else:
-                    # Keep/sum over the output dims of the weight
-                    weight_conj_shape.append(dim)
-            new_weight_einstr = f"{self.einstr(weight_conj_shape)},{self.einstr(self.weightshape)}->{self.einstr(new_weightshape)}"
-            new_weight = einsum(self.weight.conj(), self.weight, new_weight_einstr)
-
             new_oshape = []
+            weight_conj_shape = list(deepcopy(self.weightshape))
+            wdiag_shape = []
+            wout_shape = []
+            win_shape = []
+            used_shapes = self.ishape + self.oshape
+            shape_updates = {}
+            # Make new ishape and weight shape
+            # Rules:
+            # New weightshape
+            #   If dim appears in ishape and weightshape but not oshape -> increment
+            #   If dim appears in ishape and weightshape AND oshape -> don't increment
+            #   If dim doesn't appear in ishape or weightshape -> don't add it to new weightshape
+            # Other rules:
+            # new ishape is same as old ishape
+            # new oshape is ishape but updated with new dimensions
             for dim in self.ishape:
                 if dim in self.weightshape:
-                    # Re-create the new output dim here
-                    # But now in the order of the ishape
-                    new_oshape.append(dim.next_unused(self.ishape + self.oshape))
+                    if dim not in self.oshape:
+                        win_shape.append(dim)
+                        new_dim = dim.next_unused(used_shapes)
+                        shape_updates[dim] = new_dim
+                        wout_shape.append(new_dim)
+                    else:
+                        wdiag_shape.append(dim)
+                        new_dim = dim
+                    i = weight_conj_shape.index(dim)
+                    weight_conj_shape[i] = new_dim
                 else:
-                    new_oshape.append(dim)
-            normal = type(self)(new_weight, new_weightshape, self.ishape, new_oshape)
+                    new_dim = dim
+                new_oshape.append(new_dim)
+            new_weight_shape = wdiag_shape + wout_shape + win_shape
+            einstr = shapes2einstr(
+                self.weightshape,
+                weight_conj_shape,
+                new_weight_shape,
+            )
+            new_weight = einsum(self.weight, self.weight.conj(), einstr)
+            normal = type(self)(
+                new_weight,
+                tuple(new_weight_shape),
+                self.ishape,
+                new_oshape,
+            )
+            normal._shape_updates = shape_updates
             return normal
         return super().normal(inner)
 
@@ -171,3 +191,17 @@ class Dense(NamedLinop):
         if dim in self.weightshape:
             return weight.shape[self.weightshape.index(dim)]
         return None
+
+
+def shapes2einstr(shape1, shape2, oshape):
+    """Takes 3 tuples and produces the corresponding einsum string
+
+    Examples
+    --------
+
+    """
+
+    def to_str(shape):
+        return " ".join(str(s) for s in shape)
+
+    return f"{to_str(shape1)},{to_str(shape2)}->{to_str(oshape)}"

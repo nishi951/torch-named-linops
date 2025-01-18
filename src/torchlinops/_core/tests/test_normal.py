@@ -30,7 +30,7 @@ def test_dense():
     assert A.N.oshape == ("N1",)
 
 
-def test_diagonal():
+def test_diagonal_normal():
     M = 10
     N, P = 5, 7
     weight = torch.randn(M, 1, 1, dtype=torch.complex64)
