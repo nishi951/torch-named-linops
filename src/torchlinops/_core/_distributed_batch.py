@@ -81,7 +81,13 @@ class DistributedBatch(Batch):
         return adj
 
     def normal(self, inner=None):
-        batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
+        normal_linop = self.linop.N
+        # Collect shape updates from computing the normal
+        shape_updates = getattr(normal_linop, "_shape_updates", {})
+        for d, nd in shape_updates.items():
+            if d in self.batch_sizes:
+                self.batch_sizes[shape_updates[d]] = self.batch_sizes[d]
+        batch_size_kwargs = {str(k): v for k, v in self.batch_sizes.items()}
         normal = type(self)(
             linop=self.linop.N,
             input_device=self.input_device,
@@ -92,6 +98,6 @@ class DistributedBatch(Batch):
             pbar=self.pbar,
             devices=self.devices,
             post_batch_hook=self.post_batch_hook,
-            **batch_sizes,
+            **batch_size_kwargs,
         )
         return normal

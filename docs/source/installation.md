@@ -22,7 +22,6 @@ $ python -m cupyx.tools.install_library --library nccl --cuda 12.x
 
 For more up-to-date info, can follow the issue [here](https://github.com/cupy/cupy/issues/8227).
 :::
-
 ## Installing from source (development)
 Clone the repo, then choose from the following:
 

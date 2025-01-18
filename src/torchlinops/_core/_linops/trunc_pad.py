@@ -28,7 +28,6 @@ class Truncate(NamedLinop):
         self.end_slc[dim] = slice(-self.length, None)
         self.end_slc = tuple(self.slc)
         super().__init__(NS(ishape, oshape))
-        # self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
 
     def forward(self, x):
         return self.fn(self, x)
@@ -104,7 +103,6 @@ class PadDim(NamedLinop):
         self.end_slc[dim] = slice(-self.length, 0)
         self.end_slc = tuple(self.end_slc)
         super().__init__(NS(ishape, oshape))
-        # self.oshape[dim] = self.oshape[dim].next_unused(self.oshape)
 
     def forward(self, x):
         return self.fn(self, x)

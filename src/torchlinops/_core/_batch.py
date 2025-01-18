@@ -102,9 +102,15 @@ class Batch(NamedLinop):
             desc=f"Batch({self.name}: {self.batch_sizes})",
             disable=(not self.pbar),
         ):
-            xbatch = x[in_batch]
-            ybatch = linop(xbatch)
-            y[out_batch] += ybatch
+            try:
+                xbatch = x[in_batch]
+                ybatch = linop(xbatch)
+                y[out_batch] += ybatch
+            except RuntimeError:
+                print(
+                    f"linop: {linop}, in_batch: {in_batch}, out_batch: {out_batch}, self.batch_sizes: {self.batch_sizes}"
+                )
+                raise
         return y
 
     def make_tiles(self):
@@ -167,7 +173,13 @@ class Batch(NamedLinop):
         return self._normal[0]
 
     def normal(self, inner=None):
-        batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
+        normal_linop = self.linop.N
+        # Collect shape updates from computing the normal
+        shape_updates = getattr(normal_linop, "_shape_updates", {})
+        for d, nd in shape_updates.items():
+            if d in self.batch_sizes:
+                self.batch_sizes[shape_updates[d]] = self.batch_sizes[d]
+        batch_size_kwargs = {str(k): v for k, v in self.batch_sizes.items()}
         normal = type(self)(
             linop=self.linop.N,
             input_device=self.input_device,
@@ -177,7 +189,7 @@ class Batch(NamedLinop):
             name=self.name + ".N",
             pbar=self.pbar,
             post_batch_hook=self.post_batch_hook,
-            **batch_sizes,
+            **batch_size_kwargs,
         )
 
         return normal
