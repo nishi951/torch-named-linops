@@ -1,4 +1,3 @@
-# ruff: noqa: F722
 from jaxtyping import Shaped, Bool, Integer
 from torch import Tensor
 
@@ -32,7 +31,23 @@ def index_adjoint(
     return out
 
 
-def mask2idx(mask: Bool[Tensor, "..."]) -> tuple[Integer[Tensor, "..."]]: ...
+def mask2idx(mask: Bool[Tensor, "..."]) -> tuple[Integer[Tensor, "..."], ...]:
+    """Converts an n-dimensional boolean tensor into an n-tuple of integer tensors
+    indexing the True elements of the tensor.
+
+    Parameters
+    ----------
+    mask : torch.Tensor
+        A boolean tensor.
+
+    Returns
+    -------
+    tuple[torch.Tensor]:
+        A tuple of integer tensors indexing the True elements.
+    """
+    if not mask.dtype == torch.bool:
+        raise ValueError(f"Input tensor must be of boolean dtype, but got {mask.dtype}")
+    return torch.nonzero(mask, as_tuple=True)
 
 
 ### Helper functions
