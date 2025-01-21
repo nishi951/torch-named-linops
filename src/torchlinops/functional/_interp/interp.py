@@ -1,6 +1,5 @@
 """Differentiable forms of Grid/Ungrid"""
 
-# ruff: noqa: F722
 from typing import Optional, Literal
 from jaxtyping import Inexact, Float
 from torch import Tensor

@@ -1,4 +1,3 @@
-# ruff: noqa: F722
 from typing import Optional
 from jaxtyping import Shaped, Bool, Float
 from torch import Tensor

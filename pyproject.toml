@@ -51,14 +51,15 @@ packages = ["src/torchlinops"]
 [tool.hatch.version]
 path = "src/torchlinops/__init__.py"
 
-[tool.ruff]
-target-version = "py310"
+# [tool.ruff]
+# target-version = "py310"
 
 [tool.ruff.lint]
 ignore = [
     "F403", # from ___ import *
     "F401", # unused imports
     "F541", # f-string without placeholders
+    "F722", # Allow jaxtyping annotations syntax (e.g. Float[Tensor, "B ..."])
 ]
 exclude = [
     "**/tests/**",
