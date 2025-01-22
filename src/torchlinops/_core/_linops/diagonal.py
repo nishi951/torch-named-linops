@@ -61,6 +61,17 @@ class Diagonal(NamedLinop):
     def broadcast_dims(self, val):
         self._shape.broadcast_dims = val
 
+    # Override shape setters too
+    @NamedLinop.ishape.setter
+    def ishape(self, val):
+        self._shape.ishape = val
+        self._shape.oshape = val
+
+    @NamedLinop.oshape.setter
+    def oshape(self, val):
+        self._shape.oshape = val
+        self._shape.ishape = val
+
     def forward(self, x):
         return self.fn(self, x, self.weight)
 

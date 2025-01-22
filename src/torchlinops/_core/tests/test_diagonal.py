@@ -1,5 +1,7 @@
 import pytest
 
+from copy import copy
+
 import torch
 
 from torchlinops import Diagonal
@@ -23,3 +25,18 @@ def test_diagonal(A):
     x = torch.randn(M, N, P, dtype=torch.complex64)
     y = torch.randn(M, N, P, dtype=torch.complex64)
     assert is_adjoint(A, x, y)
+
+
+# Specific tests
+def test_diagonal_shape_renaming(A):
+    B = copy(A)
+
+    # Change to () first
+    new_ioshape = ("()", "N1", "P1")
+    B.oshape = new_ioshape
+    assert B.ishape == new_ioshape
+
+    # Change to something else after
+    new_ioshape = ("M1", "N1", "P1")
+    B.oshape = new_ioshape
+    assert B.ishape == new_ioshape

@@ -136,9 +136,8 @@ class NamedDimCollection:
                 j = newdims_i_list[0]
                 newdim = newshape[j]
 
-                # Only replace olddim with concrete dim names, not
-                # ELLIPSES or ANY
-                if newdim != ELLIPSES and newdim != ANY:
+                # Only replace olddim with concrete dim names, not ELLIPSES
+                if newdim != ELLIPSES:
                     k = self.index(olddim)
                     if olddim != ANY:
                         # Replace all instances of olddim with newdim
