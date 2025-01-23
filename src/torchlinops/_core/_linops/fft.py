@@ -28,6 +28,7 @@ class FFT(NamedLinop):
         """
         self.ndim = ndim
         self.dim = tuple(range(-self.ndim, 0))
+        self.grid_shapes = grid_shapes
         if grid_shapes is None:
             dim_shape = NS(get_nd_shape(self.dim), get_nd_shape(self.dim, kspace=True))
         else:
@@ -72,7 +73,13 @@ class FFT(NamedLinop):
         return x
 
     def split_forward(self, ibatch, obatch):
-        new = type(self)(self.ndim, self.batch_shape, self.norm, self.centered)
+        new = type(self)(
+            self.ndim,
+            self.batch_shape,
+            self.grid_shapes,
+            self.norm,
+            self.centered,
+        )
         new._shape = deepcopy(self._shape)
         return new
 
