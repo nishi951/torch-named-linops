@@ -265,6 +265,14 @@ class NamedLinop(nn.Module):
 
     # Pass these through to the shape representation
     @property
+    def shape(self):
+        return self._shape
+
+    @shape.setter
+    def shape(self, val):
+        self._shape = val
+
+    @property
     def ishape(self):
         return self._shape.ishape
 

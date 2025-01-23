@@ -109,14 +109,14 @@ class NamedDimCollection:
     def update(self, oldshape_name, newshape):
         """Update some shape with a new shape"""
         oldshape = self.lookup(oldshape_name)
-        if isinstance(oldshape, NamedDimension):  # Singleton
+        if isinstance(oldshape, NamedDimension):  # Updating a Singleton
             if not isinstance(newshape, NamedDimension):
                 raise ValueError(
                     f"Trying to update singleton shape {oldshape_name} with non-singleton {newshape}"
                 )
             self._dims[self.index(oldshape)] = ND.infer(newshape)
             return
-        # List, Tuple, or Mapping
+        # Updating a List, Tuple, or Mapping
         iscompat, assignments = iscompatible(
             oldshape, newshape, return_assignments=True
         )
@@ -124,19 +124,46 @@ class NamedDimCollection:
             iscompat
         ), f"Updated shape {newshape} not compatible with current: {oldshape}"
         for i, olddim in enumerate(oldshape):
-            if olddim != ELLIPSES and olddim != ANY:
-                newdims_i = assignments[i]
-                if len(newdims_i) != 1:
+            if olddim != ELLIPSES:  # and olddim != ANY:
+                # Get the new dim that should replace olddim
+                newdims_i_list = assignments[i]
+                if len(newdims_i_list) != 1:
                     raise ValueError(
-                        f"Non-ellipses dim {olddim} received invalid number of assignment dims {[newshape[j] for j in newdims_i]}."
+                        f"Non-ellipses dim {olddim} received invalid number of assignment dims {[newshape[j] for j in newdims_i_list]}."
                         + " If this happens, try specifying the shapes further."
                         + f"oldshape: {oldshape} newshape: {newshape}"
                     )
-                j = newdims_i[0]
+                j = newdims_i_list[0]
                 newdim = newshape[j]
-                if newdim != ELLIPSES and newdim != ANY:
+
+                # Only replace olddim with concrete dim names, not ELLIPSES
+                if newdim != ELLIPSES:
                     k = self.index(olddim)
-                    self._dims[k] = ND.infer(newdim)
+                    if olddim != ANY:
+                        # Replace all instances of olddim with newdim
+                        self._dims[k] = ND.infer(newdim)
+                    else:
+                        # Replace this specific instance of () with newdim
+                        newdim = ND.infer(newdim)
+                        if newdim not in self._dims:
+                            self._dims.append(newdim)
+                        n = self.index(newdim)
+
+                        # Modify idx directly
+                        data = self.idx[oldshape_name]
+                        # Change k -> n in data
+                        if isinstance(data, Mapping):
+                            # Fancy way to replace a dictionary key
+                            data[n] = data.pop(k)
+                        elif isinstance(data, Tuple):
+                            # Less fancy way to replace a tuple entry
+                            data = list(data)
+                            data[data.index(k)] = n
+                            data = tuple(data)
+                        else:
+                            # Unfancy way to replace an int
+                            data = n
+                        self.idx[oldshape_name] = data
 
     def __repr__(self):
         return f"{type(self).__name__}({self._dims})"

@@ -2,6 +2,7 @@ from .add import *
 from .array_to_blocks import *
 from .breakpt import *
 from .chain import *
+from .concat import *
 from .dense import *
 from .diagonal import *
 from .einops import *
