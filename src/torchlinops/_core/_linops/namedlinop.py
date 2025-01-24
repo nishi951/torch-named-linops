@@ -1,3 +1,5 @@
+from typing import Optional
+
 from copy import copy, deepcopy
 import traceback
 import logging
@@ -10,9 +12,7 @@ import torchlinops
 
 from .nameddim import NamedDimension as ND, NamedShape, NS
 
-__all__ = [
-    "NamedLinop",
-]
+__all__ = ["NamedLinop"]
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +20,14 @@ logger = logging.getLogger(__name__)
 class NamedLinop(nn.Module):
     """Base Class for all NamedLinops"""
 
-    def __init__(self, shape: NamedShape):
+    def __init__(self, shape: NamedShape, name: Optional[str] = None):
         super().__init__()
         self._shape = shape
 
         self.reset()
 
         self._suffix = ""
+        self._name = name
 
     # Change the call to self.fn according to the data
     def forward(self, x: torch.Tensor):
@@ -252,11 +253,19 @@ class NamedLinop(nn.Module):
     def __rmatmul__(self, left):
         return left.compose(self)
 
+    @property
+    def name(self):
+        if self._name is not None:
+            return self._name
+        return type(self).__name__
+
+    @name.setter
+    def name(self, new_name):
+        self._name = new_name
+
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        return (
-            f"{self.__class__.__name__ + self._suffix}({self.ishape} -> {self.oshape})"
-        )
+        return f"{self.name + self._suffix}({self.ishape} -> {self.oshape})"
 
     def reset(self):
         """Clean up cached stuff."""

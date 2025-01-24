@@ -23,3 +23,12 @@ def test_namedlinop_chain_normal_split():
     B = NamedLinop(NS(("C",), ("C1",)))
     AB = B @ A
     ABN = AB.N
+
+
+def test_namedlinop_custom_name():
+    A = NamedLinop(NS(("A", "B"), ("C",)))
+    assert str(A).startswith("NamedLinop")
+
+    custom_name = "Test"
+    A = NamedLinop(NS(("A", "B"), ("C",)), name=custom_name)
+    assert str(A).startswith(custom_name)
