@@ -65,3 +65,54 @@ def test_concat_vertical(denselinops):
     Cx = C(x)
     Cx_ref = torch.concatenate((A(x), B(x)), dim=-1)
     assert Cx.allclose(Cx_ref)
+
+
+def test_concat_diagonal(denselinops):
+    A, B = denselinops
+    # Diagonal stack
+    C = Concat(A, B, idim="Q", odim="P")
+    assert C.size("Q") == A.size("Q") + B.size("Q")
+    assert C.size("P") == A.size("P") + B.size("P")
+    x = torch.randn(C.size("N"), C.size("Q"))
+    Cx = C(x)
+    xs = x.tensor_split(C.islices, dim=C.idim_idx)[:-1]
+    Cx_ref = torch.concatenate((A(xs[0]), B(xs[1])), dim=-1)
+    assert Cx.allclose(Cx_ref)
+
+
+def test_concat_split(denselinops):
+    A, B = denselinops
+    # Vertical stack
+    C = Concat(A, B, odim="P")
+
+    # Single Linop
+    ibatch = [slice(None), slice(None)]
+    obatch = [slice(None), slice(0, 3)]
+    C1 = C.split(C, ibatch, obatch)
+    assert isinstance(C1, Dense)
+    assert (C1.weight == A.weight).all()
+
+    # Multiple linops (overlapping)
+    ibatch = [slice(None), slice(None)]
+    obatch = [slice(None), slice(2, 6)]
+    C2 = C.split(C, ibatch, obatch)
+    assert isinstance(C2, Concat)
+    assert (C2[0].weight == A.weight[:, 2:, :]).all()
+    assert (C2[1].weight == B.weight[:, :, :]).all()
+
+    # Horizontal stack
+    C = Concat(A, B, idim="Q")
+    # Single Linop
+    ibatch = [slice(None), slice(0, 4)]
+    obatch = [slice(None), slice(None)]
+    C3 = C.split(C, ibatch, obatch)
+    assert isinstance(C3, Dense)
+    assert (C3.weight == A.weight).all()
+
+    # Multiple linops (overlapping)
+    ibatch = [slice(None), slice(2, 6)]
+    obatch = [slice(None), slice(None)]
+    C4 = C.split(C, ibatch, obatch)
+    assert isinstance(C4, Concat)
+    assert (C4[0].weight == A.weight[:, :, 2:]).all()
+    assert (C4[1].weight == B.weight[:, :, :2]).all()
