@@ -20,7 +20,6 @@ def index_adjoint(
     vals: Shaped[Tensor, "..."],
     idx: tuple[IndexOrSlice, ...],
     oshape: tuple[int, ...],
-    strict: bool = True,
 ):
     idx = ensure_tensor_indexing(idx, oshape)
     # Check for broadcastability:
