@@ -227,7 +227,7 @@ class NamedLinop(nn.Module):
         """Do self AFTER inner"""
         before = inner.flatten()
         after = self.flatten()
-        return torchlinops.Chain(*(after + before))
+        return torchlinops.Chain(*(before + after))
 
     def __add__(self, right):
         return torchlinops.Add(self, right)

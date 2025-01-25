@@ -9,23 +9,32 @@ from .nameddim import NS, isequal
 
 
 class Chain(NamedLinop):
+    """A sequence or composition of linops"""
+
     def __init__(self, *linops):
-        super().__init__(NS(linops[-1].ishape, linops[0].oshape))
+        """
+        Parameters
+        ----------
+        *linops : list
+            Linops in order of execution
+            i.e. if `linops = [A, B, C]`, then mathematically, the linop in question is `CBA`
+
+        """
+        super().__init__(NS(linops[0].ishape, linops[-1].oshape))
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
 
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
-        for i, linop in enumerate(reversed(self.linops)):
-            j = len(self.linops) - i - 1
+        for i, linop in enumerate(self.linops):
             if not isequal(linop.ishape, curr_shape):
                 raise ValueError(
-                    f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {j}"
+                    f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {i}"
                 )
             curr_shape = linop.oshape
 
     def forward(self, x):
-        for linop in reversed(self.linops):
+        for linop in self.linops:
             x = linop(x)
         return x
 
@@ -34,7 +43,7 @@ class Chain(NamedLinop):
         assert (
             len(chain.linops) == len(data_list)
         ), f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain linop"
-        for linop, data in zip(reversed(chain.linops), reversed(data_list)):
+        for linop, data in zip(chain.linops, data_list):
             x = linop.fn(x, *data)
         return x
 
@@ -43,7 +52,7 @@ class Chain(NamedLinop):
         assert (
             len(chain.linops) == len(data_list)
         ), f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain adjoint linop"
-        for linop, data in zip(chain.linops, data_list):
+        for linop, data in zip(reversed(chain.linops), reversed(data_list)):
             x = linop.adj_fn(x, data)
         return x
 
@@ -99,7 +108,7 @@ class Chain(NamedLinop):
         return type(self)(*linops)
 
     def normal(self, inner=None):
-        for linop in self.linops:
+        for linop in reversed(self.linops):
             inner = linop.normal(inner)
         return inner
 

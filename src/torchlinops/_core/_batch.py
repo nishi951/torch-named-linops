@@ -114,6 +114,7 @@ class Batch(NamedLinop):
         return y
 
     def make_tiles(self):
+        """Construct, for each sub linop, the tile of input and output slices that it corresponds to."""
         batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
         ishapes = [linop.ishape for linop in self.linop.flatten()]
         oshapes = [linop.oshape for linop in self.linop.flatten()]
@@ -130,8 +131,8 @@ class Batch(NamedLinop):
             ]
             linop = self.linop.split(self.linop, *ibatches, *obatches)
             linops.append(linop)
-            input_batches.append(ibatches[-1])
-            output_batches.append(obatches[0])
+            input_batches.append(ibatches[0])  # Input batch of first linop
+            output_batches.append(obatches[-1])  # Output batch of last linop
         return linops, input_batches, output_batches
 
     @property
@@ -225,9 +226,9 @@ class Batch(NamedLinop):
                 [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
             ]
             split_data = self.linop.split_fn(*ibatches, *obatches, *data)
-            xbatch = x[ibatches[-1]].to(self.input_device)
+            xbatch = x[ibatches[0]].to(self.input_device)
             ybatch = self.linop.fn(xbatch, split_data)
-            y[obatches[0]] += ybatch
+            y[obatches[-0]] += ybatch
         return y
 
     @staticmethod
