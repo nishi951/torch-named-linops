@@ -3,7 +3,7 @@ from torch import Tensor
 
 import torch
 
-__all__ = ["index", "index_adjoint", "mask2idx"]
+__all__ = ["index", "index_adjoint", "mask2idx", "canonicalize_idx"]
 
 IndexOrSlice = Integer[Tensor, "..."] | slice
 
@@ -12,6 +12,12 @@ def index(
     vals: Shaped[Tensor, "..."],
     idx: tuple[IndexOrSlice, ...],
 ):
+    """
+    Parameters
+    ----------
+    idx : tuple of Tensor or Slice objects
+        Index
+    """
     idx = ensure_tensor_indexing(idx, vals.shape)
     return vals[idx]
 
@@ -47,6 +53,20 @@ def mask2idx(mask: Bool[Tensor, "..."]) -> tuple[Integer[Tensor, "..."], ...]:
     if not mask.dtype == torch.bool:
         raise ValueError(f"Input tensor must be of boolean dtype, but got {mask.dtype}")
     return torch.nonzero(mask, as_tuple=True)
+
+
+def canonicalize_idx(idx: Integer[Tensor, "..."]):
+    """
+    Parameters
+    ----------
+    idx : [B..., D]
+
+    Returns
+    -------
+    D-tuple of [B...] tensors
+
+    """
+    return tuple(idx[..., i] for i in range(idx.shape[-1]))
 
 
 ### Helper functions

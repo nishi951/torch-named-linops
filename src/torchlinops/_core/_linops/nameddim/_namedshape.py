@@ -6,10 +6,7 @@ from ._nameddim import ND
 from ._nameddimcollection import NamedDimCollection
 from ._matching import isequal
 
-__all__ = [
-    "NS",
-    "NamedShape",
-]
+__all__ = ["NS", "NamedShape", "NDorStr"]
 
 NDorStr = Union[ND, str]
 
@@ -20,7 +17,7 @@ def NS(ishape: NDorStr, oshape: Optional[NDorStr] = None, **additional_shapes):
     """
     if ishape is None:
         shape = NamedShape(ishape=("...",), oshape=("...",))
-    if oshape is None:
+    elif oshape is None:
         if isinstance(ishape, NamedShape):
             return ishape
         shape = NamedShape(ishape=ishape, oshape=ishape)
