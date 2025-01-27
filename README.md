@@ -31,10 +31,19 @@ Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_lino
 ### From source (recommended for developers)
 1. Clone the repo with `git clone`
 2. Run `pip install -e .` from the root directory.
-3. Pull upstream changes as required
+  - Or `uv add path/to/cloned/repo`
 
-### Via `pip`'s git integration'
-Run the following, replacing `<TAG>` with the appropriate version (e.g. 0.3.7)
+3. Pull upstream changes as required.
+
+### Via `pip`'s git integration
+Run the following, replacing `<TAG>` with the appropriate version (e.g. `0.3.7``)
+
+- http version:
+```sh
+$ pip install git+https://github.com/nishi951/torch-named-linops.git@<TAG>
+```
+
+- ssh version:
 ``` sh
 $ pip install git+ssh://git@github.com/nishi951/torch-named-linops.git@<TAG>
 ```
