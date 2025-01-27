@@ -1,4 +1,5 @@
 # torch-named-linops
+
 A flexible linear operator abstraction implemented in PyTorch.
 
 Heavily inspired by [einops](https://einops.rocks).
@@ -26,17 +27,16 @@ Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_lino
 [^*] Includes a `functional` interface and
 [triton](https://github.com/triton-lang/triton) backend for 1D/2D/3D.
 
-### Custom Linops
-Custom linops should satisfy the following:
-- `@staticmethod` `.fn()`, `.adj_fn()`, and `.normal_fn()`
-  - Allows for swapping of functions rather than `bound_methods` in `adjoint()`.
-- Calling the constructor of itself via `type(self)` inside `.split_forward()`.
-  - This is because of how pytorch handles `copy`-ing parameters. We call the
-    constructor rather than deepcopy to avoid making an extra copy of tensors.
-    However, `copy` does not propery isolate the new parameter - modifications
-    to the parameter will propagate up to the calling function.
-- Use of `super().__init__(NS(ishape, oshape))` in the constructor.
-  - This initializes the linop's shape
-  - May change later to not require `NS`
+## Installation
+### From source (recommended for developers)
+1. Clone the repo with `git clone`
+2. Run `pip install -e .` from the root directory.
+3. Pull upstream changes as required
+
+### Via `pip`'s git integration'
+Run the following, replacing `<TAG>` with the appropriate version (e.g. 0.3.7)
+``` sh
+$ pip install git+ssh://git@github.com/nishi951/torch-named-linops.git@<TAG>
+```
 
 
