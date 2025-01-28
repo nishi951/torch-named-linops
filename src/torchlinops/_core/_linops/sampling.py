@@ -7,6 +7,7 @@ from .namedlinop import NamedLinop
 from torchlinops._core._linops.nameddim import NDorStr, ELLIPSES, NS
 from torchlinops.utils import default_to
 import torchlinops.functional as F
+from torchlinops.functional._index.index import ensure_tensor_indexing
 
 OptionalShape = Optional[tuple[NDorStr]]
 
@@ -48,6 +49,7 @@ class Sampling(NamedLinop):
             raise ValueError(
                 f"Output shape {output_shape} doesn't correspond to idx with shape {len(idx)}"
             )
+        idx = ensure_tensor_indexing(idx, self.input_size)
         self.idx = nn.ParameterList([nn.Parameter(i, requires_grad=False) for i in idx])
 
     @classmethod
@@ -63,7 +65,7 @@ class Sampling(NamedLinop):
         return cls(idx, *args, **kwargs)
 
     def forward(self, x):
-        return self.fn(self, x, self.idx)
+        return self.fn(self, x, tuple(self.idx))
 
     @staticmethod
     def fn(linop, x, idx):
