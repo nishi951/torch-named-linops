@@ -71,13 +71,7 @@ class Sampling(NamedLinop):
 
     @staticmethod
     def adj_fn(linop, x, idx):
-        batch_ndims = len(x.shape) - len(idx)
-        if batch_ndims < 0:
-            raise ValueError(
-                f"Negative number of batch dimensions from input with shape {x.shape} and sampling index with shape {idx.shape}"
-            )
-        oshape = (*x.shape[:batch_ndims], *linop.input_size)
-        return F.index_adjoint(x, idx, oshape=oshape)
+        return F.index_adjoint(x, idx, linop.input_size)
 
     def split_forward(self, ibatch, obatch):
         if self._shape.output_shape == ELLIPSES:

@@ -39,6 +39,11 @@ def grid(
 ):
     """Interpolate from off-grid values to on-grid locations.
 
+    grid_size : tuple[int, ...]
+        Shape of output array, excluding batch dimensions
+        For example, if the gridded output should have shape [3, 64, 64],
+        where 3 is the batch size, then grid_size would be [64, 64]
+
     norm: str, 1 or 2
         if 2, uses Euclidean norm to grid points to compute weights
         if 1, computes weights as product of axis-aligned norm weights

@@ -11,7 +11,7 @@ IndexOrSlice = Integer[Tensor, "..."] | slice
 def index(
     vals: Shaped[Tensor, "..."],
     idx: tuple[IndexOrSlice, ...],
-):
+) -> Tensor:
     """
     Parameters
     ----------
@@ -25,13 +25,25 @@ def index(
 def index_adjoint(
     vals: Shaped[Tensor, "..."],
     idx: tuple[IndexOrSlice, ...],
-    oshape: tuple[int, ...],
-):
-    idx = ensure_tensor_indexing(idx, oshape)
+    grid_size: tuple[int, ...],
+) -> Tensor:
+    """
+    Parameters
+    ----------
+    grid_size : tuple of ints
+        The shape of the output tensor, excluding batch dimensions
+    """
+    batch_ndims = len(vals.shape) - len(idx[0].shape)
+    if batch_ndims < 0:
+        raise ValueError(
+            f"Negative number of batch dimensions from input with shape {vals.shape} and sampling index with shape {len(idx[0].shape)}"
+        )
+    output_size = (*vals.shape[:batch_ndims], *grid_size)
+    idx = ensure_tensor_indexing(idx, output_size)
     # Check for broadcastability:
     torch.broadcast_tensors(*idx, vals)
 
-    out = torch.zeros(oshape, dtype=vals.dtype, device=vals.device)
+    out = torch.zeros(output_size, dtype=vals.dtype, device=vals.device)
     out.index_put_(idx, vals, accumulate=True)
     return out
 
