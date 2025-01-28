@@ -6,21 +6,22 @@ import torchlinops.functional as F
 
 def main():
     device = torch.device("cuda:0")
-    B = 12
+    B = 15
     Nx, Ny, Nz = (220, 220, 220)
     grid_size = (Nx, Ny, Nz)
     # ishape = (B, *grid_size)
-    K = 6000
-    oshape = (K,)
+    oshape = (48, 500, 1600)
 
     def gen_data():
-        vals = torch.randn(B, *oshape, device=device)
+        vals = torch.randn(*oshape, device=device)
         idx = [torch.randint(0, N, oshape, device=device) for N in grid_size]
         return vals, idx
 
     # Define random test functions
     def index_index_put():
         vals, idx = gen_data()
+        # idx = torch.stack(idx, dim=-1)
+        # return multi_grid(vals, idx, final_size=grid_size)
         return F.index_adjoint(vals, idx, grid_size=grid_size)
 
     def index_interp0():
@@ -33,12 +34,15 @@ def main():
         idx = torch.stack(idx, dim=-1)
         return multi_grid(vals, idx, final_size=grid_size)
 
-    benchmark_and_summarize(gen_data, name="gen_data")
-    benchmark_and_summarize(index_index_put, name="index_put_")
-    benchmark_and_summarize(index_interp0, name="grid with kernel=spline and width=0")
-    benchmark_and_summarize(index_multi_grid, name="multi_grid")
+    benchmark_and_summarize(gen_data, name="gen_data", num_iters=100)
+    benchmark_and_summarize(
+        index_interp0, name="grid with kernel=spline and width=0", num_iters=100
+    )
+    benchmark_and_summarize(index_index_put, name="index_put_", num_iters=100)
+    benchmark_and_summarize(index_multi_grid, name="multi_grid", num_iters=100)
 
     # Test for correctness
+    breakpoint()
     vals, idx = gen_data()
     y1 = F.index_adjoint(vals, idx, grid_size=grid_size)
     locs = torch.stack(idx, dim=-1).float()
