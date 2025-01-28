@@ -1,3 +1,4 @@
+from typing import Optional
 import sys
 import traceback
 
@@ -11,7 +12,7 @@ from .nameddim import NS, isequal
 class Chain(NamedLinop):
     """A sequence or composition of linops"""
 
-    def __init__(self, *linops):
+    def __init__(self, *linops, name: Optional[str] = None):
         """
         Parameters
         ----------
@@ -20,7 +21,7 @@ class Chain(NamedLinop):
             i.e. if `linops = [A, B, C]`, then mathematically, the linop in question is `CBA`
 
         """
-        super().__init__(NS(linops[0].ishape, linops[-1].oshape))
+        super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
 
