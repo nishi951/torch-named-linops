@@ -18,34 +18,32 @@ def index(
     idx : tuple of Tensor or Slice objects
         Index
     """
-    # idx = ensure_tensor_indexing(idx, vals.shape)
-    return vals[idx]
+    if len(vals.shape) < len(idx):
+        raise ValueError(
+            f"Input value with shape {vals.shape} cannot be indexed with index tensors of length {len(idx)}"
+        )
+    batch_slc = [slice(None)] * (len(vals.shape) - len(idx))
+    idx_batched = (*batch_slc, *idx)
+    return vals[idx_batched]
 
 
 def index_adjoint(
     vals: Shaped[Tensor, "..."],
-    idx: tuple[IndexOrSlice, ...],
+    idx: tuple[Integer[Tensor, "..."], ...],
     grid_size: tuple[int, ...],
 ) -> Tensor:
     """
     Parameters
     ----------
+    vals :
+        Batch size of vals is used to determine batch size of output
+    idx : tuple of integer-valued tensors
+        Use ensure_tensor_indexing to guarantee this
     grid_size : tuple of ints
         The shape of the output tensor, excluding batch dimensions
     """
-    batch_ndims = len(vals.shape) - len(idx[0].shape)
-    if batch_ndims < 0:
-        raise ValueError(
-            f"Negative number of batch dimensions from input with shape {vals.shape} and sampling index with shape {len(idx[0].shape)}"
-        )
-    output_size = (*vals.shape[:batch_ndims], *grid_size)
-    idx = ensure_tensor_indexing(idx, output_size)
-    # Check for broadcastability:
-    torch.broadcast_tensors(*idx, vals)
-
-    out = torch.zeros(output_size, dtype=vals.dtype, device=vals.device)
-    out.index_put_(idx, vals, accumulate=True)
-    # out = multi_grid(vals, idx, grid_size)
+    idx_stacked = torch.stack(idx, dim=0)
+    out = multi_grid(vals, idx_stacked, grid_size)
     return out
 
 
@@ -84,12 +82,17 @@ def canonicalize_idx(idx: Integer[Tensor, "..."]):
 
 ### Helper functions
 def multi_grid(
-    x: torch.Tensor, idx: torch.Tensor, final_size: tuple, raveled: bool = False
+    x: torch.Tensor,
+    idx: torch.Tensor,
+    final_size: tuple,
+    raveled: bool = False,
+    ravel_dim: int = 0,
 ):
     """Grid values in x to im_size with indices given in idx
     x: [N... I...]
     idx: [I... ndims] or [I...] if raveled=True
     raveled: Whether the idx still needs to be raveled or not
+    ravel_dim: Dimension to ravel over
 
     Returns:
     Tensor with shape [N... final_size]
@@ -99,15 +102,17 @@ def multi_grid(
     Might need nonnegative indices
     """
     if not raveled:
-        assert (
-            len(final_size) == idx.shape[-1]
-        ), f"final_size should be of dimension {idx.shape[-1]}"
-        idx = ravel(idx, final_size, dim=-1)
-    ndims = len(idx.shape)
-    assert (
-        x.shape[-ndims:] == idx.shape
-    ), f"x and idx should correspond in last {ndims} dimensions"
-    x_flat = torch.flatten(x, start_dim=-ndims, end_dim=-1)  # [N... (I...)]
+        if len(final_size) != idx.shape[ravel_dim]:
+            raise ValueError(
+                f"final_size should be of dimension {idx.shape[-1]} but got {final_size}"
+            )
+        idx = ravel(idx, final_size, dim=ravel_dim)
+    ndim = len(idx.shape)
+    if x.shape[-ndim:] != idx.shape:
+        raise ValueError(
+            f"x and idx should correspond in last {ndim} dimensions but got x: {x.shape} and idx: {idx.shape}"
+        )
+    x_flat = torch.flatten(x, start_dim=-ndim, end_dim=-1)  # [N... (I...)]
     idx_flat = torch.flatten(idx)
 
     batch_dims = x_flat.shape[:-1]

@@ -26,8 +26,8 @@ def test_index_2d_bcast_slicing():
 def test_index_adjoint():
     idx = torch.tensor([1, 3, 2])
     idx = (idx,)
-    vals = torch.tensor([5.0, 4.0, -1.0])
-    oshape = (2, 4)
+    vals = torch.tensor([[5.0, 4.0, -1.0], [5.0, 4.0, -1.0]])
+    oshape = (4,)
     out = index_adjoint(vals, idx, oshape)
     assert (out[0] == torch.tensor([0.0, 5.0, -1.0, 4.0])).all()
     assert (out[0] == out[1]).all()
