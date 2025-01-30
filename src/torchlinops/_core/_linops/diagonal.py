@@ -1,5 +1,6 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
+from copy import copy, deepcopy
 from warnings import warn
 
 from einops import repeat
@@ -16,7 +17,7 @@ class Diagonal(NamedLinop):
     def __init__(
         self,
         weight: torch.Tensor,
-        ioshape: Tuple,
+        ioshape: tuple,
         broadcast_dims: Optional[List[str]] = None,
     ):
         if len(weight.shape) > len(ioshape):
@@ -88,18 +89,27 @@ class Diagonal(NamedLinop):
         return x * torch.abs(weight) ** 2
 
     def adjoint(self):
-        return type(self)(self.weight.conj(), self.ishape, self.broadcast_dims)
+        # adj = type(self)(self.weight.conj(), self.ishape, self.broadcast_dims)
+        adj = deepcopy(self)
+        adj.weight.data = self.weight.conj()
+        return adj
 
     def normal(self, inner=None):
         if inner is None:
-            return type(self)(
-                torch.abs(self.weight) ** 2, self.ishape, self.broadcast_dims
-            )
+            normal = deepcopy(self)
+            normal.weight.data = torch.abs(self.weight) ** 2
+            return normal
+            # type(self)(
+            #     torch.abs(self.weight) ** 2, self.ishape, self.broadcast_dims
+            # )
         return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
         weight = self.split_forward_fn(ibatch, obatch, self.weight)
-        return type(self)(weight, self.ishape, self.broadcast_dims)
+        split = deepcopy(self)
+        split.weight.data = weight
+        return split
+        # return type(self)(weight, self.ishape, self.broadcast_dims)
 
     def split_forward_fn(self, ibatch, obatch, /, weight):
         assert ibatch == obatch, "Diagonal linop must be split identically"
@@ -123,4 +133,7 @@ class Diagonal(NamedLinop):
         return None
 
     def __pow__(self, exponent):
-        return type(self)(self.weight**exponent, self.ishape, self.broadcast_dims)
+        # new = type(self)(self.weight**exponent, self.ishape, self.broadcast_dims)
+        new = deepcopy(self)
+        new.weight.data = copy(self)
+        return new

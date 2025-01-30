@@ -40,6 +40,8 @@ class FFT(NamedLinop):
         shape = NS(batch_shape) + dim_shape
         super().__init__(shape)
         self._shape.add("batch_shape", batch_shape)
+        self._shape.add("input_grid_shape", grid_shapes[0])
+        self._shape.add("output_grid_shape", grid_shapes[1])
         self.norm = norm
         self.centered = centered
 

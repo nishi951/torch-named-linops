@@ -2,7 +2,7 @@ import logging
 
 from textwrap import indent
 
-__all__ = ["setup_console_logger", "Indenter"]
+__all__ = ["setup_console_logger", "Indenter", "INDENT"]
 
 
 def setup_console_logger(
@@ -34,13 +34,16 @@ class Indenter:
             ident.print(pipeline.pprint()) # Indented one level
     """
 
-    def __init__(self):
-        self.level = -1
+    def __init__(self, start_level: int = -1):
+        self.level = start_level
 
-    def print(self, text):
+    def indent(self, text):
         for _ in range(self.level):
             text = indent(text, "    ")
-        print(text)
+        return text
+
+    def print(self, text):
+        print(self.format(text))
 
     def __enter__(self):
         self.level += 1
@@ -48,3 +51,7 @@ class Indenter:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.level -= 1
+
+
+# Singleton for global indentation control
+INDENT = Indenter(start_level=0)

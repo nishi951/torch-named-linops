@@ -2,7 +2,13 @@ from typing import Optional
 from jaxtyping import Float
 from torch import Tensor
 
+from copy import copy
+
+import torch
+import torch.nn as nn
+
 from torchlinops._core._linops.nameddim import NDorStr, ELLIPSES, NS, ND, get_nd_shape
+from .namedlinop import NamedLinop
 from .chain import Chain
 from .diagonal import Diagonal
 from .pad_last import PadLast
@@ -13,6 +19,8 @@ from torchlinops.utils import default_to
 
 Shape = tuple[NDorStr]
 
+__all__ = ["NUFFT"]
+
 
 class NUFFT(Chain):
     def __init__(
@@ -21,30 +29,31 @@ class NUFFT(Chain):
         grid_size: tuple[int, ...],
         output_shape: Shape,
         input_shape: Optional[Shape] = None,
+        input_kshape: Optional[Shape] = None,
         batch_shape: Optional[Shape] = None,
         oversamp: float = 1.25,
         width: float = 4.0,
         **options,
     ):
         # Infer shapes
-        self.grid_size = grid_size
-        self.oversamp = oversamp
-        self.width = width
-        self.locs = locs
-
         input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
+        input_kshape = ND.infer(
+            default_to(get_nd_shape(grid_size, kspace=True), input_kshape)
+        )
         output_shape = ND.infer(output_shape)
         batch_shape = ND.infer(default_to(("...",), batch_shape))
         batched_input_shape = NS(batch_shape) + NS(input_shape)
 
+        # Initialize variables
+        padded_size = [int(i * oversamp) for i in grid_size]
+        beta = self.beta(width, oversamp)
+
         # Create Apodization
-        beta = 1.0  # TODO steal this from sigpy
-        weight = ...
-        apodize = Diagonal(weight, batched_input_shape)
+        weight = self._apodize_weights(grid_size, padded_size, oversamp, width, beta)
+        apodize = Diagonal(weight, batched_input_shape.ishape)
         apodize.name = "Apodize"
 
         # Create Padding
-        padded_size = [int(i * oversamp) for i in grid_size]
         pad = PadLast(
             padded_size,
             grid_size,
@@ -57,30 +66,77 @@ class NUFFT(Chain):
             ndim=locs.shape[-1],
             centered=True,
             batch_shape=batch_shape,
-            grid_shapes=pad.oshape,
+            grid_shapes=(pad.out_im_shape, input_kshape),
         )
 
         # Create Interpolator
+        locs_scaled = self.scale_locs(locs.clone(), grid_size, padded_size)
         interp = Interpolate(
-            locs,
-            grid_size,
+            locs_scaled,
+            padded_size,
             batch_shape=batch_shape,
             locs_batch_shape=output_shape,
-            grid_shape=pad.oshape,
+            grid_shape=fft._shape.output_grid_shape,
             width=width,
             kernel="kaiser_bessel",
-            norm="1",
             beta=beta,
         )
 
         linops = [apodize, pad, fft, interp]
         super().__init__(*linops, name="NUFFT")
 
-        self.options = default_to(
-            {"toeplitz": False, "toeplitz_oversamp": 2.0}, options
-        )
+    def adjoint(self):
+        adj = super(Chain, self).adjoint()
+        linops = reversed(list(linop.H for linop in adj.linops))
+        adj.__dict__["linops"] = nn.ModuleList(linops)
+        return adj
 
-    # TODO: implement this
+    # TODO: Replace with toeplitz version
+    def normal(self, inner=None):
+        normal = super().normal(inner)
+        return normal
+
+    @staticmethod
+    def scale_locs(locs: Tensor, grid_size: Tensor, padded_size: Tensor):
+        for i in range(-len(grid_size), 0):
+            locs[..., i] *= padded_size[i] / grid_size[i]
+            locs[..., i] = locs[..., i] % padded_size[i]
+        return locs
+
+    @staticmethod
+    def beta(width, oversamp):
+        """
+        https://sigpy.readthedocs.io/en/latest/_modules/sigpy/fourier.html#nufft
+        """
+        return torch.pi * (((width / oversamp) * (oversamp - 0.5)) ** 2 - 0.8) ** 0.5
+
+    @staticmethod
+    def _apodize_weights(grid_size, padded_size, oversamp, width: float, beta: float):
+        grid_size = torch.tensor(grid_size)
+        padded_size = torch.tensor(padded_size)
+        grid = torch.meshgrid(*(torch.arange(s) for s in grid_size), indexing="ij")
+        grid = torch.stack(grid, dim=-1)
+        apod = (
+            beta**2 - (torch.pi * width * (grid - grid_size // 2) / padded_size) ** 2
+        ) ** 0.5
+        apod /= torch.sinh(apod)
+        apod = torch.prod(apod, dim=-1)
+        return apod
+
+    # Special derived properties
+
+    # @property
+    # def grid_size(self):
+    #     return
+
+    #     self.grid_size = tuple(grid_size)
+    #     self.oversamp = oversamp
+    #     self.width = width
+    #     self.locs = locs
+    #     self.options = default_to(
+    #         {"toeplitz": False, "toeplitz_oversamp": 2.0}, options
+    #     )
+
     # def normal(self, inner=None):
     #     if inner is not None:
     #         if self.options.get("toeplitz"):
@@ -88,3 +144,7 @@ class NUFFT(Chain):
     #         else:
     #             ...
     #     return NotImplemented
+
+    def flatten(self):
+        """Don't combine constituent linops into a chain with other linops"""
+        return [self]
