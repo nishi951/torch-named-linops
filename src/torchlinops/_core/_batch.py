@@ -177,10 +177,11 @@ class Batch(NamedLinop):
         normal_linop = self.linop.N
         # Collect shape updates from computing the normal
         shape_updates = getattr(normal_linop, "_shape_updates", {})
+        new_batch_sizes = self.batch_sizes.copy()
         for d, nd in shape_updates.items():
             if d in self.batch_sizes:
-                self.batch_sizes[shape_updates[d]] = self.batch_sizes[d]
-        batch_size_kwargs = {str(k): v for k, v in self.batch_sizes.items()}
+                new_batch_sizes[shape_updates[d]] = self.batch_sizes[d]
+        batch_size_kwargs = {str(k): v for k, v in new_batch_sizes.items()}
         normal = type(self)(
             linop=self.linop.N,
             input_device=self.input_device,
@@ -246,9 +247,9 @@ class Batch(NamedLinop):
         output = ""
         output += INDENT.indent(self.name + self._suffix) + "(\n"
         with INDENT:
-            output += INDENT.indent(repr(self.linop))
+            output += repr(self.linop)
             output += ", "
             output += repr(pformat(self.batch_sizes)).strip("'")
             output += "\n"
-        output += ")"
+        output += INDENT.indent(")")
         return output

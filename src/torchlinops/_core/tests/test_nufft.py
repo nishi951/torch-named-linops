@@ -40,11 +40,6 @@ class TestNUFFT(BaseNamedLinopTests):
             width=width,
             oversamp=oversamp,
         )
-        from torchlinops import Diagonal
-
-        diag = Diagonal(torch.randn(3, 4, 5), ("Nx", "Ny", "Nz"))
-        print(linop @ diag)
-        breakpoint()
         x = torch.randn(ishape, dtype=torch.complex64, device="cpu")
         y = torch.randn(oshape, dtype=torch.complex64, device="cpu")
 
