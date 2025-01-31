@@ -9,7 +9,7 @@ from torchlinops.utils import default_to
 import torchlinops.functional as F
 from torchlinops.functional._index.index import ensure_tensor_indexing
 
-Shape = tuple[NDorStr]
+Shape = tuple[NDorStr, ...]
 
 __all__ = ["Sampling"]
 

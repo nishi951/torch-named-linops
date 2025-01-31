@@ -8,7 +8,7 @@ from . import Identity
 from .nameddim import NamedDimension as ND, get_nd_shape, NS, NDorStr
 from torchlinops.utils import default_to
 
-Shape = tuple[NDorStr]
+Shape = tuple[NDorStr, ...]
 
 __all__ = ["PadLast"]
 
