@@ -323,6 +323,12 @@ class NamedLinop(nn.Module):
         cls = type(self)
         new = cls.__new__(cls)
         new.__dict__ = self.__dict__.copy()
+        # Pytorch-specific module state dictionaries
+        # Mirror those used in `__getattr__``
+        # See https://github.com/pytorch/pytorch/blob/1eba9b3aa3c43f86f4a2c807ac8e12c4a7767340/torch/nn/modules/module.py#L1915
+        new._parameters = new._parameters.copy()
+        new._modules = new._modules.copy()
+        new._buffers = new._buffers.copy()
 
         # Remove references to other objects
         new.reset()

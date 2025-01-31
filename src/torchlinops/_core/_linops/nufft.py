@@ -107,8 +107,9 @@ class NUFFT(Chain):
 
     def adjoint(self):
         adj = super(Chain, self).adjoint()
-        linops = reversed(list(linop.H for linop in adj.linops))
-        adj.__dict__["linops"] = nn.ModuleList(linops)
+        linops = [linop.H for linop in adj.linops]
+        linops.reverse()
+        adj.linops = nn.ModuleList(linops)
         return adj
 
     # TODO: Replace with toeplitz version
@@ -174,6 +175,12 @@ class NUFFT(Chain):
     #         else:
     #             ...
     #     return NotImplemented
+
+    def split_forward(self, ibatches, obatches):
+        chain = super().split_forward(ibatches, obatches)
+        out = copy(self)
+        out.linops = chain.linops
+        return out
 
     def flatten(self):
         """Don't combine constituent linops into a chain with other linops"""

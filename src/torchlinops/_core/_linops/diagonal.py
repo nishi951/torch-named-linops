@@ -135,5 +135,5 @@ class Diagonal(NamedLinop):
     def __pow__(self, exponent):
         # new = type(self)(self.weight**exponent, self.ishape, self.broadcast_dims)
         new = deepcopy(self)
-        new.weight.data = copy(self)
+        new.weight.data = self.weight**exponent
         return new
