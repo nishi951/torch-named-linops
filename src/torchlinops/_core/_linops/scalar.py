@@ -1,7 +1,16 @@
+from typing import Optional
+
 import torch
 import torch.nn as nn
 
+from torchlinops.utils import default_to
+
 from .diagonal import Diagonal
+from .nameddim import NDorStr
+
+Shape = tuple[NDorStr, ...]
+
+__all__ = ["Scalar"]
 
 
 class Scalar(Diagonal):
@@ -10,10 +19,11 @@ class Scalar(Diagonal):
     A Diagonal linop that is trivially splittable.
     """
 
-    def __init__(self, weight, *args, **kwargs):
+    def __init__(self, weight, ioshape: Optional[Shape] = None):
         if not isinstance(weight, torch.Tensor):
             weight = torch.tensor(weight)
-        super().__init__(weight, ioshape=("...",))
+        ioshape = default_to(("...",), ioshape)
+        super().__init__(weight, ioshape=ioshape)
 
     def split_forward_fn(self, ibatch, obatch, /, weight):
         assert ibatch == obatch, "Scalar linop must be split identically"

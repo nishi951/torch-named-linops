@@ -3,6 +3,7 @@ from jaxtyping import Float
 from torch import Tensor
 
 from copy import copy
+from math import prod
 
 import torch
 import torch.nn as nn
@@ -11,15 +12,18 @@ from torchlinops._core._linops.nameddim import NDorStr, ELLIPSES, NS, ND, get_nd
 from .namedlinop import NamedLinop
 from .chain import Chain
 from .diagonal import Diagonal
+from .scalar import Scalar
 from .pad_last import PadLast
 from .fft import FFT
 from .interp import Interpolate
 from torchlinops.utils import default_to
 
 
-Shape = tuple[NDorStr]
+Shape = tuple[NDorStr, ...]
 
 __all__ = ["NUFFT"]
+
+# TODO create functional form based on this linop
 
 
 class NUFFT(Chain):
@@ -45,6 +49,7 @@ class NUFFT(Chain):
         batched_input_shape = NS(batch_shape) + NS(input_shape)
 
         # Initialize variables
+        ndim = len(grid_size)
         padded_size = [int(i * oversamp) for i in grid_size]
         beta = self.beta(width, oversamp)
 
@@ -65,14 +70,17 @@ class NUFFT(Chain):
         fft = FFT(
             ndim=locs.shape[-1],
             centered=True,
+            norm="ortho",
             batch_shape=batch_shape,
             grid_shapes=(pad.out_im_shape, input_kshape),
         )
 
         # Create Interpolator
-        locs_scaled = self.scale_locs(locs.clone(), grid_size, padded_size)
+        locs_scaled_shifted = self.scale_and_shift_locs(
+            locs.clone(), grid_size, padded_size
+        )
         interp = Interpolate(
-            locs_scaled,
+            locs_scaled_shifted,
             padded_size,
             batch_shape=batch_shape,
             locs_batch_shape=output_shape,
@@ -82,8 +90,20 @@ class NUFFT(Chain):
             beta=beta,
         )
 
-        linops = [apodize, pad, fft, interp]
+        # Create scaling
+        scale_factor = width**ndim * (prod(grid_size) / prod(padded_size)) ** 0.5
+        scale = Scalar(weight=1.0 / scale_factor, ioshape=interp.oshape)
+
+        # from .breakpt import BreakpointLinop
+
+        # bp = BreakpointLinop()
+        linops = [apodize, pad, fft, interp, scale]
         super().__init__(*linops, name="NUFFT")
+        # Useful parameters to save
+        self.locs = locs
+        self.grid_size = grid_size
+        self.oversamp = oversamp
+        self.width = width
 
     def adjoint(self):
         adj = super(Chain, self).adjoint()
@@ -97,11 +117,25 @@ class NUFFT(Chain):
         return normal
 
     @staticmethod
-    def scale_locs(locs: Tensor, grid_size: Tensor, padded_size: Tensor):
+    def scale_and_shift_locs(
+        locs: Float[Tensor, "... D"],
+        grid_size: tuple,
+        padded_size: tuple,
+    ):
+        """
+        Assumes centered locs
+        """
+        locs_bound = torch.tensor(grid_size, device=locs.device) / 2
+        max_loc_vals = torch.amax(locs.abs(), dim=tuple(range(locs.ndim - 1)))
+        if (max_loc_vals > locs_bound).any():
+            raise ValueError(
+                f"Locs maximum values {max_loc_vals} fall outside bounds +/- {locs_bound}"
+            )
+        out = locs.clone()
         for i in range(-len(grid_size), 0):
-            locs[..., i] *= padded_size[i] / grid_size[i]
-            locs[..., i] = locs[..., i] % padded_size[i]
-        return locs
+            out[..., i] *= padded_size[i] / grid_size[i]
+            out[..., i] += padded_size[i] // 2
+        return out
 
     @staticmethod
     def beta(width, oversamp):
@@ -124,10 +158,6 @@ class NUFFT(Chain):
         return apod
 
     # Special derived properties
-
-    # @property
-    # def grid_size(self):
-    #     return
 
     #     self.grid_size = tuple(grid_size)
     #     self.oversamp = oversamp
