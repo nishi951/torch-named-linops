@@ -11,6 +11,7 @@ import torch.nn as nn
 import torchlinops
 
 from .nameddim import NamedDimension as ND, NamedShape, NS
+from torchlinops.utils import INDENT
 
 __all__ = ["NamedLinop"]
 
@@ -117,11 +118,17 @@ class NamedLinop(nn.Module):
         adj.fn, adj.adj_fn = adj.adj_fn, adj.fn
         adj.split, adj.adj_split = adj.adj_split, adj.split
         adj.split_fn, adj.adj_split_fn = adj.split_fn, adj.adj_split_fn
-        if adj._suffix.endswith(".H"):
-            adj._suffix = adj._suffix[:-2]
-        else:
-            adj._suffix += ".H"
+        adj._update_suffix(adjoint=True)
         return adj
+
+    def _update_suffix(self, adjoint: bool = False, normal: bool = False):
+        if adjoint:
+            if self._suffix.endswith(".H"):
+                self._suffix = self._suffix[:-2]
+            else:
+                self._suffix += ".H"
+        elif normal:
+            self._suffix += ".N"
 
     @property
     def N(self):
@@ -158,7 +165,9 @@ class NamedLinop(nn.Module):
 
             # Replace adjoint() constructor with trivial copy
             def new_adjoint(self):
-                return copy(self)
+                adj = copy(self)
+                adj._shape = adj._shape.H
+                return adj
 
             normal.adjoint = types.MethodType(new_adjoint, normal)
 
@@ -170,10 +179,11 @@ class NamedLinop(nn.Module):
             normal.normal_fn = new_normal_fn
 
             # Replace normal() constructor with chain
-            def new_normal(self):
-                return self.adjoint() @ self
+            # Unnecessary I guess
+            # def new_normal(self, inner=None):
+            #     return self.adjoint() @ self
 
-            normal.normal = types.MethodType(new_normal, normal)
+            # normal.normal = types.MethodType(new_normal, normal)
 
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
@@ -182,7 +192,7 @@ class NamedLinop(nn.Module):
             normal._shape_updates = {
                 d: d.next_unused(normal.ishape) for d in normal.oshape
             }
-            normal._suffix += ".N"
+            normal._update_suffix(normal=True)
             return normal
         pre = copy(self)
         pre.oshape = inner.ishape
@@ -263,9 +273,15 @@ class NamedLinop(nn.Module):
     def name(self, new_name):
         self._name = new_name
 
+    @property
+    def repr_name(self):
+        return self.name + self._suffix
+
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        return f"{self.name + self._suffix}({self.ishape} -> {self.oshape})"
+        out = f"{self.repr_name}({self.ishape} -> {self.oshape})"
+        out = INDENT.indent(out)
+        return out
 
     def reset(self):
         """Clean up cached stuff."""
@@ -306,7 +322,7 @@ class NamedLinop(nn.Module):
         """
         cls = type(self)
         new = cls.__new__(cls)
-        new.__dict__.update(self.__dict__)
+        new.__dict__ = self.__dict__.copy()
 
         # Remove references to other objects
         new.reset()

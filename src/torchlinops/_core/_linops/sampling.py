@@ -9,7 +9,7 @@ from torchlinops.utils import default_to
 import torchlinops.functional as F
 from torchlinops.functional._index.index import ensure_tensor_indexing
 
-OptionalShape = Optional[tuple[NDorStr]]
+Shape = tuple[NDorStr, ...]
 
 __all__ = ["Sampling"]
 
@@ -21,9 +21,9 @@ class Sampling(NamedLinop):
         self,
         idx: tuple,
         input_size: tuple,
-        output_shape: tuple[NDorStr],
-        input_shape: OptionalShape = None,
-        batch_shape: OptionalShape = None,
+        output_shape: Shape,
+        input_shape: Optional[Shape] = None,
+        batch_shape: Optional[Shape] = None,
     ):
         """
         Sampling: (B..., N...) -> (B..., M...)

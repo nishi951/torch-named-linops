@@ -66,18 +66,22 @@ def mask2idx(mask: Bool[Tensor, "..."]) -> tuple[Integer[Tensor, "..."], ...]:
     return torch.nonzero(mask, as_tuple=True)
 
 
-def canonicalize_idx(idx: Integer[Tensor, "..."]):
+def canonicalize_idx(idx: Integer[Tensor, "..."], dim: int = -1):
     """
     Parameters
     ----------
-    idx : [B..., D]
+    idx : [B1... D B2...]
+    dim : int
+        The dimension of idx to tuple-ify
 
     Returns
     -------
-    D-tuple of [B...] tensors
+    D-tuple of [B1... B2...] tensors
+
+    Note: dim is usually 0 or -1
 
     """
-    return tuple(idx[..., i] for i in range(idx.shape[-1]))
+    return tuple(torch.select(idx, dim, i) for i in range(idx.shape[dim]))
 
 
 ### Helper functions
