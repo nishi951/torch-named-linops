@@ -1,9 +1,10 @@
-from typing import Optional
-from jaxtyping import Float
+from typing import Optional, Literal
+from jaxtyping import Float, Shaped
 from torch import Tensor
 
 from copy import copy
 from math import prod
+from warnings import warn
 
 import torch
 import torch.nn as nn
@@ -18,6 +19,7 @@ from .scalar import Scalar
 from .pad_last import PadLast
 from .fft import FFT
 from .interp import Interpolate
+from .sampling import Sampling
 
 
 __all__ = ["NUFFT"]
@@ -36,8 +38,13 @@ class NUFFT(Chain):
         batch_shape: Optional[Shape] = None,
         oversamp: float = 1.25,
         width: float = 4.0,
+        mode: Literal["interpolate", "sampling"] = "interpolate",
         **options,
     ):
+        """
+        mode : "interpolate" or "sampling"
+
+        """
         # Infer shapes
         input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
         input_kshape = ND.infer(
@@ -78,16 +85,30 @@ class NUFFT(Chain):
         locs_scaled_shifted = self.scale_and_shift_locs(
             locs.clone(), grid_size, padded_size
         )
-        interp = Interpolate(
-            locs_scaled_shifted,
-            padded_size,
-            batch_shape=batch_shape,
-            locs_batch_shape=output_shape,
-            grid_shape=fft._shape.output_grid_shape,
-            width=width,
-            kernel="kaiser_bessel",
-            beta=beta,
-        )
+        grid_shape = fft._shape.output_grid_shape
+        if mode == "interpolate":
+            interp = Interpolate(
+                locs_scaled_shifted,
+                padded_size,
+                batch_shape=batch_shape,
+                locs_batch_shape=output_shape,
+                grid_shape=grid_shape,
+                width=width,
+                kernel="kaiser_bessel",
+                beta=beta,
+            )
+        elif mode == "sampling":
+            if torch.is_floating_point(locs_scaled_shifted):
+                warn(f"Initializing sampling-type nufft with floating point `locs`.")
+            interp = Sampling.from_stacked_idx(
+                locs_scaled_shifted,
+                dim=-1,
+                # Arguments for Sampling
+                input_size=padded_size,
+                output_shape=output_shape,
+                input_shape=grid_shape,
+                batch_shape=batch_shape,
+            )
 
         # Create scaling
         scale_factor = width**ndim * (prod(grid_size) / prod(padded_size)) ** 0.5
@@ -118,7 +139,7 @@ class NUFFT(Chain):
 
     @staticmethod
     def scale_and_shift_locs(
-        locs: Float[Tensor, "... D"],
+        locs: Shaped[Tensor, "... D"],
         grid_size: tuple,
         padded_size: tuple,
     ):
@@ -135,7 +156,7 @@ class NUFFT(Chain):
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
             out[..., i] += padded_size[i] // 2
-        return out
+        return out.to(locs.dtype)
 
     @staticmethod
     def beta(width, oversamp):
