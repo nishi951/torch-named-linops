@@ -1,11 +1,14 @@
+from typing import Optional
 from copy import copy, deepcopy
 
 import torch.nn.functional as F
 
 from .namedlinop import NamedLinop
 from . import Identity
-from .nameddim import NamedDimension as ND, get_nd_shape, NS
+from .nameddim import NamedDimension as ND, get_nd_shape, NS, NDorStr
+from torchlinops.utils import default_to
 
+Shape = tuple[NDorStr, ...]
 
 __all__ = ["PadLast"]
 
@@ -17,15 +20,30 @@ class PadLast(NamedLinop):
 
     """
 
-    def __init__(self, pad_im_size, im_size, batch_shape):
+    def __init__(
+        self,
+        pad_im_size: tuple[int, ...],
+        im_size: tuple[int, ...],
+        in_shape: Optional[Shape] = None,
+        out_shape: Optional[Shape] = None,
+        batch_shape: Optional[Shape] = None,
+    ):
         assert (
             len(pad_im_size) == len(im_size)
         ), f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
 
-        self.in_im_shape = ND.infer(get_nd_shape(im_size))
-        self.out_im_shape = tuple(
-            d.next_unused(self.in_im_shape) for d in self.in_im_shape
-        )
+        if in_shape is None:
+            self.in_im_shape = ND.infer(get_nd_shape(im_size))
+        else:
+            self.in_im_shape = ND.infer(in_shape)
+        if out_shape is None:
+            self.out_im_shape = tuple(
+                d.next_unused(self.in_im_shape) for d in self.in_im_shape
+            )
+        else:
+            self.out_im_shape = out_shape
+        batch_shape = default_to(("...",), batch_shape)
+
         shape = NS(batch_shape) + NS(self.in_im_shape, self.out_im_shape)
         super().__init__(shape)
         self.D = len(im_size)
@@ -33,16 +51,20 @@ class PadLast(NamedLinop):
         self.pad_im_size = tuple(pad_im_size)
         self.in_im_size = tuple(im_size)
         self.out_im_size = tuple(pad_im_size)
-        for psz in pad_im_size:
-            assert not (psz % 2), "Pad sizes must be even"
+        # for psz in pad_im_size:
+        #     assert not (psz % 2), "Pad sizes must be even"
 
-        sizes = [
-            [(psz - isz) // 2] * 2
-            for psz, isz in zip(self.out_im_size, self.in_im_size)
-        ]
-        self.pad = sum(sizes, start=[])
-        self.pad.reverse()
+        # sizes = [
+        #     [(psz - isz) // 2] * 2
+        #     for psz, isz in zip(self.out_im_size, self.in_im_size)
+        # ]
+        # self.pad = sum(sizes, start=[])
+        # self.pad.reverse()
 
+        self.pad = pad_to_size(self.im_size, self.pad_im_size)
+
+        # Make crop slice that undoes padding
+        # Need to reverse crop_slice because padding is reversed
         self.crop_slice = [
             slice(self.pad[2 * i], -self.pad[2 * i + 1])
             for i in range(len(self.pad) // 2)
@@ -51,17 +73,19 @@ class PadLast(NamedLinop):
 
     def forward(self, x):
         """Pad the last n dimensions of x"""
-        return self.fn(x)
+        return self.fn(self, x)
 
-    def fn(self, x, /):
-        assert tuple(x.shape[-self.D :]) == self.im_size
-        pad = self.pad + [0, 0] * (x.ndim - self.D)
+    @staticmethod
+    def fn(linop, x, /):
+        assert tuple(x.shape[-linop.D :]) == linop.im_size
+        pad = linop.pad + [0, 0] * (x.ndim - linop.D)
         return F.pad(x, pad)
 
-    def adj_fn(self, y, /):
+    @staticmethod
+    def adj_fn(linop, y, /):
         """Crop the last n dimensions of y"""
-        assert tuple(y.shape[-self.D :]) == self.pad_im_size
-        slc = [slice(None)] * (y.ndim - self.D) + self.crop_slice
+        assert tuple(y.shape[-linop.D :]) == linop.pad_im_size
+        slc = [slice(None)] * (y.ndim - linop.D) + linop.crop_slice
         return y[slc]
 
     def adjoint(self):
@@ -69,12 +93,6 @@ class PadLast(NamedLinop):
         adj.in_im_shape, adj.out_im_shape = self.out_im_shape, self.in_im_shape
         adj.in_im_size, adj.out_im_size = self.out_im_size, self.in_im_size
         return adj
-
-    def normal(self, inner=None):
-        if inner is None:
-            # Adjoint is exactly the inverse
-            return Identity(self.ishape)
-        return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
         self.split_forward_fn(ibatch, obatch)
@@ -97,3 +115,45 @@ class PadLast(NamedLinop):
         elif dim in self.oshape[-self.D :]:
             return self.out_im_size[self.out_im_shape.index(dim)]
         return None
+
+
+def pad_to_scale(grid_size, scale_factor):
+    """Convenience wrapper for pad_to_size but with a scale factor instead"""
+    padded_size = [int(i * scale_factor) for i in grid_size]
+    return pad_to_size(grid_size, padded_size)
+
+
+def pad_to_size(grid_size, padded_size):
+    """Construct a padding list suitable for torch.nn.functional.pad
+
+    Pad will take an input with size `grid_size` and return an output with size `factor * grid_size`
+
+    Padding rules:
+    odd/even image + even pad -> [pad // 2, pad // 2]
+    even image + odd pad -> [pad // 2, pad // 2 + 1]
+    odd image + odd pad -> [pad // 2 + 1, pad // 2]
+
+    Preserves the "center" of the image
+
+    Useful for e.g. padding an image to increase resolution in fourier domain
+    """
+    if len(grid_size) != len(padded_size):
+        raise ValueError(
+            f"Dimension mismatch: cannot pad from size {grid_size} to size {padded_size}."
+        )
+    total_padding = [p - i for p, i in zip(padded_size, grid_size)]
+    pad = []
+    for i, tp in zip(grid_size, total_padding):
+        if tp % 2:  # pad is odd
+            if i % 2:  # im is odd
+                pad_left = tp // 2 + 1
+                pad_right = tp // 2
+            else:  # im is even
+                pad_left = tp // 2
+                pad_right = tp // 2 + 1
+        else:
+            pad_left = tp // 2
+            pad_right = tp // 2
+        pad.append([pad_left, pad_right])
+    pad.reverse()
+    return sum(pad, start=[])

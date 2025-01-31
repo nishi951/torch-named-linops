@@ -1,3 +1,4 @@
+from typing import Optional
 import sys
 import traceback
 
@@ -7,11 +8,13 @@ import torch.nn as nn
 from .namedlinop import NamedLinop
 from .nameddim import NS, isequal
 
+from torchlinops.utils import INDENT
+
 
 class Chain(NamedLinop):
     """A sequence or composition of linops"""
 
-    def __init__(self, *linops):
+    def __init__(self, *linops, name: Optional[str] = None):
         """
         Parameters
         ----------
@@ -20,7 +23,7 @@ class Chain(NamedLinop):
             i.e. if `linops = [A, B, C]`, then mathematically, the linop in question is `CBA`
 
         """
-        super().__init__(NS(linops[0].ishape, linops[-1].oshape))
+        super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
 
@@ -70,7 +73,7 @@ class Chain(NamedLinop):
             linop.split(linop, ibatch, obatch)
             for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
         ]
-        return type(self)(*linops)
+        return type(self)(*linops, name=self._name)
 
     def split_forward_fn(self, ibatches, obatches, data_list):
         """Split data into batches
@@ -105,7 +108,7 @@ class Chain(NamedLinop):
 
     def adjoint(self):
         linops = list(linop.adjoint() for linop in reversed(self.linops))
-        return type(self)(*linops)
+        return type(self)(*linops, name=self._name)
 
     def normal(self, inner=None):
         for linop in reversed(self.linops):
@@ -149,11 +152,16 @@ class Chain(NamedLinop):
         linops = self.linops[idx]
         if isinstance(linops, NamedLinop):
             return linops
-        return type(self)(*linops)
+        return type(self)(*linops, name=self._name)
 
     def __len__(self):
         return len(self.linops)
 
     def __repr__(self):
-        linop_chain = "\n\t".join(repr(linop) for linop in self.linops)
-        return f"{self.__class__.__name__}(\n\t{linop_chain}\n)"
+        output = ""
+        output += INDENT.indent(self.repr_name + "(\n")
+        with INDENT:
+            for linop in self.linops:
+                output += repr(linop) + "\n"
+        output += INDENT.indent(")")
+        return output

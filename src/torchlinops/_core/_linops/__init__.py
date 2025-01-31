@@ -9,6 +9,7 @@ from .einops import *
 from .fft import *
 from .identity import *
 from .interp import *
+from .nufft import *
 from .sampling import *
 from .scalar import *
 from .trunc_pad import *

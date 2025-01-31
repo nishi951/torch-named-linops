@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 import torchlinops
 from ._linops import NamedLinop, ND, NS
-from torchlinops.utils import batch_iterator, dict_product
+from torchlinops.utils import batch_iterator, dict_product, INDENT
 
 __all__ = ["Batch"]
 
@@ -35,7 +35,7 @@ class Batch(NamedLinop):
             Function that takes in the newly-created batch object and does stuff
         """
         # TODO: Should batch even have a shape???
-        super().__init__(NS(linop.ishape, linop.oshape))
+        super().__init__(NS(linop.ishape, linop.oshape), name=name)
 
         self.linop = linop
         if input_shape is not None:
@@ -49,7 +49,7 @@ class Batch(NamedLinop):
         self.input_dtype = input_dtype
         self.output_dtype = output_dtype
         self.pbar = pbar
-        self.name = name if name is not None else ""
+        # self.name = name if name is not None else ""
         self.batch_sizes = batch_sizes
         self.post_batch_hook = post_batch_hook
         self.setup_batching()
@@ -177,10 +177,11 @@ class Batch(NamedLinop):
         normal_linop = self.linop.N
         # Collect shape updates from computing the normal
         shape_updates = getattr(normal_linop, "_shape_updates", {})
+        new_batch_sizes = self.batch_sizes.copy()
         for d, nd in shape_updates.items():
             if d in self.batch_sizes:
-                self.batch_sizes[shape_updates[d]] = self.batch_sizes[d]
-        batch_size_kwargs = {str(k): v for k, v in self.batch_sizes.items()}
+                new_batch_sizes[shape_updates[d]] = self.batch_sizes[d]
+        batch_size_kwargs = {str(k): v for k, v in new_batch_sizes.items()}
         normal = type(self)(
             linop=self.linop.N,
             input_device=self.input_device,
@@ -243,4 +244,12 @@ class Batch(NamedLinop):
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        return f"{self.__class__.__name__ + self._suffix}(\n\t{self.linop}, {pformat(self.batch_sizes)}\n)"
+        output = ""
+        output += INDENT.indent(self.name + self._suffix) + "(\n"
+        with INDENT:
+            output += repr(self.linop)
+            output += ", "
+            output += repr(pformat(self.batch_sizes)).strip("'")
+            output += "\n"
+        output += INDENT.indent(")")
+        return output

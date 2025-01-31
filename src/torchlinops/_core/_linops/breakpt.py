@@ -5,7 +5,7 @@ __all__ = ["BreakpointLinop"]
 
 
 class BreakpointLinop(NamedLinop):
-    def __init__(self, ioshape):
+    def __init__(self, ioshape=None):
         super().__init__(NS(ioshape))
 
     def forward(self, x):
