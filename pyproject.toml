@@ -81,6 +81,9 @@ markers = [
     "plot: tests that involve plotting",
 ]
 
+[tool.coverage.run]
+omit = ["*/tests/*"] # Both test/ and tests/
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
