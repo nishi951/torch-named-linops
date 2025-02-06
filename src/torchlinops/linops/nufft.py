@@ -162,6 +162,11 @@ class NUFFT(Chain):
     def beta(width, oversamp):
         """
         https://sigpy.readthedocs.io/en/latest/_modules/sigpy/fourier.html#nufft
+
+        References
+        ----------
+        Beatty PJ, Nishimura DG, Pauly JM. Rapid gridding reconstruction with a minimal oversampling ratio.
+        IEEE Trans Med Imaging. 2005 Jun;24(6):799-808. doi: 10.1109/TMI.2005.848376. PMID: 15959939.
         """
         return torch.pi * (((width / oversamp) * (oversamp - 0.5)) ** 2 - 0.8) ** 0.5
 
