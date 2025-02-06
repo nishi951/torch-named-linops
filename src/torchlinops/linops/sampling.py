@@ -32,6 +32,7 @@ class Sampling(NamedLinop):
         idx : tuple of [M...] tensors
             One index for each "sampled" axis of the input tensor
             Use `canonicalize_idx` to turn a tensor of shape [M... D] to a D-tuple of index tensors.
+            idx is in range [0, size-1]
 
 
         """

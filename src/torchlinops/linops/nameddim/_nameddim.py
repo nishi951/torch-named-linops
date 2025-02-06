@@ -7,11 +7,44 @@ __all__ = [
     "NamedDimension",
     "ELLIPSES",
     "ANY",
+    "parse_dim_str",
 ]
 
 # Special dim names
 ELLIPSES = "..."
 ANY = "()"
+
+
+# Convenience function
+def parse_dim_str(s: str) -> tuple[str]:
+    """
+    Rules:
+    - dim begins with an uppercase letter
+    - dim cannot start with a number
+
+    Examples
+    --------
+    >>> parse_dim_str("ABCD")
+    ('A', 'B', 'C', 'D')
+    >>> parse_dim_str("NxNyNz")
+    ('Nx', 'Ny', 'Nz')
+    >>> parse_dim_str("A1B2Kx1Ky2")
+    ('A1', 'B2', 'Kx1', 'Ky2')
+    """
+    if len(s) == 0:
+        return tuple()
+    parts = []
+    current = s[0]
+    for char in s[1:]:
+        if char.isupper():
+            if char.isdigit():
+                raise ValueError(f"Dim cannot start with a digit in dim string {s}")
+            parts.append(current)
+            current = char
+        else:
+            current += char
+    parts.append(current)
+    return tuple(parts)
 
 
 @dataclass(slots=True, frozen=True)
