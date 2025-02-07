@@ -92,6 +92,7 @@ class Dense(NamedLinop):
         adj = copy(self)
         adj.weight = nn.Parameter(self.weight.conj())
         adj._shape = adj._shape.H
+        adj._update_suffix(adjoint=self._name is not None)
         return adj
 
     def normal(self, inner=None):
