@@ -82,20 +82,16 @@ class Dense(NamedLinop):
 
     @staticmethod
     def adj_fn(linop, x, /, weight):
-        return einsum(x, weight, linop.adj_einstr)
+        return einsum(x, weight.conj(), linop.adj_einstr)
 
     @staticmethod
     def normal_fn(linop, x, /, weight):
         return linop.adj_fn(linop.fn(x, weight), weight)
 
     def adjoint(self):
-        adj = type(self)(
-            self.weight.conj(),
-            self.weightshape,
-            self._shape.H.ishape,
-            self._shape.H.oshape,
-            self.broadcast_dims,
-        )
+        adj = copy(self)
+        adj.weight = nn.Parameter(self.weight.conj())
+        adj._shape = adj._shape.H
         return adj
 
     def normal(self, inner=None):
