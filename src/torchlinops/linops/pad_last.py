@@ -27,9 +27,9 @@ class PadLast(NamedLinop):
         out_shape: Optional[Shape] = None,
         batch_shape: Optional[Shape] = None,
     ):
-        assert (
-            len(pad_im_size) == len(im_size)
-        ), f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
+        assert len(pad_im_size) == len(im_size), (
+            f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
+        )
 
         if in_shape is None:
             self.in_im_shape = ND.infer(get_nd_shape(im_size))
@@ -132,7 +132,7 @@ def pad_to_size(grid_size, padded_size):
     even image + odd pad -> [pad // 2, pad // 2 + 1]
     odd image + odd pad -> [pad // 2 + 1, pad // 2]
 
-    Preserves the "center" of the image
+    Preserves the "center" of the image or kspace if it has been fftshifted
 
     Useful for e.g. padding an image to increase resolution in fourier domain
     """
