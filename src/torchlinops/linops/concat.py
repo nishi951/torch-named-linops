@@ -18,7 +18,7 @@ __all__ = ["Concat"]
 
 
 class Concat(NamedLinop):
-    """Concatenate some linops along a new dimension
+    """Concatenate some linops along an existing dimension
 
     Linops need not output tensors of the same size, but they should
     output tensors of the same number of dimensions

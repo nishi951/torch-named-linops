@@ -20,13 +20,26 @@ MAX_TENSOR_POW_OF_2 = 20
 
 
 def unfold(
-    x,
+    x: Shaped[Tensor, "..."],
     block_size: tuple,
     stride: Optional[tuple] = None,
     mask: Optional[Bool[Tensor, "..."]] = None,
 ) -> Tensor:
     """Wrapper that dispatches complex and real tensors
     Also precomputes some shapes
+
+    Parameters
+    ----------
+    x : Tensor
+        Shape [B..., *im_size]
+
+    Returns
+    -------
+    Tensor: Shape [B..., *blocks, *block_size]
+        If mask is not None, block_size will be an int equal to the number of True elements in the mask
+        Otherwise it will be the full block shape.
+
+
     """
     x_flat, shapes = prep_unfold_shapes(x, block_size, stride, mask)
     if torch.is_complex(x_flat):
