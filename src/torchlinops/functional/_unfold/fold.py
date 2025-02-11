@@ -26,7 +26,19 @@ def fold(
     stride: tuple,
     mask: Optional[Bool[Tensor, "..."]] = None,
 ) -> Tensor:
-    """Cube-like unfolding"""
+    """Accumulate an array of blocks into a full array
+
+    Parameters
+    ----------
+    x : Tensor
+        Shape [B..., blocks, block_size]
+
+    Returns
+    -------
+    Tensor: Shape [B..., *im_size]
+        If mask is not None, block_size will be an int equal to the number of True elements in the mask
+        Otherwise it will be the full block shape.
+    """
     if mask is not None:
         nblocks = get_nblocks(im_size, block_size, stride)
         if len(x.shape) > len(nblocks) + 1:

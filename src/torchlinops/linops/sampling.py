@@ -32,6 +32,7 @@ class Sampling(NamedLinop):
         idx : tuple of [M...] tensors
             One index for each "sampled" axis of the input tensor
             Use `canonicalize_idx` to turn a tensor of shape [M... D] to a D-tuple of index tensors.
+            idx is in range [0, size-1]
 
 
         """
@@ -58,9 +59,9 @@ class Sampling(NamedLinop):
         return cls(idx, *args, **kwargs)
 
     @classmethod
-    def from_stacked_idx(cls, idx: Tensor, *args, **kwargs):
+    def from_stacked_idx(cls, idx: Tensor, *args, dim=-1, **kwargs):
         """Alternative constructor for index in [M... D] form"""
-        idx = F.canonicalize_idx(idx)
+        idx = F.canonicalize_idx(idx, dim=-1)
         return cls(idx, *args, **kwargs)
 
     def forward(self, x):
