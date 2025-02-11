@@ -11,9 +11,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-publish:
+  pypi-publish:
     runs-on: ubuntu-latest
-    environment: publish
+    environment:
+      name: publish
+      url: https://pypi.org/p/torch-named-linops
+    permissions:
+      id-token: write
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -26,5 +31,5 @@ jobs:
       - name: Build Package
         run: hatch build
 
-      - name: Publish to PyPI
-        run: hatch publish
+      - name: Publish to PyPI as Trusted Publisher
+        uses: pypa/gh-action-pypi-publish@release/v1
