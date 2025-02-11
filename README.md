@@ -12,9 +12,9 @@ Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_lino
   - `Dense`
   - `Diagonal`
   - `FFT`
-  - `ArrayToBlocks`[^*] (similar to PyTorch's [unfold](https://pytorch.org/docs/stable/generated/torch.nn.Unfold.html) but in 1D/2D/3D/arbitrary dimensions)
+  - `ArrayToBlocks`[^1] (similar to PyTorch's [unfold](https://pytorch.org/docs/stable/generated/torch.nn.Unfold.html) but in 1D/2D/3D/arbitrary dimensions)
     - Useful for local patch extraction
-  - `Interpolate`[^*] (similar to SigPy's
+  - `Interpolate`[^1] (similar to SigPy's
     [interpolate/gridding](https://sigpy.readthedocs.io/en/latest/generated/sigpy.linop.Interpolate.html))
      - Comes with `kaiser_bessel` and (1D) `spline` kernels.
 - `.H` and `.N` properties for adjoint $A^H$ and normal $A^HA$ linop creation.
@@ -24,10 +24,15 @@ Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_lino
 - Full support for complex numbers. Adjoint takes the conjugate transpose.
 - Full support for `autograd`-based automatic differentiation.
 
-[^*] Includes a `functional` interface and
-[triton](https://github.com/triton-lang/triton) backend for 1D/2D/3D.
+[^1]: Includes a `functional` interface and [triton](https://github.com/triton-lang/triton) backend for 1D/2D/3D.
 
 ## Installation
+### Via `pip`
+
+``` sh
+$ pip install torch-named-linops
+```
+
 ### From source (recommended for developers)
 1. Clone the repo with `git clone`
 2. Run `pip install -e .` from the root directory.
@@ -35,7 +40,7 @@ Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_lino
 
 3. Pull upstream changes as required.
 
-### Via `pip`'s git integration
+### Via `pip`'s git integration (deprecated)
 Run the following, replacing `<TAG>` with the appropriate version (e.g. `0.3.7``)
 
 - http version:
