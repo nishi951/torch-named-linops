@@ -219,16 +219,20 @@ class Stack(NamedLinop):
         return output_linop_data
 
     def adjoint(self):
-        # TODO fix this
         adj_linops = [linop.H for linop in self.linops]
-        return type(self)(*adj_linops, self.odim, self.idim)
+        return type(self)(
+            *adj_linops,
+            idim_and_idx=(self.odim, self.odim_idx),
+            odim_and_idx=(self.idim, self.idim_idx),
+        )
 
     def normal(self, inner=None):
-        # TODO: fix this
         if inner is None:
             if self.idim is None:  # Vertical (inner product)
+                # self.odim is not None
                 return Add(linop.N for linop in self.linops)
             elif self.odim is None:  # Horizontal (outer product)
+                # self.idim is not None
                 new_idim, new_odim = self._get_new_normal_io_dims(
                     self.linops[0].shape, self.idim
                 )
@@ -243,17 +247,30 @@ class Stack(NamedLinop):
                             new_linop = linop_left.H @ linop_right
                             new_linop.shape = new_shape
                         row.append(new_linop)
-                        row = type(self)(*row, new_idim, None)
+                        row = type(self)(
+                            *row,
+                            idim_and_idx=(new_idim, self.idim_idx),
+                            odim_and_idx=(None, None),
+                        )
                     rows.append(row)
-                return type(self)(*rows, None, new_odim)
+                return type(self)(
+                    *rows,
+                    idim_and_idx=(None, None),
+                    odim_and_idx=(new_odim, self.idim_idx),
+                )
             else:  # Diagonal
+                # self.idim and self.odim are not None
                 diag = []
                 new_idim, new_odim = self._get_new_normal_io_dims(
                     self.linops[0].shape, self.idim
                 )
                 for linop in self.linops:
                     diag.append(linop.N)
-                return type(self)(*diag, new_idim, new_odim)
+                return type(self)(
+                    *diag,
+                    idim_and_idx=(new_idim, self.idim_idx),
+                    odim_and_idx=(new_odim, self.odim_idx),
+                )
         return super().normal(inner)
 
     @staticmethod
@@ -282,7 +299,9 @@ class Stack(NamedLinop):
         if isinstance(linops, NamedLinop):
             return linops
         return type(self)(
-            *linops, (self.idim, self.idim_idx), (self.odim, self.odim_idx)
+            *linops,
+            idim_and_idx=(self.idim, self.idim_idx),
+            odim_and_idx=(self.odim, self.odim_idx),
         )
 
     def __len__(self):
