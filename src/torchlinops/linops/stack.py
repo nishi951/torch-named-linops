@@ -230,11 +230,11 @@ class Stack(NamedLinop):
         if inner is None:
             if self.idim is None:  # Vertical (inner product)
                 # self.odim is not None
-                return Add(linop.N for linop in self.linops)
+                return Add(*(linop.N for linop in self.linops))
             elif self.odim is None:  # Horizontal (outer product)
                 # self.idim is not None
                 new_idim, new_odim = self._get_new_normal_io_dims(
-                    self.linops[0].shape, self.idim
+                    self._shape, self.idim
                 )
                 rows = []
                 new_shape = self.linops[0].shape.N
@@ -245,13 +245,14 @@ class Stack(NamedLinop):
                             new_linop = linop_right.N
                         else:
                             new_linop = linop_left.H @ linop_right
-                            new_linop.shape = new_shape
+                            new_linop.ishape = new_shape.ishape
+                            new_linop.oshape = new_shape.oshape
                         row.append(new_linop)
-                        row = type(self)(
-                            *row,
-                            idim_and_idx=(new_idim, self.idim_idx),
-                            odim_and_idx=(None, None),
-                        )
+                    row = type(self)(
+                        *row,
+                        idim_and_idx=(new_idim, self.idim_idx),
+                        odim_and_idx=(None, None),
+                    )
                     rows.append(row)
                 return type(self)(
                     *rows,
@@ -262,7 +263,7 @@ class Stack(NamedLinop):
                 # self.idim and self.odim are not None
                 diag = []
                 new_idim, new_odim = self._get_new_normal_io_dims(
-                    self.linops[0].shape, self.idim
+                    self._shape, self.idim
                 )
                 for linop in self.linops:
                     diag.append(linop.N)
