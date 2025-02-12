@@ -243,7 +243,7 @@ class Concat(NamedLinop):
     def normal(self, inner=None):
         if inner is None:
             if self.idim is None:  # Vertical (inner product)
-                return Add(linop.N for linop in self.linops)
+                return Add(*(linop.N for linop in self.linops))
             elif self.odim is None:  # Horizontal (outer product)
                 new_idim, new_odim = self._get_new_normal_io_dims(
                     self.linops[0].shape, self.idim
@@ -259,7 +259,7 @@ class Concat(NamedLinop):
                             new_linop = linop_left.H @ linop_right
                             new_linop.shape = new_shape
                         row.append(new_linop)
-                        row = type(self)(*row, new_idim, None)
+                    row = type(self)(*row, new_idim, None)
                     rows.append(row)
                 return type(self)(*rows, None, new_odim)
             else:  # Diagonal

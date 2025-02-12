@@ -6,6 +6,7 @@ from torchlinops import Stack, Dense, Diagonal, ND, Dim
 from einops import einsum
 
 from torchlinops.tests.test_base import BaseNamedLinopTests
+from torchlinops.utils import inner
 
 
 def test_stack_init():
@@ -110,3 +111,62 @@ def test_stack_split(denselinops):
     C4 = C.split(C, ibatch, obatch)
     assert isinstance(C4, Stack)
     assert (C4[0].weight == B.weight).all()
+
+
+def test_stack_adjoint(denselinops):
+    A, B = denselinops
+    idim = 0
+    odim = 1
+    # Vertical stack
+    C = Stack(A, B, odim_and_idx=("M", odim))
+    x = torch.randn(*(C.size(d) for d in C.ishape))
+    y = torch.randn(*(C.size(d) for d in C.oshape))
+    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x))
+
+    # Horizontal stack
+    C = Stack(A, B, idim_and_idx=("N", idim))
+    x = torch.randn(*(C.size(d) for d in C.ishape))
+    y = torch.randn(*(C.size(d) for d in C.oshape))
+    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x))
+
+    # Diagonal stack
+    C = Stack(A, B, idim_and_idx=("N", idim), odim_and_idx=("M", odim))
+    CH = C.H
+    x = torch.randn(*(C.size(d) for d in C.ishape))
+    y = torch.randn(*(C.size(d) for d in C.oshape))
+    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x))
+
+
+def test_stack_normal(denselinops):
+    # TODO: Add some kind of assertions here?
+    A, B = denselinops
+    idim = 0
+    odim = 1
+    # Vertical stack
+    C = Stack(A, B, odim_and_idx=("M", odim))
+    x = torch.randn(*(C.size(d) for d in C.ishape))
+    assert torch.allclose(C.N(x), A.N(x) + B.N(x))
+
+    # Horizontal stack
+    C = Stack(A, B, idim_and_idx=("N", idim))
+    x = torch.randn(*(C.size(d) for d in C.ishape))
+    CNx = C.N(x)
+    x0, x1 = x[0], x[1]
+    ANx = A.N(x0)
+    AHBx = A.H(B(x1))
+    BHAx = B.H(A(x0))
+    BNx = B.N(x1)
+    y0 = ANx + AHBx
+    y1 = BHAx + BNx
+    out = torch.stack([y0, y1], dim=idim)
+    assert torch.allclose(CNx, out)
+
+    # Diagonal stack
+    C = Stack(A, B, idim_and_idx=("N", idim), odim_and_idx=("M", odim))
+    x = torch.randn(*(C.size(d) for d in C.ishape))
+    CNx = C.N(x)
+    x0, x1 = x[0], x[1]
+    y0 = A.N(x0)
+    y1 = B.N(x1)
+    out = torch.stack([y0, y1], dim=odim)
+    assert torch.allclose(CNx, out)
