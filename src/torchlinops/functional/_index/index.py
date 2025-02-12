@@ -3,7 +3,7 @@ from torch import Tensor
 
 import torch
 
-__all__ = ["index", "index_adjoint", "mask2idx", "canonicalize_idx"]
+__all__ = ["index", "index_adjoint", "mask2idx", "canonicalize_idx", "slice2range"]
 
 IndexOrSlice = Integer[Tensor, "..."] | slice
 
