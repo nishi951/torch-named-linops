@@ -12,7 +12,7 @@ from .add import Add
 from .identity import Zero
 from .nameddim import NS, isequal, ELLIPSES, NDorStr, ND
 
-from torchlinops.utils import default_to
+from torchlinops.utils import default_to, INDENT
 
 __all__ = ["Concat"]
 
@@ -164,9 +164,10 @@ class Concat(NamedLinop):
         obatches = self.subslice(obatch, self.odim_idx, self.oslices, len(self.linops))
 
         output_linop_idxs = ibatches.keys() & obatches.keys()
+        output_linop_idxs = sorted(list(output_linop_idxs))
         if len(output_linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
-            return Zero(self.linops[0].ishape, self.linops[0].oshape)
+            return Zero(self.ishape, self.oshape)
         elif len(output_linop_idxs) == 1:
             # Singleton linop
             linop_idx = output_linop_idxs.pop()
@@ -242,7 +243,7 @@ class Concat(NamedLinop):
     def normal(self, inner=None):
         if inner is None:
             if self.idim is None:  # Vertical (inner product)
-                return Add(linop.N for linop in self.linops)
+                return Add(*(linop.N for linop in self.linops))
             elif self.odim is None:  # Horizontal (outer product)
                 new_idim, new_odim = self._get_new_normal_io_dims(
                     self.linops[0].shape, self.idim
@@ -258,7 +259,7 @@ class Concat(NamedLinop):
                             new_linop = linop_left.H @ linop_right
                             new_linop.shape = new_shape
                         row.append(new_linop)
-                        row = type(self)(*row, new_idim, None)
+                    row = type(self)(*row, new_idim, None)
                     rows.append(row)
                 return type(self)(*rows, None, new_odim)
             else:  # Diagonal
@@ -330,8 +331,14 @@ class Concat(NamedLinop):
         return len(self.linops)
 
     def __repr__(self):
-        linop_chain = "\n\t".join(repr(linop) for linop in self.linops)
-        return f"{self.__class__.__name__}(\n\t{linop_chain}\n\tidim = {self.idim}, odim = {self.odim}\n)"
+        output = ""
+        output += INDENT.indent(self.repr_name + f"({self._shape}\n")
+        with INDENT:
+            for linop in self.linops:
+                output += repr(linop) + "\n"
+            output += INDENT.indent(f"idim = {self.idim}, odim = {self.odim}\n")
+        output += INDENT.indent(")")
+        return output
 
 
 def get_slice_start_stop(slice_obj, array_length) -> tuple[int, int]:

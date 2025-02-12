@@ -43,18 +43,18 @@ class Chain(NamedLinop):
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /, data_list):
-        assert (
-            len(chain.linops) == len(data_list)
-        ), f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain linop"
+        assert len(chain.linops) == len(data_list), (
+            f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain linop"
+        )
         for linop, data in zip(chain.linops, data_list):
             x = linop.fn(x, *data)
         return x
 
     @staticmethod
     def adj_fn(chain, x: torch.Tensor, /, data_list):
-        assert (
-            len(chain.linops) == len(data_list)
-        ), f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain adjoint linop"
+        assert len(chain.linops) == len(data_list), (
+            f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain adjoint linop"
+        )
         for linop, data in zip(reversed(chain.linops), reversed(data_list)):
             x = linop.adj_fn(x, data)
         return x
@@ -144,6 +144,31 @@ class Chain(NamedLinop):
         obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
         data = iobatchesdata[len(iobatchesdata) * 2 // 3]
         return chain.split_forward_fn(obatches, ibatches, data)
+
+    @property
+    def shape(self):
+        return NS(self.linops[0].ishape, self.linops[-1].oshape)
+
+    @shape.setter
+    def shape(self, val):
+        self.ishape = val.ishape
+        self.oshape = val.oshape
+
+    @property
+    def ishape(self):
+        return self.linops[0].ishape
+
+    @ishape.setter
+    def ishape(self, val):
+        self.linops[0].ishape = val
+
+    @property
+    def oshape(self):
+        return self.linops[-1].oshape
+
+    @oshape.setter
+    def oshape(self, val):
+        self.linops[-1].oshape = val
 
     def flatten(self):
         return list(self.linops)
