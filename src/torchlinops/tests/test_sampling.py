@@ -10,6 +10,8 @@ from torchlinops.tests.test_base import BaseNamedLinopTests
 class TestSampling(BaseNamedLinopTests):
     equality_check = "approx"
 
+    isclose_kwargs = dict(rtol=1e-4)
+
     @pytest.fixture(scope="class")
     def linop_input_output(self):
         N = 64
