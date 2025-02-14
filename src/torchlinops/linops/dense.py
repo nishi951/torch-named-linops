@@ -159,7 +159,9 @@ class Dense(NamedLinop):
             else:
                 new_dim = dim
             new_oshape.append(new_dim)
+
         if inner is None:
+            # Consolidate dense and dense adjoint into single dense
             new_weight_shape = wdiag_shape + wout_shape + win_shape
             einstr = shapes2einstr(
                 self.weightshape,
@@ -177,13 +179,11 @@ class Dense(NamedLinop):
             normal._update_suffix(normal=self._name is not None)
             normal._shape_updates = shape_updates
             return normal
+        # Note: Only update _shape_updates when there's no inner linop
+        # Inner linops always handle shape updates
+        # Basically any time dim.next_unused is called is when
+        # shape updates need to happen
         normal = super().normal(inner)
-        shape_updates = {}
-        for dim, newdim in zip(normal.oshape, new_oshape):
-            if dim != newdim:
-                shape_updates[dim] = newdim
-        normal.oshape = new_oshape
-        normal._shape_updates = shape_updates
         return normal
 
     def split_forward(self, ibatch, obatch):
