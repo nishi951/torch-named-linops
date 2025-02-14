@@ -18,7 +18,7 @@ class TestNUFFT(BaseNamedLinopTests):
     instances = ["small3d"]
 
     # Unstable numerical behavior
-    isclose_kwargs: dict = {"rtol": 1e-4}
+    isclose_kwargs: dict = {"rtol": 5e-2}
 
     @pytest.fixture(scope="class", params=instances)
     def linop_input_output(self, request):

@@ -89,11 +89,17 @@ class Chain(NamedLinop):
         return data
 
     def size(self, dim):
+        out = None
         for linop in self.linops:
-            out = linop.size(dim)
-            if out is not None:
-                return out
-        return None
+            tmp = linop.size(dim)
+            if tmp is not None:
+                if out is None:
+                    out = tmp
+                elif out != tmp:
+                    raise ValueError(
+                        f"Conflicting linop sizes found: {out} and {tmp} for dim {dim} in linop {linop} out of all linops {self.linops}"
+                    )
+        return out
 
     def size_fn(self, dim, data):
         for linop, data in zip(self.linops, data):

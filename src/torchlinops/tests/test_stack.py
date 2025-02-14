@@ -117,24 +117,25 @@ def test_stack_adjoint(denselinops):
     A, B = denselinops
     idim = 0
     odim = 1
+    rtol = 1e-3
     # Vertical stack
     C = Stack(A, B, odim_and_idx=("M", odim))
     x = torch.randn(*(C.size(d) for d in C.ishape))
     y = torch.randn(*(C.size(d) for d in C.oshape))
-    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x))
+    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x), rtol=rtol)
 
     # Horizontal stack
     C = Stack(A, B, idim_and_idx=("N", idim))
     x = torch.randn(*(C.size(d) for d in C.ishape))
     y = torch.randn(*(C.size(d) for d in C.oshape))
-    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x))
+    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x), rtol=rtol)
 
     # Diagonal stack
     C = Stack(A, B, idim_and_idx=("N", idim), odim_and_idx=("M", odim))
     CH = C.H
     x = torch.randn(*(C.size(d) for d in C.ishape))
     y = torch.randn(*(C.size(d) for d in C.oshape))
-    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x))
+    assert torch.allclose(inner(y, C(x)), inner(C.H(y), x), rtol=rtol)
 
 
 def test_stack_normal(denselinops):

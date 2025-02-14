@@ -106,9 +106,9 @@ class SumReduce(NamedLinop):
             Output shape spec, einops style
         """
         super().__init__(NS(ishape, oshape))
-        assert (
-            len(self.oshape) < len(self.ishape)
-        ), f"Reduce must be over at least one dimension: got {self.ishape} -> {self.oshape}"
+        assert len(self.oshape) < len(self.ishape), (
+            f"Reduce must be over at least one dimension: got {self.ishape} -> {self.oshape}"
+        )
 
     def forward(self, x):
         return self.fn(self, x)
@@ -155,7 +155,7 @@ class SumReduce(NamedLinop):
             for d in post.oshape
         )
         shape_updates = {
-            d: d.next_unused(self.ishape) for d in post.oshape if d not in post.ishape
+            d: new_d for d, new_d in zip(pre.ishape, post.oshape) if d != new_d
         }
         if inner is not None:
             pre.oshape = inner.ishape
@@ -203,9 +203,9 @@ class Repeat(NamedLinop):
         self, n_repeats: Mapping, ishape, oshape, broadcast_dims: Optional[list] = None
     ):
         super().__init__(NS(ishape, oshape))
-        assert len(self.oshape) > len(
-            self.ishape
-        ), f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
+        assert len(self.oshape) > len(self.ishape), (
+            f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
+        )
         self._shape.add("axes_lengths", n_repeats)
         # self.axes_lengths = n_repeats
         # self.axes_lengths = {ND.infer(k): v for k, v in self.axes_lengths.items()}
@@ -255,6 +255,8 @@ class Repeat(NamedLinop):
         return self.size_fn(dim)
 
     def size_fn(self, dim, /):
+        if dim in self.broadcast_dims:
+            return None
         return self.axes_lengths.get(dim, None)
 
     def adjoint(self):

@@ -8,7 +8,7 @@ from einops import repeat
 import torch
 import torch.nn as nn
 
-from .nameddim import NS, Shape
+from .nameddim import NS, Shape, ANY
 from .namedlinop import NamedLinop, ND
 
 __all__ = ["Diagonal"]
@@ -37,6 +37,8 @@ class Diagonal(NamedLinop):
         #     len(self.ishape) >= len(self.weight.shape)
         # ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
+        if ANY in ioshape:
+            broadcast_dims.append(ANY)
         self._shape.add("broadcast_dims", broadcast_dims)
 
     @classmethod
