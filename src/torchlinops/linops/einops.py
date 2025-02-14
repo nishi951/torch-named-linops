@@ -265,11 +265,13 @@ class Repeat(NamedLinop):
     def normal(self, inner=None):
         pre = copy(self)
         post = self.adjoint()
-        post.oshape = tuple(
-            d if d in pre.adj_ishape else d.next_unused(pre.ishape) for d in pre.ishape
-        )
         if inner is not None:
+            pre.oshape = inner.ishape
+            post.ishape = inner.oshape
             return post @ inner @ pre
+        # No updated dims because Repeat -> SumReduce
+        # Gets rid of the new dimensions immediately
+        # TODO: simplify this more?
         return post @ pre
 
     @property
