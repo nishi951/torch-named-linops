@@ -28,6 +28,7 @@ def test_diagonal(A):
 
 
 # Specific tests
+@pytest.mark.xfail  # Deprecated behavior: changing a non-() dim to ()
 def test_diagonal_shape_renaming(A):
     B = copy(A)
 

@@ -41,11 +41,9 @@ class Batch(NamedLinop):
 
         self.linop = linop
         if input_shape is not None:
-            if input_shape != self.linop.ishape:
-                self.linop = self.linop @ ShapeSpec(input_shape)
+            self.linop = self.linop @ ShapeSpec(input_shape)
         if output_shape is not None:
-            if output_shape != self.linop.oshape:
-                self.linop = ShapeSpec(output_shape) @ self.linop
+            self.linop = ShapeSpec(output_shape) @ self.linop
         self.input_device = input_device
         self.output_device = output_device
         self.input_dtype = input_dtype
