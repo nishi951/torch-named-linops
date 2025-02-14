@@ -8,6 +8,8 @@ import torch.nn as nn
 from .namedlinop import NamedLinop
 from .nameddim import ND, NS, NamedShape, Shape
 
+__all__ = ["Dense"]
+
 
 class Dense(NamedLinop):
     """
@@ -126,38 +128,38 @@ class Dense(NamedLinop):
 
 
         """
-        if inner is None:
-            new_oshape = []
-            weight_conj_shape = list(deepcopy(self.weightshape))
-            wdiag_shape = []
-            wout_shape = []
-            win_shape = []
-            used_shapes = self.ishape + self.oshape
-            shape_updates = {}
-            # Make new ishape and weight shape
-            # Rules:
-            # New weightshape
-            #   If dim appears in ishape and weightshape but not oshape -> increment
-            #   If dim appears in ishape and weightshape AND oshape -> don't increment
-            #   If dim doesn't appear in ishape or weightshape -> don't add it to new weightshape
-            # Other rules:
-            # new ishape is same as old ishape
-            # new oshape is ishape but updated with new dimensions
-            for dim in self.ishape:
-                if dim in self.weightshape:
-                    if dim not in self.oshape:
-                        win_shape.append(dim)
-                        new_dim = dim.next_unused(used_shapes)
-                        shape_updates[dim] = new_dim
-                        wout_shape.append(new_dim)
-                    else:
-                        wdiag_shape.append(dim)
-                        new_dim = dim
-                    i = weight_conj_shape.index(dim)
-                    weight_conj_shape[i] = new_dim
+        new_oshape = []
+        weight_conj_shape = list(deepcopy(self.weightshape))
+        wdiag_shape = []
+        wout_shape = []
+        win_shape = []
+        used_shapes = self.ishape + self.oshape
+        shape_updates = {}
+        # Make new ishape and weight shape
+        # Rules:
+        # New weightshape
+        #   If dim appears in ishape and weightshape but not oshape -> increment
+        #   If dim appears in ishape and weightshape AND oshape -> don't increment
+        #   If dim doesn't appear in ishape or weightshape -> don't add it to new weightshape
+        # Other rules:
+        # new ishape is same as old ishape
+        # new oshape is ishape but updated with new dimensions
+        for dim in self.ishape:
+            if dim in self.weightshape:
+                if dim not in self.oshape:
+                    win_shape.append(dim)
+                    new_dim = dim.next_unused(used_shapes)
+                    shape_updates[dim] = new_dim
+                    wout_shape.append(new_dim)
                 else:
+                    wdiag_shape.append(dim)
                     new_dim = dim
-                new_oshape.append(new_dim)
+                i = weight_conj_shape.index(dim)
+                weight_conj_shape[i] = new_dim
+            else:
+                new_dim = dim
+            new_oshape.append(new_dim)
+        if inner is None:
             new_weight_shape = wdiag_shape + wout_shape + win_shape
             einstr = shapes2einstr(
                 self.weightshape,
@@ -171,9 +173,18 @@ class Dense(NamedLinop):
                 self.ishape,
                 new_oshape,
             )
+            normal._name = self._name
+            normal._update_suffix(normal=self._name is not None)
             normal._shape_updates = shape_updates
             return normal
-        return super().normal(inner)
+        normal = super().normal(inner)
+        shape_updates = {}
+        for dim, newdim in zip(normal.oshape, new_oshape):
+            if dim != newdim:
+                shape_updates[dim] = newdim
+        normal.oshape = new_oshape
+        normal._shape_updates = shape_updates
+        return normal
 
     def split_forward(self, ibatch, obatch):
         weight = self.split_forward_fn(ibatch, obatch, self.weight)
