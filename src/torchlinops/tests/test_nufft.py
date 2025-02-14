@@ -8,6 +8,7 @@ import numpy as np
 from torchlinops import NUFFT, PadLast, Interpolate
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.tests.test_base import BaseNamedLinopTests
+from torchlinops.utils import cifftn
 
 
 class TestNUFFT(BaseNamedLinopTests):
@@ -18,7 +19,7 @@ class TestNUFFT(BaseNamedLinopTests):
     instances = ["small3d"]
 
     # Unstable numerical behavior
-    isclose_kwargs: dict = {"rtol": 5e-2}
+    isclose_kwargs: dict = {"rtol": 1e-3}
 
     @pytest.fixture(scope="class", params=instances)
     def linop_input_output(self, request):
@@ -44,8 +45,10 @@ class TestNUFFT(BaseNamedLinopTests):
             width=width,
             oversamp=oversamp,
         )
-        x = torch.randn(ishape, dtype=torch.complex64, device="cpu")
-        y = torch.randn(oshape, dtype=torch.complex64, device="cpu")
+        # Limit randomness
+        x = 0.5 * torch.rand(ishape, dtype=torch.complex64, device="cpu") + 1
+        y = 0.5 * torch.rand(oshape, dtype=torch.complex64, device="cpu") + 1
+        y /= torch.linalg.vector_norm(locs, dim=-1)
 
         return linop, x, y
 
@@ -56,7 +59,7 @@ class TestNUFFT(BaseNamedLinopTests):
         grid_size = (32, 32, 32)
         locs_batch_size = (3, 5)
         width = 4.0
-        oversamp = 2.0
+        oversamp = 1.25
 
         spec = {
             "N": N,
@@ -77,7 +80,7 @@ class TestNUFFT(BaseNamedLinopTests):
 
         Ax = A(x).numpy()
         Ax_sp = sp.nufft(x.numpy(), coord, oversamp=oversamp, width=width)
-        assert np.allclose(Ax, Ax_sp)
+        assert np.allclose(Ax, Ax_sp, **self.isclose_kwargs)
 
         AHy = A.H(y).numpy()
         AHy_sp = sp.nufft_adjoint(
