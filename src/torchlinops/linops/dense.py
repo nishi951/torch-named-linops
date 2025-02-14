@@ -188,7 +188,9 @@ class Dense(NamedLinop):
 
     def split_forward(self, ibatch, obatch):
         weight = self.split_forward_fn(ibatch, obatch, self.weight)
-        return type(self)(weight, self.weightshape, self.ishape, self.oshape)
+        out = copy(self)
+        out.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
+        return out
 
     def split_forward_fn(self, ibatch, obatch, /, weight):
         weightbatch = [slice(None)] * len(self.weightshape)
@@ -204,6 +206,8 @@ class Dense(NamedLinop):
         return self.size_fn(dim, self.weight)
 
     def size_fn(self, dim: str, weight):
+        if dim in self.broadcast_dims:
+            return None
         if dim in self.weightshape:
             return weight.shape[self.weightshape.index(dim)]
         return None

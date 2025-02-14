@@ -255,6 +255,8 @@ class Repeat(NamedLinop):
         return self.size_fn(dim)
 
     def size_fn(self, dim, /):
+        if dim in self.broadcast_dims:
+            return None
         return self.axes_lengths.get(dim, None)
 
     def adjoint(self):
