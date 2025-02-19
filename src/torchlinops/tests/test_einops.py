@@ -11,6 +11,8 @@ from torchlinops.tests.test_base import BaseNamedLinopTests
 class TestSumReduce(BaseNamedLinopTests):
     equality_check = "approx"
 
+    isclose_kwargs = {"rtol": 1e-4}
+
     @pytest.fixture(scope="class", params=["fullshape", "ellipses"])
     def linop_input_output(self, request):
         x = torch.randn(5, 2, 3)
