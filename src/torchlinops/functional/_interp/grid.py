@@ -91,20 +91,21 @@ def _grid(
             output = torch.view_as_real(output).contiguous()
         grid = _get_grid()  # TODO
         BLOCK_WIDTH = get_block_width(width, ndim, is_complex)
-        GRID[ndim][grid](
-            vals,
-            locs,
-            output,
-            nbatch,
-            npts,
-            kernel,
-            norm,
-            is_complex,
-            *grid_size,
-            *width,
-            *BLOCK_WIDTH,
-            **kernel_params,
-        )
+        with torch.cuda.device(vals.device):
+            GRID[ndim][grid](
+                vals,
+                locs,
+                output,
+                nbatch,
+                npts,
+                kernel,
+                norm,
+                is_complex,
+                *grid_size,
+                *width,
+                *BLOCK_WIDTH,
+                **kernel_params,
+            )
         if is_complex:
             output = torch.view_as_complex(output)
     else:
