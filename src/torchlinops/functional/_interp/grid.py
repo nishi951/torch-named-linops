@@ -17,6 +17,7 @@ from .kernels import (
     get_kernel_fn,
     _apply_default_kernel_params,
     KernelTypeStr,
+    mod_pos,
 )
 from ._batch import batch_iterator
 
@@ -35,6 +36,7 @@ def grid(
     width: float | tuple[float, ...],
     kernel: str = "kaiser_bessel",
     norm: str = "1",
+    pad_mode: Literal["zero", "circular"] = "circular",
     kernel_params: dict = None,
 ):
     """Interpolate from off-grid values to on-grid locations.
@@ -57,6 +59,7 @@ def grid(
         locs,
         kernel=kernel,
         norm=norm,
+        pad_mode=pad_mode,
         kernel_params=kernel_params,
         **shapes,
     )
@@ -71,6 +74,7 @@ def _grid(
     width: tuple[float, ...],
     kernel: KernelTypeStr,
     norm: str,
+    pad_mode: str,
     ndim: int,
     nbatch: int,
     is_complex: bool,
@@ -89,22 +93,24 @@ def _grid(
         if is_complex:
             vals = torch.view_as_real(vals).contiguous()
             output = torch.view_as_real(output).contiguous()
-        grid = _get_grid()  # TODO
+        grid = _get_grid()
         BLOCK_WIDTH = get_block_width(width, ndim, is_complex)
-        GRID[ndim][grid](
-            vals,
-            locs,
-            output,
-            nbatch,
-            npts,
-            kernel,
-            norm,
-            is_complex,
-            *grid_size,
-            *width,
-            *BLOCK_WIDTH,
-            **kernel_params,
-        )
+        with torch.cuda.device(vals.device):
+            GRID[ndim][grid](
+                vals,
+                locs,
+                output,
+                nbatch,
+                npts,
+                kernel,
+                norm,
+                pad_mode,
+                is_complex,
+                *grid_size,
+                *width,
+                *BLOCK_WIDTH,
+                **kernel_params,
+            )
         if is_complex:
             output = torch.view_as_complex(output)
     else:
@@ -116,6 +122,7 @@ def _grid(
             width,
             kernel,
             norm,
+            pad_mode,
             **kernel_params,
         )
     return output
@@ -156,7 +163,8 @@ def _grid1d(
     npts,
     KERNEL: tl.constexpr,
     NORM: tl.constexpr,
-    is_complex,  # bool
+    PAD_MODE: tl.constexpr,
+    is_complex: tl.constexpr,  # bool
     x_size,
     x_kernel_width,
     X_BLOCK_WIDTH: tl.constexpr,
@@ -196,7 +204,10 @@ def _grid1d(
                 x_range_imag = 2 * x_range + 1
                 x_range_cplx = tl.join(x_range_real, x_range_imag)  # [width, 2]
                 x_mask_cplx = tl.join(x_mask, x_mask)
-                x_mask_cplx &= (x_range_cplx >= 0) & (x_range_cplx < (2 * x_size))
+                if PAD_MODE == "zero":
+                    x_mask_cplx &= (x_range_cplx >= 0) & (x_range_cplx < (2 * x_size))
+                elif PAD_MODE == "circular":
+                    x_range_cplx = mod_pos(x_range_cplx, 2 * x_size)
 
                 # Split and process separately
                 pt_real = tl.load(in_ptr + 2 * (in_batch_offset + p))
@@ -212,7 +223,10 @@ def _grid1d(
 
             else:
                 # Normal indexing
-                x_mask &= (x_range >= 0) & (x_range < x_size)
+                if PAD_MODE == "zero":
+                    x_mask &= (x_range >= 0) & (x_range < x_size)
+                elif PAD_MODE == "circular":
+                    x_range = mod_pos(x_range, x_size)
 
                 # Load
                 pt_val = tl.load(in_ptr + in_batch_offset + p)
@@ -238,7 +252,8 @@ def _grid2d(
     npts,
     KERNEL: tl.constexpr,
     NORM: tl.constexpr,
-    is_complex,  # bool
+    PAD_MODE: tl.constexpr,
+    is_complex: tl.constexpr,  # bool
     # Size of grid
     x_size,
     y_size,
@@ -290,14 +305,18 @@ def _grid2d(
             if is_complex:
                 x_range_cplx = x_range  # [width]
                 x_mask_cplx = x_mask
-                x_mask_cplx &= (x_range_cplx >= 0) & (x_range_cplx < x_size)
                 # Pytorch interleaved indexing
                 # Only applies to last dimension
                 y_range_real = 2 * y_range
                 y_range_imag = 2 * y_range + 1
                 y_range_cplx = tl.join(y_range_real, y_range_imag)  # [width, 2]
                 y_mask_cplx = tl.join(y_mask, y_mask)
-                y_mask_cplx &= (y_range_cplx >= 0) & (y_range_cplx < (2 * y_size))
+                if PAD_MODE == "zero":
+                    x_mask_cplx &= (x_range_cplx >= 0) & (x_range_cplx < x_size)
+                    y_mask_cplx &= (y_range_cplx >= 0) & (y_range_cplx < (2 * y_size))
+                elif PAD_MODE == "circular":
+                    x_range_cplx = mod_pos(x_range_cplx, x_size)
+                    y_range_cplx = mod_pos(y_range_cplx, 2 * y_size)
 
                 grid_range_cplx = (
                     x_range_cplx[:, None, None] * y_size * 2 + y_range_cplx[None, :, :]
@@ -321,8 +340,12 @@ def _grid2d(
 
             else:
                 # Normal indexing
-                x_mask &= (x_range >= 0) & (x_range < x_size)
-                y_mask &= (y_range >= 0) & (y_range < y_size)
+                if PAD_MODE == "zero":
+                    x_mask &= (x_range >= 0) & (x_range < x_size)
+                    y_mask &= (y_range >= 0) & (y_range < y_size)
+                elif PAD_MODE == "circular":
+                    x_range = mod_pos(x_range, x_size)
+                    y_range = mod_pos(y_range, y_size)
 
                 grid_range = x_range[:, None] * y_size + y_range[None, :]
                 grid_mask = x_mask[:, None] & y_mask[None, :]
@@ -351,7 +374,8 @@ def _grid3d(
     npts,
     KERNEL: tl.constexpr,
     NORM: tl.constexpr,
-    is_complex,  # bool
+    PAD_MODE: tl.constexpr,
+    is_complex: tl.constexpr,  # bool
     # Size of grid
     x_size,
     y_size,
@@ -413,15 +437,20 @@ def _grid3d(
                 y_range_cplx = y_range
                 x_mask_cplx = x_mask
                 y_mask_cplx = y_mask
-                x_mask_cplx &= (x_range_cplx >= 0) & (x_range_cplx < x_size)
-                y_mask_cplx &= (y_range_cplx >= 0) & (y_range_cplx < y_size)
                 # Pytorch interleaved indexing
                 # Only applies to last dimension
                 z_range_real = 2 * z_range  # 2 is for real/complex, not dimension
                 z_range_imag = 2 * z_range + 1
                 z_range_cplx = tl.join(z_range_real, z_range_imag)  # [width, 2]
                 z_mask_cplx = tl.join(z_mask, z_mask)
-                z_mask_cplx &= (z_range_cplx >= 0) & (z_range_cplx < (2 * z_size))
+                if PAD_MODE == "zero":
+                    x_mask_cplx &= (x_range_cplx >= 0) & (x_range_cplx < x_size)
+                    y_mask_cplx &= (y_range_cplx >= 0) & (y_range_cplx < y_size)
+                    z_mask_cplx &= (z_range_cplx >= 0) & (z_range_cplx < (2 * z_size))
+                elif PAD_MODE == "circular":
+                    x_range_cplx = mod_pos(x_range_cplx, x_size)
+                    y_range_cplx = mod_pos(y_range_cplx, y_size)
+                    z_range_cplx = mod_pos(z_range_cplx, 2 * z_size)
 
                 grid_range_cplx = (
                     x_range_cplx[:, None, None, None] * y_size
@@ -447,9 +476,14 @@ def _grid3d(
 
             else:
                 # Normal indexing
-                x_mask &= (x_range >= 0) & (x_range < x_size)
-                y_mask &= (y_range >= 0) & (y_range < y_size)
-                z_mask &= (z_range >= 0) & (z_range < z_size)
+                if PAD_MODE == "zero":
+                    x_mask &= (x_range >= 0) & (x_range < x_size)
+                    y_mask &= (y_range >= 0) & (y_range < y_size)
+                    z_mask &= (z_range >= 0) & (z_range < z_size)
+                elif PAD_MODE == "circular":
+                    x_range = mod_pos(x_range, x_size)
+                    y_range = mod_pos(y_range, y_size)
+                    z_range = mod_pos(z_range, z_size)
 
                 grid_range = (
                     x_range[:, None, None] * y_size + y_range[None, :, None]
@@ -466,14 +500,6 @@ def _grid3d(
 
                 # Accumulate
                 tl.atomic_add(out_ptr + out_batch_offset + grid_range, out, grid_mask)
-
-
-@triton.jit
-def get_neighborhood(target, kernel_width, base_range):
-    lower = target - (kernel_width / 2.0)
-    lower = tl.ceil(lower)
-    lower = tl.cast(lower, tl.int32)
-    return base_range + lower
 
 
 GRID = {1: _grid1d, 2: _grid2d, 3: _grid3d}
@@ -534,17 +560,16 @@ def grid_torch(
     width: tuple[float, ...],
     kernel: str = "kaiser_bessel",
     norm: str = "1",
+    pad_mode: Literal["zero", "circular"] = "circular",
     batch_size: int = 2**20,
-    padding: Literal["zero", "circular"] = "zero",
     **kernel_params,
 ):
     """Torch fallback
 
     Eventually, may want to use triton's CPU backend
 
-    padding : 'zero' or 'circular'
-        Type of edge padding to use
-        Triton kernels do zero padding by default
+    pad_mode : 'zero' or 'circular'
+        Type of edge behavior to use
     batch_size : int
         number of points to compute over at once
     """
@@ -583,7 +608,7 @@ def grid_torch(
             norm,
             kernel_fn,
             grid_size,
-            padding,
+            pad_mode,
         )
         val = vals[:, p0:p1, None]  # [nbatch, npts, 1]
         patches = weights * mask * val

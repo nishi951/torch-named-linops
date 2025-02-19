@@ -43,7 +43,7 @@ class Indenter:
         return text
 
     def print(self, text):
-        print(self.format(text))
+        print(self.indent(text))
 
     def __enter__(self):
         self.level += 1
