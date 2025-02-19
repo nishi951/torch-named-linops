@@ -27,6 +27,7 @@ class Interpolate(NamedLinop):
         width: float = 4.0,
         kernel: str = "kaiser_bessel",
         norm: str = "1",
+        pad_mode: str = "circular",
         **kernel_params,
     ):
         batch_shape = default_to(("...",), batch_shape)
@@ -45,6 +46,7 @@ class Interpolate(NamedLinop):
             "width": width,
             "kernel": kernel,
             "norm": norm,
+            "pad_mode": pad_mode,
             "kernel_params": kernel_params,
         }
 
