@@ -35,7 +35,7 @@ def main():
         # vals = torch.arange(prod(ishape)).reshape(ishape).to(dtype).to(device)
         vals = torch.randn(ishape, dtype=dtype, device=device)
         locs = get_valid_locs(npts, grid_size, ndim, width, device)
-        out = grid(vals, locs, grid_size, width, kernel)
+        out = grid(vals, locs, grid_size, width, kernel, pad_mode="circular")
         return out
 
     benchmark_and_summarize(
