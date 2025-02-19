@@ -19,6 +19,7 @@ PYTEST_GPU_MARKS = [
 
 
 @pytest.mark.parametrize("kernel_type", ["kaiser_bessel", "spline"])
+@pytest.mark.parametrize("padding_mode", ["zero", "circular"])
 @pytest.mark.parametrize("dev", ["cpu", pytest.param("cuda", marks=PYTEST_GPU_MARKS)])
 @pytest.mark.parametrize("dtype", ["real", "complex"])
 @pytest.mark.parametrize(
@@ -36,7 +37,7 @@ PYTEST_GPU_MARKS = [
         pytest.param("large3d", marks=PYTEST_GPU_MARKS + [pytest.mark.slow]),
     ],
 )
-def test_grid(kernel_type, dev, dtype, spec, request):
+def test_grid(kernel_type, padding_mode, dev, dtype, spec, request):
     device = torch.device(dev)
     dtype = torch.complex64 if dtype == "complex" else torch.float32
     spec = request.getfixturevalue(spec)
@@ -52,9 +53,21 @@ def test_grid(kernel_type, dev, dtype, spec, request):
     #     torch.rand(spec["npts"], device=device) + (w / 2 - 1) for d in range(ndim)
     # )
     # locs = torch.stack(locs, dim=-1).contiguous()
-    locs = get_valid_locs(locs_batch_size, grid_size, ndim, width, device)
+    if padding_mode == "zero":
+        locs = get_valid_locs(locs_batch_size, grid_size, ndim, width, device)
+    elif padding_mode == "circular":
+        locs = get_valid_locs(
+            locs_batch_size, grid_size, ndim, width, device, valid=False
+        )
 
-    interp = grid(vals, locs, grid_size, width=width, kernel=kernel_type)
+    interp = grid(
+        vals,
+        locs,
+        grid_size,
+        width=width,
+        kernel=kernel_type,
+        pad_mode=padding_mode,
+    )
 
     # Test against sigpy
     vals = from_pytorch(vals)

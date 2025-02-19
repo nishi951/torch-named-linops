@@ -382,3 +382,9 @@ def get_neighborhood(target, kernel_width, base_range):
     lower = tl.ceil(lower)
     lower = tl.cast(lower, tl.int32)
     return base_range + lower
+
+
+@triton.jit
+def mod_pos(t, n):
+    """Modulo but ensures positive return value"""
+    return tl.where(t >= 0, t % n, (t % n) + n)

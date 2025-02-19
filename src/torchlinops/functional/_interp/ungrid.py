@@ -17,6 +17,7 @@ from .kernels import (
     get_kernel_fn,
     _apply_default_kernel_params,
     KernelTypeStr,
+    mod_pos,
 )
 from ._batch import batch_iterator
 
@@ -34,7 +35,7 @@ def ungrid(
     width: float | tuple[float, ...],
     kernel: str = "kaiser_bessel",
     norm: str = "1",
-    pad_mode: str = "circular",
+    pad_mode: Literal["zero", "circular"] = "circular",
     kernel_params: dict = None,
 ):
     """Interpolate from on-grid values to off-grid locations.
@@ -157,7 +158,7 @@ def _ungrid1d(
     KERNEL: tl.constexpr,
     NORM: tl.constexpr,
     PAD_MODE: tl.constexpr,
-    is_complex,  # bool
+    is_complex: tl.constexpr,  # bool
     x_size,
     x_kernel_width,
     X_BLOCK_WIDTH: tl.constexpr,
@@ -248,7 +249,7 @@ def _ungrid2d(
     KERNEL: tl.constexpr,
     NORM: tl.constexpr,
     PAD_MODE: tl.constexpr,
-    is_complex,  # bool
+    is_complex: tl.constexpr,  # bool
     # Size of grid
     x_size,
     y_size,
@@ -367,7 +368,7 @@ def _ungrid3d(
     KERNEL: tl.constexpr,
     NORM: tl.constexpr,
     PAD_MODE: tl.constexpr,
-    is_complex,  # bool
+    is_complex: tl.constexpr,  # bool
     # Size of grid
     x_size,
     y_size,
@@ -492,20 +493,6 @@ def _ungrid3d(
                 tl.store(out_ptr + out_batch_offset + p, out)
 
 
-@triton.jit
-def get_neighborhood(target, kernel_width, base_range):
-    lower = target - (kernel_width / 2.0)
-    lower = tl.ceil(lower)
-    lower = tl.cast(lower, tl.int32)
-    return base_range + lower
-
-
-@triton.jit
-def mod_pos(t, n):
-    """Modulo but ensures positive return value"""
-    return tl.where(t >= 0, t % n, (t % n) + n)
-
-
 UNGRID = {1: _ungrid1d, 2: _ungrid2d, 3: _ungrid3d}
 
 
@@ -562,7 +549,7 @@ def ungrid_torch(
     width: tuple[float, ...],
     kernel: str = "kaiser_bessel",
     norm: str = "1",
-    pad_mode: Literal["zero", "circular"] = "zero",
+    pad_mode: Literal["zero", "circular"] = "circular",
     batch_size: int = 2**20,
     **kernel_params,
 ):
@@ -572,7 +559,6 @@ def ungrid_torch(
 
     pad_mode : 'zero' or 'circular'
         Type of edge behavior to use
-        Triton kernels do zero padding by default
     batch size : int
         number of points to compute over at once
     """
