@@ -13,7 +13,7 @@ __all__ = ["PadLast"]
 
 
 class PadLast(NamedLinop):
-    """Pad the last dimensions of the input volume
+    """Zero Pad the last dimensions of the input volume
     ishape: [B... Nx Ny [Nz]]
     oshape: [B... Nx1 Ny1 [Nz1]]
 
