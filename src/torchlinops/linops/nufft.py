@@ -59,11 +59,6 @@ class NUFFT(Chain):
         padded_size = [int(i * oversamp) for i in grid_size]
         beta = self.beta(width, oversamp)
 
-        # Create Apodization
-        weight = self._apodize_weights(grid_size, padded_size, oversamp, width, beta)
-        apodize = Diagonal(weight, batched_input_shape.ishape)
-        apodize.name = "Apodize"
-
         # Create Padding
         pad = PadLast(
             padded_size,
@@ -87,6 +82,14 @@ class NUFFT(Chain):
         )
         grid_shape = fft._shape.output_grid_shape
         if mode == "interpolate":
+            # Create Apodization
+            weight = self._apodize_weights(
+                grid_size, padded_size, oversamp, width, beta
+            )
+            apodize = Diagonal(weight, batched_input_shape.ishape)
+            apodize.name = "Apodize"
+
+            # Create Interpolator
             interp = Interpolate(
                 locs_scaled_shifted,
                 padded_size,
@@ -97,7 +100,9 @@ class NUFFT(Chain):
                 kernel="kaiser_bessel",
                 beta=beta,
             )
+            linops = [apodize, pad, fft, interp]
         elif mode == "sampling":
+            # No apodization needed
             if torch.is_floating_point(locs_scaled_shifted):
                 warn(f"Initializing sampling-type nufft with floating point `locs`.")
             interp = Sampling.from_stacked_idx(
@@ -109,15 +114,15 @@ class NUFFT(Chain):
                 input_shape=grid_shape,
                 batch_shape=batch_shape,
             )
+            linops = [pad, fft, interp]
+        else:
+            raise ValueError(f"Unrecognized NUFFT mode: {mode}")
 
         # Create scaling
         scale_factor = width**ndim * (prod(grid_size) / prod(padded_size)) ** 0.5
         scale = Scalar(weight=1.0 / scale_factor, ioshape=interp.oshape)
+        linops.append(scale)
 
-        # from .breakpt import BreakpointLinop
-
-        # bp = BreakpointLinop()
-        linops = [apodize, pad, fft, interp, scale]
         super().__init__(*linops, name="NUFFT")
         # Useful parameters to save
         self.locs = locs
