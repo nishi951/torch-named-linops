@@ -45,6 +45,12 @@ def ungrid(
         if 1, computes weights as product of axis-aligned norm weights
             - Same as sigpy
     """
+    # Check for contiguity
+    if not vals.is_contiguous() and locs.is_contiguous():
+        raise ValueError(
+            f"Both vals and locs should be contiguous but got vals.is_contiguous()={vals.is_contiguous()} and locs.is_contiguous()={locs.is_contiguous()}"
+        )
+
     kernel_params = {} if kernel_params is None else kernel_params
     vals_flat, locs, shapes = prep_ungrid_shapes(vals, locs, width)
     kernel_params = _apply_default_kernel_params(kernel, kernel_params)
