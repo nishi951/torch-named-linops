@@ -499,6 +499,71 @@ def _ungrid3d(
                 tl.store(out_ptr + out_batch_offset + p, out)
 
 
+# @triton.heuristics(
+#     values={
+#         "pts_per_grid": lambda args: max(
+#             1, triton.cdiv(args["npts"] * args["nbatch"], TRITON_MAX_GRID_SIZE)
+#         ),
+#     },
+# )
+# @triton.jit
+# def _ungridnd(
+#     in_ptr,
+#     pts_ptr,
+#     out_ptr,
+#     size_ptr,
+#     kernel_width_ptr,
+#     nbatch,
+#     npts,
+#     KERNEL,
+#     NORM,
+#     PAD_MODE,
+#     is_complex,  # bool
+#     BLOCK_WIDTH,
+#     pts_per_grid,  # Determined via heuristic
+#     beta,  # For kernel=kaiser_bessel
+# ):
+#     """
+#     Recursive version
+#     """
+#     ...
+
+
+# @triton.jit
+# def ungrid_nd_helper(
+#     in_ptr, kernel_width_ptr, size_ptr, dim, BLOCK_WIDTH, KERNEL, beta
+# ):
+#     kernel_width = tl.load(kernel_width_ptr)
+#     size = tl.load(size_ptr)
+#     vals = tl.zeros(BLOCK_WIDTH)
+#     if dim == 1:
+#         load_range = tl.arange(0, BLOCK_WIDTH)
+#         vals = tl.load(in_ptr + load_range)
+#     else:
+#         for i in range(kernel_width):
+#             val = ungrid_nd_helper(
+#                 in_ptr + i * size,
+#                 kernel_width_ptr + 1,
+#                 size_ptr + 1,
+#                 dim - 1,
+#                 KERNEL,
+#                 beta,
+#             )
+#             # Jank version of "append"
+#             vals += val * one_hot(i, BLOCK_WIDTH)
+#
+#     # Run normal 1d ungrid
+#     target = tl.load(pts_ptr + p)
+#     weights, x_range, x_mask = weights1d(target, kernel_width, base_range, KERNEL, beta)
+#     # TODO: return dot product of vals and weights
+
+
+@triton.jit
+def one_hot(i, BLOCK_WIDTH: tl.constexpr, dtype: tl.constexpr = tl.float32):
+    idx = tl.arange(0, BLOCK_WIDTH)
+    return tl.where(idx == i, 1, 0).to(dtype)
+
+
 UNGRID = {1: _ungrid1d, 2: _ungrid2d, 3: _ungrid3d}
 
 
