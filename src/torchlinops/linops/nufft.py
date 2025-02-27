@@ -78,10 +78,10 @@ class NUFFT(Chain):
 
         # Create Interpolator
         grid_shape = fft._shape.output_grid_shape
+        locs_scaled_shifted = self.scale_and_shift_locs(
+            locs.clone(), grid_size, padded_size
+        )
         if mode == "interpolate":
-            locs_scaled_shifted = self.scale_and_shift_locs(
-                locs.clone(), grid_size, padded_size
-            )
             # Create Apodization
             weight = self._apodize_weights(
                 grid_size, padded_size, oversamp, width, beta
@@ -105,11 +105,15 @@ class NUFFT(Chain):
             scale = Scalar(weight=1.0 / scale_factor, ioshape=interp.oshape)
             linops = [apodize, pad, fft, interp, scale]
         elif mode == "sampling":
-            # No apodization or scaling needed
-            if torch.is_floating_point(locs):
-                warn(f"Initializing sampling-type nufft with floating point `locs`.")
+            # Clamp to within range
+            device = locs_scaled_shifted.device
+            locs_scaled_shifted = torch.clamp(
+                locs_scaled_shifted,
+                torch.tensor(0.0, device=device),
+                torch.tensor(padded_size, device=device) - 1,
+            )
             interp = Sampling.from_stacked_idx(
-                locs,
+                locs_scaled_shifted.long(),
                 dim=-1,
                 # Arguments for Sampling
                 input_size=padded_size,
@@ -117,6 +121,7 @@ class NUFFT(Chain):
                 input_shape=grid_shape,
                 batch_shape=batch_shape,
             )
+            # No apodization or scaling needed
             linops = [pad, fft, interp]
         else:
             raise ValueError(f"Unrecognized NUFFT mode: {mode}")
