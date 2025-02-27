@@ -45,6 +45,12 @@ def ungrid(
         if 1, computes weights as product of axis-aligned norm weights
             - Same as sigpy
     """
+    # Check for contiguity
+    if not vals.is_contiguous() and locs.is_contiguous():
+        raise ValueError(
+            f"Both vals and locs should be contiguous but got vals.is_contiguous()={vals.is_contiguous()} and locs.is_contiguous()={locs.is_contiguous()}"
+        )
+
     kernel_params = {} if kernel_params is None else kernel_params
     vals_flat, locs, shapes = prep_ungrid_shapes(vals, locs, width)
     kernel_params = _apply_default_kernel_params(kernel, kernel_params)
@@ -491,6 +497,71 @@ def _ungrid3d(
                 # Process jointly
                 out = tl.sum(weights * grid)
                 tl.store(out_ptr + out_batch_offset + p, out)
+
+
+# @triton.heuristics(
+#     values={
+#         "pts_per_grid": lambda args: max(
+#             1, triton.cdiv(args["npts"] * args["nbatch"], TRITON_MAX_GRID_SIZE)
+#         ),
+#     },
+# )
+# @triton.jit
+# def _ungridnd(
+#     in_ptr,
+#     pts_ptr,
+#     out_ptr,
+#     size_ptr,
+#     kernel_width_ptr,
+#     nbatch,
+#     npts,
+#     KERNEL,
+#     NORM,
+#     PAD_MODE,
+#     is_complex,  # bool
+#     BLOCK_WIDTH,
+#     pts_per_grid,  # Determined via heuristic
+#     beta,  # For kernel=kaiser_bessel
+# ):
+#     """
+#     Recursive version
+#     """
+#     ...
+
+
+# @triton.jit
+# def ungrid_nd_helper(
+#     in_ptr, kernel_width_ptr, size_ptr, dim, BLOCK_WIDTH, KERNEL, beta
+# ):
+#     kernel_width = tl.load(kernel_width_ptr)
+#     size = tl.load(size_ptr)
+#     vals = tl.zeros(BLOCK_WIDTH)
+#     if dim == 1:
+#         load_range = tl.arange(0, BLOCK_WIDTH)
+#         vals = tl.load(in_ptr + load_range)
+#     else:
+#         for i in range(kernel_width):
+#             val = ungrid_nd_helper(
+#                 in_ptr + i * size,
+#                 kernel_width_ptr + 1,
+#                 size_ptr + 1,
+#                 dim - 1,
+#                 KERNEL,
+#                 beta,
+#             )
+#             # Jank version of "append"
+#             vals += val * one_hot(i, BLOCK_WIDTH)
+#
+#     # Run normal 1d ungrid
+#     target = tl.load(pts_ptr + p)
+#     weights, x_range, x_mask = weights1d(target, kernel_width, base_range, KERNEL, beta)
+#     # TODO: return dot product of vals and weights
+
+
+@triton.jit
+def one_hot(i, BLOCK_WIDTH: tl.constexpr, dtype: tl.constexpr = tl.float32):
+    idx = tl.arange(0, BLOCK_WIDTH)
+    return tl.where(idx == i, 1, 0).to(dtype)
 
 
 UNGRID = {1: _ungrid1d, 2: _ungrid2d, 3: _ungrid3d}

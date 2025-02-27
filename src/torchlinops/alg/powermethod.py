@@ -4,7 +4,7 @@ from torch import Tensor
 import torch
 from tqdm import tqdm
 
-from torchmri.utils import default_to
+from torchlinops.utils import default_to_dict
 
 
 __all__ = ["power_method"]
@@ -20,18 +20,29 @@ def power_method(
     tol: float = 1e-5,
     dim: Optional[int | Tuple] = None,
     tqdm_kwargs: Optional[dict] = None,
-):
-    """Finds the maximum eigenvalue of positive semidefinite matrix A
+) -> tuple[Tensor, Tensor]:
+    """Finds the maximum eigenvalue (in absolute value) of square matrix A
 
-    dims : Optional[int | Tuple]
+    Parameters
+    ----------
+    dim : Optional[int | Tuple]
         If not None, compute eigenvalues along only that dimension
+        Enables batched power method over several stacked matrices
 
+    Returns
+    -------
+    Tensor : The eigenvector
+    Tensor : its associated eigenvalue
 
     """
     # Default values
-    tqdm_kwargs = default_to({"desc": "Power Method"}, tqdm_kwargs)
-    v = default_to(torch.randn(ishape, dtype=torch.complex64, device=device), v_init)
+    tqdm_kwargs = default_to_dict(dict(desc="Power Method"), tqdm_kwargs)
+    if v_init is None:
+        v = torch.randn(ishape, dtype=torch.complex64, device=device)
+    else:
+        v = v_init.clone()
 
+    # Initialize
     vnorm = torch.linalg.vector_norm(v, dim=dim, keepdim=True)
     v = v / (vnorm + eps)
     pbar = tqdm(range(max_iters), total=max_iters, **tqdm_kwargs)
