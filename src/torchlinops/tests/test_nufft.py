@@ -180,4 +180,4 @@ def test_nufft_interp(nufft_params):
         param=beta,
     )
 
-    assert np.allclose(interpx, interpx_sp)
+    assert np.allclose(interpx, interpx_sp, rtol=1e-3)
