@@ -1,6 +1,7 @@
 from typing import Optional
 from torch import Tensor
 
+import torch
 import torch.nn as nn
 
 from .namedlinop import NamedLinop
@@ -50,6 +51,11 @@ class Sampling(NamedLinop):
                 f"Output shape {output_shape} doesn't correspond to idx with shape {len(idx)}"
             )
         idx = ensure_tensor_indexing(idx, self.input_size)
+        for d, (t, s) in enumerate(zip(idx, self.input_size)):
+            if (t < 0).any() or (t >= s).any():
+                raise ValueError(
+                    f"Sampling index must lie within range [0, {s - 1}] but got range [{t.min().item()}, {t.max().item()}] for dim {d}"
+                )
         self.idx = nn.ParameterList([nn.Parameter(i, requires_grad=False) for i in idx])
 
     @classmethod

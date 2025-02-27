@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import torch
 from tqdm import tqdm
 
-from torchmri.utils import default_to, zdot
+from torchlinops.utils import default_to_dict, inner as zdot
 
 __all__ = ["cg"]
 
@@ -19,7 +19,7 @@ def cg(
     gtol: float = 1e-3,
     ltol: float = 1e-5,
     disable_tracking: bool = False,
-    **tqdm_kwargs,
+    tqdm_kwargs: Optional[dict] = None,
 ):
     """Solve Ax = y with conjugate gradients.
 
@@ -47,7 +47,14 @@ def cg(
     Tensor
         The result of conjugate gradient
     """
-    x = default_to(torch.zeros_like(y), x0)
+    # Default values
+    if x0 is None:
+        x = torch.zeros_like(y)
+    else:
+        x = x0.clone()
+    tqdm_kwargs = default_to_dict(dict(desc="CG", leave=False), tqdm_kwargs)
+
+    # Initialize run
     run = CGRun(ltol, gtol, A, y, disable=disable_tracking)
     run.update(x)
 

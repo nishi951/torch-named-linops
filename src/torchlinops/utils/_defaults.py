@@ -1,4 +1,4 @@
-__all__ = ["default_to"]
+__all__ = ["default_to", "default_to_dict"]
 
 
 def default_to(*vals, typecast: bool = False):
@@ -16,3 +16,20 @@ def default_to(*vals, typecast: bool = False):
             if typecast:
                 return typecls(val)
             return val
+
+
+def default_to_dict(*dicts) -> dict:
+    """Update a dict with default values progressively from left to right."""
+    if len(dicts) == 0:
+        return {}
+    out = {}
+    for d in dicts:
+        if d is None:
+            pass
+        elif not isinstance(d, dict):
+            raise ValueError(
+                f"Non-dictionary found during default dictionary creation: {d}"
+            )
+        else:
+            out.update(d)
+    return out

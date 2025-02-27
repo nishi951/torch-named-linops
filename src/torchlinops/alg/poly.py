@@ -20,7 +20,7 @@ from sympy import (
     integrate,
 )
 
-from torchlinops import NamedLinop, Identity
+from torchlinops.linops import NamedLinop, Identity
 
 __all__ = ["polynomial_preconditioner"]
 
