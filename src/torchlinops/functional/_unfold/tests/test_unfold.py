@@ -6,7 +6,7 @@ import torch
 import sigpy as sp
 
 from torchlinops.functional import unfold
-from torchlinops.functional._unfold.tests.utils import from_pytorch, to_pytorch
+from torchlinops.utils import from_pytorch, to_pytorch
 
 # Small, large x 1d, 2d, 3d
 # torch vs triton vs sigpy
@@ -52,3 +52,18 @@ def test_unfold(dev, dtype, spec, request):
     x = from_pytorch(x)
     y_sp = sp.array_to_blocks(x, spec["block_size"], spec["stride"])
     assert torch.allclose(y_th, to_pytorch(y_sp))
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_unfold_large_stride():
+    device = "cuda:0"
+    block_size = (10, 10, 10)
+    block_stride = (10, 10, 10)
+    im_size = (60, 60, 60)
+    for _ in range(20):
+        x = torch.randn(1, 5, *im_size, device=device, dtype=torch.complex64)
+        x = unfold(x, block_size, block_stride)
+        # x = F.blocks_to_array(x, im_size, block_size, block_stride)
