@@ -77,6 +77,7 @@ def _unfold(
 ) -> Shaped[Tensor, "B ..."]:
     """Implementation of unfold"""
     if x.is_cuda and ndim in UNFOLD.keys():
+        x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
             # Allocate output
             y = torch.zeros(
@@ -202,7 +203,11 @@ def _unfold1d(
 
 @triton.jit
 def load_subblock1d(in_blk_ptr, x_idx: int, X_BLOCK_SIZE: tl.constexpr):
-    return tl.load(in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE)))
+    return tl.load(
+        in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE)),
+        boundary_check=(1,),
+        padding_option="zero",
+    )
 
 
 @triton.heuristics(
@@ -309,7 +314,11 @@ def _unfold2d(
 
 @triton.jit
 def load_subblock2d(in_blk_ptr, x_idx, y_idx, X_BLOCK_SIZE, Y_BLOCK_SIZE):
-    return tl.load(in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE, y_idx * Y_BLOCK_SIZE)))
+    return tl.load(
+        in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE, y_idx * Y_BLOCK_SIZE)),
+        boundary_check=(1, 2),
+        padding_option="zero",
+    )
 
 
 @triton.heuristics(
@@ -464,7 +473,9 @@ def load_subblock3d(
     return tl.load(
         in_blk_ptr.advance(
             (0, x_idx * X_BLOCK_SIZE, y_idx * Y_BLOCK_SIZE, z_idx * Z_BLOCK_SIZE)
-        )
+        ),
+        boundary_check=(1, 2, 3),
+        padding_option="zero",
     )
 
 
