@@ -46,18 +46,20 @@ def to_pytorch(array, requires_grad: bool = False):
         PyTorch tensor.
 
     """
-    import torch
-    from torch.utils.dlpack import from_dlpack
+    return torch.as_tensor(array).requires_grad_(requires_grad)
 
-    device = get_device(array)
+    # import torch
+    # from torch.utils.dlpack import from_dlpack
 
-    if device.type == "cpu":
-        tensor = torch.from_numpy(array)
-    else:
-        tensor = from_dlpack(array.toDlpack())
+    # device = get_device(array)
 
-    tensor.requires_grad = requires_grad
-    return tensor.contiguous()
+    # if device.type == "cpu":
+    #     tensor = torch.from_numpy(array)
+    # else:
+    #     tensor = from_dlpack(array.toDlpack())
+
+    # tensor.requires_grad = requires_grad
+    # return tensor.contiguous()
 
 
 def from_pytorch(tensor):  # pragma: no cover
@@ -74,18 +76,30 @@ def from_pytorch(tensor):  # pragma: no cover
         Numpy/cupy array.
 
     """
-    from torch.utils.dlpack import to_dlpack
-
     device = tensor.device
     if device.type == "cpu":
         output = tensor.detach().contiguous().numpy()
     else:
         if cupy_enabled:
-            output = cp.from_dlpack(to_dlpack(tensor.contiguous()))
+            output = cp.asarray(tensor)
         else:
             raise TypeError(
-                "CuPy not installed, " "but trying to convert GPU PyTorch Tensor."
+                "CuPy not installed, but trying to convert GPU PyTorch Tensor."
             )
+    return output
+
+    # from torch.utils.dlpack import to_dlpack
+
+    # device = tensor.device
+    # if device.type == "cpu":
+    #     output = tensor.detach().contiguous().numpy()
+    # else:
+    #     if cupy_enabled:
+    #         output = cp.from_dlpack(to_dlpack(tensor.contiguous()))
+    #     else:
+    #         raise TypeError(
+    #             "CuPy not installed, " "but trying to convert GPU PyTorch Tensor."
+    #         )
 
     # No longer necessary
     # if iscomplex:
@@ -101,7 +115,7 @@ def from_pytorch(tensor):  # pragma: no cover
 
     #         output = output.reshape(output.shape[:-1])
 
-    return output
+    # return output
 
 
 def to_pytorch_function(linop):  # pragma: no cover

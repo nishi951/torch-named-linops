@@ -81,6 +81,7 @@ def _fold(
 ):
     """Implementation of fold"""
     if x.is_cuda and ndim in FOLD.keys():
+        x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
             # Allocate output
             y = torch.zeros(
@@ -151,6 +152,7 @@ def _fold1d(
     # Size of the triton block (power of 2)
     X_BLOCK_SIZE: tl.constexpr,
 ):
+    dtype = in_ptr.type.element_ty
     pid_0 = tl.program_id(0)
     x_blocks_per_batch = cdiv(x_size, X_BLOCK_SIZE)
 
@@ -170,7 +172,7 @@ def _fold1d(
     Bx_upper = cdiv(x_upper, x_stride)  # non-inclusive
 
     # Initialize output
-    output = tl.zeros((1, X_BLOCK_SIZE), tl.float32)
+    output = tl.zeros((1, X_BLOCK_SIZE), dtype)
     x_range = tl.arange(0, X_BLOCK_SIZE) + x_lower
     x_mask = x_range < x_size
     out_offset = N * size
@@ -231,6 +233,7 @@ def _fold2d(
     X_BLOCK_SIZE: tl.constexpr,
     Y_BLOCK_SIZE: tl.constexpr,
 ):
+    dtype = in_ptr.type.element_ty
     pid_0 = tl.program_id(0)
     pid_1 = tl.program_id(1)
     # x_blocks_per_batch = tl.ceil(x_size / X_BLOCK_SIZE)
@@ -257,7 +260,7 @@ def _fold2d(
     By_upper = cdiv(y_upper, y_stride)  # non-inclusive
 
     # Initialize output
-    output = tl.zeros((1, X_BLOCK_SIZE, Y_BLOCK_SIZE), tl.float32)
+    output = tl.zeros((1, X_BLOCK_SIZE, Y_BLOCK_SIZE), dtype)
     x_range = tl.arange(0, X_BLOCK_SIZE) + x_lower
     x_mask = x_range < x_size
     y_range = tl.arange(0, Y_BLOCK_SIZE) + y_lower
@@ -337,6 +340,7 @@ def _fold3d(
     Y_BLOCK_SIZE: tl.constexpr,
     Z_BLOCK_SIZE: tl.constexpr,
 ):
+    dtype = in_ptr.type.element_ty
     pid_0 = tl.program_id(0)
     pid_1 = tl.program_id(1)
     pid_2 = tl.program_id(2)
@@ -370,7 +374,7 @@ def _fold3d(
     Bz_upper = cdiv(z_upper, z_stride)  # non-inclusive
 
     # Initialize output
-    output = tl.zeros((1, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE), tl.float32)
+    output = tl.zeros((1, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE), dtype)
     x_range = tl.arange(0, X_BLOCK_SIZE) + x_lower
     x_mask = x_range < x_size
     y_range = tl.arange(0, Y_BLOCK_SIZE) + y_lower

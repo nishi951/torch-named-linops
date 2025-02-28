@@ -7,7 +7,7 @@ import sigpy as sp
 
 from torchlinops.functional import fold
 from torchlinops.functional._unfold.nblocks import get_nblocks
-from torchlinops.functional._unfold.tests.utils import from_pytorch, to_pytorch
+from torchlinops.utils import from_pytorch, to_pytorch
 
 
 PYTEST_GPU_MARKS = [
@@ -19,7 +19,7 @@ PYTEST_GPU_MARKS = [
 
 
 @pytest.mark.parametrize("dev", ["cpu", pytest.param("cuda", marks=PYTEST_GPU_MARKS)])
-@pytest.mark.parametrize("dtype", ["real", "complex"])
+@pytest.mark.parametrize("dtype", ["float32", "float64", "complex64"])
 @pytest.mark.parametrize(
     "spec",
     [
@@ -39,7 +39,12 @@ PYTEST_GPU_MARKS = [
 def test_fold(dev, dtype, spec, request):
     spec = request.getfixturevalue(spec)
     device = torch.device(dev)
-    dtype = torch.complex64 if dtype == "complex" else torch.float32
+    if dtype == "float32":
+        dtype = torch.float32
+    elif dtype == "float64":
+        dtype = torch.float64
+    elif dtype == "complex64":
+        dtype = torch.complex64
 
     spec["nblocks"] = get_nblocks(spec["shape"], spec["block_size"], spec["stride"])
 
