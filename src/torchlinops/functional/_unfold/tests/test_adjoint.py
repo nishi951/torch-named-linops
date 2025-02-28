@@ -1,6 +1,7 @@
 import pytest
 import torch
 
+from einops import rearrange
 from torchlinops.functional import unfold
 from torchlinops.functional import fold
 from torchlinops.functional._unfold.nblocks import get_nblocks
@@ -80,6 +81,33 @@ def test_norm_weights(dev, dtype, spec, request):
         spec["stride"],
     )
     assert torch.allclose(x, x2)
+
+
+@pytest.mark.slow
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_fold_unfold_large_stride_svd():
+    """Formerly caused issues from out-of-memory accesses"""
+    device = "cuda:0"
+    block_size = (10, 10, 10)
+    block_stride = (10, 10, 10)
+    im_size = (120, 120, 120)
+    for _ in range(20):
+        x = torch.randn(1, 5, *im_size, device=device, dtype=torch.complex64)
+        x = unfold(x, block_size, block_stride)
+        x = rearrange(x, f"n a ... b1 b2 b3 -> n ... (b1 b2 b3) a")
+        U, _, _ = torch.linalg.svd(x, full_matrices=False)
+        x = U
+        x = rearrange(
+            x,
+            f"n ... (b1 b2 b3) a -> n a ... b1 b2 b3",
+            b1=block_size[0],
+            b2=block_size[1],
+            b3=block_size[2],
+        )
+        x = fold(x, im_size, block_size, block_stride)
 
 
 def zdot(x, y):
