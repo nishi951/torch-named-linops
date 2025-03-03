@@ -10,7 +10,7 @@ import torch.nn as nn
 
 import torchlinops
 
-from .nameddim import NamedDimension as ND, NamedShape, NS
+from .nameddim import NamedDimension as ND, NamedShape, NS, NDorStr
 from torchlinops.utils import INDENT
 
 __all__ = ["NamedLinop"]
@@ -247,13 +247,13 @@ class NamedLinop(nn.Module):
 
     def __mul__(self, right):
         if isinstance(right, float) or isinstance(right, torch.Tensor):
-            right = torchlinops.Scalar(weight=right)
+            right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
             return self.compose(right)
         return NotImplemented
 
     def __rmul__(self, left):
         if isinstance(left, float) or isinstance(left, torch.Tensor):
-            left = torchlinops.Scalar(weight=left)
+            left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
             return left.compose(self)
         return NotImplemented
 

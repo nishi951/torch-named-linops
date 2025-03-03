@@ -1,3 +1,5 @@
+from typing import Optional
+
 from copy import copy
 from dataclasses import dataclass
 from typing import Any, Tuple, List
@@ -10,7 +12,7 @@ ANY = "()"
 
 
 # Convenience function
-def parse_dim_str(s: str) -> tuple[str]:
+def parse_dim_str(s: Optional[str] = None) -> tuple[str]:
     """
     Rules:
     - dim begins with an uppercase letter
@@ -25,7 +27,7 @@ def parse_dim_str(s: str) -> tuple[str]:
     >>> parse_dim_str("A1B2Kx1Ky2")
     ('A1', 'B2', 'Kx1', 'Ky2')
     """
-    if len(s) == 0:
+    if s is None or len(s) == 0:
         return tuple()
     parts = []
     current = s[0]
