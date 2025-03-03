@@ -166,7 +166,7 @@ def test_nufft_interp(nufft_params):
         grid_shape=None,
         width=width,
         kernel="kaiser_bessel",
-        beta=beta,
+        kernel_params=dict(beta=beta),
     )
 
     x = torch.randn(*padded_size, dtype=torch.complex64)

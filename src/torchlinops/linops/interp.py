@@ -7,7 +7,7 @@ from warnings import warn
 import torch.nn as nn
 
 import torchlinops.functional as F
-from torchlinops.utils import default_to
+from torchlinops.utils import default_to, default_to_dict
 
 from .namedlinop import NamedLinop
 from .nameddim import ELLIPSES, NS, Shape
@@ -28,7 +28,7 @@ class Interpolate(NamedLinop):
         kernel: str = "kaiser_bessel",
         norm: str = "1",
         pad_mode: str = "circular",
-        **kernel_params,
+        kernel_params: Optional[dict] = None,
     ):
         batch_shape = default_to(("...",), batch_shape)
         locs_batch_shape = default_to(("...",), locs_batch_shape)
@@ -42,6 +42,7 @@ class Interpolate(NamedLinop):
         self.grid_size = grid_size
 
         # Do this here instead of repeating it in both fn() and adjoint_fn()
+        kernel_params = default_to_dict(dict(beta=1.0), kernel_params)
         self._interp_params = {
             "width": width,
             "kernel": kernel,
