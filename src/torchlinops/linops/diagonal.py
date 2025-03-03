@@ -19,7 +19,7 @@ class Diagonal(NamedLinop):
         self,
         weight: torch.Tensor,
         ioshape: Shape,
-        broadcast_dims: Optional[list[str]] = None,
+        broadcast_dims: Optional[Shape] = None,
     ):
         if len(weight.shape) > len(ioshape):
             raise ValueError(

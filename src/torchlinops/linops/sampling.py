@@ -46,10 +46,10 @@ class Sampling(NamedLinop):
         self.register_shape("input_shape", input_shape)
         self.register_shape("output_shape", output_shape)
         self.register_shape("batch_shape", batch_shape)
-        if len(output_shape) != len(idx):
-            raise ValueError(
-                f"Output shape {output_shape} doesn't correspond to idx with shape {len(idx)}"
-            )
+        # if len(input_shape) != len(idx):
+        #     raise ValueError(
+        #         f"Input shape {input_shape} doesn't correspond to idx with shape {len(idx)}"
+        #     )
         idx = ensure_tensor_indexing(idx, self.input_size)
         for d, (t, s) in enumerate(zip(idx, self.input_size)):
             if (t < 0).any() or (t >= s).any():
@@ -94,7 +94,7 @@ class Sampling(NamedLinop):
         )
 
     def split_forward_fn(self, ibatch, obatch, idx):
-        nM = len(idx)
+        nM = len(idx[0].shape)
         if nM > 0:
             idx_slc = list(obatch[-nM:])
             return [i[idx_slc] for i in idx]

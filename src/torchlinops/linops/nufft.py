@@ -81,6 +81,12 @@ class NUFFT(Chain):
         locs_scaled_shifted = self.scale_and_shift_locs(
             locs.clone(), grid_size, padded_size
         )
+        device = locs_scaled_shifted.device
+        locs_scaled_shifted = torch.clamp(
+            locs_scaled_shifted,
+            torch.tensor(0.0, device=device),
+            torch.tensor(padded_size, device=device) - 1,
+        )
         if mode == "interpolate":
             # Create Apodization
             weight = self._apodize_weights(
@@ -106,12 +112,6 @@ class NUFFT(Chain):
             linops = [apodize, pad, fft, interp, scale]
         elif mode == "sampling":
             # Clamp to within range
-            device = locs_scaled_shifted.device
-            locs_scaled_shifted = torch.clamp(
-                locs_scaled_shifted,
-                torch.tensor(0.0, device=device),
-                torch.tensor(padded_size, device=device) - 1,
-            )
             interp = Sampling.from_stacked_idx(
                 locs_scaled_shifted.long(),
                 dim=-1,
@@ -154,12 +154,12 @@ class NUFFT(Chain):
         """
         Assumes centered locs
         """
-        locs_bound = torch.tensor(grid_size, device=locs.device) / 2
-        max_loc_vals = torch.amax(locs.abs(), dim=tuple(range(locs.ndim - 1)))
-        if (max_loc_vals > locs_bound).any():
-            raise ValueError(
-                f"Locs maximum values {max_loc_vals} fall outside bounds +/- {locs_bound}"
-            )
+        # locs_bound = torch.tensor(grid_size, device=locs.device) / 2
+        # max_loc_vals = torch.amax(locs.abs(), dim=tuple(range(locs.ndim - 1)))
+        # if (max_loc_vals > locs_bound).any():
+        #     raise ValueError(
+        #         f"Locs maximum values {max_loc_vals} fall outside bounds +/- {locs_bound}"
+        #     )
         out = locs.clone()
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
@@ -210,9 +210,21 @@ class NUFFT(Chain):
     #     return NotImplemented
 
     def split_forward(self, ibatches, obatches):
-        chain = super().split_forward(ibatches, obatches)
+        if len(ibatches) > 1 or len(obatches) > 1:
+            raise ValueError(
+                f"Got improper number of input and output batches for flattened chain linop {self}: ibatches: {ibatches}, obatches: {obatches}"
+            )
+        ibatch, obatch = ibatches[0], obatches[0]
+        # Create ibatches and obatches from ibatch, obatch
+        ibatch_lookup = {d: slc for d, slc in zip(self.ishape, ibatch)}
+        obatch_lookup = {d: slc for d, slc in zip(self.oshape, obatch)}
+        split_linops = []
+        for linop in self.linops:
+            sub_ibatch = [ibatch_lookup.get(dim, slice(None)) for dim in linop.ishape]
+            sub_obatch = [obatch_lookup.get(dim, slice(None)) for dim in linop.oshape]
+            split_linops.append(linop.split_forward(sub_ibatch, sub_obatch))
         out = copy(self)
-        out.linops = chain.linops
+        out.linops = nn.ModuleList(split_linops)
         return out
 
     def flatten(self):
