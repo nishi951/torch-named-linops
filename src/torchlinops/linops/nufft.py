@@ -57,7 +57,6 @@ class NUFFT(Chain):
         # Initialize variables
         ndim = len(grid_size)
         padded_size = [int(i * oversamp) for i in grid_size]
-        beta = self.beta(width, oversamp)
 
         # Create Padding
         pad = PadLast(
@@ -88,6 +87,7 @@ class NUFFT(Chain):
             torch.tensor(padded_size, device=device) - 1,
         )
         if mode == "interpolate":
+            beta = self.beta(width, oversamp)
             # Create Apodization
             weight = self._apodize_weights(
                 grid_size, padded_size, oversamp, width, beta
@@ -104,7 +104,7 @@ class NUFFT(Chain):
                 grid_shape=grid_shape,
                 width=width,
                 kernel="kaiser_bessel",
-                beta=beta,
+                kernel_params=dict(beta=beta),
             )
             # Create scaling
             scale_factor = width**ndim * (prod(grid_size) / prod(padded_size)) ** 0.5
