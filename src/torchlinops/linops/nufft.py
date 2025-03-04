@@ -39,10 +39,17 @@ class NUFFT(Chain):
         oversamp: float = 1.25,
         width: float = 4.0,
         mode: Literal["interpolate", "sampling"] = "interpolate",
+        do_prep_locs: bool = True,
         **options,
     ):
         """
         mode : "interpolate" or "sampling"
+        do_prep_locs : bool, default True
+            Whether to scale, shift, and clamp the locs to be amenable to interpolation
+            By default (=True), assumes the locs lie in [-N/2, N/2]
+                Scales, shifts and clamps them them to [0, oversamp*N - 1]
+
+            If False, does not do this, which can have some benefits for memory reasons
 
         """
         device = locs.device
@@ -78,15 +85,10 @@ class NUFFT(Chain):
 
         # Create Interpolator
         grid_shape = fft._shape.output_grid_shape
-        locs_scaled_shifted = self.scale_and_shift_locs(
-            locs.clone(), grid_size, padded_size
-        )
-        device = locs_scaled_shifted.device
-        locs_scaled_shifted = torch.clamp(
-            locs_scaled_shifted,
-            torch.tensor(0.0, device=device),
-            torch.tensor(padded_size, device=device) - 1,
-        )
+        if do_prep_locs:
+            locs_prepared = self.prep_locs(locs.clone(), grid_size, padded_size)
+        else:
+            locs_prepared = locs
         if mode == "interpolate":
             beta = self.beta(width, oversamp)
             # Create Apodization
@@ -98,7 +100,7 @@ class NUFFT(Chain):
 
             # Create Interpolator
             interp = Interpolate(
-                locs_scaled_shifted,
+                locs_prepared,
                 padded_size,
                 batch_shape=batch_shape,
                 locs_batch_shape=output_shape,
@@ -115,7 +117,7 @@ class NUFFT(Chain):
         elif mode == "sampling":
             # Clamp to within range
             interp = Sampling.from_stacked_idx(
-                locs_scaled_shifted.long(),
+                locs_prepared.long(),
                 dim=-1,
                 # Arguments for Sampling
                 input_size=padded_size,
@@ -148,7 +150,7 @@ class NUFFT(Chain):
         return normal
 
     @staticmethod
-    def scale_and_shift_locs(
+    def prep_locs(
         locs: Shaped[Tensor, "... D"],
         grid_size: tuple,
         padded_size: tuple,
@@ -156,16 +158,11 @@ class NUFFT(Chain):
         """
         Assumes centered locs
         """
-        # locs_bound = torch.tensor(grid_size, device=locs.device) / 2
-        # max_loc_vals = torch.amax(locs.abs(), dim=tuple(range(locs.ndim - 1)))
-        # if (max_loc_vals > locs_bound).any():
-        #     raise ValueError(
-        #         f"Locs maximum values {max_loc_vals} fall outside bounds +/- {locs_bound}"
-        #     )
         out = locs.clone()
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
             out[..., i] += padded_size[i] // 2
+            out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
         return out.to(locs.dtype)
 
     @staticmethod

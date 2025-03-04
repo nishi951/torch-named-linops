@@ -139,7 +139,7 @@ def test_scale_locs(nufft_params):
 
     # Torch version
     locs = nufft_params["locs"]
-    locs_scaled = NUFFT.scale_and_shift_locs(locs, grid_size, padded_size)
+    locs_scaled = NUFFT.prep_locs(locs, grid_size, padded_size)
 
     coord = locs.clone().numpy()
     sz = np.array(grid_size)
@@ -155,11 +155,9 @@ def test_nufft_interp(nufft_params):
     oversamp = nufft_params["oversamp"]
     beta = NUFFT.beta(width, oversamp)
 
-    locs_scaled_shifted = NUFFT.scale_and_shift_locs(
-        locs.clone(), grid_size, padded_size
-    )
+    locs_prepared = NUFFT.prep_locs(locs.clone(), grid_size, padded_size)
     interp = Interpolate(
-        locs_scaled_shifted,
+        locs_prepared,
         padded_size,
         batch_shape=None,
         locs_batch_shape=None,
@@ -174,7 +172,7 @@ def test_nufft_interp(nufft_params):
 
     interpx_sp = sp.interp.interpolate(
         x.numpy(),
-        locs_scaled_shifted.numpy(),
+        locs_prepared.numpy(),
         kernel="kaiser_bessel",
         width=width,
         param=beta,
