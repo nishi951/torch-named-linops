@@ -40,6 +40,7 @@ class NUFFT(Chain):
         width: float = 4.0,
         mode: Literal["interpolate", "sampling"] = "interpolate",
         do_prep_locs: bool = True,
+        apodize_weights: Optional[Float[Tensor, "..."]] = None,
         **options,
     ):
         """
@@ -48,8 +49,11 @@ class NUFFT(Chain):
             Whether to scale, shift, and clamp the locs to be amenable to interpolation
             By default (=True), assumes the locs lie in [-N/2, N/2]
                 Scales, shifts and clamps them them to [0, oversamp*N - 1]
-
             If False, does not do this, which can have some benefits for memory reasons
+        apodize_weights : Optional[Tensor]
+            Provide apodization weights
+            Only relevant for "intepolate" mode
+            Can have memory benefits
 
         """
         device = locs.device
@@ -86,15 +90,18 @@ class NUFFT(Chain):
         # Create Interpolator
         grid_shape = fft._shape.output_grid_shape
         if do_prep_locs:
-            locs_prepared = self.prep_locs(locs.clone(), grid_size, padded_size)
+            locs_prepared = self.prep_locs(locs, grid_size, padded_size)
         else:
             locs_prepared = locs
         if mode == "interpolate":
             beta = self.beta(width, oversamp)
             # Create Apodization
-            weight = self._apodize_weights(
-                grid_size, padded_size, oversamp, width, beta
-            ).to(device)  # Helps with batching later
+            if apodize_weights is None:
+                weight = self.apodize_weights(
+                    grid_size, padded_size, oversamp, width, beta
+                ).to(device)  # Helps with batching later
+            else:
+                weight = apodize_weights
             apodize = Diagonal(weight, batched_input_shape.ishape)
             apodize.name = "Apodize"
 
@@ -178,7 +185,7 @@ class NUFFT(Chain):
         return torch.pi * (((width / oversamp) * (oversamp - 0.5)) ** 2 - 0.8) ** 0.5
 
     @staticmethod
-    def _apodize_weights(grid_size, padded_size, oversamp, width: float, beta: float):
+    def apodize_weights(grid_size, padded_size, oversamp, width: float, beta: float):
         grid_size = torch.tensor(grid_size)
         padded_size = torch.tensor(padded_size)
         grid = torch.meshgrid(*(torch.arange(s) for s in grid_size), indexing="ij")
