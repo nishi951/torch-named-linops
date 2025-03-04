@@ -14,6 +14,8 @@ __all__ = ["PadLast"]
 
 class PadLast(NamedLinop):
     """Zero Pad the last dimensions of the input volume
+    Padding is centered:
+    - TODO: support non-centered padding?
     ishape: [B... Nx Ny [Nz]]
     oshape: [B... Nx1 Ny1 [Nz1]]
 
