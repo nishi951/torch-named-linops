@@ -45,6 +45,7 @@ class NUFFT(Chain):
         mode : "interpolate" or "sampling"
 
         """
+        device = locs.device
         # Infer shapes
         input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
         input_kshape = ND.infer(
@@ -91,7 +92,7 @@ class NUFFT(Chain):
             # Create Apodization
             weight = self._apodize_weights(
                 grid_size, padded_size, oversamp, width, beta
-            )
+            ).to(device)  # Helps with batching later
             apodize = Diagonal(weight, batched_input_shape.ishape)
             apodize.name = "Apodize"
 
@@ -109,6 +110,7 @@ class NUFFT(Chain):
             # Create scaling
             scale_factor = width**ndim * (prod(grid_size) / prod(padded_size)) ** 0.5
             scale = Scalar(weight=1.0 / scale_factor, ioshape=interp.oshape)
+            scale.to(device)  # Helps with batching later
             linops = [apodize, pad, fft, interp, scale]
         elif mode == "sampling":
             # Clamp to within range
