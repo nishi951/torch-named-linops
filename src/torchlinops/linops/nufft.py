@@ -161,6 +161,7 @@ class NUFFT(Chain):
         locs: Shaped[Tensor, "... D"],
         grid_size: tuple,
         padded_size: tuple,
+        pad_mode: Literal["zero", "circular"] = "circular",
     ):
         """
         Assumes centered locs
@@ -168,8 +169,13 @@ class NUFFT(Chain):
         out = locs.clone()
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
-            out[..., i] += padded_size[i] // 2
-            out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
+            out[..., i] += padded_size[i] / 2
+            if pad_mode == "zero":
+                out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
+            elif pad_mode == "circular":
+                out[..., i] = torch.remainder(out[..., i], torch.tensor(padded_size[i]))
+            else:
+                raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
         return out.to(locs.dtype)
 
     @staticmethod
