@@ -6,6 +6,7 @@ import traceback
 from pprint import pformat
 
 import torch
+import torch.nn as nn
 from tqdm import tqdm
 
 from .namedlinop import NamedLinop
@@ -58,7 +59,8 @@ class Batch(NamedLinop):
         self._linops = None
         self.batch_sizes = {ND.infer(k): v for k, v in self.batch_sizes.items()}
         self.sizes = self._precompute_sizes()
-        self._linops, self._input_batches, self._output_batches = self.make_tiles()
+        _linops, self._input_batches, self._output_batches = self.make_tiles()
+        self._linops = nn.ModuleList(_linops)
         self._shape = NS(self.linop.ishape, self.linop.oshape)
         super().reset_adjoint_and_normal()
         if self.post_batch_hook is not None:

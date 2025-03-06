@@ -43,6 +43,7 @@ def power_method(
         v = v_init.clone()
 
     # Initialize
+    A.to(device)
     vnorm = torch.linalg.vector_norm(v, dim=dim, keepdim=True)
     v = v / (vnorm + eps)
     pbar = tqdm(range(max_iters), total=max_iters, **tqdm_kwargs)
