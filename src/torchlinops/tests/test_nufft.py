@@ -112,7 +112,7 @@ def test_apodize(nufft_params):
     padded_size = nufft_params["padded_size"]
 
     beta = NUFFT.beta(width, oversamp)
-    apod = NUFFT._apodize_weights(grid_size, padded_size, oversamp, width, beta)
+    apod = NUFFT.apodize_weights(grid_size, padded_size, oversamp, width, beta)
 
     x = np.ones(grid_size)
     apod_sp = sp.fourier._apodize(x, len(grid_size), oversamp, width, beta)

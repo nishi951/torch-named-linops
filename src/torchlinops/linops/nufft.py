@@ -90,7 +90,9 @@ class NUFFT(Chain):
         # Create Interpolator
         grid_shape = fft._shape.output_grid_shape
         if do_prep_locs:
-            locs_prepared = self.prep_locs(locs, grid_size, padded_size)
+            locs_prepared = self.prep_locs(
+                locs, grid_size, padded_size, nufft_mode=mode
+            )
         else:
             locs_prepared = locs
         if mode == "interpolate":
@@ -162,6 +164,7 @@ class NUFFT(Chain):
         grid_size: tuple,
         padded_size: tuple,
         pad_mode: Literal["zero", "circular"] = "circular",
+        nufft_mode: Literal["interpolate", "sampling"] = "interpolate",
     ):
         """
         Assumes centered locs
@@ -173,7 +176,13 @@ class NUFFT(Chain):
             if pad_mode == "zero":
                 out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
             elif pad_mode == "circular":
-                out[..., i] = torch.remainder(out[..., i], torch.tensor(padded_size[i]))
+                if nufft_mode == "interpolate":
+                    out[..., i] = torch.remainder(
+                        out[..., i], torch.tensor(padded_size[i])
+                    )
+                elif nufft_mode == "sampling":
+                    out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
+                    out[..., i] = torch.round(out[..., i])
             else:
                 raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
         return out.to(locs.dtype)
