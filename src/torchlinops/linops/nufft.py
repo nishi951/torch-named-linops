@@ -39,12 +39,24 @@ class NUFFT(Chain):
         oversamp: float = 1.25,
         width: float = 4.0,
         mode: Literal["interpolate", "sampling"] = "interpolate",
+        do_prep_locs: bool = True,
+        apodize_weights: Optional[Float[Tensor, "..."]] = None,
         **options,
     ):
         """
         mode : "interpolate" or "sampling"
+        do_prep_locs : bool, default True
+            Whether to scale, shift, and clamp the locs to be amenable to interpolation
+            By default (=True), assumes the locs lie in [-N/2, N/2]
+                Scales, shifts and clamps them them to [0, oversamp*N - 1]
+            If False, does not do this, which can have some benefits for memory reasons
+        apodize_weights : Optional[Tensor]
+            Provide apodization weights
+            Only relevant for "intepolate" mode
+            Can have memory benefits
 
         """
+        device = locs.device
         # Infer shapes
         input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
         input_kshape = ND.infer(
@@ -57,7 +69,6 @@ class NUFFT(Chain):
         # Initialize variables
         ndim = len(grid_size)
         padded_size = [int(i * oversamp) for i in grid_size]
-        beta = self.beta(width, oversamp)
 
         # Create Padding
         pad = PadLast(
@@ -78,42 +89,44 @@ class NUFFT(Chain):
 
         # Create Interpolator
         grid_shape = fft._shape.output_grid_shape
-        locs_scaled_shifted = self.scale_and_shift_locs(
-            locs.clone(), grid_size, padded_size
-        )
-        if mode == "interpolate":
-            # Create Apodization
-            weight = self._apodize_weights(
-                grid_size, padded_size, oversamp, width, beta
+        if do_prep_locs:
+            locs_prepared = self.prep_locs(
+                locs, grid_size, padded_size, nufft_mode=mode
             )
+        else:
+            locs_prepared = locs
+        if mode == "interpolate":
+            beta = self.beta(width, oversamp)
+            # Create Apodization
+            if apodize_weights is None:
+                weight = self.apodize_weights(
+                    grid_size, padded_size, oversamp, width, beta
+                ).to(device)  # Helps with batching later
+            else:
+                weight = apodize_weights
             apodize = Diagonal(weight, batched_input_shape.ishape)
             apodize.name = "Apodize"
 
             # Create Interpolator
             interp = Interpolate(
-                locs_scaled_shifted,
+                locs_prepared,
                 padded_size,
                 batch_shape=batch_shape,
                 locs_batch_shape=output_shape,
                 grid_shape=grid_shape,
                 width=width,
                 kernel="kaiser_bessel",
-                beta=beta,
+                kernel_params=dict(beta=beta),
             )
             # Create scaling
             scale_factor = width**ndim * (prod(grid_size) / prod(padded_size)) ** 0.5
             scale = Scalar(weight=1.0 / scale_factor, ioshape=interp.oshape)
+            scale.to(device)  # Helps with batching later
             linops = [apodize, pad, fft, interp, scale]
         elif mode == "sampling":
             # Clamp to within range
-            device = locs_scaled_shifted.device
-            locs_scaled_shifted = torch.clamp(
-                locs_scaled_shifted,
-                torch.tensor(0.0, device=device),
-                torch.tensor(padded_size, device=device) - 1,
-            )
             interp = Sampling.from_stacked_idx(
-                locs_scaled_shifted.long(),
+                locs_prepared.long(),
                 dim=-1,
                 # Arguments for Sampling
                 input_size=padded_size,
@@ -146,24 +159,32 @@ class NUFFT(Chain):
         return normal
 
     @staticmethod
-    def scale_and_shift_locs(
+    def prep_locs(
         locs: Shaped[Tensor, "... D"],
         grid_size: tuple,
         padded_size: tuple,
+        pad_mode: Literal["zero", "circular"] = "circular",
+        nufft_mode: Literal["interpolate", "sampling"] = "interpolate",
     ):
         """
         Assumes centered locs
         """
-        locs_bound = torch.tensor(grid_size, device=locs.device) / 2
-        max_loc_vals = torch.amax(locs.abs(), dim=tuple(range(locs.ndim - 1)))
-        if (max_loc_vals > locs_bound).any():
-            raise ValueError(
-                f"Locs maximum values {max_loc_vals} fall outside bounds +/- {locs_bound}"
-            )
         out = locs.clone()
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
-            out[..., i] += padded_size[i] // 2
+            out[..., i] += padded_size[i] / 2
+            if pad_mode == "zero":
+                out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
+            elif pad_mode == "circular":
+                if nufft_mode == "interpolate":
+                    out[..., i] = torch.remainder(
+                        out[..., i], torch.tensor(padded_size[i])
+                    )
+                elif nufft_mode == "sampling":
+                    out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
+                    out[..., i] = torch.round(out[..., i])
+            else:
+                raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
         return out.to(locs.dtype)
 
     @staticmethod
@@ -179,7 +200,7 @@ class NUFFT(Chain):
         return torch.pi * (((width / oversamp) * (oversamp - 0.5)) ** 2 - 0.8) ** 0.5
 
     @staticmethod
-    def _apodize_weights(grid_size, padded_size, oversamp, width: float, beta: float):
+    def apodize_weights(grid_size, padded_size, oversamp, width: float, beta: float):
         grid_size = torch.tensor(grid_size)
         padded_size = torch.tensor(padded_size)
         grid = torch.meshgrid(*(torch.arange(s) for s in grid_size), indexing="ij")
@@ -210,9 +231,21 @@ class NUFFT(Chain):
     #     return NotImplemented
 
     def split_forward(self, ibatches, obatches):
-        chain = super().split_forward(ibatches, obatches)
+        if len(ibatches) > 1 or len(obatches) > 1:
+            raise ValueError(
+                f"Got improper number of input and output batches for flattened chain linop {self}: ibatches: {ibatches}, obatches: {obatches}"
+            )
+        ibatch, obatch = ibatches[0], obatches[0]
+        # Create ibatches and obatches from ibatch, obatch
+        ibatch_lookup = {d: slc for d, slc in zip(self.ishape, ibatch)}
+        obatch_lookup = {d: slc for d, slc in zip(self.oshape, obatch)}
+        split_linops = []
+        for linop in self.linops:
+            sub_ibatch = [ibatch_lookup.get(dim, slice(None)) for dim in linop.ishape]
+            sub_obatch = [obatch_lookup.get(dim, slice(None)) for dim in linop.oshape]
+            split_linops.append(linop.split_forward(sub_ibatch, sub_obatch))
         out = copy(self)
-        out.linops = chain.linops
+        out.linops = nn.ModuleList(split_linops)
         return out
 
     def flatten(self):

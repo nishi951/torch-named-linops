@@ -1,7 +1,7 @@
 from typing import Optional
 from torch import Tensor
 
-from copy import copy, deepcopy
+from copy import copy
 from warnings import warn
 
 from einops import repeat
@@ -19,7 +19,7 @@ class Diagonal(NamedLinop):
         self,
         weight: torch.Tensor,
         ioshape: Shape,
-        broadcast_dims: Optional[list[str]] = None,
+        broadcast_dims: Optional[Shape] = None,
     ):
         if len(weight.shape) > len(ioshape):
             raise ValueError(
@@ -96,21 +96,27 @@ class Diagonal(NamedLinop):
         return x * torch.abs(weight) ** 2
 
     def adjoint(self):
-        adj = deepcopy(self)
-        adj.weight.data = self.weight.conj()
+        adj = copy(self)
+        adj.weight = nn.Parameter(
+            self.weight.conj(),
+            requires_grad=self.weight.requires_grad,
+        )
         return adj
 
     def normal(self, inner=None):
         if inner is None:
-            normal = deepcopy(self)
-            normal.weight.data = torch.abs(self.weight) ** 2
+            normal = copy(self)
+            normal.weight = nn.Parameter(
+                torch.abs(self.weight) ** 2,
+                requires_grad=self.weight.requires_grad,
+            )
             return normal
         return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
         weight = self.split_forward_fn(ibatch, obatch, self.weight)
-        split = deepcopy(self)
-        split.weight.data = weight
+        split = copy(self)
+        split.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
         return split
 
     def split_forward_fn(self, ibatch, obatch, /, weight):
@@ -135,6 +141,9 @@ class Diagonal(NamedLinop):
         return None
 
     def __pow__(self, exponent):
-        new = deepcopy(self)
-        new.weight.data = self.weight**exponent
+        new = copy(self)
+        new.weight = nn.Parameter(
+            self.weight**exponent,
+            requires_grad=self.weight.requires_grad,
+        )
         return new

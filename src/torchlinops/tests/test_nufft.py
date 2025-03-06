@@ -112,7 +112,7 @@ def test_apodize(nufft_params):
     padded_size = nufft_params["padded_size"]
 
     beta = NUFFT.beta(width, oversamp)
-    apod = NUFFT._apodize_weights(grid_size, padded_size, oversamp, width, beta)
+    apod = NUFFT.apodize_weights(grid_size, padded_size, oversamp, width, beta)
 
     x = np.ones(grid_size)
     apod_sp = sp.fourier._apodize(x, len(grid_size), oversamp, width, beta)
@@ -139,7 +139,7 @@ def test_scale_locs(nufft_params):
 
     # Torch version
     locs = nufft_params["locs"]
-    locs_scaled = NUFFT.scale_and_shift_locs(locs, grid_size, padded_size)
+    locs_scaled = NUFFT.prep_locs(locs, grid_size, padded_size)
 
     coord = locs.clone().numpy()
     sz = np.array(grid_size)
@@ -155,18 +155,16 @@ def test_nufft_interp(nufft_params):
     oversamp = nufft_params["oversamp"]
     beta = NUFFT.beta(width, oversamp)
 
-    locs_scaled_shifted = NUFFT.scale_and_shift_locs(
-        locs.clone(), grid_size, padded_size
-    )
+    locs_prepared = NUFFT.prep_locs(locs.clone(), grid_size, padded_size)
     interp = Interpolate(
-        locs_scaled_shifted,
+        locs_prepared,
         padded_size,
         batch_shape=None,
         locs_batch_shape=None,
         grid_shape=None,
         width=width,
         kernel="kaiser_bessel",
-        beta=beta,
+        kernel_params=dict(beta=beta),
     )
 
     x = torch.randn(*padded_size, dtype=torch.complex64)
@@ -174,7 +172,7 @@ def test_nufft_interp(nufft_params):
 
     interpx_sp = sp.interp.interpolate(
         x.numpy(),
-        locs_scaled_shifted.numpy(),
+        locs_prepared.numpy(),
         kernel="kaiser_bessel",
         width=width,
         param=beta,
