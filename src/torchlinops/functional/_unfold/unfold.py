@@ -10,6 +10,7 @@ import torch
 
 import pdb
 from .nblocks import get_nblocks
+from .casting import scalar_cast as cast
 
 __all__ = ["unfold"]
 
@@ -173,9 +174,9 @@ def _unfold1d(
     N, Bx = NBx // x_nblocks, NBx % x_nblocks
 
     # Convert types
-    x_nblocks = x_nblocks.to(tl.uint64)
-    x_size = x_size.to(tl.uint64)
-    x_block_dim = x_block_dim.to(tl.uint64)
+    x_nblocks = cast(x_nblocks, tl.uint64)
+    x_size = cast(x_size, tl.uint64)
+    x_block_dim = cast(x_block_dim, tl.uint64)
 
     in_size = x_size
     nblocks = x_nblocks
@@ -268,14 +269,12 @@ def _unfold2d(
     By = pid_1 * y_blocks_per_grid
 
     # Convert types
-    x_nblocks = x_nblocks.to(tl.uint64)
-    y_nblocks = y_nblocks.to(tl.uint64)
-
-    x_size = x_size.to(tl.uint64)
-    y_size = y_size.to(tl.uint64)
-
-    x_block_dim = x_block_dim.to(tl.uint64)
-    y_block_dim = y_block_dim.to(tl.uint64)
+    x_nblocks = cast(x_nblocks, tl.uint64)
+    y_nblocks = cast(y_nblocks, tl.uint64)
+    x_size = cast(x_size, tl.uint64)
+    y_size = cast(y_size, tl.uint64)
+    x_block_dim = cast(x_block_dim, tl.uint64)
+    y_block_dim = cast(y_block_dim, tl.uint64)
 
     # global sizes
     in_size = x_size * y_size
@@ -405,17 +404,15 @@ def _unfold3d(
     Bz = pid_2 * z_blocks_per_grid
 
     # Convert types
-    x_nblocks = x_nblocks.to(tl.uint64)
-    y_nblocks = y_nblocks.to(tl.uint64)
-    z_nblocks = z_nblocks.to(tl.uint64)
-
-    x_size = x_size.to(tl.uint64)
-    y_size = y_size.to(tl.uint64)
-    z_size = z_size.to(tl.uint64)
-
-    x_block_dim = x_block_dim.to(tl.uint64)
-    y_block_dim = y_block_dim.to(tl.uint64)
-    z_block_dim = z_block_dim.to(tl.uint64)
+    x_nblocks = cast(x_nblocks, tl.uint64)
+    y_nblocks = cast(y_nblocks, tl.uint64)
+    z_nblocks = cast(z_nblocks, tl.uint64)
+    x_size = cast(x_size, tl.uint64)
+    y_size = cast(y_size, tl.uint64)
+    z_size = cast(z_size, tl.uint64)
+    x_block_dim = cast(x_block_dim, tl.uint64)
+    y_block_dim = cast(y_block_dim, tl.uint64)
+    z_block_dim = cast(z_block_dim, tl.uint64)
 
     # global sizes
     in_size = x_size * y_size * z_size
