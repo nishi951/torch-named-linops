@@ -5,6 +5,7 @@ from .breakpt import *
 from .chain import *
 from .concat import *
 from .dense import *
+from .device import *
 from .diagonal import *
 from .einops import *
 from .fft import *
