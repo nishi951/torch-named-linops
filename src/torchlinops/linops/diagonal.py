@@ -18,10 +18,10 @@ class Diagonal(NamedLinop):
     def __init__(
         self,
         weight: torch.Tensor,
-        ioshape: Shape,
+        ioshape: Optional[Shape] = None,
         broadcast_dims: Optional[Shape] = None,
     ):
-        if len(weight.shape) > len(ioshape):
+        if ioshape is not None and len(weight.shape) > len(ioshape):
             raise ValueError(
                 f"All dimensions must be named or broadcastable, but got weight shape {weight.shape} and ioshape {ioshape}"
             )
@@ -37,7 +37,7 @@ class Diagonal(NamedLinop):
         #     len(self.ishape) >= len(self.weight.shape)
         # ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        if ANY in ioshape:
+        if ANY in self.ishape:
             broadcast_dims.append(ANY)
         self._shape.add("broadcast_dims", broadcast_dims)
 

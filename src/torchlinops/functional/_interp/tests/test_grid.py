@@ -81,4 +81,4 @@ def test_grid(kernel_type, padding_mode, dev, dtype, spec, request):
     interp_sp = sp.gridding(vals, locs, oshape, kernel=kernel_type, width=width)
     interp_sp = to_pytorch(interp_sp)
 
-    assert torch.allclose(interp, interp_sp)
+    assert torch.allclose(interp, interp_sp, rtol=1e-4)

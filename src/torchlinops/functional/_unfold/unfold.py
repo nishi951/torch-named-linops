@@ -8,7 +8,9 @@ import triton
 import triton.language as tl
 import torch
 
+import pdb
 from .nblocks import get_nblocks
+from .casting import scalar_cast as cast
 
 __all__ = ["unfold"]
 
@@ -171,6 +173,11 @@ def _unfold1d(
     NBx = pid_0 * x_blocks_per_grid
     N, Bx = NBx // x_nblocks, NBx % x_nblocks
 
+    # Convert types
+    x_nblocks = cast(x_nblocks, tl.uint64)
+    x_size = cast(x_size, tl.uint64)
+    x_block_dim = cast(x_block_dim, tl.uint64)
+
     in_size = x_size
     nblocks = x_nblocks
     block_dim = x_block_dim
@@ -260,6 +267,14 @@ def _unfold2d(
     NBx = pid_0 * x_blocks_per_grid
     N, Bx = NBx // x_nblocks, NBx % x_nblocks
     By = pid_1 * y_blocks_per_grid
+
+    # Convert types
+    x_nblocks = cast(x_nblocks, tl.uint64)
+    y_nblocks = cast(y_nblocks, tl.uint64)
+    x_size = cast(x_size, tl.uint64)
+    y_size = cast(y_size, tl.uint64)
+    x_block_dim = cast(x_block_dim, tl.uint64)
+    y_block_dim = cast(y_block_dim, tl.uint64)
 
     # global sizes
     in_size = x_size * y_size
@@ -388,6 +403,17 @@ def _unfold3d(
     By = pid_1 * y_blocks_per_grid
     Bz = pid_2 * z_blocks_per_grid
 
+    # Convert types
+    x_nblocks = cast(x_nblocks, tl.uint64)
+    y_nblocks = cast(y_nblocks, tl.uint64)
+    z_nblocks = cast(z_nblocks, tl.uint64)
+    x_size = cast(x_size, tl.uint64)
+    y_size = cast(y_size, tl.uint64)
+    z_size = cast(z_size, tl.uint64)
+    x_block_dim = cast(x_block_dim, tl.uint64)
+    y_block_dim = cast(y_block_dim, tl.uint64)
+    z_block_dim = cast(z_block_dim, tl.uint64)
+
     # global sizes
     in_size = x_size * y_size * z_size
     nblocks = x_nblocks * y_nblocks * z_nblocks
@@ -426,7 +452,6 @@ def _unfold3d(
                                         x_mask = x_range < x_block_dim
                                         y_mask = y_range < y_block_dim
                                         z_mask = z_range < z_block_dim
-
                                         blk_range = (
                                             x_range[:, None, None] * y_block_dim
                                             + y_range[None, :, None]
@@ -438,7 +463,6 @@ def _unfold3d(
 
                                         out_range = blk_range[None]
                                         out_mask = blk_mask[None]
-                                        # Load/Store
                                         blk = load_subblock3d(
                                             in_blk_ptr,
                                             u,

@@ -26,13 +26,22 @@ def parse_dim_str(s: Optional[str] = None) -> tuple[str]:
     ('Nx', 'Ny', 'Nz')
     >>> parse_dim_str("A1B2Kx1Ky2")
     ('A1', 'B2', 'Kx1', 'Ky2')
+    >>> parse_dim_str("()A()B")
+    ('()', 'A', '()', 'B')
     """
     if s is None or len(s) == 0:
         return tuple()
     parts = []
     current = s[0]
     for char in s[1:]:
-        if char.isupper():
+        if char == "(":
+            parts.append(current)
+            current = char
+        elif current == "()":
+            parts.append(current)
+            current = char
+        elif char.isupper():
+            # New dim
             if char.isdigit():
                 raise ValueError(f"Dim cannot start with a digit in dim string {s}")
             parts.append(current)
@@ -90,3 +99,8 @@ class NamedDimension:
 
 
 ND = NamedDimension
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

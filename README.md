@@ -19,7 +19,7 @@ Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_lino
      - Comes with `kaiser_bessel` and (1D) `spline` kernels.
 - `.H` and `.N` properties for adjoint $A^H$ and normal $A^HA$ linop creation.
 - `Chain` and `Add` for composing linops together.
-- `Batch` and `DistributedBatch` wrappers for splitting linops temporally on a
+- `Batch` and `MPBatch` wrappers for splitting linops temporally on a
   single GPU, or across multiple GPUs (via `torch.multiprocessing`).
 - Full support for complex numbers. Adjoint takes the conjugate transpose.
 - Full support for `autograd`-based automatic differentiation.
