@@ -21,3 +21,4 @@ def test_todevice():
 
     w = D2D.N(x)
     assert w.device == x.device
+    print(D2D)
