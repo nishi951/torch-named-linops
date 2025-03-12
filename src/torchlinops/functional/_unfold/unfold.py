@@ -434,43 +434,6 @@ def _unfold3d(
     y_base_range = tl.arange(0, Y_BLOCK_SIZE)
     z_base_range = tl.arange(0, Z_BLOCK_SIZE)
 
-    # in_blk_ptr_test = tl.make_block_ptr(
-    #     in_ptr,
-    #     shape=(nbatch, x_size, y_size, z_size),
-    #     strides=(in_size, y_size * z_size, z_size, 1),
-    #     offsets=(2, 4 * x_stride, 1 * y_stride, 5 * z_stride),
-    #     block_shape=(1, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE),
-    #     order=(0, 1, 2, 3),
-    # )
-    # blk = load_subblock3d(
-    #     in_blk_ptr_test, 0, 0, 0, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE
-    # )
-
-    # x_blk_offset = 4 * y_nblocks * z_nblocks * block_dim
-    # y_blk_offset = 1 * z_nblocks * block_dim
-    # z_blk_offset = 5 * block_dim
-    # x_range = x_base_range + 0 * X_BLOCK_SIZE
-    # y_range = y_base_range + 0 * Y_BLOCK_SIZE
-    # z_range = z_base_range + 0 * Z_BLOCK_SIZE
-    # x_mask = x_range < x_block_dim
-    # y_mask = y_range < y_block_dim
-    # z_mask = z_range < z_block_dim
-
-    # blk_range = (
-    #     x_range[:, None, None] * y_block_dim + y_range[None, :, None]
-    # ) * z_block_dim + z_range[None, None, :]
-    # blk_mask = x_mask[:, None, None] & (y_mask[None, :, None] & z_mask[None, None, :])
-
-    # out_range = blk_range[None]
-    # out_mask = blk_mask[None]
-    # out_offset = 2 * nblocks * block_dim + x_blk_offset + y_blk_offset + z_blk_offset
-    # tl.store(
-    #     out_ptr + out_offset + out_range,
-    #     blk,
-    #     out_mask,
-    # )
-
-    ### End Debug ###
     for i in range(x_blocks_per_grid):
         if Bx + i < x_nblocks:
             x_blk_offset = (Bx + i) * y_nblocks * z_nblocks * block_dim
@@ -486,17 +449,12 @@ def _unfold3d(
                             for u in range(x_BLOCKS_per_block):
                                 for v in range(y_BLOCKS_per_block):
                                     for w in range(z_BLOCKS_per_block):
-                                        # tl.device_print("start")
-                                        # print(
-                                        #     f"start N{N} Bxyz({Bx}, {By}, {Bz}) uvw({u}, {v}, {w})"
-                                        # )
                                         x_range = x_base_range + u * X_BLOCK_SIZE
                                         y_range = y_base_range + v * Y_BLOCK_SIZE
                                         z_range = z_base_range + w * Z_BLOCK_SIZE
                                         x_mask = x_range < x_block_dim
                                         y_mask = y_range < y_block_dim
                                         z_mask = z_range < z_block_dim
-
                                         blk_range = (
                                             x_range[:, None, None] * y_block_dim
                                             + y_range[None, :, None]
@@ -508,10 +466,6 @@ def _unfold3d(
 
                                         out_range = blk_range[None]
                                         out_mask = blk_mask[None]
-                                        # Load/Store
-                                        # print(
-                                        #     f"load N{N} Bxyz({Bx}, {By}, {Bz}) uvw({u}, {v}, {w})"
-                                        # )
                                         blk = load_subblock3d(
                                             in_blk_ptr,
                                             u,
@@ -527,10 +481,6 @@ def _unfold3d(
                                             + y_blk_offset
                                             + z_blk_offset
                                         )
-                                        # tl.device_print("store")
-                                        # print(
-                                        #     f"store N{N} Bxyz({Bx}, {By}, {Bz}) uvw({u}, {v}, {w})"
-                                        # )
                                         tl.store(
                                             out_ptr + out_offset + out_range,
                                             blk,
