@@ -93,7 +93,7 @@ class TestNUFFT(BaseNamedLinopTests):
 def nufft_params():
     width = 6.0
     oversamp = 2.0
-    grid_size = (128, 128, 128)
+    grid_size = (120, 119, 146)
     padded_size = [int(i * oversamp) for i in grid_size]
     locs = get_valid_locs((10,), grid_size, len(grid_size), width, "cpu", centered=True)
     return {

@@ -29,9 +29,10 @@ class PadLast(NamedLinop):
         out_shape: Optional[Shape] = None,
         batch_shape: Optional[Shape] = None,
     ):
-        assert len(pad_im_size) == len(im_size), (
-            f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
-        )
+        if len(pad_im_size) != len(im_size):
+            raise ValueError(
+                f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
+            )
 
         if in_shape is None:
             self.in_im_shape = ND.infer(get_nd_shape(im_size))
@@ -82,14 +83,20 @@ class PadLast(NamedLinop):
 
     @staticmethod
     def fn(linop, x, /):
-        assert tuple(x.shape[-linop.D :]) == linop.im_size
+        if tuple(x.shape[-linop.D :]) != linop.im_size:
+            raise ValueError(
+                f"Mismatched shapes: expected {linop.im_size} but got {x.shape[-linop.D :]}"
+            )
         pad = linop.pad + [0, 0] * (x.ndim - linop.D)
         return F.pad(x, pad)
 
     @staticmethod
     def adj_fn(linop, y, /):
         """Crop the last n dimensions of y"""
-        assert tuple(y.shape[-linop.D :]) == linop.pad_im_size
+        if tuple(y.shape[-linop.D :]) != linop.pad_im_size:
+            raise ValueError(
+                f"Mismatched shapes: expected {linop.pad_im_size} but got {y.shape[-linop.D :]}"
+            )
         slc = [slice(None)] * (y.ndim - linop.D) + linop.crop_slice
         return y[slc]
 

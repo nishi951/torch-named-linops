@@ -26,6 +26,10 @@ class ArrayToBlocks(NamedLinop):
         array_shape: Optional[Shape] = None,
         blocks_shape: Optional[Shape] = None,
     ):
+        """
+
+        mask : Tensor
+        """
         self.im_size = im_size
         self.block_size = block_size
         self.stride = stride

@@ -52,7 +52,8 @@ def power_method(
         v = A(v)
         vnorm = torch.linalg.vector_norm(v, dim=dim, keepdim=True)
         v = v / (vnorm + eps)
-        # pbar.set_postfix({"eigenval": vnorm.item()})
-        if (torch.abs(vnorm_old - vnorm) / torch.abs(vnorm_old)).max() < tol:
+        rdiff = (torch.abs(vnorm_old - vnorm) / torch.abs(vnorm_old)).max()
+        pbar.set_postfix({"rdiff": rdiff.item()})
+        if rdiff < tol:
             break
     return v, vnorm.squeeze()
