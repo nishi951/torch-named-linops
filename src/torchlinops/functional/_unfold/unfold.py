@@ -168,8 +168,8 @@ def _unfold1d(
     """
     pid_0 = tl.program_id(0)
     # Batch index, Block index
-    NBx = pid_0 * x_blocks_per_grid
-    N, Bx = NBx // x_nblocks, NBx % x_nblocks
+    N, x_grid = pid_0 // x_nblocks, pid_0 % x_nblocks
+    Bx = x_grid * x_blocks_per_grid
 
     in_size = x_size
     nblocks = x_nblocks
@@ -257,9 +257,10 @@ def _unfold2d(
     pid_0 = tl.program_id(0)
     pid_1 = tl.program_id(1)
     # Batch index, Block index
-    NBx = pid_0 * x_blocks_per_grid
-    N, Bx = NBx // x_nblocks, NBx % x_nblocks
-    By = pid_1 * y_blocks_per_grid
+    N, x_grid = pid_0 // x_nblocks, pid_0 % x_nblocks
+    y_grid = pid_1
+    Bx = x_grid * x_blocks_per_grid
+    By = y_grid * y_blocks_per_grid
 
     # global sizes
     in_size = x_size * y_size
@@ -383,10 +384,12 @@ def _unfold3d(
     pid_1 = tl.program_id(1)
     pid_2 = tl.program_id(2)
     # Batch index, Block index
-    NBx = pid_0 * x_blocks_per_grid
-    N, Bx = NBx // x_nblocks, NBx % x_nblocks
-    By = pid_1 * y_blocks_per_grid
-    Bz = pid_2 * z_blocks_per_grid
+    N, x_grid = pid_0 // x_nblocks, pid_0 % x_nblocks
+    y_grid = pid_1
+    z_grid = pid_2
+    Bx = x_grid * x_blocks_per_grid
+    By = y_grid * y_blocks_per_grid
+    Bz = z_grid * z_blocks_per_grid
 
     # global sizes
     in_size = x_size * y_size * z_size
