@@ -82,3 +82,17 @@ def test_unfold_large_block_size():
     x = torch.randn(3, 1, *im_size, device=device, dtype=torch.complex64)
     x = unfold(x, block_size, block_stride)
     assert True
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_unfold_diff_block_size():
+    device = "cuda:0"
+    im_size = (100, 100, 100)
+    block_size = (94, 94, 94)
+    block_stride = (1, 1, 1)
+    x = torch.randn(1, 3, *im_size, device=device, dtype=torch.complex64)
+    x = unfold(x, block_size, block_stride)
+    assert True
