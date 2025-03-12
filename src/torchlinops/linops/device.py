@@ -4,6 +4,7 @@ import torch
 from .namedlinop import NamedLinop
 from .identity import Identity
 from .nameddim import ELLIPSES, NS, Shape
+from torchlinops.utils import INDENT
 
 __all__ = ["ToDevice"]
 
@@ -35,6 +36,12 @@ class ToDevice(NamedLinop):
             )
         return x.to(linop.idevice)
 
+    def adjoint(self):
+        adj = copy(self)
+        adj._shape = adj._shape.H
+        adj.idevice, adj.odevice = self.odevice, self.idevice
+        return adj
+
     def normal(self, inner=None):
         if inner is None:
             return Identity()
@@ -43,3 +50,9 @@ class ToDevice(NamedLinop):
     def split_forward(self, ibatch, obatch):
         """Return a new instance"""
         return copy(self)
+
+    def __repr__(self):
+        """Helps prevent recursion error caused by .H and .N"""
+        out = f"({self.idevice} -> {self.odevice})"
+        out = INDENT.indent(out)
+        return out
