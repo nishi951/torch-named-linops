@@ -53,7 +53,12 @@ def power_method(
         vnorm = torch.linalg.vector_norm(v, dim=dim, keepdim=True)
         v = v / (vnorm + eps)
         rdiff = (torch.abs(vnorm_old - vnorm) / torch.abs(vnorm_old)).max()
-        pbar.set_postfix({"rdiff": rdiff.item()})
+
+        # Display progress
+        postfix = {"rdiff": rdiff.item()}
+        if dim is None:
+            postfix["e_val"] = vnorm.item()
+        pbar.set_postfix(postfix)
         if rdiff < tol:
             break
     return v, vnorm.squeeze()
