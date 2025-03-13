@@ -18,7 +18,7 @@ __all__ = ["ArrayToBlocks", "BlocksToArray"]
 class ArrayToBlocks(NamedLinop):
     def __init__(
         self,
-        im_size: tuple[int, ...],
+        grid_size: tuple[int, ...],
         block_size: tuple[int, ...],
         stride: tuple[int, ...],
         mask: Optional[Tensor] = None,
@@ -30,7 +30,8 @@ class ArrayToBlocks(NamedLinop):
 
         mask : Tensor
         """
-        self.im_size = im_size
+        self.grid_size = grid_size
+        self.ndim = len(self.grid_size)
         self.block_size = block_size
         self.stride = stride
 
@@ -61,7 +62,7 @@ class ArrayToBlocks(NamedLinop):
     def adj_fn(linop, x):
         return F.blocks_to_array(
             x,
-            linop.im_size,
+            linop.grid_size,
             linop.block_size,
             linop.stride,
             linop.mask,
@@ -76,7 +77,7 @@ class ArrayToBlocks(NamedLinop):
 
     def adjoint(self):
         return BlocksToArray(
-            self.im_size,
+            self.grid_size,
             self.block_size,
             self.stride,
             self.mask,
@@ -89,17 +90,17 @@ class ArrayToBlocks(NamedLinop):
         return self.size_fn(dim)
 
     def size_fn(self, dim):
-        ndim = len(self.im_size)
+        ndim = len(self.grid_size)
         if dim in self.ishape[-ndim:]:
             i = self.ishape.index(dim) - len(self.ishape)
-            return self.im_size[i]
+            return self.grid_size[i]
         return None
 
 
 class BlocksToArray(NamedLinop):
     def __init__(
         self,
-        im_size: tuple[int, ...],
+        grid_size: tuple[int, ...],
         block_size: tuple[int, ...],
         stride: tuple[int, ...],
         mask: Optional[Tensor] = None,
@@ -107,7 +108,8 @@ class BlocksToArray(NamedLinop):
         blocks_shape: Optional = None,
         array_shape: Optional = None,
     ):
-        self.im_size = im_size
+        self.grid_size = grid_size
+        self.ndim = len(self.grid_size)
         self.block_size = block_size
         self.stride = stride
 
@@ -128,7 +130,7 @@ class BlocksToArray(NamedLinop):
     def fn(linop, x):
         return F.blocks_to_array(
             x,
-            linop.im_size,
+            linop.grid_size,
             linop.block_size,
             linop.stride,
             linop.mask,
@@ -136,6 +138,10 @@ class BlocksToArray(NamedLinop):
 
     @staticmethod
     def adj_fn(linop, x):
+        if x.shape[-linop.ndim :] != linop.grid_size:
+            raise RuntimeError(
+                f"BlocksToArray expected input with full size {linop.grid_size} but got {x.shape}"
+            )
         return F.array_to_blocks(
             x,
             linop.block_size,
@@ -152,7 +158,7 @@ class BlocksToArray(NamedLinop):
 
     def adjoint(self):
         return ArrayToBlocks(
-            self.im_size,
+            self.grid_size,
             self.block_size,
             self.stride,
             self.mask,
@@ -165,8 +171,8 @@ class BlocksToArray(NamedLinop):
         return self.size_fn(dim)
 
     def size_fn(self, dim):
-        ndim = len(self.im_size)
+        ndim = len(self.grid_size)
         if dim in self.oshape[-ndim:]:
             i = self.oshape.index(dim) - len(self.oshape)
-            return self.im_size[i]
+            return self.grid_size[i]
         return None
