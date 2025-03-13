@@ -133,15 +133,19 @@ class Concat(NamedLinop):
             xs = [x] * len(oslices)
 
         # Compute linop(x) for all xs
-        ys = []
-        for xi, linop in zip(xs, linops):
-            ys.append(linop(xi))
-
-        # Combine outputs
         if odim_idx is not None:  # Diagonal, Vertical
+            ys = []
+            for xi, linop in zip(xs, linops):
+                ys.append(linop(xi))
             return torch.concatenate(ys, dim=odim_idx)
+
+        # Memory savings by accumulating
         # Horizontal
-        return sum(ys)
+        y = 0.0
+        # Combine outputs
+        for xi, linop in zip(xs, linops):
+            y += linop(xi)
+        return y
 
     @staticmethod
     def normal_fn(concat, x):
