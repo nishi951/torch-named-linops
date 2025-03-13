@@ -81,6 +81,10 @@ def _fold(
     **kwargs,
 ):
     """Implementation of fold"""
+    if x.shape[-2 * ndim :] != (*nblocks, *block_size):
+        raise RuntimeError(
+            f"Fold expected input with full size {(*nblocks, *block_size)} but got {x.shape}"
+        )
     if x.is_cuda and ndim in FOLD.keys():
         x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
