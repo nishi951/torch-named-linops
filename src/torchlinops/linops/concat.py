@@ -66,8 +66,8 @@ class Concat(NamedLinop):
                     f"Found linop with undefined size for dim {self.idim} when attempting concat."
                 )
             self.isizes = [linop.size(self.idim) for linop in linops]
-            islices = torch.tensor(self.isizes).cumsum(0)
-            self.islices = nn.Parameter(islices, requires_grad=False)
+            self.islices = torch.tensor(self.isizes).cumsum(0)  # Keep on CPU
+            # self.islices = nn.Parameter(islices, requires_grad=False)
         else:
             self.idim = None
             self.isizes = None
@@ -82,8 +82,8 @@ class Concat(NamedLinop):
                     f"Found linop with undefined size for dim {self.odim} when attempting concat."
                 )
             self.osizes = [linop.size(self.odim) for linop in linops]
-            oslices = torch.tensor(self.osizes).cumsum(0)
-            self.oslices = nn.Parameter(oslices, requires_grad=False)
+            self.oslices = torch.tensor(self.osizes).cumsum(0)  # Keep on CPU
+            # self.oslices = nn.Parameter(oslices, requires_grad=False)
         else:
             self.odim = None
             self.osizes = None
@@ -238,7 +238,7 @@ class Concat(NamedLinop):
 
     def adjoint(self):
         adj_linops = [linop.H for linop in self.linops]
-        return type(self)(*adj_linops, self.odim, self.idim)
+        return type(self)(*adj_linops, idim=self.odim, odim=self.idim)
 
     def normal(self, inner=None):
         if inner is None:
@@ -259,9 +259,9 @@ class Concat(NamedLinop):
                             new_linop = linop_left.H @ linop_right
                             new_linop.shape = new_shape
                         row.append(new_linop)
-                    row = type(self)(*row, new_idim, None)
+                    row = type(self)(*row, idim=new_idim, odim=None)
                     rows.append(row)
-                return type(self)(*rows, None, new_odim)
+                return type(self)(*rows, idim=None, odim=new_odim)
             else:  # Diagonal
                 diag = []
                 new_idim, new_odim = self._get_new_normal_io_dims(
@@ -269,7 +269,7 @@ class Concat(NamedLinop):
                 )
                 for linop in self.linops:
                     diag.append(linop.N)
-                return type(self)(*diag, new_idim, new_odim)
+                return type(self)(*diag, idim=new_idim, odim=new_odim)
         return super().normal(inner)
 
     @staticmethod
@@ -325,7 +325,7 @@ class Concat(NamedLinop):
         linops = self.linops[idx]
         if isinstance(linops, NamedLinop):
             return linops
-        return type(self)(*linops, self.idim, self.odim)
+        return type(self)(*linops, idim=self.idim, odim=self.odim)
 
     def __len__(self):
         return len(self.linops)
