@@ -39,7 +39,7 @@ class TestNUFFT(BaseNamedLinopTests):
         )
 
         linop = NUFFT(
-            locs,
+            locs.clone(),
             grid_size,
             output_shape=("R", "K"),
             width=width,
@@ -49,6 +49,9 @@ class TestNUFFT(BaseNamedLinopTests):
         x = 0.5 * torch.rand(ishape, dtype=torch.complex64, device="cpu") + 1
         y = 0.5 * torch.rand(oshape, dtype=torch.complex64, device="cpu") + 1
         y /= torch.linalg.vector_norm(locs, dim=-1)
+
+        # Save original locs
+        linop._locs_orig = locs
 
         return linop, x, y
 
@@ -72,7 +75,7 @@ class TestNUFFT(BaseNamedLinopTests):
 
     def test_nufft_sigpy(self, linop_input_output):
         A, x, y = linop_input_output
-        coord = A.locs.numpy()
+        coord = A._locs_orig.numpy()  # Not usually a param, only here for testing
         # sz = np.array(A.grid_size)
         # coord = np.where(coord <= (sz / 2), coord, coord - sz)
         width = A.width
@@ -139,7 +142,7 @@ def test_scale_locs(nufft_params):
 
     # Torch version
     locs = nufft_params["locs"]
-    locs_scaled = NUFFT.prep_locs(locs, grid_size, padded_size)
+    locs_scaled = NUFFT.prep_locs(locs.clone(), grid_size, padded_size)
 
     coord = locs.clone().numpy()
     sz = np.array(grid_size)
