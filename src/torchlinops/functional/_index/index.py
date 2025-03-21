@@ -49,6 +49,13 @@ def index_adjoint(
     grid_size : tuple of ints
         The shape of the output tensor, excluding batch dimensions
     """
+    for d, (dim_idx, dim_size) in enumerate(zip(idx, grid_size)):
+        if (dim_idx >= dim_size).any() or (dim_idx < -dim_size).any():
+            # mask = (dim_idx >= dim_size) | (dim_idx < -dim_size)
+            raise IndexError(
+                f"Out-of-bounds index for grid of shape {grid_size}: idx[{d}]"
+            )
+
     idx_stacked = torch.stack(idx, dim=0)
     out = multi_grid(vals, idx_stacked, grid_size)
     return out
@@ -148,7 +155,7 @@ def ravel(x: torch.Tensor, shape: tuple, dim: int):
     out = 0
     shape_shifted = tuple(shape[1:]) + (1,)
     for s, s_next, i in zip(shape, shape_shifted, range(x.shape[dim])):
-        out += torch.select(x, dim, i) % s
+        out += torch.select(x, dim, i) % s  # Python does nonnegative modulo
         out *= s_next
     return out
 

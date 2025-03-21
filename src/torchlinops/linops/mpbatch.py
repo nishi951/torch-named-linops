@@ -29,6 +29,9 @@ class MPBatch(Batch):
         super().__init__(*args, **kwargs)
 
     def forward(self, x: Tensor):
+        """
+        Computes on stated devices but ultimately returns on the output device
+        """
         # Complete the size specifications
         for dim, total in zip(self.ishape, x.shape):
             self.sizes[dim] = total

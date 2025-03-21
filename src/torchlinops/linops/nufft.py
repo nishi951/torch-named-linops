@@ -124,9 +124,13 @@ class NUFFT(Chain):
             scale.to(device)  # Helps with batching later
             linops = [apodize, pad, fft, interp, scale]
         elif mode == "sampling":
+            if locs_prepared.is_complex() or locs_prepared.is_floating_point():
+                raise ValueError(
+                    f"Sampling linop requries integer-type locs but got {locs_prepared.dtype}"
+                )
             # Clamp to within range
             interp = Sampling.from_stacked_idx(
-                locs_prepared.long(),
+                locs_prepared,
                 dim=-1,
                 # Arguments for Sampling
                 input_size=padded_size,
@@ -169,7 +173,8 @@ class NUFFT(Chain):
         """
         Assumes centered locs
         """
-        out = locs.clone()
+        # out = locs.clone()
+        out = locs
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
             out[..., i] += padded_size[i] // 2
