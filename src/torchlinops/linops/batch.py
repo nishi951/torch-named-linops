@@ -12,6 +12,7 @@ from tqdm import tqdm
 from .namedlinop import NamedLinop
 from .identity import ShapeSpec
 from .nameddim import ND, NS, Shape
+from .split import split
 
 from torchlinops.utils import batch_iterator, dict_product, INDENT
 
@@ -53,13 +54,15 @@ class Batch(NamedLinop):
         # self.name = name if name is not None else ""
         self.batch_sizes = batch_sizes
         self.post_batch_hook = post_batch_hook
+        self.sizes = {dim: self.linop.size(dim) for dim in self.linop.dims}
         self.setup_batching()
 
     def setup_batching(self, hook: Optional[Callable] = None):
-        self._linops = None
-        self.batch_sizes = {ND.infer(k): v for k, v in self.batch_sizes.items()}
-        self.sizes = self._precompute_sizes()
-        _linops, self._input_batches, self._output_batches = self.make_tiles()
+        _linops, self._input_batches, self._output_batches = split(
+            self.linop,
+            self.batch_sizes,
+            flatten=True,
+        )
         self._linops = nn.ModuleList(_linops)
         self._shape = NS(self.linop.ishape, self.linop.oshape)
         super().reset_adjoint_and_normal()
@@ -72,21 +75,6 @@ class Batch(NamedLinop):
         self.linop.to(device)
         self.setup_batching()
         super().to(device)
-
-    def _precompute_sizes(self):
-        sizes = {dim: self.linop.size(dim) for dim in self.linop.dims}
-        return sizes
-
-    @staticmethod
-    def _make_batch_iterators(total_sizes, batch_sizes):
-        batch_iterators = {}
-        for dim, total in total_sizes.items():
-            batch_iterators[dim] = (
-                [slice(a, b) for a, b in batch_iterator(total, batch_sizes[dim])]
-                if dim in batch_sizes
-                else [slice(None)]
-            )
-        return batch_iterators
 
     def forward(self, x: torch.Tensor):
         # Complete the size specifications
@@ -114,28 +102,6 @@ class Batch(NamedLinop):
                 )
                 raise
         return y
-
-    def make_tiles(self):
-        """Construct, for each sub linop, the tile of input and output slices that it corresponds to."""
-        batch_iterators = self._make_batch_iterators(self.sizes, self.batch_sizes)
-        ishapes = [linop.ishape for linop in self.linop.flatten()]
-        oshapes = [linop.oshape for linop in self.linop.flatten()]
-        tiles = list(dict_product(batch_iterators))
-        linops = []
-        input_batches = []
-        output_batches = []
-        for tile in tiles:
-            ibatches = [
-                [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
-            ]
-            obatches = [
-                [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
-            ]
-            linop = self.linop.split(self.linop, *ibatches, *obatches)
-            linops.append(linop)
-            input_batches.append(ibatches[0])  # Input batch of first linop
-            output_batches.append(obatches[-1])  # Output batch of last linop
-        return linops, input_batches, output_batches
 
     @property
     def H(self):
@@ -183,6 +149,8 @@ class Batch(NamedLinop):
         for d, nd in shape_updates.items():
             if d in self.batch_sizes:
                 new_batch_sizes[shape_updates[d]] = self.batch_sizes[d]
+            elif str(d) in self.batch_sizes:
+                new_batch_sizes[str(shape_updates[d])] = self.batch_sizes[str(d)]
         batch_size_kwargs = {str(k): v for k, v in new_batch_sizes.items()}
         normal = type(self)(
             linop=self.linop.N,

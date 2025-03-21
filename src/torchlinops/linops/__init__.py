@@ -14,8 +14,9 @@ from .interp import *
 from .mpbatch import *
 from .nufft import *
 from .sampling import *
-from .stack import *
 from .scalar import *
+from .split import *
+from .stack import *
 from .trunc_pad import *
 from .pad_last import *
 
