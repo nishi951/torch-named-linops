@@ -182,3 +182,24 @@ def test_nufft_interp(nufft_params):
     )
 
     assert np.allclose(interpx, interpx_sp, rtol=1e-3)
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_nufft_device(nufft_params):
+    locs = nufft_params["locs"]
+    grid_size = nufft_params["grid_size"]
+    width = nufft_params["width"]
+    oversamp = nufft_params["oversamp"]
+    linop = NUFFT(
+        locs.clone(),
+        grid_size,
+        output_shape=("R", "K"),
+        width=width,
+        oversamp=oversamp,
+    )
+    assert linop.device.type == "cpu"
+    linop.to(torch.device("cuda"))
+    assert linop.device.type == "cuda"
