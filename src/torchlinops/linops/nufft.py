@@ -5,6 +5,7 @@ from torch import Tensor
 
 from copy import copy
 from math import prod
+from itertools import product
 from warnings import warn
 
 import torch
@@ -15,11 +16,13 @@ from torchlinops.utils import default_to
 from .nameddim import NDorStr, ELLIPSES, NS, ND, get_nd_shape, Shape
 from .namedlinop import NamedLinop
 from .chain import Chain
+from .dense import Dense
 from .diagonal import Diagonal
 from .scalar import Scalar
 from .pad_last import PadLast
 from .fft import FFT
 from .interp import Interpolate
+from .identity import Identity
 from .sampling import Sampling
 
 
@@ -58,13 +61,13 @@ class NUFFT(Chain):
         device = locs.device
         self.mode = mode
         # Infer shapes
-        input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
-        input_kshape = ND.infer(
+        self.input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
+        self.input_kshape = ND.infer(
             default_to(get_nd_shape(grid_size, kspace=True), input_kshape)
         )
-        output_shape = ND.infer(output_shape)
-        batch_shape = ND.infer(default_to(("...",), batch_shape))
-        batched_input_shape = NS(batch_shape) + NS(input_shape)
+        self.output_shape = ND.infer(output_shape)
+        self.batch_shape = ND.infer(default_to(("...",), batch_shape))
+        batched_input_shape = NS(batch_shape) + NS(self.input_shape)
 
         # Initialize variables
         ndim = len(grid_size)
@@ -74,8 +77,8 @@ class NUFFT(Chain):
         pad = PadLast(
             padded_size,
             grid_size,
-            in_shape=input_shape,
-            batch_shape=batch_shape,
+            in_shape=self.input_shape,
+            batch_shape=self.batch_shape,
         )
 
         # Create FFT
@@ -83,8 +86,8 @@ class NUFFT(Chain):
             ndim=locs.shape[-1],
             centered=True,
             norm="ortho",
-            batch_shape=batch_shape,
-            grid_shapes=(pad.out_im_shape, input_kshape),
+            batch_shape=self.batch_shape,
+            grid_shapes=(pad.out_im_shape, self.input_kshape),
         )
 
         # Create Interpolator
@@ -111,8 +114,8 @@ class NUFFT(Chain):
             interp = Interpolate(
                 locs_prepared,
                 padded_size,
-                batch_shape=batch_shape,
-                locs_batch_shape=output_shape,
+                batch_shape=self.batch_shape,
+                locs_batch_shape=self.output_shape,
                 grid_shape=grid_shape,
                 width=width,
                 kernel="kaiser_bessel",
@@ -134,9 +137,9 @@ class NUFFT(Chain):
                 dim=-1,
                 # Arguments for Sampling
                 input_size=padded_size,
-                output_shape=output_shape,
+                output_shape=self.output_shape,
                 input_shape=grid_shape,
-                batch_shape=batch_shape,
+                batch_shape=self.batch_shape,
             )
             # No apodization or scaling needed
             linops = [pad, fft, interp]
@@ -149,6 +152,11 @@ class NUFFT(Chain):
         self.grid_size = grid_size
         self.oversamp = oversamp
         self.width = width
+
+        # Handles to get modules directly
+        self.pad = pad
+        self.fft = fft
+        self.interp = interp
 
     def adjoint(self):
         adj = super(Chain, self).adjoint()
@@ -264,18 +272,124 @@ class NUFFT(Chain):
         """
 
         if self.mode == "interpolate":
-            assert isinstance(self.linops[-2], Interpolate), (
-                f"Expected Interpolate linop but got {type(self.linops[-2])}"
-            )
-            return self.linops[-2].locs.device
+            return self.interp.locs.device
+            # assert isinstance(
+            #     self.linops[-2], Interpolate
+            # ), f"Expected Interpolate linop but got {type(self.linops[-2])}"
+            # return self.linops[-2].locs.device
         elif self.mode == "sampling":
-            assert isinstance(self.linops[-1], Sampling), (
-                f"Expected Sampling linop but got {type(self.linops[-1])}"
-            )
-            return self.linops[-1].idx[0].device
+            return self.interp.idx[0].device
+            # assert isinstance(
+            #     self.linops[-1], Sampling
+            # ), f"Expected Sampling linop but got {type(self.linops[-1])}"
+            # return self.linops[-1].idx[0].device
         raise ValueError(f"Unrecognized NUFFT mode: {self.mode}")
 
 
-# def toeplitz(nufft: NUFFT, inner: Optional[NamedLinop] = None):
-#     # Initialize variables
-#     device = nufft.device
+def toeplitz(
+    nufft: NUFFT,
+    inner: Optional[NamedLinop] = None,
+    dtype: Optional[torch.dtype] = None,
+):
+    # Initialize variables
+    dtype = default_to(torch.complex64, dtype)
+    device = nufft.device
+    # TODO: maybe accommodate other oversampling factors (more complicated)
+    oversamp = 2.0
+    nufft_os = NUFFT(
+        nufft.interp.locs.clone() * (oversamp / nufft.oversamp),
+        nufft.grid_size,
+        output_shape=nufft.output_shape,
+        input_shape=nufft.input_shape,
+        input_kshape=nufft.input_kshape,
+        batch_shape=nufft.batch_shape,
+        oversamp=oversamp,
+        width=nufft.width,
+        mode=nufft.mode,
+        do_prep_locs=False,
+    )
+
+    pad_os = nufft_os.pad
+    fft_os = nufft_os.fft
+    io_kshape = fft_os._shape.output_grid_shape
+    im_size = pad_os.im_size
+
+    # Initialize inner if not provided
+    if inner is None:
+        inner = Identity(ishape=nufft.oshape)
+
+    if len(inner.ishape) != len(inner.oshape):
+        raise ValueError(
+            f"Inner linop must have identical input and output shape lengths but got ishape={inner.ishape} and oshape={inner.oshape}"
+        )
+
+    # Create empty kernel
+    batch_ishape, batch_oshape, batch_sizes = get_psf_batch_shape_and_size(nufft, inner)
+    ishape = batch_ishape + io_kshape
+    oshape = batch_oshape + io_kshape
+
+    # Get kernel shape/size
+    kernel_ksize = tuple(int(2 * s * (oversamp - 1)) for s in im_size)
+    kernel_size = batch_sizes + batch_sizes + kernel_ksize
+    kernel_shape = batch_ishape + batch_oshape + io_kshape
+    kernel = torch.zeros(*kernel_size, dtype=dtype, device=device)
+
+    # Allocate test input
+    input_size = batch_sizes + tuple(nufft.size(d) for d in nufft.output_shape)
+    allones = torch.zeros(*input_size, dtype=dtype, device=device)
+
+    # Compute kernel by iterating through all possible input-output pairs
+    for idx in all_indices(batch_sizes):
+        allones[idx] = 1.0
+        kernel[idx] = fft_os(pad_os(nufft_os.H(inner(allones))))
+        allones[idx] = 0.0  # reset
+    kernel_os = Dense(
+        weight=kernel,
+        weightshape=kernel_shape,
+        ishape=ishape,
+        oshape=oshape,
+    )
+    return pad_os.normal(fft_os.normal(kernel_os))
+
+
+def get_psf_batch_shape_and_size(nufft, inner: NamedLinop):
+    n_output_dims = len(nufft.output_shape)
+    batch_ishape, batch_oshape = (
+        inner.ishape[:-n_output_dims],
+        inner.oshape[:-n_output_dims],
+    )
+    # Identify sizes
+    batch_sizes = tuple(inner.size(d) for d in batch_ishape)
+    batch_sizes = tuple(a if a is not None else 1 for a in batch_sizes)
+    return batch_ishape, batch_oshape, batch_sizes
+
+
+def all_indices(size: tuple[int]):
+    ranges = tuple(range(s) for s in size)
+    return product(*ranges)
+
+
+def _changed_shape(ishape, oshape):
+    """Helper function for getting the kernel shape and slices
+    B = nufft shared + in batch shape
+    K = nufft out batch shape
+    Kx1, Ky1, Kz1 = output padded fourier-domain shapes
+
+    kernel_fourier_dim: [Kx1, Ky1, [Kz1]
+    B1 = nufft shared + in batch shape, different dims only. May be different length than B
+    kernel shape: [B1..., B..., Kx1, Ky1, [Kz1]]
+    ishape: [B..., K...]
+    in_batch_shape: [B...]
+    oshape: [B1..., K...]
+    out_batch_shape: [B1...]
+    """
+    changed_shape = []
+    changed = []
+    for idim, odim in zip(ishape, oshape):
+        if idim != odim:
+            changed_shape.append(idim)
+            changed.append(True)
+        else:
+            changed.append(False)
+    changed_shape = tuple(changed_shape)
+    return changed_shape, changed

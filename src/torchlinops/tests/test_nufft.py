@@ -196,7 +196,7 @@ def test_nufft_device(nufft_params):
     linop = NUFFT(
         locs.clone(),
         grid_size,
-        output_shape=("R", "K"),
+        output_shape=("K",),
         width=width,
         oversamp=oversamp,
     )

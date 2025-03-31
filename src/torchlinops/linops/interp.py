@@ -30,6 +30,11 @@ class Interpolate(NamedLinop):
         pad_mode: str = "circular",
         kernel_params: Optional[dict] = None,
     ):
+        if locs_batch_shape is not None:
+            if len(locs_batch_shape) > len(locs.shape) - 1:
+                raise ValueError(
+                    f"locs_batch_shape has length longer than batch dim of locs. locs_batch_shape: {locs_batch_shape}, locs: {locs.shape}"
+                )
         batch_shape = default_to(("...",), batch_shape)
         locs_batch_shape = default_to(("...",), locs_batch_shape)
         grid_shape = default_to(("...",), grid_shape)
@@ -89,3 +94,12 @@ class Interpolate(NamedLinop):
             locs_slc.append(oslc)
         locs_slc.append(slice(None))
         return locs[locs_slc]
+
+    def size(self, dim):
+        if dim in self._shape.locs_batch_shape:
+            dim_idx = self._shape.locs_batch_shape.index(dim)
+            return self.locs.shape[dim_idx]
+        elif dim in self._shape.grid_shape:
+            dim_idx = self._shape.grid_shape.index(dim)
+            return self.grid_size[dim_idx]
+        return None
