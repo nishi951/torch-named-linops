@@ -1,4 +1,5 @@
 from typing import Optional, Literal
+from collections.abc import Callable
 from jaxtyping import Float, Shaped
 from torch import Tensor
 
@@ -23,8 +24,6 @@ from .sampling import Sampling
 
 
 __all__ = ["NUFFT"]
-
-# TODO create functional form based on this linop
 
 
 class NUFFT(Chain):
@@ -57,6 +56,7 @@ class NUFFT(Chain):
 
         """
         device = locs.device
+        self.mode = mode
         # Infer shapes
         input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
         input_kshape = ND.infer(
@@ -95,7 +95,7 @@ class NUFFT(Chain):
             )
         else:
             locs_prepared = locs
-        if mode == "interpolate":
+        if self.mode == "interpolate":
             beta = self.beta(width, oversamp)
             # Create Apodization
             if apodize_weights is None:
@@ -123,7 +123,7 @@ class NUFFT(Chain):
             scale = Scalar(weight=1.0 / scale_factor, ioshape=interp.oshape)
             scale.to(device)  # Helps with batching later
             linops = [apodize, pad, fft, interp, scale]
-        elif mode == "sampling":
+        elif self.mode == "sampling":
             if locs_prepared.is_complex() or locs_prepared.is_floating_point():
                 raise ValueError(
                     f"Sampling linop requries integer-type locs but got {locs_prepared.dtype}"
@@ -256,3 +256,26 @@ class NUFFT(Chain):
     def flatten(self):
         """Don't combine constituent linops into a chain with other linops"""
         return [self]
+
+    @property
+    def device(self):
+        """Tracks device of interpolating/sampling linop
+        Useful for toeplitz
+        """
+
+        if self.mode == "interpolate":
+            assert isinstance(self.linops[-2], Interpolate), (
+                f"Expected Interpolate linop but got {type(self.linops[-2])}"
+            )
+            return self.linops[-2].locs.device
+        elif self.mode == "sampling":
+            assert isinstance(self.linops[-1], Sampling), (
+                f"Expected Sampling linop but got {type(self.linops[-1])}"
+            )
+            return self.linops[-1].idx[0].device
+        raise ValueError(f"Unrecognized NUFFT mode: {self.mode}")
+
+
+# def toeplitz(nufft: NUFFT, inner: Optional[NamedLinop] = None):
+#     # Initialize variables
+#     device = nufft.device
