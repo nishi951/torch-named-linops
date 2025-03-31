@@ -1,0 +1,87 @@
+import pytest
+
+import torch
+
+from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
+from torchlinops import NUFFT, Diagonal, Dense, Dim
+
+from torchlinops.linops.nufft import get_psf_batch_shape_and_size, toeplitz
+
+
+@pytest.fixture
+def nufft_params():
+    width = 4.0
+    oversamp = 1.25
+    grid_size = (120, 119, 146)
+    padded_size = [int(i * oversamp) for i in grid_size]
+    locs = get_valid_locs(
+        (7, 10),
+        grid_size,
+        len(grid_size),
+        width,
+        "cpu",
+        centered=True,
+    )
+    return {
+        "width": width,
+        "oversamp": oversamp,
+        "grid_size": grid_size,
+        "padded_size": padded_size,
+        "locs": locs,
+    }
+
+
+@pytest.fixture
+def nufft_linop(nufft_params):
+    locs = nufft_params["locs"]
+    grid_size = nufft_params["grid_size"]
+    width = nufft_params["width"]
+    oversamp = nufft_params["oversamp"]
+    linop = NUFFT(
+        locs.clone(),
+        grid_size,
+        output_shape=Dim("RK"),
+        batch_shape=Dim("A"),
+        width=width,
+        oversamp=oversamp,
+    )
+    return linop
+
+
+@pytest.fixture
+def simple_inner(nufft_params):
+    locs = nufft_params["locs"]
+    weight = torch.randn(locs.shape[:-1])
+    linop = Diagonal(weight, ioshape=Dim("ARK"), broadcast_dims=Dim("A"))
+    return linop
+
+
+@pytest.fixture
+def dense_inner(nufft_params):
+    A = 2
+    weight = torch.randn(A, A, dtype=torch.complex64)
+    linop = Dense(
+        weight,
+        weightshape=Dim("AA1"),
+        ishape=Dim("ARK"),
+        oshape=Dim("A1RK"),
+    )
+    return linop
+
+
+@pytest.mark.parametrize("inner_type", ["simple_inner", "dense_inner"])
+def test_toeplitz_components(inner_type, nufft_linop, request):
+    inner = request.getfixturevalue(inner_type)
+    batch_ishape, batch_oshape, batch_sizes = get_psf_batch_shape_and_size(
+        nufft_linop,
+        inner,
+    )
+
+
+@pytest.mark.parametrize("inner_type", ["simple_inner", "dense_inner", None])
+def test_toeplitz_full(inner_type, nufft_linop, request):
+    if inner_type is not None:
+        inner = request.getfixturevalue(inner_type)
+    else:
+        inner = None
+    T = toeplitz(nufft_linop, inner)
