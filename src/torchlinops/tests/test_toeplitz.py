@@ -1,6 +1,7 @@
 import pytest
 
 import torch
+import numpy as np
 
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops import NUFFT, Diagonal, Dense, Dim
@@ -26,7 +27,6 @@ def nufft_params():
         "cpu",
         centered=True,
     )
-    locs = torch.zeros(20, 500, 3)  # DEBUG
     return {
         "width": width,
         "oversamp": oversamp,
@@ -92,4 +92,4 @@ def test_toeplitz_full(inner_type, nufft_linop, nufft_params, request):
             oversamp=nufft_linop.oversamp,
             width=nufft_linop.width,
         )
-        breakpoint()
+        assert np.isclose(psf_sp, psf.numpy(), rtol=1e-1).sum() / psf_sp.size > 0.99

@@ -127,7 +127,7 @@ def _(Dim, NUFFT, cifft2, spiral_2d, toeplitz_psf, torch):
     # plt.scatter(locs[..., 0], locs[..., 1])
     print(locs)
     nufft = make_nufft(locs.clone(), im_size, oversamp=1.25)
-    kern, _, _, nufft_os = toeplitz_psf(nufft, None)
+    kern, _, _ = toeplitz_psf(nufft, None)
     otf = kern.weight[0, 0]
     psf = cifft2(otf)
     return (
@@ -139,7 +139,6 @@ def _(Dim, NUFFT, cifft2, spiral_2d, toeplitz_psf, torch):
         make_locs,
         make_nufft,
         nufft,
-        nufft_os,
         otf,
         psf,
         sp,
@@ -176,26 +175,8 @@ def _(im_size, np, psf, psf_sp):
 
 
 @app.cell
-def _(np, otf):
-    np.abs(otf)
-    return
-
-
-@app.cell
 def _(np, otf_sp):
     np.abs(otf_sp)
-    return
-
-
-@app.cell
-def _(nufft_os):
-    nufft_os.interp.locs
-    return
-
-
-@app.cell
-def _(nufft_os):
-    nufft_os.interp.locs.max()
     return
 
 

@@ -3,7 +3,7 @@ from collections.abc import Callable
 from jaxtyping import Float, Shaped
 from torch import Tensor
 
-from copy import copy
+from copy import copy, deepcopy
 from math import prod
 from itertools import product
 from warnings import warn
@@ -175,9 +175,7 @@ class NUFFT(Chain):
             dtype = self.options.get("toeplitz_dtype")
             kernel_os, pad_os, fft_os = toeplitz_psf(self, inner, dtype=dtype)
             return pad_os.normal(fft_os.normal(kernel_os))
-        else:
-            normal = super().normal(inner)
-        return normal
+        return super().normal(inner)
 
     @staticmethod
     def prep_locs(
@@ -337,8 +335,8 @@ def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
         mode=nufft.mode,
         do_prep_locs=False,
     )
-    pad_os = nufft_os.pad
-    fft_os = nufft_os.fft
+    pad_os = deepcopy(nufft_os.pad)
+    fft_os = deepcopy(nufft_os.fft)
 
     # pad_os = PadLast(
     #     pad_im_size=pad_im_size,
@@ -401,7 +399,8 @@ def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
         ishape=ishape,
         oshape=oshape,
     )
-    return kernel_os, pad_os, fft_os, nufft_os
+    del nufft_os  # Attempt to clean up this object
+    return kernel_os, pad_os, fft_os
 
 
 def scale_int(t: tuple[int, ...], scale_factor: float):
