@@ -11,7 +11,7 @@ from warnings import warn
 import torch
 import torch.nn as nn
 
-from torchlinops.utils import default_to
+from torchlinops.utils import default_to, cfftn
 
 from .nameddim import NDorStr, ELLIPSES, NS, ND, get_nd_shape, Shape
 from .namedlinop import NamedLinop
@@ -60,6 +60,7 @@ class NUFFT(Chain):
         """
         device = locs.device
         self.mode = mode
+        self.options = options
         # Infer shapes
         self.input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
         self.input_kshape = ND.infer(
@@ -107,6 +108,10 @@ class NUFFT(Chain):
                 ).to(device)  # Helps with batching later
             else:
                 weight = apodize_weights
+            if weight.isnan().any() or weight.isinf().any():
+                raise ValueError(
+                    f"Nan/Inf values detected in apodization weight (width={width}, oversamp={oversamp})."
+                )
             apodize = Diagonal(weight, batched_input_shape.ishape)
             apodize.name = "Apodize"
 
@@ -165,9 +170,13 @@ class NUFFT(Chain):
         adj.linops = nn.ModuleList(linops)
         return adj
 
-    # TODO: Replace with toeplitz version
     def normal(self, inner=None):
-        normal = super().normal(inner)
+        if self.options.get("toeplitz", False):
+            dtype = self.options.get("toeplitz_dtype")
+            kernel_os, pad_os, fft_os = toeplitz_psf(self, inner, dtype=dtype)
+            return pad_os.normal(fft_os.normal(kernel_os))
+        else:
+            normal = super().normal(inner)
         return normal
 
     @staticmethod
@@ -218,10 +227,16 @@ class NUFFT(Chain):
         padded_size = torch.tensor(padded_size)
         grid = torch.meshgrid(*(torch.arange(s) for s in grid_size), indexing="ij")
         grid = torch.stack(grid, dim=-1)
+
+        # Sigpy compatibility
         apod = (
             beta**2 - (torch.pi * width * (grid - grid_size // 2) / padded_size) ** 2
         ) ** 0.5
         apod /= torch.sinh(apod)
+
+        # Beatty paper
+        # apod = (torch.pi * width * (grid - grid_size // 2) / padded_size) ** 2 - beta**2
+        # print(apod)
         apod = torch.prod(apod, dim=-1)
         return apod
 
@@ -286,33 +301,58 @@ class NUFFT(Chain):
         raise ValueError(f"Unrecognized NUFFT mode: {self.mode}")
 
 
-def toeplitz(
-    nufft: NUFFT,
-    inner: Optional[NamedLinop] = None,
-    dtype: Optional[torch.dtype] = None,
-):
+def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
+    if isinstance(nufft.interp, Sampling):
+        raise NotImplementedError(
+            f"Toeplitz embedding not yet implemented for Sampling-type NUFFT"
+        )
+
     # Initialize variables
     dtype = default_to(torch.complex64, dtype)
     device = nufft.device
     # TODO: maybe accommodate other oversampling factors (more complicated)
     oversamp = 2.0
+    grid_size = nufft.pad.im_size
+    new_grid_size = scale_int(grid_size, oversamp)
+    ndim = len(grid_size)
+    width = nufft.pad.pad_im_size
+    new_width = scale_int(width, oversamp)
+    new_locs = rescale_locs(
+        nufft.interp.locs.clone(),
+        c0=tuple(w // 2 for w in width),
+        w0=width,
+        c1=tuple(w // 2 for w in new_width),
+        w1=new_width,
+    )
     nufft_os = NUFFT(
-        nufft.interp.locs.clone() * (oversamp / nufft.oversamp),
-        nufft.grid_size,
+        # nufft.interp.locs.clone() * (oversamp / nufft.oversamp),
+        new_locs,
+        grid_size=new_grid_size,
         output_shape=nufft.output_shape,
         input_shape=nufft.input_shape,
         input_kshape=nufft.input_kshape,
         batch_shape=nufft.batch_shape,
-        oversamp=oversamp,
+        oversamp=nufft.oversamp,  # Oversample on top of toeplitz oversampling
         width=nufft.width,
         mode=nufft.mode,
         do_prep_locs=False,
     )
-
     pad_os = nufft_os.pad
     fft_os = nufft_os.fft
-    io_kshape = fft_os._shape.output_grid_shape
-    im_size = pad_os.im_size
+
+    # pad_os = PadLast(
+    #     pad_im_size=pad_im_size,
+    #     im_size=nufft.grid_size,
+    #     in_shape=nufft.input_shape,
+    #     batch_shape=nufft.batch_shape,
+    # )
+    # fft_os = FFT(
+    #     ndim=len(pad_im_size),
+    #     centered=True,
+    #     norm="ortho",
+    #     batch_shape=nufft.batch_shape,
+    #     grid_shapes=(pad_os.out_im_shape, nufft.input_kshape),
+    # )
 
     # Initialize inner if not provided
     if inner is None:
@@ -323,45 +363,79 @@ def toeplitz(
             f"Inner linop must have identical input and output shape lengths but got ishape={inner.ishape} and oshape={inner.oshape}"
         )
 
-    # Create empty kernel
-    batch_ishape, batch_oshape, batch_sizes = get_psf_batch_shape_and_size(nufft, inner)
-    ishape = batch_ishape + io_kshape
-    oshape = batch_oshape + io_kshape
+    # Get all useful shapes and sizes
+    kernel_shape, ishape, oshape, kernel_size, input_size, batch_sizes = psf_sizing(
+        nufft, inner, oversamp
+    )
 
-    # Get kernel shape/size
-    kernel_ksize = tuple(int(2 * s * (oversamp - 1)) for s in im_size)
-    kernel_size = batch_sizes + batch_sizes + kernel_ksize
-    kernel_shape = batch_ishape + batch_oshape + io_kshape
+    # Create empty kernel
     kernel = torch.zeros(*kernel_size, dtype=dtype, device=device)
 
     # Allocate test input
-    input_size = batch_sizes + tuple(nufft.size(d) for d in nufft.output_shape)
+    # Delta version
+    # center_idx = tuple(s // 2 for s in new_grid_size)
+    # delta = torch.zeros(*delta_size, dtype=dtype, device=device)
+
+    # Ones version (saves 1 forward NUFFT)
     allones = torch.zeros(*input_size, dtype=dtype, device=device)
+    scale_factor = oversamp**ndim / (prod(new_grid_size) ** 0.5)
 
     # Compute kernel by iterating through all possible input-output pairs
-    for idx in all_indices(batch_sizes):
-        allones[idx] = 1.0
-        kernel[idx] = fft_os(pad_os(nufft_os.H(inner(allones))))
-        allones[idx] = 0.0  # reset
+    dim = tuple(range(-len(new_grid_size), 0))
+    for batch_idx in all_indices(batch_sizes):
+        # TODO start from ones instead of from delta?
+        # idx = (*batch_idx, *center_idx)
+        # delta[idx] = 1.0  # set
+        # psf = nufft_os.H(inner(nufft_os(delta)))
+        allones[batch_idx] = 1.0
+        psf = nufft_os.H(inner(allones))
+        # kernel[batch_idx] = fft_os(pad_os(psf))
+        # kernel[batch_idx] = fft_os(psf)
+        # kernel[batch_idx] = cfftn(psf, dim=dim, norm=None) * 2**ndim
+        kernel[batch_idx] = cfftn(psf, dim=dim, norm=None) * scale_factor
+        # delta[idx] = 0.0  # reset
+        allones[batch_idx] = 1.0  # reset
     kernel_os = Dense(
         weight=kernel,
         weightshape=kernel_shape,
         ishape=ishape,
         oshape=oshape,
     )
-    return pad_os.normal(fft_os.normal(kernel_os))
+    return kernel_os, pad_os, fft_os, nufft_os
 
 
-def get_psf_batch_shape_and_size(nufft, inner: NamedLinop):
+def scale_int(t: tuple[int, ...], scale_factor: float):
+    return tuple(int(scale_factor * s) for s in t)
+
+
+def psf_sizing(nufft, inner: NamedLinop, toeplitz_oversamp: float = 2.0):
     n_output_dims = len(nufft.output_shape)
+
+    # Get all relevant shapes
     batch_ishape, batch_oshape = (
         inner.ishape[:-n_output_dims],
         inner.oshape[:-n_output_dims],
     )
-    # Identify sizes
+    io_kshape = nufft.fft._shape.output_grid_shape
+    ishape = batch_ishape + io_kshape
+    oshape = batch_oshape + io_kshape
+    kernel_shape = batch_ishape + batch_oshape + io_kshape
+
+    # Get batch sizes
     batch_sizes = tuple(inner.size(d) for d in batch_ishape)
     batch_sizes = tuple(a if a is not None else 1 for a in batch_sizes)
-    return batch_ishape, batch_oshape, batch_sizes
+
+    # Get kernel size
+    im_size = nufft.pad.im_size
+    kernel_ksize = scale_int(im_size, toeplitz_oversamp)
+    kernel_size = batch_sizes + batch_sizes + kernel_ksize
+
+    # Get test input size
+    # input_size = batch_sizes + kernel_ksize
+    output_size = tuple(nufft.size(d) for d in nufft.output_shape)
+    input_size = batch_sizes + output_size
+
+    return kernel_shape, ishape, oshape, kernel_size, input_size, batch_sizes
 
 
 def all_indices(size: tuple[int]):
@@ -369,27 +443,50 @@ def all_indices(size: tuple[int]):
     return product(*ranges)
 
 
-def _changed_shape(ishape, oshape):
-    """Helper function for getting the kernel shape and slices
-    B = nufft shared + in batch shape
-    K = nufft out batch shape
-    Kx1, Ky1, Kz1 = output padded fourier-domain shapes
-
-    kernel_fourier_dim: [Kx1, Ky1, [Kz1]
-    B1 = nufft shared + in batch shape, different dims only. May be different length than B
-    kernel shape: [B1..., B..., Kx1, Ky1, [Kz1]]
-    ishape: [B..., K...]
-    in_batch_shape: [B...]
-    oshape: [B1..., K...]
-    out_batch_shape: [B1...]
+def rescale_locs(locs, c0: tuple, w0: tuple, c1: tuple, w1: tuple, dim: int = -1):
+    """Perform a scale-and-shift operation on a single dimension of a locs tensor.
+    Parameters
+    ----------
+    locs : Tensor
+        The locs to rescale, shape [... D ...]
+    c0, w0 : tuple
+        The center and width parameter for the current locs
+    c1, w1: tuple
+        The desired center and width parameters.
+    dim : int
+        The dimension of locs to unstack
     """
-    changed_shape = []
-    changed = []
-    for idim, odim in zip(ishape, oshape):
-        if idim != odim:
-            changed_shape.append(idim)
-            changed.append(True)
-        else:
-            changed.append(False)
-    changed_shape = tuple(changed_shape)
-    return changed_shape, changed
+    ndim = locs.shape[dim]
+    out = []
+    for d in range(ndim):
+        loc = torch.select(locs, dim, d)
+        # Affine transform
+        loc = (loc - c0[d]) * w1[d] / w0[d] + c1[d]
+        out.append(loc)
+    return torch.stack(out, dim=dim)
+
+
+# def _changed_shape(ishape, oshape):
+#     """Helper function for getting the kernel shape and slices
+#     B = nufft shared + in batch shape
+#     K = nufft out batch shape
+#     Kx1, Ky1, Kz1 = output padded fourier-domain shapes
+
+#     kernel_fourier_dim: [Kx1, Ky1, [Kz1]
+#     B1 = nufft shared + in batch shape, different dims only. May be different length than B
+#     kernel shape: [B1..., B..., Kx1, Ky1, [Kz1]]
+#     ishape: [B..., K...]
+#     in_batch_shape: [B...]
+#     oshape: [B1..., K...]
+#     out_batch_shape: [B1...]
+#     """
+#     changed_shape = []
+#     changed = []
+#     for idim, odim in zip(ishape, oshape):
+#         if idim != odim:
+#             changed_shape.append(idim)
+#             changed.append(True)
+#         else:
+#             changed.append(False)
+#     changed_shape = tuple(changed_shape)
+#     return changed_shape, changed
