@@ -13,7 +13,7 @@ class FFT(NamedLinop):
         self,
         ndim: int,
         batch_shape: Optional[Shape] = None,
-        grid_shapes: Optional[Shape] = None,
+        grid_shapes: Optional[tuple[Shape, Shape]] = None,
         norm: str = "ortho",
         centered: bool = False,
     ):
@@ -21,8 +21,8 @@ class FFT(NamedLinop):
         Currently only supports 2D and 3D FFTs
         centered=True mimicks sigpy behavior
 
-        batch_shape: NamedShape
-        grid_shapes:
+        batch_shape: Shape, optional
+        grid_shapes: (Shape, Shape)
 
 
         """

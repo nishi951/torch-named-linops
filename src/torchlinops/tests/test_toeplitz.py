@@ -4,24 +4,29 @@ import torch
 
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops import NUFFT, Diagonal, Dense, Dim
+from torchlinops.utils import from_pytorch
 
-from torchlinops.linops.nufft import get_psf_batch_shape_and_size, toeplitz
+from torchlinops.linops.nufft import toeplitz_psf
+
+from sigpy.fourier import toeplitz_psf as sp_toeplitz_psf
 
 
 @pytest.fixture
 def nufft_params():
     width = 4.0
     oversamp = 1.25
-    grid_size = (120, 119, 146)
+    # grid_size = (120, 119, 146)
+    grid_size = (64, 64, 64)
     padded_size = [int(i * oversamp) for i in grid_size]
     locs = get_valid_locs(
-        (7, 10),
+        (20, 500),
         grid_size,
         len(grid_size),
         width,
         "cpu",
         centered=True,
     )
+    locs = torch.zeros(20, 500, 3)  # DEBUG
     return {
         "width": width,
         "oversamp": oversamp,
@@ -69,19 +74,22 @@ def dense_inner(nufft_params):
     return linop
 
 
-@pytest.mark.parametrize("inner_type", ["simple_inner", "dense_inner"])
-def test_toeplitz_components(inner_type, nufft_linop, request):
-    inner = request.getfixturevalue(inner_type)
-    batch_ishape, batch_oshape, batch_sizes = get_psf_batch_shape_and_size(
-        nufft_linop,
-        inner,
-    )
-
-
 @pytest.mark.parametrize("inner_type", ["simple_inner", "dense_inner", None])
-def test_toeplitz_full(inner_type, nufft_linop, request):
+def test_toeplitz_full(inner_type, nufft_linop, nufft_params, request):
     if inner_type is not None:
         inner = request.getfixturevalue(inner_type)
     else:
         inner = None
-    T = toeplitz(nufft_linop, inner)
+    kernel, pad, fft, nufft = toeplitz_psf(nufft_linop, inner)
+
+    # Test against sigpy for no inner only
+    if inner_type is None:
+        psf = kernel.weight
+        coord = from_pytorch(nufft_params["locs"].clone())
+        psf_sp = sp_toeplitz_psf(
+            coord,
+            nufft_linop.grid_size,
+            oversamp=nufft_linop.oversamp,
+            width=nufft_linop.width,
+        )
+        breakpoint()
