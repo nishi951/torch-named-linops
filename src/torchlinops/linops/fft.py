@@ -14,15 +14,29 @@ class FFT(NamedLinop):
         ndim: int,
         batch_shape: Optional[Shape] = None,
         grid_shapes: Optional[tuple[Shape, Shape]] = None,
-        norm: str = "ortho",
+        norm: Optional[str] = "ortho",
         centered: bool = False,
     ):
         """
-        Currently only supports 2D and 3D FFTs
-        centered=True mimicks sigpy behavior
-
+        Parameters
+        ----------
+        ndim : int
+            Dimension of this fourier transform
         batch_shape: Shape, optional
-        grid_shapes: (Shape, Shape)
+            Batch dimensions, otherwise defaults to
+        grid_shapes: (Shape, Shape), optional
+            Pair of shapes corresponding to input (primal domain) and
+            output (fourier/dual domain)
+            Otherwise, defaults to (Nx[, Ny [, Nz]]) and (Kx[, Ky[, Kz]])
+        norm : 'ortho' or None, default 'ortho'
+            Normalization to apply to FFT.
+            Note: technically only "ortho" results in a "true" forward/adjoint relationship.
+        centered : bool, default False
+            If True, treats the center of the array (i.e. N // 2) as the origin of k-space and image space
+            If False, treats the array index origin (i.e. (0, 0) for 2D) as the origin of k-space and image space
+            centered = True mimicks sigpy behavior.
+
+
 
 
         """

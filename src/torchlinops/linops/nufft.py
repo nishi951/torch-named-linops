@@ -93,13 +93,13 @@ class NUFFT(Chain):
 
         # Create Interpolator
         grid_shape = fft._shape.output_grid_shape
-        if do_prep_locs:
-            locs_prepared = self.prep_locs(
-                locs, grid_size, padded_size, nufft_mode=mode
-            )
-        else:
-            locs_prepared = locs
         if self.mode == "interpolate":
+            if do_prep_locs:
+                locs_prepared = self.prep_locs(
+                    locs, grid_size, padded_size, nufft_mode=mode
+                )
+            else:
+                locs_prepared = locs
             beta = self.beta(width, oversamp)
             # Create Apodization
             if apodize_weights is None:
@@ -132,6 +132,7 @@ class NUFFT(Chain):
             scale.to(device)  # Helps with batching later
             linops = [apodize, pad, fft, interp, scale]
         elif self.mode == "sampling":
+            locs_prepared = locs
             if locs_prepared.is_complex() or locs_prepared.is_floating_point():
                 raise ValueError(
                     f"Sampling linop requries integer-type locs but got {locs_prepared.dtype}"
@@ -335,7 +336,7 @@ def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
         mode=nufft.mode,
         do_prep_locs=False,
     )
-    pad_os = deepcopy(nufft_os.pad)
+    # pad_os = deepcopy(nufft_os.pad)
     fft_os = deepcopy(nufft_os.fft)
 
     # pad_os = PadLast(
@@ -399,7 +400,15 @@ def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
         ishape=ishape,
         oshape=oshape,
     )
-    del nufft_os  # Attempt to clean up this object
+    del nufft_os  # Attempt to clean up
+
+    # Create Padding
+    pad_os = PadLast(
+        new_grid_size,
+        grid_size,
+        in_shape=nufft.input_shape,
+        batch_shape=nufft.batch_shape,
+    )
     return kernel_os, pad_os, fft_os
 
 
@@ -418,7 +427,14 @@ def psf_sizing(nufft, inner: NamedLinop, toeplitz_oversamp: float = 2.0):
     io_kshape = nufft.fft._shape.output_grid_shape
     ishape = batch_ishape + io_kshape
     oshape = batch_oshape + io_kshape
-    kernel_shape = batch_ishape + batch_oshape + io_kshape
+    if batch_ishape == (ELLIPSES,):  # Special case
+        kernel_shape = batch_ishape + io_kshape
+    elif ELLIPSES in batch_ishape and ELLIPSES in batch_oshape:
+        raise ValueError(
+            f"Underspecified kernel shape for toeplitz embedding with inner.shape = {inner.shape}. Specify more dimensions of inner to avoid this."
+        )
+    else:
+        kernel_shape = batch_ishape + batch_oshape + io_kshape
 
     # Get batch sizes
     batch_sizes = tuple(inner.size(d) for d in batch_ishape)
