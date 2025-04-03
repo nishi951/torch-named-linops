@@ -114,5 +114,5 @@ class Sampling(NamedLinop):
             return self.locs.shape[dim_idx]
         elif dim in self._shape.input_shape:
             dim_idx = self._shape.input_shape.index(dim)
-            return self.grid_size[dim_idx]
+            return self.input_size[dim_idx]
         return None
