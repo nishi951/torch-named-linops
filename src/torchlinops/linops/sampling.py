@@ -58,6 +58,11 @@ class Sampling(NamedLinop):
                 )
         self.idx = nn.ParameterList([nn.Parameter(i, requires_grad=False) for i in idx])
 
+    @property
+    def locs(self):
+        """for compatibility with Interpolate linop"""
+        return torch.stack(self.idx, dim=-1)
+
     @classmethod
     def from_mask(cls, mask, *args, **kwargs):
         """Alternative constructor for mask-based sampling"""
@@ -102,3 +107,12 @@ class Sampling(NamedLinop):
 
     def register_shape(self, name, shape: tuple):
         self._shape.add(name, shape)
+
+    def size(self, dim):
+        if dim in self._shape.output_shape:
+            dim_idx = self._shape.output_shape.index(dim)
+            return self.locs.shape[dim_idx]
+        elif dim in self._shape.input_shape:
+            dim_idx = self._shape.input_shape.index(dim)
+            return self.input_size[dim_idx]
+        return None
