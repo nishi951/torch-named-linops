@@ -183,7 +183,7 @@ class Chain(NamedLinop):
         linops = self.linops[idx]
         if isinstance(linops, NamedLinop):
             return linops
-        return type(self)(*linops, name=self._name)
+        return Chain(*linops, name=self._name)
 
     def __len__(self):
         return len(self.linops)

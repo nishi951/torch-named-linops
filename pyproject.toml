@@ -36,6 +36,8 @@ classifiers = [
 [dependency-groups]
 dev = [
     "furo>=2024.8.6",
+    "marimo>=0.12.0",
+    "matplotlib>=3.10.1",
     "myst-parser>=3.0.1",
     "pre-commit>=4.0.1",
     "pytest>=8.3.4",
