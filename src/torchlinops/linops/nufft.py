@@ -46,7 +46,28 @@ class NUFFT(Chain):
         **options,
     ):
         """
-        mode : "interpolate" or "sampling"
+        Parameters
+        ----------
+        locs : Tensor, float
+            Shape [... D] Tensor where last dimension is the spatial dimension
+        grid_size : tuple of ints
+            The expected spatial dimension of the input tensor.
+        output_shape : Shape
+        input_shape : Shape, optional
+        input_kshape : Shape, optional
+        batch_shape : Shape, optional
+            NUFFT is implemented as a chain of padding, FFT, and interpolation
+            Named Dimensions are set as follows:
+
+            Pad: (*batch_shape, *input_shape) -> (*batch_shape, *next_unused(input_shape))
+            FFT: (*batch_shape, *next_unused(input_shape)) -> (*batch_shape, *input_kshape)
+            Interp: (*batch_shape, *input_kshape) -> (*batch_shape, *output_shape)
+
+        oversamp : float
+            Oversampling factor for fourier domain grid
+        width : float
+            Width of kernel to use for interpolation
+        mode : str, "interpolate" or "sampling"
         do_prep_locs : bool, default True
             Whether to scale, shift, and clamp the locs to be amenable to interpolation
             By default (=True), assumes the locs lie in [-N/2, N/2]
@@ -56,6 +77,12 @@ class NUFFT(Chain):
             Provide apodization weights
             Only relevant for "intepolate" mode
             Can have memory benefits
+        **options : dict
+            Additional options
+            toeplitz : bool
+                If True, normal() performs toeplitz embedding calculation
+            toeplitz_dtype : torch.dtype
+                Data type for the toeplitz embedding. Probably should be torch.complex64
 
         """
         device = locs.device
@@ -174,8 +201,16 @@ class NUFFT(Chain):
     def normal(self, inner=None):
         if self.options.get("toeplitz", False):
             dtype = self.options.get("toeplitz_dtype")
-            kernel_os, pad_os, fft_os = toeplitz_psf(self, inner, dtype=dtype)
-            return pad_os.normal(fft_os.normal(kernel_os))
+            oversamp = self.options.get("toeplitz_oversamp", 2.0)
+            toep_kernel = toeplitz_psf(self, inner, dtype=dtype, oversamp=oversamp)
+            pad = PadLast(
+                scale_int(self.grid_size, oversamp),
+                self.grid_size,
+                in_shape=self.input_shape,
+                batch_shape=self.batch_shape,
+            )
+            fft = self.fft
+            return pad.normal(fft.normal(toep_kernel))
         return super().normal(inner)
 
     @staticmethod
@@ -189,7 +224,6 @@ class NUFFT(Chain):
         """
         Assumes centered locs
         """
-        # out = locs.clone()
         out = locs
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
@@ -239,24 +273,6 @@ class NUFFT(Chain):
         apod = torch.prod(apod, dim=-1)
         return apod
 
-    # Special derived properties
-
-    #     self.grid_size = tuple(grid_size)
-    #     self.oversamp = oversamp
-    #     self.width = width
-    #     self.locs = locs
-    #     self.options = default_to(
-    #         {"toeplitz": False, "toeplitz_oversamp": 2.0}, options
-    #     )
-
-    # def normal(self, inner=None):
-    #     if inner is not None:
-    #         if self.options.get("toeplitz"):
-    #             ...
-    #         else:
-    #             ...
-    #     return NotImplemented
-
     def split_forward(self, ibatches, obatches):
         if len(ibatches) > 1 or len(obatches) > 1:
             raise ValueError(
@@ -284,23 +300,22 @@ class NUFFT(Chain):
         """Tracks device of interpolating/sampling linop
         Useful for toeplitz
         """
-
         if self.mode == "interpolate":
             return self.interp.locs.device
-            # assert isinstance(
-            #     self.linops[-2], Interpolate
-            # ), f"Expected Interpolate linop but got {type(self.linops[-2])}"
-            # return self.linops[-2].locs.device
         elif self.mode == "sampling":
             return self.interp.idx[0].device
-            # assert isinstance(
-            #     self.linops[-1], Sampling
-            # ), f"Expected Sampling linop but got {type(self.linops[-1])}"
-            # return self.linops[-1].idx[0].device
         raise ValueError(f"Unrecognized NUFFT mode: {self.mode}")
 
 
-def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
+def toeplitz_psf(
+    nufft,
+    inner: Optional[NamedLinop] = None,
+    dtype: Optional[torch.dtype] = None,
+    oversamp: float = 2.0,
+) -> NamedLinop:
+    """Compute the toeplitz PSF for this NUFFT, with
+    # TODO: maybe accommodate other oversampling factors (more complicated)
+    """
     if isinstance(nufft.interp, Sampling):
         raise NotImplementedError(
             f"Toeplitz embedding not yet implemented for Sampling-type NUFFT"
@@ -309,8 +324,6 @@ def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
     # Initialize variables
     dtype = default_to(torch.complex64, dtype)
     device = nufft.device
-    # TODO: maybe accommodate other oversampling factors (more complicated)
-    oversamp = 2.0
     grid_size = nufft.pad.im_size
     new_grid_size = scale_int(grid_size, oversamp)
     ndim = len(grid_size)
@@ -324,7 +337,6 @@ def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
         w1=new_width,
     )
     nufft_os = NUFFT(
-        # nufft.interp.locs.clone() * (oversamp / nufft.oversamp),
         new_locs,
         grid_size=new_grid_size,
         output_shape=nufft.output_shape,
@@ -336,22 +348,6 @@ def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
         mode=nufft.mode,
         do_prep_locs=False,
     )
-    # pad_os = deepcopy(nufft_os.pad)
-    fft_os = deepcopy(nufft_os.fft)
-
-    # pad_os = PadLast(
-    #     pad_im_size=pad_im_size,
-    #     im_size=nufft.grid_size,
-    #     in_shape=nufft.input_shape,
-    #     batch_shape=nufft.batch_shape,
-    # )
-    # fft_os = FFT(
-    #     ndim=len(pad_im_size),
-    #     centered=True,
-    #     norm="ortho",
-    #     batch_shape=nufft.batch_shape,
-    #     grid_shapes=(pad_os.out_im_shape, nufft.input_kshape),
-    # )
 
     # Initialize inner if not provided
     if inner is None:
@@ -370,46 +366,25 @@ def toeplitz_psf(nufft, inner, dtype: Optional[torch.dtype] = None):
     # Create empty kernel
     kernel = torch.zeros(*kernel_size, dtype=dtype, device=device)
 
-    # Allocate test input
-    # Delta version
-    # center_idx = tuple(s // 2 for s in new_grid_size)
-    # delta = torch.zeros(*delta_size, dtype=dtype, device=device)
-
-    # Ones version (saves 1 forward NUFFT)
+    # Allocate input
     allones = torch.zeros(*input_size, dtype=dtype, device=device)
     scale_factor = oversamp**ndim / (prod(new_grid_size) ** 0.5)
 
     # Compute kernel by iterating through all possible input-output pairs
     dim = tuple(range(-len(new_grid_size), 0))
     for batch_idx in all_indices(batch_sizes):
-        # TODO start from ones instead of from delta?
-        # idx = (*batch_idx, *center_idx)
-        # delta[idx] = 1.0  # set
-        # psf = nufft_os.H(inner(nufft_os(delta)))
         allones[batch_idx] = 1.0
-        psf = nufft_os.H(inner(allones))
-        # kernel[batch_idx] = fft_os(pad_os(psf))
-        # kernel[batch_idx] = fft_os(psf)
-        # kernel[batch_idx] = cfftn(psf, dim=dim, norm=None) * 2**ndim
-        kernel[batch_idx] = cfftn(psf, dim=dim, norm=None) * scale_factor
-        # delta[idx] = 0.0  # reset
-        allones[batch_idx] = 1.0  # reset
+        otf = nufft_os.H(inner(allones))
+        kernel[batch_idx] = cfftn(otf, dim=dim, norm=None) * scale_factor
+        allones[batch_idx] = 0.0  # reset
     kernel_os = Dense(
         weight=kernel,
         weightshape=kernel_shape,
         ishape=ishape,
         oshape=oshape,
     )
-    del nufft_os  # Attempt to clean up
 
-    # Create Padding
-    pad_os = PadLast(
-        new_grid_size,
-        grid_size,
-        in_shape=nufft.input_shape,
-        batch_shape=nufft.batch_shape,
-    )
-    return kernel_os, pad_os, fft_os
+    return kernel_os
 
 
 def scale_int(t: tuple[int, ...], scale_factor: float):
@@ -417,6 +392,7 @@ def scale_int(t: tuple[int, ...], scale_factor: float):
 
 
 def psf_sizing(nufft, inner: NamedLinop, toeplitz_oversamp: float = 2.0):
+    """Helper function for computing shapes and sizes of kernels and inputs"""
     n_output_dims = len(nufft.output_shape)
 
     # Get all relevant shapes
@@ -446,7 +422,6 @@ def psf_sizing(nufft, inner: NamedLinop, toeplitz_oversamp: float = 2.0):
     kernel_size = batch_sizes + batch_sizes + kernel_ksize
 
     # Get test input size
-    # input_size = batch_sizes + kernel_ksize
     output_size = tuple(nufft.size(d) for d in nufft.output_shape)
     input_size = batch_sizes + output_size
 
@@ -479,29 +454,3 @@ def rescale_locs(locs, c0: tuple, w0: tuple, c1: tuple, w1: tuple, dim: int = -1
         loc = (loc - c0[d]) * w1[d] / w0[d] + c1[d]
         out.append(loc)
     return torch.stack(out, dim=dim)
-
-
-# def _changed_shape(ishape, oshape):
-#     """Helper function for getting the kernel shape and slices
-#     B = nufft shared + in batch shape
-#     K = nufft out batch shape
-#     Kx1, Ky1, Kz1 = output padded fourier-domain shapes
-
-#     kernel_fourier_dim: [Kx1, Ky1, [Kz1]
-#     B1 = nufft shared + in batch shape, different dims only. May be different length than B
-#     kernel shape: [B1..., B..., Kx1, Ky1, [Kz1]]
-#     ishape: [B..., K...]
-#     in_batch_shape: [B...]
-#     oshape: [B1..., K...]
-#     out_batch_shape: [B1...]
-#     """
-#     changed_shape = []
-#     changed = []
-#     for idim, odim in zip(ishape, oshape):
-#         if idim != odim:
-#             changed_shape.append(idim)
-#             changed.append(True)
-#         else:
-#             changed.append(False)
-#     changed_shape = tuple(changed_shape)
-#     return changed_shape, changed
