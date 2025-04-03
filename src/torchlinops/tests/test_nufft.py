@@ -10,6 +10,8 @@ from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.tests.test_base import BaseNamedLinopTests
 from torchlinops.utils import cifftn
 
+from torchlinops.functional import nufft, nufft_adjoint
+
 
 class TestNUFFT(BaseNamedLinopTests):
     equality_check = "approx"
@@ -86,6 +88,26 @@ class TestNUFFT(BaseNamedLinopTests):
         assert np.allclose(Ax, Ax_sp, **self.isclose_kwargs)
 
         AHy = A.H(y).numpy()
+        AHy_sp = sp.nufft_adjoint(
+            y.numpy(), coord, x.shape, oversamp=oversamp, width=width
+        )
+        assert np.allclose(AHy, AHy_sp, **self.isclose_kwargs)
+
+    def test_nufft_sigpy_functional(self, linop_input_output):
+        A, x, y = linop_input_output
+        coord = A._locs_orig.numpy()  # Not usually a param, only here for testing
+        # sz = np.array(A.grid_size)
+        # coord = np.where(coord <= (sz / 2), coord, coord - sz)
+        width = A.width
+        oversamp = A.oversamp
+
+        Ax = nufft(x, A._locs_orig, oversamp, width).numpy()
+        Ax_sp = sp.nufft(x.numpy(), coord, oversamp=oversamp, width=width)
+        assert np.allclose(Ax, Ax_sp, **self.isclose_kwargs)
+
+        ndim = A._locs_orig.shape[-1]
+        grid_size = x.shape[-ndim:]
+        AHy = nufft_adjoint(y, A._locs_orig, grid_size, oversamp, width).numpy()
         AHy_sp = sp.nufft_adjoint(
             y.numpy(), coord, x.shape, oversamp=oversamp, width=width
         )
