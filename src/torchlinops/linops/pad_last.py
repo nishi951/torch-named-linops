@@ -67,15 +67,7 @@ class PadLast(NamedLinop):
 
         # Make crop slice that undoes padding
         # Need to reverse crop_slice because padding is reversed
-        self.crop_slice = []
-        for i in range(len(self.pad) // 2):
-            start = self.pad[2 * i]
-            stop = -self.pad[2 * i + 1]
-            if stop == 0:
-                # Don't set stop to 0, set it to the end
-                stop = None
-            self.crop_slice.append(slice(start, stop))
-        self.crop_slice.reverse()
+        self.crop_slice = crop_slice_from_pad(self.pad)
 
     def forward(self, x):
         """Pad the last n dimensions of x"""
@@ -169,3 +161,17 @@ def pad_to_size(grid_size, padded_size):
         pad.append([pad_left, pad_right])
     pad.reverse()
     return sum(pad, start=[])
+
+
+def crop_slice_from_pad(pad):
+    """From a padding list, get the corresponding slicing that undoes it."""
+    crop_slice = []
+    for i in range(len(pad) // 2):
+        start = pad[2 * i]
+        stop = -pad[2 * i + 1]
+        if stop == 0:
+            # Don't set stop to 0, set it to the end
+            stop = None
+        crop_slice.append(slice(start, stop))
+    crop_slice.reverse()
+    return crop_slice

@@ -80,7 +80,7 @@ def test_toeplitz_full(inner_type, nufft_linop, nufft_params, request):
         inner = request.getfixturevalue(inner_type)
     else:
         inner = None
-    kernel, pad, fft = toeplitz_psf(nufft_linop, inner)
+    kernel = toeplitz_psf(nufft_linop, inner)
 
     # Test against sigpy for no inner only
     if inner_type is None:
