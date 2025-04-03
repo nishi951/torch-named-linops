@@ -8,3 +8,5 @@ from ._interp.grid import grid
 from ._interp.interp import *
 
 from ._index.index import *
+
+from ._nufft import *
