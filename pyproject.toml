@@ -2,7 +2,7 @@
 name = "torch-named-linops"
 description = "A flexible linear operator abstraction in pytorch."
 authors = [
-    { name = "Mark Nishimura", email = "markn1@stanford.edu" }
+    { name = "Mark Nishimura", email = "nishimuramarky@gmail.com" }
 ]
 dependencies = [
     "triton>=3.0",
@@ -12,7 +12,7 @@ dependencies = [
     "torch>1.13,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "torchvision<0.20.1; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "torchaudio>1.13,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
-    # Torch on linux
+    # Torch on other platforms
     "torch>=2.5.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "torchvision>=0.20.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "torchaudio>=2.5.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
