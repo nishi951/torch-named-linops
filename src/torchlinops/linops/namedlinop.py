@@ -15,7 +15,7 @@ from torchlinops.utils import INDENT
 
 __all__ = ["NamedLinop"]
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("torchlinops")
 
 
 class NamedLinop(nn.Module):

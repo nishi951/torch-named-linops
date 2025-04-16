@@ -15,3 +15,5 @@ htmlcov
 *.np[yz]
 *.mat
 
+# LSP
+pyrightconfig.json
