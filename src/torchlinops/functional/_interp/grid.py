@@ -620,9 +620,9 @@ def grid_torch(
         # Expand patch indices
         npts = p1 - p0
         ngrid = patches.shape[-1]
-        batch_indices = batch_indices.expand(-1, npts, ngrid)
+        batch_slc = batch_indices.expand(-1, npts, ngrid)
 
         # Perform indexing
-        grid_locs_slc = (batch_indices, *(grid_locs[..., i] for i in range(ndim)))
+        grid_locs_slc = (batch_slc, *(grid_locs[..., i] for i in range(ndim)))
         out.index_put_(grid_locs_slc, patches, accumulate=True)
     return out
