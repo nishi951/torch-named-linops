@@ -61,7 +61,7 @@ class Sampling(NamedLinop):
     @property
     def locs(self):
         """for compatibility with Interpolate linop"""
-        return torch.stack(self.idx, dim=-1)
+        return torch.stack(tuple(self.idx), dim=-1)
 
     @classmethod
     def from_mask(cls, mask, *args, **kwargs):
