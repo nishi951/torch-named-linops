@@ -129,8 +129,8 @@ class Stack(NamedLinop):
             ys = []
             for xi, linop in zip(xs, linops):
                 ys.append(linop(xi))
-
             return torch.stack(ys, dim=odim_idx)
+
         # Horizontal
         y = 0
         for xi, linop in zip(xs, linops):

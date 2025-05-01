@@ -120,13 +120,16 @@ class NUFFT(Chain):
 
         # Create Interpolator
         grid_shape = fft._shape.output_grid_shape
+        if do_prep_locs:
+            locs_prepared = self.prep_locs(
+                locs.clone(),  # Avoid modifying original locs
+                grid_size,
+                padded_size,
+                nufft_mode=mode,
+            )
+        else:
+            locs_prepared = locs
         if self.mode == "interpolate":
-            if do_prep_locs:
-                locs_prepared = self.prep_locs(
-                    locs, grid_size, padded_size, nufft_mode=mode
-                )
-            else:
-                locs_prepared = locs
             beta = self.beta(width, oversamp)
             # Create Apodization
             if apodize_weights is None:
@@ -159,7 +162,6 @@ class NUFFT(Chain):
             scale.to(device)  # Helps with batching later
             linops = [apodize, pad, fft, interp, scale]
         elif self.mode == "sampling":
-            locs_prepared = locs
             if locs_prepared.is_complex() or locs_prepared.is_floating_point():
                 raise ValueError(
                     f"Sampling linop requries integer-type locs but got {locs_prepared.dtype}"
