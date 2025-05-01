@@ -122,7 +122,7 @@ class NUFFT(Chain):
         grid_shape = fft._shape.output_grid_shape
         if do_prep_locs:
             locs_prepared = self.prep_locs(
-                locs.clone(),  # Avoid modifying original locs
+                locs,
                 grid_size,
                 padded_size,
                 nufft_mode=mode,
@@ -289,7 +289,8 @@ class NUFFT(Chain):
         - Adjusts the locations by scaling and shifting them according to the grid and padded sizes.
         - Applies clamping or remainder operations based on the padding mode and NUFFT mode.
         """
-        out = locs
+        # Clone to prevent in-place scaling from modifying the original
+        out = locs.clone()
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
             out[..., i] += padded_size[i] // 2
