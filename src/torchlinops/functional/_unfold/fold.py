@@ -1,4 +1,3 @@
-# ruff: noqa: F722
 from typing import Optional
 from jaxtyping import Shaped, Bool
 from torch import Tensor
@@ -10,6 +9,7 @@ import triton
 import triton.language as tl
 
 from .nblocks import get_nblocks
+from .casting import scalar_cast as cast
 
 __all__ = ["fold"]
 
@@ -27,18 +27,35 @@ def fold(
     stride: tuple,
     mask: Optional[Bool[Tensor, "..."]] = None,
 ) -> Tensor:
-    """Cube-like unfolding"""
-    x_flat, shapes = prep_fold_shapes(x, im_size, block_size, stride, mask)
+    """Accumulate an array of blocks into a full array
+
+    Parameters
+    ----------
+    x : Tensor
+        Shape [B..., blocks, block_size]
+
+    Returns
+    -------
+    Tensor: Shape [B..., *im_size]
+        If mask is not None, block_size will be an int equal to the number of True elements in the mask
+        Otherwise it will be the full block shape.
+    """
     if mask is not None:
+        nblocks = get_nblocks(im_size, block_size, stride)
+        if len(x.shape) > len(nblocks) + 1:
+            x_batch_shape = x.shape[: -(len(nblocks) + 1)]
+        else:
+            x_batch_shape = []
         tmp = torch.zeros(
-            shapes["nbatch"],
-            *shapes["nblocks"],
-            *shapes["block_size"],
+            *x_batch_shape,
+            *nblocks,
+            *block_size,
             dtype=x.dtype,
             device=x.device,
         )
-        tmp[..., mask] = x_flat
-        x_flat = tmp
+        tmp[..., mask] = x
+        x = tmp
+    x_flat, shapes = prep_fold_shapes(x, im_size, block_size, stride, mask)
 
     if torch.is_complex(x_flat):
         x_flat = torch.view_as_real(x_flat)
@@ -64,7 +81,12 @@ def _fold(
     **kwargs,
 ):
     """Implementation of fold"""
+    if x.shape[-2 * ndim :] != (*nblocks, *block_size):
+        raise RuntimeError(
+            f"Fold expected input with full size {(*nblocks, *block_size)} but got {x.shape}"
+        )
     if x.is_cuda and ndim in FOLD.keys():
+        x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
             # Allocate output
             y = torch.zeros(
@@ -135,11 +157,18 @@ def _fold1d(
     # Size of the triton block (power of 2)
     X_BLOCK_SIZE: tl.constexpr,
 ):
+    dtype = in_ptr.type.element_ty
     pid_0 = tl.program_id(0)
     x_blocks_per_batch = cdiv(x_size, X_BLOCK_SIZE)
 
     # Batch index, Block index
     N, Ix = pid_0 // x_blocks_per_batch, pid_0 % x_blocks_per_batch
+
+    # Convert types
+    x_nblocks = cast(x_nblocks, tl.int64)
+    x_block_dim = cast(x_block_dim, tl.int64)
+    x_size = cast(x_size, tl.int64)
+    x_stride = cast(x_stride, tl.int32)
 
     nblocks = x_nblocks
     block_dim = x_block_dim
@@ -154,7 +183,7 @@ def _fold1d(
     Bx_upper = cdiv(x_upper, x_stride)  # non-inclusive
 
     # Initialize output
-    output = tl.zeros((1, X_BLOCK_SIZE), tl.float32)
+    output = tl.zeros((1, X_BLOCK_SIZE), dtype)
     x_range = tl.arange(0, X_BLOCK_SIZE) + x_lower
     x_mask = x_range < x_size
     out_offset = N * size
@@ -215,6 +244,7 @@ def _fold2d(
     X_BLOCK_SIZE: tl.constexpr,
     Y_BLOCK_SIZE: tl.constexpr,
 ):
+    dtype = in_ptr.type.element_ty
     pid_0 = tl.program_id(0)
     pid_1 = tl.program_id(1)
     # x_blocks_per_batch = tl.ceil(x_size / X_BLOCK_SIZE)
@@ -224,6 +254,16 @@ def _fold2d(
     # Batch index, Block index
     N, Ix = pid_0 // x_blocks_per_batch, pid_0 % x_blocks_per_batch
     Iy = pid_1 % y_blocks_per_batch
+
+    # Convert types
+    x_nblocks = cast(x_nblocks, tl.int64)
+    y_nblocks = cast(y_nblocks, tl.int64)
+    x_block_dim = cast(x_block_dim, tl.int64)
+    y_block_dim = cast(y_block_dim, tl.int64)
+    x_size = cast(x_size, tl.int64)
+    y_size = cast(y_size, tl.int64)
+    x_stride = cast(x_stride, tl.int32)
+    y_stride = cast(y_stride, tl.int32)
 
     nblocks = x_nblocks * y_nblocks
     block_dim = x_block_dim * y_block_dim
@@ -241,7 +281,7 @@ def _fold2d(
     By_upper = cdiv(y_upper, y_stride)  # non-inclusive
 
     # Initialize output
-    output = tl.zeros((1, X_BLOCK_SIZE, Y_BLOCK_SIZE), tl.float32)
+    output = tl.zeros((1, X_BLOCK_SIZE, Y_BLOCK_SIZE), dtype)
     x_range = tl.arange(0, X_BLOCK_SIZE) + x_lower
     x_mask = x_range < x_size
     y_range = tl.arange(0, Y_BLOCK_SIZE) + y_lower
@@ -321,6 +361,7 @@ def _fold3d(
     Y_BLOCK_SIZE: tl.constexpr,
     Z_BLOCK_SIZE: tl.constexpr,
 ):
+    dtype = in_ptr.type.element_ty
     pid_0 = tl.program_id(0)
     pid_1 = tl.program_id(1)
     pid_2 = tl.program_id(2)
@@ -332,6 +373,20 @@ def _fold3d(
     N, Ix = pid_0 // x_blocks_per_batch, pid_0 % x_blocks_per_batch
     Iy = pid_1 % y_blocks_per_batch
     Iz = pid_2 % z_blocks_per_batch
+
+    # Convert types
+    x_nblocks = cast(x_nblocks, tl.int64)
+    y_nblocks = cast(y_nblocks, tl.int64)
+    z_nblocks = cast(z_nblocks, tl.int64)
+    x_block_dim = cast(x_block_dim, tl.int64)
+    y_block_dim = cast(y_block_dim, tl.int64)
+    z_block_dim = cast(z_block_dim, tl.int64)
+    x_size = cast(x_size, tl.int64)
+    y_size = cast(y_size, tl.int64)
+    z_size = cast(z_size, tl.int64)
+    x_stride = cast(x_stride, tl.int32)
+    y_stride = cast(y_stride, tl.int32)
+    z_stride = cast(z_stride, tl.int32)
 
     nblocks = x_nblocks * y_nblocks * z_nblocks
     block_dim = x_block_dim * y_block_dim * z_block_dim
@@ -354,7 +409,7 @@ def _fold3d(
     Bz_upper = cdiv(z_upper, z_stride)  # non-inclusive
 
     # Initialize output
-    output = tl.zeros((1, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE), tl.float32)
+    output = tl.zeros((1, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE), dtype)
     x_range = tl.arange(0, X_BLOCK_SIZE) + x_lower
     x_mask = x_range < x_size
     y_range = tl.arange(0, Y_BLOCK_SIZE) + y_lower
