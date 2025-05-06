@@ -1,13 +1,13 @@
 import torch
 
-__all__ = ["get_device", "ordinal", "same_storage"]
+__all__ = ["get_device", "device_ordinal", "same_storage"]
 
 
 def get_device(device_idx: int = -1):
     return torch.device(f"cuda:{device_idx}" if device_idx >= 0 else "cpu")
 
 
-def ordinal(device: torch.device):
+def device_ordinal(device: torch.device):
     return torch.zeros(1, device=device).get_device()
 
 

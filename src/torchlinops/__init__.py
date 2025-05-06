@@ -1,3 +1,4 @@
-from ._core import *
+from .alg import *
+from .linops import *
 
-__version__ = "0.2.6"
+__version__ = "0.4.3"

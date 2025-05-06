@@ -1,9 +1,10 @@
+from torch import Tensor
 import torch.fft as fft
 
-__all__ = ["cfft", "cifft"]
+__all__ = ["cfft", "cifft", "cfft2", "cifft2", "cfftn", "cifftn"]
 
 
-def cfft(x, dim=None, norm="ortho"):
+def cfftn(x, dim=None, norm="ortho"):
     """Matches Sigpy's fft, but in torch
     c = centered
     """
@@ -13,9 +14,26 @@ def cfft(x, dim=None, norm="ortho"):
     return x
 
 
-def cifft(x, dim=None, norm="ortho"):
+def cifftn(x, dim=None, norm="ortho"):
     """Matches Sigpy's fft adjoint, but in torch"""
     x = fft.ifftshift(x, dim=dim)
     x = fft.ifftn(x, dim=dim, norm=norm)
     x = fft.fftshift(x, dim=dim)
     return x
+
+
+# Convenience functions
+def cfft(x: Tensor, **kwargs):
+    return cfftn(x, dim=(-1,), **kwargs)
+
+
+def cifft(x: Tensor, **kwargs):
+    return cifftn(x, dim=(-1,), **kwargs)
+
+
+def cfft2(x: Tensor, **kwargs):
+    return cfftn(x, dim=(-2, -1), **kwargs)
+
+
+def cifft2(x: Tensor, **kwargs):
+    return cifftn(x, dim=(-2, -1), **kwargs)

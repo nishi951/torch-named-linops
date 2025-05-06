@@ -32,7 +32,7 @@ jobs:
       uses: actions/checkout@v4
     # uv setup
     - name: Set up python with uv
-      uses: astral-sh/setup-uv@v3
+      uses: astral-sh/setup-uv@v6
     - name: Install python
       run: uv python install ${{ matrix.python-version }}
     - name: Initialize environment
@@ -45,6 +45,6 @@ jobs:
 
     # Generates warnings but still works?
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v4.0.1
+      uses: codecov/codecov-action@v5.4.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

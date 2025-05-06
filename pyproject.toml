@@ -2,68 +2,69 @@
 name = "torch-named-linops"
 description = "A flexible linear operator abstraction in pytorch."
 authors = [
-    { name = "Mark Nishimura", email = "markn1@stanford.edu" }
+    { name = "Mark Nishimura", email = "nishimuramarky@gmail.com" }
 ]
 dependencies = [
-    "torch>=2.1",
-    "torchvision",
-    "torchaudio",
-    "einops",
-    "tqdm",
-    "pyyaml",
     "triton>=3.0",
     "jaxtyping>=0.2.36",
     "setuptools>=75.6.0", # For triton
+    # Torch on mac (intel)
+    "torch>1.13,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "torchvision<0.22.1; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "torchaudio>1.13,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    # Torch on other platforms
+    "torch>=2.5.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "torchvision>=0.20.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "torchaudio>=2.5.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    # "torch>=2.5.1",
+    # "torchvision>=0.20.1",
+    # "torchaudio>=2.5.1",
+    "einops>=0.8.0",
+    "tqdm>=4.67.1",
 ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dynamic = ["version"]
+license-files = ["LICENCE"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-# [tool.uv]
-# managed = true
 [dependency-groups]
 dev = [
-    "gdown", # Downloading test files
-    "marimo", # Better notebooks
-    "matplotlib", # Visualization
-    "pytest", # Unit tests
-    "pytest-cov", # Code coverage
-    "ruff", # Linting
-    "pre-commit", # pre-commit hooks
-    "sphinx", # Build system
-    "furo", # Theme
-    "myst-parser", # Markdown instead of reStructuredText
+    "furo>=2024.8.6",
+    "marimo>=0.12.0",
+    "matplotlib>=3.10.1",
+    "myst-parser>=3.0.1",
+    "pre-commit>=4.0.1",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.4",
+    "sphinx>=7.4.7",
+    "sphinx-autobuild>=2024.10.3",
 ]
 sigpy = [
     "numba==0.60.0",
     "llvmlite==0.43.0",
-    "sigpy==0.1.26",
+    "sigpy==0.1.27",
     "cupy-cuda12x>=13.3.0",
     "easydict>=1.13",
 ]
 all = [{include-group="dev"}, {include-group="sigpy"}]
 
-[tool.hatch.metadata]
-allow-direct-references = true
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/torchlinops"]
-
-[tool.hatch.version]
-path = "src/torchlinops/__init__.py"
-
-[tool.ruff]
-target-version = "py310"
+# [tool.ruff]
+# target-version = "py310"
 
 [tool.ruff.lint]
 ignore = [
     "F403", # from ___ import *
     "F401", # unused imports
     "F541", # f-string without placeholders
+    "F722", # Allow jaxtyping annotations syntax (e.g. Float[Tensor, "B ..."])
 ]
 exclude = [
     "**/tests/**",
@@ -75,7 +76,7 @@ exclude = [
 minversion = "6.0"
 addopts = """
 -ra -q \
--m 'not slow and not gpu and not plot'
+-m 'not slow'
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [
@@ -88,3 +89,19 @@ markers = [
     "gpu: tests that require a gpu",
     "plot: tests that involve plotting",
 ]
+
+[tool.coverage.run]
+omit = ["*/tests/*"] # Both test/ and tests/
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/torchlinops"]
+
+[tool.hatch.version]
+path = "src/torchlinops/__init__.py"
