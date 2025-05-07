@@ -120,13 +120,16 @@ class NUFFT(Chain):
 
         # Create Interpolator
         grid_shape = fft._shape.output_grid_shape
+        if do_prep_locs:
+            locs_prepared = self.prep_locs(
+                locs,
+                grid_size,
+                padded_size,
+                nufft_mode=mode,
+            )
+        else:
+            locs_prepared = locs
         if self.mode == "interpolate":
-            if do_prep_locs:
-                locs_prepared = self.prep_locs(
-                    locs, grid_size, padded_size, nufft_mode=mode
-                )
-            else:
-                locs_prepared = locs
             beta = self.beta(width, oversamp)
             # Create Apodization
             if apodize_weights is None:
@@ -159,7 +162,6 @@ class NUFFT(Chain):
             scale.to(device)  # Helps with batching later
             linops = [apodize, pad, fft, interp, scale]
         elif self.mode == "sampling":
-            locs_prepared = locs
             if locs_prepared.is_complex() or locs_prepared.is_floating_point():
                 raise ValueError(
                     f"Sampling linop requries integer-type locs but got {locs_prepared.dtype}"
@@ -222,9 +224,72 @@ class NUFFT(Chain):
         nufft_mode: Literal["interpolate", "sampling"] = "interpolate",
     ):
         """
-        Assumes centered locs
+        Parameters
+        ----------
+        locs : Shaped[Tensor, "... D"]
+            Input tensor representing locations in the grid. The last dimension corresponds to spatial dimensions.
+            Range is [-N//2, N//2]
+        grid_size : tuple
+            The original size of the grid before padding.
+        padded_size : tuple
+            The size of the grid after padding.
+        pad_mode : Literal["zero", "circular"], optional
+            The type of padding applied. Can be "zero" for zero-padding or "circular" for circular padding.
+            Default is "circular".
+        nufft_mode : Literal["interpolate", "sampling"], optional
+            The mode of the NUFFT operation. Can be "interpolate" for interpolation or "sampling" for sampling.
+            Default is "interpolate".
+
+        Returns
+        -------
+        Shaped[Tensor, "... D"]
+            Adjusted locations tensor based on the specified padding and NUFFT modes.
+            Range is [0, N_pad].
+            dtype is floating-point if nufft_mode is "interpolate", and integer
+            if nufft_mode is "sampling"
+
+        Raises
+        ------
+        ValueError
+            If an unrecognized `pad_mode` is provided.
+
+        Examples
+        --------
+        >>> _ = torch.manual_seed(0);
+        >>> locs = torch.rand(1000, 3) * 64 - 32 # [-32, 32]
+        >>> locs.min()
+        tensor(-31.9949)
+        >>> locs.max()
+        tensor(31.9896)
+        >>> grid_size = (64, 64, 64)
+        >>> padded_size = (80, 80, 80) # oversamp = 1.25
+        >>> locs_scaled_shifted = NUFFT.prep_locs(locs, grid_size, padded_size)
+        >>> locs_scaled_shifted.min()
+        tensor(0.0064)
+        >>> locs_scaled_shifted.max()
+        tensor(79.9871)
+
+        >>> _ = torch.manual_seed(0);
+        >>> locs = torch.rand(1000, 3) * 64 - 32 # [-32, 32]
+        >>> locs = torch.round(locs * 1.25) / 1.25
+        >>> grid_size = (64, 64, 64)
+        >>> padded_size = (80, 80, 80) # oversamp = 1.25
+        >>> locs_scaled_shifted = NUFFT.prep_locs(locs, grid_size, padded_size, nufft_mode='sampling')
+        >>> locs_scaled_shifted.min()
+        tensor(0)
+        >>> locs_scaled_shifted.max()
+        tensor(79)
+
+
+
+        Notes
+        -----
+        - Assumes that the input `locs` are centered.
+        - Adjusts the locations by scaling and shifting them according to the grid and padded sizes.
+        - Applies clamping or remainder operations based on the padding mode and NUFFT mode.
         """
-        out = locs
+        # Clone to prevent in-place scaling from modifying the original
+        out = locs.clone()
         for i in range(-len(grid_size), 0):
             out[..., i] *= padded_size[i] / grid_size[i]
             out[..., i] += padded_size[i] // 2
@@ -236,11 +301,14 @@ class NUFFT(Chain):
                         out[..., i], torch.tensor(padded_size[i])
                     )
                 elif nufft_mode == "sampling":
-                    out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
+                    # Wrap rounded index to other side of kspace
                     out[..., i] = torch.round(out[..., i])
+                    out[..., i] = torch.remainder(out[..., i], padded_size[i])
             else:
                 raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
-        return out.to(locs.dtype)
+        if nufft_mode == "sampling":
+            out = out.to(torch.int64)
+        return out
 
     @staticmethod
     def beta(width, oversamp):
