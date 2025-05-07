@@ -40,33 +40,16 @@ def fold(
         If mask is not None, block_size will be an int equal to the number of True elements in the mask
         Otherwise it will be the full block shape.
     """
-    if mask is not None:
-        nblocks = get_nblocks(im_size, block_size, stride)
-        if len(x.shape) > len(nblocks) + 1:
-            x_batch_shape = x.shape[: -(len(nblocks) + 1)]
-        else:
-            x_batch_shape = []
-        tmp = torch.zeros(
-            *x_batch_shape,
-            *nblocks,
-            *block_size,
-            dtype=x.dtype,
-            device=x.device,
-        )
-        tmp[..., mask] = x
-        x = tmp
-    x_flat, shapes = prep_fold_shapes(x, im_size, block_size, stride, mask)
+    x_flat, shapes, is_complex = _prep_fold(x, im_size, block_size, stride, mask)
 
-    if torch.is_complex(x_flat):
+    if is_complex:
         x_flat = torch.view_as_real(x_flat)
         x_flat = torch.flatten(x_flat, -2, -1)  # Flatten real/imag into last dim
-        y_flat = _fold(x_flat, **shapes)
-        y = y_flat.reshape(*shapes["batch_shape"], *shapes["im_size"])
+    y_flat = _fold(x_flat, **shapes)
+    y = y_flat.reshape(*shapes["batch_shape"], *shapes["im_size"])
+    if is_complex:
         y = y.reshape(*y.shape[:-1], y.shape[-1] // 2, 2)
         y = torch.view_as_complex(y)
-    else:
-        y_flat = _fold(x_flat, **shapes)
-        y = y_flat.reshape(*shapes["batch_shape"], *shapes["im_size"])
     return y
 
 
@@ -503,7 +486,25 @@ def _fold_torch(
     return out
 
 
-def prep_fold_shapes(x, im_size, block_size, stride, mask):
+def _prep_fold(x, im_size, block_size, stride, mask):
+    # Handle mask
+    if mask is not None:
+        nblocks = get_nblocks(im_size, block_size, stride)
+        if len(x.shape) > len(nblocks) + 1:
+            x_batch_shape = x.shape[: -(len(nblocks) + 1)]
+        else:
+            x_batch_shape = []
+        tmp = torch.zeros(
+            *x_batch_shape,
+            *nblocks,
+            *block_size,
+            dtype=x.dtype,
+            device=x.device,
+        )
+        tmp[..., mask] = x
+        x = tmp
+        mask = mask.to(x.device)
+    is_complex = torch.is_complex(x)
     ndim = len(block_size)
     stride = stride if stride is not None else (1,) * ndim
     nblocks = get_nblocks(im_size, block_size, stride)
@@ -511,7 +512,7 @@ def prep_fold_shapes(x, im_size, block_size, stride, mask):
         raise ValueError(
             f"Found 0 in nblocks: {nblocks} with im_size {im_size}, block_size {block_size} and stride {stride} - make sure there is at least one block in each direction."
         )
-    if torch.is_complex(x):
+    if is_complex:
         im_size = list(im_size)
         im_size[-1] *= 2
         block_size = list(block_size)
@@ -527,17 +528,17 @@ def prep_fold_shapes(x, im_size, block_size, stride, mask):
         x_flat = x[None]
     nbatch = x_flat.shape[0]
 
-    # Handle mask
-    if mask is not None:
-        mask = mask.to(x.device)
-
-    return x_flat, {
-        "ndim": ndim,
-        "im_size": im_size,
-        "stride": stride,
-        "nblocks": nblocks,
-        "nbatch": nbatch,
-        "batch_shape": batch_shape,
-        "mask": mask,
-        "block_size": block_size,
-    }
+    return (
+        x_flat,
+        {
+            "ndim": ndim,
+            "im_size": im_size,
+            "stride": stride,
+            "nblocks": nblocks,
+            "nbatch": nbatch,
+            "batch_shape": batch_shape,
+            "mask": mask,
+            "block_size": block_size,
+        },
+        is_complex,
+    )
