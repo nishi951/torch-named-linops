@@ -49,9 +49,9 @@ dev = [
 sigpy = [
     "numba==0.60.0",
     "llvmlite==0.43.0",
-    "sigpy==0.1.27",
-    "cupy-cuda12x>=13.3.0",
     "easydict>=1.13",
+    "sigpy>=0.1.27",
+    "cupy-cuda12x>=13.4.1",
 ]
 all = [{include-group="dev"}, {include-group="sigpy"}]
 
