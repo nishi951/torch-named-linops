@@ -71,6 +71,7 @@ def test_unfold_large_stride():
 
 
 @pytest.mark.gpu
+@pytest.mark.slow
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"
 )
