@@ -285,7 +285,6 @@ class NUFFT(Chain):
         Notes
         -----
         - Assumes that the input `locs` are centered.
-        - Modifies `locs` in-place. Do `.clone()` to preserve the original `locs`.
         - Adjusts the locations by scaling and shifting them according to the grid and padded sizes.
         - Applies clamping or remainder operations based on the padding mode and NUFFT mode.
         """
