@@ -69,12 +69,13 @@ class Batch(NamedLinop):
         if self.post_batch_hook is not None:
             self.post_batch_hook(self)
 
-    def to(self, device):
+    def to(self, device: torch.device | str):
         self.input_device = device
         self.output_device = device
-        self.linop.to(device)
-        self.setup_batching()
+        # self.linop.to(device)
+        # Avoid copying the _linops by doing super() first
         super().to(device)
+        self.setup_batching()
 
     def forward(self, x: torch.Tensor):
         # Complete the size specifications
