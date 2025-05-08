@@ -1,6 +1,6 @@
 from typing import Optional
-from functools import partial
 
+from functools import partial
 from copy import copy, deepcopy
 import traceback
 import logging
@@ -166,6 +166,7 @@ class NamedLinop(nn.Module):
             normal.normal_fn = function_table.new_normal_fn
             # Bind `self` with partial to avoid weird multiprocessing-only error?
             normal.adjoint = partial(new_normal_adjoint, self=normal)
+            # normal.adjoint = new_normal_adjoint.__get__(normal) # This one doesn't work
 
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
