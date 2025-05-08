@@ -156,34 +156,16 @@ class NamedLinop(nn.Module):
             normal = copy(self)
             normal._shape = self._shape.N
 
-            # Replace forward/adjoint with normal fn from self
-            def new_forward_adjoint_fn(linop, x, *args, **kwargs):
-                return self.normal_fn(self, x, *args, **kwargs)
+            # Auxiliary object
+            # Avoids creating lambda functions, which enables multiprocessing
+            function_table = NormalFunctionLookup(self)
+            # Static
+            normal.fn = function_table.new_forward_adjoint_fn
+            normal.adj_fn = function_table.new_forward_adjoint_fn
+            normal.normal_fn = function_table.new_normal_fn
 
-            normal.fn = new_forward_adjoint_fn
-            normal.adj_fn = new_forward_adjoint_fn
-
-            # Replace adjoint() constructor with trivial copy
-            def new_adjoint(self):
-                adj = copy(self)
-                adj._shape = adj._shape.H
-                return adj
-
+            # Bound
             normal.adjoint = types.MethodType(new_adjoint, normal)
-
-            # Replace normal fn with normal_fn(normal_fn(  ))
-            def new_normal_fn(linop, x, *args, **kwargs):
-                AHAx = self.normal_fn(self, x, *args, **kwargs)
-                return self.normal_fn(self, AHAx, *args, **kwargs)
-
-            normal.normal_fn = new_normal_fn
-
-            # Replace normal() constructor with chain
-            # Unnecessary I guess
-            # def new_normal(self, inner=None):
-            #     return self.adjoint() @ self
-
-            # normal.normal = types.MethodType(new_normal, normal)
 
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
@@ -336,3 +318,33 @@ class NamedLinop(nn.Module):
         # Create new shape
         new._shape = deepcopy(self._shape)
         return new
+
+
+class NormalFunctionLookup:
+    """Helper class to avoid lambda function definitions
+    helps with multiprocessing
+    """
+
+    def __init__(self, linop):
+        self.linop = linop
+
+    def new_forward_adjoint_fn(self, _, x, *args, **kwargs):
+        """Replace forward/adjoint with normal fn from self"""
+        return self.linop.normal_fn(self.linop, x, *args, **kwargs)
+
+    def new_normal_fn(self, _, x, *args, **kwargs):
+        """Replace normal fn with normal_fn(normal_fn(  ))"""
+        AHAx = self.linop.normal_fn(self.linop, x, *args, **kwargs)
+        return self.linop.normal_fn(self.linop, AHAx, *args, **kwargs)
+
+
+def new_adjoint(self):
+    """Adjoint creation
+    Note that this `_self` is not this class' instance, because this is a
+    staticmethod.
+
+    Replace adjoint() constructor with trivial copy
+    """
+    adj = copy(self)
+    adj._shape = adj._shape.H
+    return adj
