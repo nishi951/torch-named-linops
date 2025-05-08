@@ -1,4 +1,5 @@
 from typing import Optional
+from functools import partial
 
 from copy import copy, deepcopy
 import traceback
@@ -163,9 +164,8 @@ class NamedLinop(nn.Module):
             normal.fn = function_table.new_forward_adjoint_fn
             normal.adj_fn = function_table.new_forward_adjoint_fn
             normal.normal_fn = function_table.new_normal_fn
-
-            # Bound
-            normal.adjoint = types.MethodType(new_adjoint, normal)
+            # Bind `self` with partial to avoid weird multiprocessing-only error?
+            normal.adjoint = partial(new_normal_adjoint, self=normal)
 
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
@@ -338,9 +338,9 @@ class NormalFunctionLookup:
         return self.linop.normal_fn(self.linop, AHAx, *args, **kwargs)
 
 
-def new_adjoint(self):
+def new_normal_adjoint(self):
     """Adjoint creation
-    Note that this `_self` is not this class' instance, because this is a
+    Note that this `self` is not this class' instance, because this is a
     staticmethod.
 
     Replace adjoint() constructor with trivial copy
