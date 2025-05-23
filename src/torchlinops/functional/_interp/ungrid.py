@@ -6,8 +6,16 @@ from functools import partial
 from math import prod, ceil
 
 import torch
-import triton
-import triton.language as tl
+
+try:
+    import triton
+    import triton.language as tl
+
+    TRITON_ENABLED = True
+except ImportError:
+    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+
+    TRITON_ENABLED = False
 
 from .kernels import (
     weights1d,
@@ -563,7 +571,10 @@ def one_hot(i, BLOCK_WIDTH: tl.constexpr, dtype: tl.constexpr = tl.float32):
     return tl.where(idx == i, 1, 0).to(dtype)
 
 
-UNGRID = {1: _ungrid1d, 2: _ungrid2d, 3: _ungrid3d}
+if TRITON_ENABLED:
+    UNGRID = {1: _ungrid1d, 2: _ungrid2d, 3: _ungrid3d}
+else:
+    UNGRID = {}
 
 
 def prep_ungrid_shapes(vals, locs, width):
