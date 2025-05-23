@@ -10,7 +10,6 @@ import torch
 try:
     import triton
     import triton.language as tl
-    from .casting import scalar_cast as cast
 
     TRITON_ENABLED = True
 except ImportError:
