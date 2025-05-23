@@ -13,7 +13,7 @@ def test_split():
     weightshape = ("B", "M", "N")
     device = "cpu"
     A = Dense(weight, weightshape, ishape, oshape)
-    linops, in_slc, out_slc = split(A, {"N": 2, "M": 1}, flatten=False)
+    linops, in_slc, out_slc = split(A, {"N": 2, "M": 1})
 
     # tile indices
     n, m = 1, 2
@@ -24,3 +24,6 @@ def test_split():
     A_mn = Dense(weight[:, m : m + 1, 2 * n : 2 * (n + 1)], weightshape, ishape, oshape)
     y_m_ref = A_mn(x_n)
     assert torch.allclose(y_m, y_m_ref)
+
+
+def test_batch_split(): ...
