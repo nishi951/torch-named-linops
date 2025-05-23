@@ -9,3 +9,4 @@ from ._fft import *
 from ._log import *
 from ._pad import *
 from ._ndlist import *
+from ._triton import *

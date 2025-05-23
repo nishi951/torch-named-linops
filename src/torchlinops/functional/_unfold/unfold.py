@@ -4,13 +4,20 @@ from torch import Tensor
 
 from itertools import product
 
-import triton
-import triton.language as tl
 import torch
 
-import pdb
+try:
+    import triton
+    import triton.language as tl
+    from .casting import scalar_cast as cast
+
+    TRITON_ENABLED = True
+except ImportError:
+    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+
+    TRITON_ENABLED = False
+
 from .nblocks import get_nblocks
-from .casting import scalar_cast as cast
 
 __all__ = ["unfold"]
 
@@ -501,7 +508,10 @@ def load_subblock3d(
     )
 
 
-UNFOLD = {1: _unfold1d, 2: _unfold2d, 3: _unfold3d}
+if TRITON_ENABLED:
+    UNFOLD = {1: _unfold1d, 2: _unfold2d, 3: _unfold3d}
+else:
+    UNFOLD = {}
 
 
 def _unfold_torch(
