@@ -5,11 +5,20 @@ from torch import Tensor
 from itertools import product
 
 import torch
-import triton
-import triton.language as tl
+
+try:
+    import triton
+    import triton.language as tl
+    from .casting import scalar_cast as cast
+
+    TRITON_ENABLED = True
+except ImportError:
+    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+
+    TRITON_ENABLED = False
+
 
 from .nblocks import get_nblocks
-from .casting import scalar_cast as cast
 
 __all__ = ["fold"]
 
@@ -456,7 +465,10 @@ def cdiv(a, b):
     return tl.cast(tl.ceil(a / b), tl.int32)
 
 
-FOLD = {1: _fold1d, 2: _fold2d, 3: _fold3d}
+if TRITON_ENABLED:
+    FOLD = {1: _fold1d, 2: _fold2d, 3: _fold3d}
+else:
+    FOLD = {}
 
 
 def _fold_torch(
