@@ -1,7 +1,7 @@
 import pytest
 
 import torch
-from torchlinops import Dense, split
+from torchlinops import Dense, split, split_and_stack
 
 
 def test_split():
@@ -26,4 +26,16 @@ def test_split():
     assert torch.allclose(y_m, y_m_ref)
 
 
-def test_batch_split(): ...
+def test_split_and_stack():
+    ishape = ("B", "N")
+    oshape = ("B", "M")
+    B = 10
+    M, N = (3, 7)
+    weight = torch.randn(B, M, N)
+    weightshape = ("B", "M", "N")
+    device = "cpu"
+    A = Dense(weight, weightshape, ishape, oshape)
+
+    Abatch = split_and_stack(A, dict(N=2, M=1))
+    x = torch.randn(B, N)
+    assert Abatch(x).allclose(A(x))

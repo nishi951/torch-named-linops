@@ -1,19 +1,60 @@
+from functools import partial
 from math import ceil
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 from torchlinops.utils import NDList, batch_iterator, dict_product
 
+from .add import Add
+from .concat import Concat
 from .nameddim import ND
 from .namedlinop import NamedLinop
 
-__all__ = ["split"]
+__all__ = ["split", "split_and_stack"]
 
 Batch = tuple[int, slice]
 # Represents a single batch at index 0 over the full extent
 # Could convert to a full class
 DEFAULT_BATCH = (0, slice(None))
 Tile = dict[ND | str, Batch]
+
+
+def split_and_stack(linop, batch_sizes):
+    linops, _, _ = split(linop, batch_sizes)
+    for dim in reversed(batch_sizes):
+        # Determine type of combination
+        if dim in linop.ishape and dim in linop.oshape:
+            fn = partial(linop_reduce, reduction_type="diag", dim=dim)
+        elif dim in linop.ishape and dim not in linop.oshape:
+            fn = partial(linop_reduce, reduction_type="horiz", dim=dim)
+        elif dim not in linop.ishape and dim in linop.oshape:
+            fn = partial(linop_reduce, reduction_type="vert", dim=dim)
+        else:  # dim not in linop.ishape and dim not in linop.oshape
+            fn = partial(linop_reduce, reduction_type="add")
+        # Manual axis reduction because I made Concat and Add too nice
+        flat_linops = linops.reshape(-1, linops.shape[-1])
+        new_linops = np.empty(flat_linops.shape[0], dtype=object)
+        for i, linop_arr in enumerate(flat_linops):
+            new_linops[i] = fn(linop_arr)
+        linops = new_linops.reshape(linops.shape[:-1])
+    return linops.item()
+
+
+def linop_reduce(
+    linops: list,
+    reduction_type: Literal["add", "horiz", "vert", "diag"],
+    dim: Optional[ND | str] = None,
+):
+    if reduction_type == "add":
+        return Add(*linops)
+    elif reduction_type == "horiz":
+        return Concat(*linops, idim=dim)
+    elif reduction_type == "vert":
+        return Concat(*linops, odim=dim)
+    elif reduction_type == "dstack":
+        return Concat(*linops, idim=dim, odim=dim)
+    else:
+        raise ValueError(f"Unrecognized reduction type: {reduction_type}")
 
 
 def split(linop: NamedLinop, batch_sizes: dict[ND | str, int]):
