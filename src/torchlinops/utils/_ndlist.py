@@ -4,6 +4,8 @@ __all__ = ["NDList"]
 
 
 class NDList:
+    """DEPRECATED in favor of np.ndarray(..., dtype=object)"""
+
     def __init__(self, shape, default_value=None, labels: Optional[tuple] = None):
         """
         Initializes an n-dimensional nested with the given shape.
