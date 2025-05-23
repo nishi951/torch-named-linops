@@ -5,7 +5,7 @@ authors = [
     { name = "Mark Nishimura", email = "nishimuramarky@gmail.com" }
 ]
 dependencies = [
-    "triton>=3.0",
+    "triton>=3.0; sys_platform != 'darwin'",
     "jaxtyping>=0.2.36",
     "setuptools>=75.6.0", # For triton
     # Torch on mac (intel)
@@ -21,9 +21,10 @@ dependencies = [
     # "torchaudio>=2.5.1",
     "einops>=0.8.0",
     "tqdm>=4.67.1",
+    "scipy>=1.15.2",
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 dynamic = ["version"]
 license-files = ["LICENCE"]
 classifiers = [
@@ -51,7 +52,7 @@ sigpy = [
     "llvmlite==0.43.0",
     "easydict>=1.13",
     "sigpy>=0.1.27",
-    "cupy-cuda12x>=13.4.1",
+    "cupy-cuda12x>=13.4.1; sys_platform != 'darwin'",
 ]
 all = [{include-group="dev"}, {include-group="sigpy"}]
 
