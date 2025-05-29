@@ -3,7 +3,7 @@ from torch import Tensor
 from typing import Literal
 from collections.abc import Callable
 
-from functools import partial, wraps
+from functools import partial
 
 import torch
 
