@@ -6,8 +6,16 @@ from functools import partial
 from math import prod, ceil
 
 import torch
-import triton
-import triton.language as tl
+
+try:
+    import triton
+    import triton.language as tl
+
+    TRITON_ENABLED = True
+except ImportError:
+    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+
+    TRITON_ENABLED = False
 
 from .kernels import (
     weights1d,
@@ -506,7 +514,10 @@ def _grid3d(
                 tl.atomic_add(out_ptr + out_batch_offset + grid_range, out, grid_mask)
 
 
-GRID = {1: _grid1d, 2: _grid2d, 3: _grid3d}
+if TRITON_ENABLED:
+    GRID = {1: _grid1d, 2: _grid2d, 3: _grid3d}
+else:
+    GRID = {}
 
 
 def prep_grid_shapes(vals, locs, grid_size, width):

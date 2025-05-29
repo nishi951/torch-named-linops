@@ -4,13 +4,20 @@ from torch import Tensor
 
 from itertools import product
 
-import triton
-import triton.language as tl
 import torch
 
-import pdb
+try:
+    import triton
+    import triton.language as tl
+    from .casting import scalar_cast as cast
+
+    TRITON_ENABLED = True
+except ImportError:
+    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+
+    TRITON_ENABLED = False
+
 from .nblocks import get_nblocks
-from .casting import scalar_cast as cast
 
 __all__ = ["unfold"]
 
@@ -43,25 +50,19 @@ def unfold(
 
 
     """
-    x_flat, shapes = prep_unfold_shapes(x, block_size, stride, mask)
-    if torch.is_complex(x_flat):
+    x_flat, shapes, is_complex = _prep_unfold(x, block_size, stride, mask)
+    if is_complex:
         x_flat = torch.view_as_real(x_flat)
         x_flat = torch.flatten(x_flat, -2, -1)  # Flatten real/imag into last dim
-        y_flat = _unfold(x_flat, **shapes)
-        y = y_flat.reshape(
-            *shapes["batch_shape"],
-            *shapes["nblocks"],
-            *shapes["block_size"],
-        )
+    y_flat = _unfold(x_flat, **shapes)
+    y = y_flat.reshape(
+        *shapes["batch_shape"],
+        *shapes["nblocks"],
+        *shapes["block_size"],
+    )
+    if is_complex:
         y = y.reshape(*y.shape[:-1], y.shape[-1] // 2, 2)
         y = torch.view_as_complex(y)
-    else:
-        y_flat = _unfold(x_flat, **shapes)
-        y = y_flat.reshape(
-            *shapes["batch_shape"],
-            *shapes["nblocks"],
-            *shapes["block_size"],
-        )
     if mask is not None:
         y = y[..., mask]
     return y
@@ -507,7 +508,10 @@ def load_subblock3d(
     )
 
 
-UNFOLD = {1: _unfold1d, 2: _unfold2d, 3: _unfold3d}
+if TRITON_ENABLED:
+    UNFOLD = {1: _unfold1d, 2: _unfold2d, 3: _unfold3d}
+else:
+    UNFOLD = {}
 
 
 def _unfold_torch(
@@ -537,12 +541,13 @@ def _unfold_torch(
     return out
 
 
-def prep_unfold_shapes(
+def _prep_unfold(
     x,
     block_size: tuple,
     stride: Optional[tuple] = None,
     mask: Optional[Bool[Tensor, "..."]] = None,
 ):
+    is_complex = torch.is_complex(x)
     # Infer some shapes
     ndim = len(block_size)
     im_size = x.shape[-ndim:]
@@ -553,7 +558,7 @@ def prep_unfold_shapes(
             f"Found 0 in nblocks: {nblocks} with im_size {im_size}, block_size {block_size} and stride {stride} - make sure there is at least one block in each direction."
         )
 
-    if torch.is_complex(x):
+    if is_complex:
         im_size = list(im_size)
         im_size[-1] *= 2
         block_size = list(block_size)
@@ -573,13 +578,17 @@ def prep_unfold_shapes(
     if mask is not None:
         mask = mask.to(x.device)
 
-    return x_flat, {
-        "ndim": ndim,
-        "im_size": im_size,
-        "stride": stride,
-        "nblocks": nblocks,
-        "nbatch": nbatch,
-        "batch_shape": batch_shape,
-        "mask": mask,
-        "block_size": block_size,
-    }
+    return (
+        x_flat,
+        {
+            "ndim": ndim,
+            "im_size": im_size,
+            "stride": stride,
+            "nblocks": nblocks,
+            "nbatch": nbatch,
+            "batch_shape": batch_shape,
+            "mask": mask,
+            "block_size": block_size,
+        },
+        is_complex,
+    )
