@@ -51,7 +51,7 @@ def linop_reduce(
         return Concat(*linops, idim=dim)
     elif reduction_type == "vert":
         return Concat(*linops, odim=dim)
-    elif reduction_type == "dstack":
+    elif reduction_type == "diag":
         return Concat(*linops, idim=dim, odim=dim)
     else:
         raise ValueError(f"Unrecognized reduction type: {reduction_type}")
