@@ -58,23 +58,25 @@ class Batch(NamedLinop):
         self.setup_batching()
 
     def setup_batching(self, hook: Optional[Callable] = None):
-        _linops, self._input_batches, self._output_batches = split(
+        _linops, _input_batches, _output_batches = split(
             self.linop,
             self.batch_sizes,
-            flatten=True,
         )
-        self._linops = nn.ModuleList(_linops)
+        self._linops = nn.ModuleList(_linops.flatten().tolist())
+        self._input_batches = _input_batches.flatten().tolist()
+        self._output_batches = _output_batches.flatten().tolist()
         self._shape = NS(self.linop.ishape, self.linop.oshape)
         super().reset_adjoint_and_normal()
         if self.post_batch_hook is not None:
             self.post_batch_hook(self)
 
-    def to(self, device):
+    def to(self, device: torch.device | str):
         self.input_device = device
         self.output_device = device
-        self.linop.to(device)
-        self.setup_batching()
+        # self.linop.to(device)
+        # Avoid copying the _linops by doing super() first
         super().to(device)
+        self.setup_batching()
 
     def forward(self, x: torch.Tensor):
         # Complete the size specifications

@@ -17,3 +17,6 @@ htmlcov
 
 # LSP
 pyrightconfig.json
+
+# Custom scripts
+activate
