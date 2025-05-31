@@ -1,14 +1,13 @@
 # Installation
 
 ## Simple Install
-### uv (recommended)
+### uv/pip (recommended)
 
-Simply install `torch-named-linops` with `$ uv add torch-named-linops`
-
-### Pip
-   .. code-block:: console
-
-   > \$ pip install torch-named-linops
+```console
+$ uv add torch-named-linops
+# or
+$ pip install torch-named-linops
+```
 
 :::{note}
 Cupy doesn't like `nccl` dependencies installed as wheels from pip. Importing
@@ -27,16 +26,14 @@ Clone the repo, then choose from the following:
 
 ### uv
 ```console
-$ uv add path/to/torch-named-linops
-```
-This will install the library in **editable**[https://docs.astral.sh/uv/concepts/projects/dependencies/#editable-dependencies] form.
+$ uv add --editable path/to/torch-named-linops
 
-### pip
-```console
+# or
+
 $ pip install -e path/to/torch-named-linops
 ```
-This installs in editable form as well.
-
+This will install the library in
+[editable mode.](https://docs.astral.sh/uv/concepts/projects/dependencies/#editable-dependencies)
 
 ### Notes for development
 - Installation with optional dependency specifiers:
