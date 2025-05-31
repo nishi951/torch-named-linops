@@ -39,4 +39,8 @@ myst_enable_extensions = [
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "furo"
+html_title = "torch-named-linops"
 html_static_path = []
+html_theme_options = {
+    "sidebar_hide_name": False,
+}
