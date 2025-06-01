@@ -1,8 +1,13 @@
+---
+file_format: mystnb
+kernelspec:
+  name: python3
+---
 # Getting Started
 
 ## A simple example
 <!-- name: test_simple_example -->
-```python
+```{code-cell} python
 import torch
 from torchlinops import Dense, Dim
 
@@ -30,7 +35,7 @@ v = A.N(u)
 ## Composing linops
 
 <!-- name: test_composition -->
-```python
+```{code-cell} python
 import torch
 import torchlinops
 from torchlinops import Dense, FFT, Dim
