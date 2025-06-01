@@ -1,5 +1,6 @@
 import pytest
 
+import torch
 from torchlinops import NamedLinop, NS
 
 
@@ -32,3 +33,9 @@ def test_namedlinop_custom_name():
     custom_name = "Test"
     A = NamedLinop(NS(("A", "B"), ("C",)), name=custom_name)
     assert str(A).startswith(custom_name)
+
+
+def test_namedlinop_matrix_vector_mul():
+    A = NamedLinop(NS(("A", "B"), ("C",)))
+    x = torch.tensor(3)
+    assert A(x).allclose(A @ x)

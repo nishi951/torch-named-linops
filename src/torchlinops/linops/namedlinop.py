@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 
 import torchlinops
+import torchlinops.config as config
 
 from .nameddim import NamedDimension as ND, NamedShape, NS, NDorStr
 from torchlinops.utils import INDENT
@@ -153,7 +154,10 @@ class NamedLinop(nn.Module):
         inner: Optional linop for toeplitz embedding
         TODO: Add splitting for normal ops created this way.
         """
-        if inner is None:
+        reduce_identity = (
+            isinstance(inner, torchlinops.Identity) and config.reduce_identity_in_normal
+        )
+        if inner is None or reduce_identity:
             normal = copy(self)
             normal._shape = self._shape.N
 
@@ -241,7 +245,10 @@ class NamedLinop(nn.Module):
         return NotImplemented
 
     def __matmul__(self, right):
-        return self.compose(right)
+        if isinstance(right, NamedLinop):
+            return self.compose(right)
+        if isinstance(right, torch.Tensor):
+            return self(right)
 
     def __rmatmul__(self, left):
         return left.compose(self)
