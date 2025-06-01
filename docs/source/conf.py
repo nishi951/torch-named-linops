@@ -25,7 +25,8 @@ extensions = [
     "sphinx.ext.duration",
     "sphinx.ext.doctest",
     "sphinx.ext.autodoc",
-    "myst_parser",
+    # "myst_parser",  # Allow markdown, comment out if myst_nb is enabled
+    "myst_nb",  # Execute code blocks in docs
 ]
 
 templates_path = ["_templates"]
