@@ -5,14 +5,31 @@
 
 # torch-named-linops
 
+Welcome to the documentation for `torch-named-linops`, a linear operator
+abstraction designed for large-scale numerical computing, optimization, and
+machine learning.
+
+
 ```{toctree}
 :caption: 'Contents:'
 :maxdepth: 1
 
 installation
+getting_started
+faq
 ```
 
-# Indices and tables
+## Other intersting packages
+- SigPy
+- MIRTorch
+- sci-co
+- matmri
+- einops
+- torch_linops
+- PyLops
+- linear_operator
+
+## Indices and tables
 
 - {ref}`genindex`
 - {ref}`modindex`
