@@ -42,7 +42,7 @@ myst_enable_extensions = [
 html_static_path = ["_static"]
 html_theme = "furo"
 html_title = "torch-named-linops"
-html_static_path = []
 html_theme_options = {
     "sidebar_hide_name": False,
 }
+html_css_files=['codecells.css']
