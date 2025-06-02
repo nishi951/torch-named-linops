@@ -6,35 +6,48 @@ kernelspec:
 # Getting Started
 
 ## A simple example
-<!-- name: test_simple_example -->
+Start by importing some stuff:
 ```{code-cell} python
 import torch
 from torchlinops import Dense, Dim
+```
 
-# A simple matrix-vector multiply
+Create a simple dense matrix-vector multiply.
+```{code-cell} python
+:tags: [hide-output]
 M, N = (3, 7)
 w = torch.randn(M, N)
-# A: N -> M represents an MxN dense matrix
 A = Dense(w, Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
+print(A)
+```
 
+Create a test input and verify that everything checks out:
+```{code-cell} python
 # Input to A should have size N
 x = torch.randn(N)
+y_ref = w @ x
 y = A(x) 
 y2 = A @ x # Alternative syntax
+print("y_ref matches y:", torch.allclose(y_ref, y))
+print("y_ref_matches_y2: ", torch.allclose(y_ref, y2))
+```
 
-# Adjoint
+Compute the adjoint and apply it:
+```{code-cell} python
 b = torch.randn(M)
-print(A.H)
 c = A.H(b)
+print(A.H)
+```
 
+Compute the normal operator and apply it:
+```{code-cell} python
 # Normal
 u = torch.randn(N)
 v = A.N(u)
+print(A.N)
 ```
 
 ## Composing linops
-
-<!-- name: test_composition -->
 ```{code-cell} python
 import torch
 import torchlinops
@@ -50,16 +63,20 @@ A = F @ D
 x = torch.randn(N)
 y = A(x)
 
+```
+
+```{code-cell} python
 # Adjust behavior with config.py
 torchlinops.config.reduce_identity_in_normal = False
 print(A.N) # Contains Identity in the middle since FFT.H @ FFT = Id
+```
+
+```{code-cell} python
 torchlinops.config.reduce_identity_in_normal = True
 A.reset_adjoint_and_normal()
 print(A.N) # No longer contains Identity
-
-
-
 ```
+
 ## Splitting linops
 
 ## Creating a custom linop

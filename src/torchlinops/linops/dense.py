@@ -5,8 +5,10 @@ from copy import copy, deepcopy
 from einops import einsum
 import torch.nn as nn
 
+import torchlinops.config as config
 from .namedlinop import NamedLinop
 from .nameddim import ND, NS, NamedShape, Shape
+from .identity import Identity
 
 __all__ = ["Dense"]
 
@@ -160,7 +162,7 @@ class Dense(NamedLinop):
                 new_dim = dim
             new_oshape.append(new_dim)
 
-        if inner is None:
+        if config.inner_not_relevant(inner):
             # Consolidate dense and dense adjoint into single dense
             new_weight_shape = wdiag_shape + wout_shape + win_shape
             einstr = shapes2einstr(

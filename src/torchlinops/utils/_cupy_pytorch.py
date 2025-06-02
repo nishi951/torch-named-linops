@@ -11,7 +11,6 @@ try:
 
     cupy_enabled = True
 except ImportError:
-    warn("Cupy not available")
     import numpy as cp
 
     cupy_enabled = False
