@@ -24,6 +24,14 @@ class NamedLinop(nn.Module):
     """Base Class for all NamedLinops"""
 
     def __init__(self, shape: NamedShape, name: Optional[str] = None):
+        """
+        Parameters
+        ----------
+        shape : NamedShape
+            The shape of this linop, e.g. ``NS(("N",), ("M",))``
+        name : str, optional
+            Optional name to display for this linop
+        """
         super().__init__()
         self._shape = shape
 
@@ -70,12 +78,21 @@ class NamedLinop(nn.Module):
 
     # Override
     def split_forward(self, ibatch, obatch):
-        """Return a new instance"""
+        """Split this linop into a sub-linop according to slices over its dimensions
+
+        Parameters
+        ----------
+        ibatch : tuple[slice, ...]
+            The slices over the input dimensions.
+        obatch : tuple[slice, ...]
+            The slices over the output dimensions.
+        """
+
         return type(self)(self._shape)
 
     # Override
     def split_forward_fn(self, ibatch, obatch, /, data=None):
-        """Return data"""
+        """Split this linop's data """
         return None
 
     # Override

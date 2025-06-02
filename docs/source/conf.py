@@ -25,6 +25,9 @@ extensions = [
     "sphinx.ext.duration",
     "sphinx.ext.doctest",
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    # "numpydoc",
     # "myst_parser",  # Allow markdown, comment out if myst_nb is enabled
     "myst_nb",  # Execute code blocks in docs
 ]
@@ -36,6 +39,20 @@ myst_enable_extensions = [
     "colon_fence",
 ]
 
+# Options for autodoc
+# Prevent inheriting from torch base modules
+autodoc_inherit_docstrings = False
+autodoc_default_options = {
+    "members": False,
+    "undoc-members": False,
+    "private-members": False,
+    "inherited-members": False,
+    "show-inheritance": False,
+}
+autosummary_generate = True
+templates_path = ["_templates"]
+
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
@@ -45,4 +62,4 @@ html_title = "torch-named-linops"
 html_theme_options = {
     "sidebar_hide_name": False,
 }
-html_css_files=['codecells.css']
+html_css_files = ["codecells.css"]
