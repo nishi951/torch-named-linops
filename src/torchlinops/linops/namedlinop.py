@@ -154,10 +154,7 @@ class NamedLinop(nn.Module):
         inner: Optional linop for toeplitz embedding
         TODO: Add splitting for normal ops created this way.
         """
-        reduce_identity = (
-            isinstance(inner, torchlinops.Identity) and config.reduce_identity_in_normal
-        )
-        if inner is None or reduce_identity:
+        if config.inner_not_relevant(inner):
             normal = copy(self)
             normal._shape = self._shape.N
 
