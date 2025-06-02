@@ -16,6 +16,9 @@ machine learning.
 
 installation
 getting_started
+linops
+api
+why_this_package
 faq
 ```
 
