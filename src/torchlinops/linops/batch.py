@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from typing import Union, Optional, Tuple
+from typing_extensions import Self
 from torch import Tensor
 
 import traceback
@@ -70,13 +71,14 @@ class Batch(NamedLinop):
         if self.post_batch_hook is not None:
             self.post_batch_hook(self)
 
-    def to(self, device: torch.device | str):
+    def to(self, device: torch.device | str) -> Self:
         self.input_device = device
         self.output_device = device
         # self.linop.to(device)
         # Avoid copying the _linops by doing super() first
         super().to(device)
         self.setup_batching()
+        return self
 
     def forward(self, x: torch.Tensor):
         # Complete the size specifications
