@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 
 import torchlinops
+import torchlinops.config as config
 
 from .nameddim import NamedDimension as ND, NamedShape, NS, NDorStr
 from torchlinops.utils import INDENT
@@ -23,6 +24,14 @@ class NamedLinop(nn.Module):
     """Base Class for all NamedLinops"""
 
     def __init__(self, shape: NamedShape, name: Optional[str] = None):
+        """
+        Parameters
+        ----------
+        shape : NamedShape
+            The shape of this linop, e.g. ``NS(("N",), ("M",))``
+        name : str, optional
+            Optional name to display for this linop
+        """
         super().__init__()
         self._shape = shape
 
@@ -69,12 +78,21 @@ class NamedLinop(nn.Module):
 
     # Override
     def split_forward(self, ibatch, obatch):
-        """Return a new instance"""
+        """Split this linop into a sub-linop according to slices over its dimensions
+
+        Parameters
+        ----------
+        ibatch : tuple[slice, ...]
+            The slices over the input dimensions.
+        obatch : tuple[slice, ...]
+            The slices over the output dimensions.
+        """
+
         return type(self)(self._shape)
 
     # Override
     def split_forward_fn(self, ibatch, obatch, /, data=None):
-        """Return data"""
+        """Split this linop's data """
         return None
 
     # Override
@@ -153,7 +171,7 @@ class NamedLinop(nn.Module):
         inner: Optional linop for toeplitz embedding
         TODO: Add splitting for normal ops created this way.
         """
-        if inner is None:
+        if config.inner_not_relevant(inner):
             normal = copy(self)
             normal._shape = self._shape.N
 
@@ -241,7 +259,10 @@ class NamedLinop(nn.Module):
         return NotImplemented
 
     def __matmul__(self, right):
-        return self.compose(right)
+        if isinstance(right, NamedLinop):
+            return self.compose(right)
+        if isinstance(right, torch.Tensor):
+            return self(right)
 
     def __rmatmul__(self, left):
         return left.compose(self)
