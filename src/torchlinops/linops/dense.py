@@ -5,8 +5,10 @@ from copy import copy, deepcopy
 from einops import einsum
 import torch.nn as nn
 
+import torchlinops.config as config
 from .namedlinop import NamedLinop
 from .nameddim import ND, NS, NamedShape, Shape
+from .identity import Identity
 
 __all__ = ["Dense"]
 
@@ -135,7 +137,7 @@ class Dense(NamedLinop):
         win_shape = []
         used_shapes = self.ishape + self.oshape
         shape_updates = {}
-        # Make new ishape and weight shape
+        # Make new oshape and weight shape
         # Rules:
         # New weightshape
         #   If dim appears in ishape and weightshape but not oshape -> increment
@@ -160,7 +162,7 @@ class Dense(NamedLinop):
                 new_dim = dim
             new_oshape.append(new_dim)
 
-        if inner is None:
+        if config.inner_not_relevant(inner):
             # Consolidate dense and dense adjoint into single dense
             new_weight_shape = wdiag_shape + wout_shape + win_shape
             einstr = shapes2einstr(
@@ -179,11 +181,15 @@ class Dense(NamedLinop):
             normal._update_suffix(normal=self._name is not None)
             normal._shape_updates = shape_updates
             return normal
-        # Note: Only update _shape_updates when there's no inner linop
-        # Inner linops always handle shape updates
-        # Basically any time dim.next_unused is called is when
-        # shape updates need to happen
-        normal = super().normal(inner)
+        _shape_updates = getattr(inner, "_shape_updates", {})
+        _shape_updates.update(shape_updates)
+        pre = copy(self)
+        pre.oshape = inner.ishape
+        post = self.adjoint()  # Copy happens inside adjoint
+        post.ishape = inner.oshape
+        post.oshape = new_oshape
+        normal = post @ inner @ pre
+        normal._shape_updates = _shape_updates
         return normal
 
     def split_forward(self, ibatch, obatch):
