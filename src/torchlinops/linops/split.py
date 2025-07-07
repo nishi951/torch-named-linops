@@ -1,16 +1,19 @@
+from dataclasses import dataclass
 from functools import partial
 from math import ceil
 from typing import Literal, Optional
 
 import numpy as np
+import torch
 from torchlinops.utils import NDList, batch_iterator, dict_product
 
 from .add import Add
 from .concat import Concat
+from .device import ToDevice
 from .nameddim import ND
 from .namedlinop import NamedLinop
 
-__all__ = ["split", "split_and_stack"]
+__all__ = ["split_linop", "create_batched_linop"]
 
 Batch = tuple[int, slice]
 # Represents a single batch at index 0 over the full extent
@@ -19,10 +22,54 @@ DEFAULT_BATCH = (0, slice(None))
 Tile = dict[ND | str, Batch]
 
 
-def split(
+@dataclass
+class BatchSpec:
+    batch_sizes: dict[ND | str, int]
+    device_matrix: Optional[np.ndarray | list] = None
+    base_device: Optional[torch.device] = "cpu"
+
+
+def create_batched_linop(linop, batch_specs: list[BatchSpec]):
+    """
+    Examples
+    --------
+    >>> from torchlinops import Dense
+    >>> congpu_batchspec = BatchSpec({"B": 2})
+    >>> gpu_batchspec = BatchSpec({"C": 1}, device_matrix=[torch.device("cuda:0"), "cpu"])
+
+    """
+    if len(batch_specs) == 0:
+        return linop
+    return _create_batched_linop(linop, batch_specs[0])
+
+
+def _create_batched_linop(linop, batch_spec: BatchSpec):
+    """Recursive helper function"""
+    linops, _, _ = split_linop(
+        linop, batch_spec.batch_sizes, batch_spec.device_matrix, batch_spec.base_device
+    )
+    for dim in reversed(batch_spec.batch_sizes):
+        # Manual axis reduction because I made Concat and Add too nice
+        flat_linops = linops.reshape(-1, linops.shape[-1])
+        new_linops = np.empty(flat_linops.shape[0], dtype=object)
+        for i, linop_arr in enumerate(flat_linops):
+            if dim in linop.ishape and dim in linop.oshape:
+                return Concat(*linops, idim=dim, odim=dim)
+            elif dim not in linop.ishape and dim in linop.oshape:
+                return Concat(*linops, odim=dim)
+            elif dim in linop.ishape and dim not in linop.oshape:
+                return Concat(*linops, idim=dim)
+            else:
+                return Add(*linops)
+        linops = new_linops.reshape(linops.shape[:-1])
+    return linops.item()
+
+
+def split_linop(
     linop: NamedLinop,
     batch_sizes: dict[ND | str, int],
     device_matrix: Optional[list | np.ndarray] = None,
+    base_device: torch.device = "cpu",
 ):
     """Split a linop into smaller linops according to some batch sizes
 
@@ -47,7 +94,7 @@ def split(
     # Make tiles. Each tile is a dictionary mapping a dimension to an integer
     # index of the tile and a slice over that dimension.
     batch_iterators = make_batch_iterators(sizes, batch_sizes)
-    tiles: list[dict[ND, tuple[int, slice]]] = list(dict_product(batch_iterators))
+    tiles: list[dict[ND, Batch]] = list(dict_product(batch_iterators))
 
     # Allocate outputs
     batch_dims = list(batch_sizes.keys())
@@ -59,10 +106,22 @@ def split(
         # Create and broadcast device_matrix over requested split
         if not isinstance(device_matrix, np.ndarray):
             device_matrix = np.array(device_matrix, dtype=object)
+        device_matrix = fuzzy_broadcast_to(device_matrix, tiled_shape)
+        if device_matrix.shape != linops.shape:
+            raise ValueError(
+                f"Broadcasted device matrix with shape {device_matrix.shape} can't be broadcasted to exact shape of linop tiles with shape {tiled_shape}"
+            )
 
     for tile in tiles:
         idx = _tile_get_idx(tile, batch_dims)
         ibatches, obatches, linop_tile = split_linop_with_tile(linop, tile)
+        if device_matrix is not None:
+            device = device_matrix[idx]
+            linop_tile = (
+                ToDevice(device, base_device)
+                @ linop_tile
+                @ ToDevice(base_device, device)
+            )
         linops[idx] = linop_tile
         input_batches[idx] = ibatches[0]  # input batch of first linop
         output_batches[idx] = obatches[-1]  # output batch of last linop
@@ -112,25 +171,6 @@ def fuzzy_broadcast_to(arr: np.ndarray, target_shape):
     return np.broadcast_to(arr, target_shape)
 
 
-def split_and_stack(linop, batch_sizes):
-    linops, _, _ = split(linop, batch_sizes)
-    for dim in reversed(batch_sizes):
-        # Manual axis reduction because I made Concat and Add too nice
-        flat_linops = linops.reshape(-1, linops.shape[-1])
-        new_linops = np.empty(flat_linops.shape[0], dtype=object)
-        for i, linop_arr in enumerate(flat_linops):
-            if dim in linop.ishape and dim in linop.oshape:
-                return Concat(*linops, idim=dim, odim=dim)
-            elif dim not in linop.ishape and dim in linop.oshape:
-                return Concat(*linops, odim=dim)
-            elif dim in linop.ishape and dim not in linop.oshape:
-                return Concat(*linops, idim=dim)
-            else:
-                return Add(*linops)
-        linops = new_linops.reshape(linops.shape[:-1])
-    return linops.item()
-
-
 def split_linop_with_tile(linop: NamedLinop, tile: Tile):
     """Split a linop according to batch specified in tile"""
     ibatches = [_tile_shape2batch(tile, op.ishape) for op in linop.flatten()]
@@ -152,7 +192,7 @@ def _tile_shape2batch(tile: Tile, shape: tuple[ND | str, ...]) -> list[slice]:
 def make_batch_iterators(
     total_sizes: dict[str, int],
     batch_sizes: dict[str, int],
-) -> dict[str, list[tuple[int, slice]]]:
+) -> Tile:
     """Construct dictionaries mapping batchable dims to lists of slices
     corresponding to the actual batches
 

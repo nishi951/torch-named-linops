@@ -13,7 +13,7 @@ from tqdm import tqdm
 from .namedlinop import NamedLinop
 from .identity import ShapeSpec
 from .nameddim import ND, NS, Shape
-from .split import split
+from .split import split_linop
 
 from torchlinops.utils import batch_iterator, dict_product, INDENT
 
@@ -59,7 +59,7 @@ class Batch(NamedLinop):
         self.setup_batching()
 
     def setup_batching(self, hook: Optional[Callable] = None):
-        _linops, _input_batches, _output_batches = split(
+        _linops, _input_batches, _output_batches = split_linop(
             self.linop,
             self.batch_sizes,
         )
