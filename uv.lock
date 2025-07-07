@@ -959,6 +959,15 @@ wheels = [
 ]
 
 [[package]]
+name = "isort"
+version = "6.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b8/21/1e2a441f74a653a144224d7d21afe8f4169e6c7c20bb13aec3a2dc3815e0/isort-6.0.1.tar.gz", hash = "sha256:1cb5df28dfbc742e490c5e41bad6da41b805b0a8be7bc93cd0fb2a8a890ac450", size = 821955, upload-time = "2025-02-26T21:13:16.955Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/11/114d0a5f4dabbdcedc1125dee0888514c3c3b16d3e9facad87ed96fad97c/isort-6.0.1-py3-none-any.whl", hash = "sha256:2dc5d7f65c9678d94c88dfc29161a320eec67328bc97aad576874cb4be1e9615", size = 94186, upload-time = "2025-02-26T21:13:14.911Z" },
+]
+
+[[package]]
 name = "itsdangerous"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3300,6 +3309,7 @@ all = [
     { name = "easydict" },
     { name = "furo" },
     { name = "ipykernel" },
+    { name = "isort" },
     { name = "jupyterlab" },
     { name = "llvmlite" },
     { name = "marimo" },
@@ -3320,6 +3330,7 @@ all = [
 dev = [
     { name = "furo" },
     { name = "ipykernel" },
+    { name = "isort" },
     { name = "jupyterlab" },
     { name = "marimo" },
     { name = "markdown-pytest" },
@@ -3364,6 +3375,7 @@ all = [
     { name = "easydict", specifier = ">=1.13" },
     { name = "furo", specifier = ">=2024.8.6" },
     { name = "ipykernel", specifier = ">=6.29.5" },
+    { name = "isort", specifier = ">=6.0.1" },
     { name = "jupyterlab", specifier = ">=4.4.3" },
     { name = "llvmlite", specifier = ">=0.43.0" },
     { name = "marimo", specifier = ">=0.12.0" },
@@ -3383,6 +3395,7 @@ all = [
 dev = [
     { name = "furo", specifier = ">=2024.8.6" },
     { name = "ipykernel", specifier = ">=6.29.5" },
+    { name = "isort", specifier = ">=6.0.1" },
     { name = "jupyterlab", specifier = ">=4.4.3" },
     { name = "marimo", specifier = ">=0.12.0" },
     { name = "markdown-pytest", specifier = ">=0.3.2" },
