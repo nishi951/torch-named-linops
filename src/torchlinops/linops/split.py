@@ -157,7 +157,7 @@ def fuzzy_broadcast_to(arr: np.ndarray, target_shape):
     """
     # Ensure target shape and arr.shape have same length
     if len(target_shape) < arr.ndim:
-        target_shape = (1,) * (arr.ndim - len(target_shape)) - tuple(target_shape)
+        target_shape = (1,) * (arr.ndim - len(target_shape)) + tuple(target_shape)
     while len(target_shape) > arr.ndim:
         arr = np.expand_dims(arr, 0)
 
