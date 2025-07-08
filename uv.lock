@@ -3342,7 +3342,7 @@ requires-dist = [
     { name = "torchaudio", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = ">=2.5.1" },
     { name = "torchaudio", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = ">1.13,<2.3" },
     { name = "torchvision", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = ">=0.20.1" },
-    { name = "torchvision", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "<0.22.1" },
+    { name = "torchvision", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "<0.22.2" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "triton", marker = "sys_platform != 'darwin'", specifier = ">=3.0" },
 ]
