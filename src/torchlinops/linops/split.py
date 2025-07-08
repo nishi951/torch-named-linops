@@ -13,7 +13,7 @@ from .device import ToDevice
 from .nameddim import ND
 from .namedlinop import NamedLinop
 
-__all__ = ["split_linop", "create_batched_linop"]
+__all__ = ["split_linop", "create_batched_linop", "BatchSpec"]
 
 Batch = tuple[int, slice]
 # Represents a single batch at index 0 over the full extent
@@ -29,7 +29,7 @@ class BatchSpec:
     base_device: Optional[torch.device] = "cpu"
 
 
-def create_batched_linop(linop, batch_specs: list[BatchSpec]):
+def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     """
     Examples
     --------
@@ -38,29 +38,37 @@ def create_batched_linop(linop, batch_specs: list[BatchSpec]):
     >>> gpu_batchspec = BatchSpec({"C": 1}, device_matrix=[torch.device("cuda:0"), "cpu"])
 
     """
+    if isinstance(batch_specs, BatchSpec):
+        # Ensure list
+        batch_specs = [batch_specs]
+
     if len(batch_specs) == 0:
         return linop
-    return _create_batched_linop(linop, batch_specs[0])
-
-
-def _create_batched_linop(linop, batch_spec: BatchSpec):
-    """Recursive helper function"""
+    batch_spec = batch_specs[0]
     linops, _, _ = split_linop(
         linop, batch_spec.batch_sizes, batch_spec.device_matrix, batch_spec.base_device
     )
+    linops_shape = linops.shape
+    linops = linops[:]  # Flatten
+    for i, linop in enumerate(linops):
+        linops[i] = create_batched_linop(linop, batch_specs[1:])
+    linops = linops.reshape(linops_shape)
+
     for dim in reversed(batch_spec.batch_sizes):
         # Manual axis reduction because I made Concat and Add too nice
         flat_linops = linops.reshape(-1, linops.shape[-1])
         new_linops = np.empty(flat_linops.shape[0], dtype=object)
         for i, linop_arr in enumerate(flat_linops):
+            linop = linop_arr[0]
             if dim in linop.ishape and dim in linop.oshape:
-                return Concat(*linops, idim=dim, odim=dim)
+                new_linop = Concat(*linop_arr, idim=dim, odim=dim)
             elif dim not in linop.ishape and dim in linop.oshape:
-                return Concat(*linops, odim=dim)
+                new_linop = Concat(*linop_arr, odim=dim)
             elif dim in linop.ishape and dim not in linop.oshape:
-                return Concat(*linops, idim=dim)
+                new_linop = Concat(*linop_arr, idim=dim)
             else:
-                return Add(*linops)
+                new_linop = Add(*linop_arr)
+            new_linops[i] = new_linop
         linops = new_linops.reshape(linops.shape[:-1])
     return linops.item()
 
@@ -118,9 +126,9 @@ def split_linop(
         if device_matrix is not None:
             device = device_matrix[idx]
             linop_tile = (
-                ToDevice(device, base_device)
-                @ linop_tile
-                @ ToDevice(base_device, device)
+                ToDevice(device, base_device, linop_tile.oshape)
+                @ linop_tile.to(device)
+                @ ToDevice(base_device, device, linop_tile.ishape)
             )
         linops[idx] = linop_tile
         input_batches[idx] = ibatches[0]  # input batch of first linop

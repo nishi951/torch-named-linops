@@ -58,6 +58,7 @@ sigpy = [
     "easydict>=1.13",
     "sigpy>=0.1.27",
     "cupy-cuda12x>=13.4.1; sys_platform != 'darwin'",
+    "numpy<=2.0",
 ]
 all = [{include-group="dev"}, {include-group="sigpy"}]
 
