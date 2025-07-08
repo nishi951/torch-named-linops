@@ -49,7 +49,7 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
         linop, batch_spec.batch_sizes, batch_spec.device_matrix, batch_spec.base_device
     )
     linops_shape = linops.shape
-    linops = linops[:]  # Flatten
+    linops = linops.reshape(-1)  # Flatten
     for i, linop in enumerate(linops):
         linops[i] = create_batched_linop(linop, batch_specs[1:])
     linops = linops.reshape(linops_shape)
