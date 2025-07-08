@@ -1,10 +1,10 @@
 import pytest
 
 import torch
-from torchlinops import Dense, split, split_and_stack
+from torchlinops import Dense, split_linop, create_batched_linop, BatchSpec
 
 
-def test_split():
+def test_split_linop():
     ishape = ("B", "N")
     oshape = ("B", "M")
     B = 10
@@ -13,7 +13,7 @@ def test_split():
     weightshape = ("B", "M", "N")
     device = "cpu"
     A = Dense(weight, weightshape, ishape, oshape)
-    linops, in_slc, out_slc = split(A, {"N": 2, "M": 1})
+    linops, in_slc, out_slc = split_linop(A, {"N": 2, "M": 1})
 
     # tile indices
     n, m = 1, 2
@@ -26,7 +26,7 @@ def test_split():
     assert torch.allclose(y_m, y_m_ref)
 
 
-def test_split_and_stack():
+def test_create_batched_linop():
     ishape = ("B", "N")
     oshape = ("B", "M")
     B = 10
@@ -36,6 +36,35 @@ def test_split_and_stack():
     device = "cpu"
     A = Dense(weight, weightshape, ishape, oshape)
 
-    Abatch = split_and_stack(A, dict(N=2, M=1))
+    Abatch = create_batched_linop(A, BatchSpec(dict(N=2, M=1)))
     x = torch.randn(B, N)
     assert Abatch(x).allclose(A(x))
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_create_batched_linop_multi_device():
+    ishape = ("B", "N")
+    oshape = ("B", "M")
+    B = 10
+    M, N = (3, 7)
+    weight = torch.randn(B, M, N)
+    weightshape = ("B", "M", "N")
+    device = "cpu"
+    A = Dense(weight, weightshape, ishape, oshape)
+
+    Abatch = create_batched_linop(
+        A,
+        [
+            BatchSpec(
+                dict(N=2),
+                device_matrix=[torch.device("cpu"), torch.device("cuda:0")],
+                base_device=torch.device("cpu"),
+            ),
+            BatchSpec(dict(M=1)),
+        ],
+    )
+    x = torch.randn(B, N)
+    assert Abatch(x).allclose(A(x), rtol=1e-3)
