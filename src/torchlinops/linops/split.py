@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from functools import partial
 from math import ceil
 from typing import Literal, Optional
+from warnings import warn
 
 import numpy as np
 import torch
@@ -28,13 +29,19 @@ class BatchSpec:
     device_matrix: Optional[np.ndarray | list] = None
     base_device: Optional[torch.device] = "cpu"
 
+    def __post_init__(self):
+        if not isinstance(self.batch_sizes, dict):
+            warn(
+                f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
+            )
+
 
 def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     """
     Examples
     --------
     >>> from torchlinops import Dense
-    >>> congpu_batchspec = BatchSpec({"B": 2})
+    >>> non_gpu_batchspec = BatchSpec({"B": 2})
     >>> gpu_batchspec = BatchSpec({"C": 1}, device_matrix=[torch.device("cuda:0"), "cpu"])
 
     """
