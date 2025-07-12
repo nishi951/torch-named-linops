@@ -16,15 +16,15 @@ def main():
     B, C, X, Y = 6, 5, 64, 64
     input_ = torch.randn(X, Y)
     S = Dense(torch.randn(C, X, Y), Dim("CXY"), ishape=Dim("XY"), oshape=Dim("CXY"))
-    F = Dense(torch.randn(B, C), Dim("BC"), ishape=Dim("CXY"), oshape=Dim("BXY"))
-    D = Diagonal.from_weight(torch.randn(B), Dim("B"), ioshape=Dim("B()()"))
+    F = Dense(torch.randn(B, 1, X, Y), Dim("B"), ishape=Dim("CXY"), oshape=Dim("BCXY"))
 
     # Make linop
-    A = D @ F @ S
+    A = F @ S
     A.to(device)
     print("Not batched")
     MemReporter().report(A)
-    A = create_batched_linop(A, BatchSpec({"C": 1, "B": 2}))
+    A = create_batched_linop(A, [BatchSpec({"C": 1}), BatchSpec({"B": 2})])
+    print(A)
 
     # Print memory usage
     print("Batched")
