@@ -21,6 +21,7 @@ def main():
     # Make linop
     A = F @ S
     A.to(device)
+    print(A)
     print("Not batched")
     MemReporter().report(A)
     A = create_batched_linop(A, [BatchSpec({"C": 1}), BatchSpec({"B": 2})])
@@ -38,8 +39,6 @@ def main():
     # Print memory usage
     print("Deserialized")
     MemReporter().report(A2)
-
-    # Everything seems ok?
 
 
 if __name__ == "__main__":
