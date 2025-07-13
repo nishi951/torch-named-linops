@@ -7,7 +7,94 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-__all__ = ["get_device", "device_ordinal", "same_storage", "MemReporter"]
+__all__ = [
+    "get_device",
+    "device_ordinal",
+    "same_storage",
+    "MemReporter",
+    "move_module_preserve_sharing",
+]
+
+
+def cdata(t: Tensor):
+    """Get a pointer to the block of memory that the tensor is part of."""
+    return t.untyped_storage()._cdata
+
+
+def move_module_preserve_sharing(module: nn.Module, device):
+    # Map from original storage ID to list of (tensor, name)
+    storage_tensors = defaultdict(list)
+
+    def collect(m):
+        """Recursively collect all parameters and buffers in the module."""
+        for name, t in list(m.named_parameters(recurse=False)) + list(
+            m.named_buffers(recurse=False)
+        ):
+            if t is None:
+                continue
+            key = cdata(t)
+            storage_tensors[key].append(t)
+        for child in m.children():
+            collect(child)
+
+    collect(module)
+
+    # Move unique storage blocks
+    storage_map = {}
+    for key, tensors in storage_tensors.items():
+        # Find max offset + size for any tensor sharing this storage
+        max_offset = 0
+        dtype = None
+        device_orig = None
+        for t in tensors:
+            size_bytes = t.element_size() * max_storage_size(t)
+            offset_bytes = t.storage_offset() * t.element_size()
+            max_offset = max(max_offset, offset_bytes + size_bytes)
+            dtype = t.dtype
+            device_orig = t.device
+
+        # Create a flat tensor that spans the full required storage
+        base_tensor = torch.empty(
+            (max_offset // torch.tensor([], dtype=dtype).element_size(),),
+            dtype=dtype,
+            device=device_orig,
+        )
+        storage_map[key] = base_tensor.to(device)
+
+    # Replace parameters/buffers
+    def remap(m):
+        for name, t in m._parameters.items():
+            if t is not None:
+                new_t = as_view_on_moved(t, storage_map)
+                m._parameters[name] = nn.Parameter(new_t, requires_grad=t.requires_grad)
+        for name, t in m._buffers.items():
+            if t is not None:
+                m._buffers[name] = as_view_on_moved(t, storage_map)
+        for child in m.children():
+            remap(child)
+
+    remap(module)
+    return module
+
+
+def max_storage_size(tensor):
+    """Compute the number of elements spanned by a strided tensor."""
+    if tensor.numel() == 0:
+        return 0
+    size = 0
+    for i, (dim, stride) in enumerate(zip(tensor.size(), tensor.stride())):
+        size += (dim - 1) * stride
+    return size + 1
+
+
+def as_view_on_moved(tensor, storage_map):
+    """Convert a"""
+    key = cdata(tensor)
+    base = storage_map[key]
+    view = base.as_strided(
+        tensor.size(), tensor.stride(), tensor.storage_offset()
+    ).copy_(tensor.to(base.device))
+    return view
 
 
 def get_device(device_idx: int = -1):
