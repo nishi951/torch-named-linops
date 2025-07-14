@@ -130,7 +130,7 @@ def split_linop(
     for tile in tiles:
         idx = _tile_get_idx(tile, batch_dims)
         linop_tile = split_linop_with_tile(linop, tile)
-        linop_flat = linop.flatten()
+        linop_flat = linop_tile.flatten()
         first_linop, last_linop = linop_flat[0], linop_flat[-1]
         if device_matrix is not None:
             device = device_matrix[idx]
