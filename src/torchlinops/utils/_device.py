@@ -199,10 +199,10 @@ class MemReporter:
     @staticmethod
     def _format_size(size_B, mode: Literal["GB", "GiB"] = "GB"):
         if mode == "GB":
-            base = 1024
+            base = 1000
             prefix = ["K", "M", "G"]
         elif mode == "GiB":
-            base = 1000
+            base = 1024
             prefix = ["Ki", "Mi", "Gi"]
         if size_B < base:
             return f"{size_B}", "B"
