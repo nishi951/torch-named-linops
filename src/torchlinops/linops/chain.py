@@ -1,14 +1,15 @@
-from typing import Optional
 import sys
 import traceback
+from collections.abc import Mapping
+from typing import Optional
 
 import torch
 import torch.nn as nn
-
-from .namedlinop import NamedLinop
-from .nameddim import NS, isequal
-
+from multimethod import multimethod
 from torchlinops.utils import INDENT
+
+from .nameddim import NS, isequal, NamedDimension as ND
+from .namedlinop import NamedLinop
 
 
 class Chain(NamedLinop):
@@ -121,18 +122,47 @@ class Chain(NamedLinop):
             inner = linop.normal(inner)
         return inner
 
-    @staticmethod
-    def split(chain, *iobatches):
+    @multimethod
+    def split(chain, *iobatches: slice):
         """For compatibility with NamedLinop"""
         ibatches = iobatches[: len(iobatches) // 2]
         obatches = iobatches[len(iobatches) // 2 :]
         return chain.split_forward(ibatches, obatches)
 
-    @staticmethod
-    def adj_split(chain, *iobatches):
+    @multimethod
+    def split(chain, slices: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+        ibatches = [
+            [slices.get(dim, slice(None)) for dim in linop.ishape]
+            for linop in chain.linops
+        ]
+        obatches = [
+            [slices.get(dim, slice(None)) for dim in linop.oshape]
+            for linop in chain.linops
+        ]
+        return chain.split_forward(ibatches, obatches)
+
+    # Called after all multimethods have been registered
+    split = staticmethod(split)
+
+    @multimethod
+    def adj_split(chain, *iobatches: slice):
         ibatches = iobatches[: len(iobatches) // 2]
         obatches = iobatches[len(iobatches) // 2 :]
         return chain.H.split_forward(obatches, ibatches).H
+
+    @multimethod
+    def adj_split(chain, slices: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+        ibatches = [
+            [slices.get(dim, slice(None)) for dim in linop.ishape]
+            for linop in chain.linops
+        ]
+        obatches = [
+            [slices.get(dim, slice(None)) for dim in linop.oshape]
+            for linop in chain.linops
+        ]
+        return chain.H.split_forward(obatches, ibatches).H
+
+    adj_split = staticmethod(adj_split)
 
     @staticmethod
     def split_fn(chain, *iobatchesdata):

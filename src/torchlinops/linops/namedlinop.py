@@ -1,19 +1,22 @@
-from typing import Optional
-
-from functools import partial
-from copy import copy, deepcopy
-import traceback
 import logging
+import traceback
 import types
+from collections import defaultdict
+from collections.abc import Mapping
+from copy import copy, deepcopy
+from functools import partial
+from typing import Optional
 
 import torch
 import torch.nn as nn
-
 import torchlinops
 import torchlinops.config as config
+from multimethod import multimethod
+from torchlinops.utils import INDENT, memory_aware_to, memory_aware_deepcopy
 
-from .nameddim import NamedDimension as ND, NamedShape, NS, NDorStr
-from torchlinops.utils import INDENT
+from .nameddim import NS
+from .nameddim import NamedDimension as ND
+from .nameddim import NamedShape, NDorStr
 
 __all__ = ["NamedLinop"]
 
@@ -92,7 +95,7 @@ class NamedLinop(nn.Module):
 
     # Override
     def split_forward_fn(self, ibatch, obatch, /, data=None):
-        """Split this linop's data """
+        """Split this linop's data"""
         return None
 
     # Override
@@ -203,8 +206,8 @@ class NamedLinop(nn.Module):
         normal._shape_updates = getattr(inner, "_shape_updates", {})
         return normal
 
-    @staticmethod
-    def split(linop, ibatch, obatch):
+    @multimethod
+    def split(linop, ibatch: list | tuple, obatch: list | tuple):
         """Return a split version of the linop such that`forward`
         performs a split version of the linop
         ibatch: tuple of slices of same length as ishape
@@ -213,11 +216,31 @@ class NamedLinop(nn.Module):
         split = linop.split_forward(ibatch, obatch)
         return split
 
-    @staticmethod
-    def adj_split(linop, ibatch, obatch):
+    @multimethod
+    def split(linop, slices: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+        """Split a linop with a mapping of dimensions to slices."""
+        ibatch = [slices.get(dim, slice(None)) for dim in linop.ishape]
+        obatch = [slices.get(dim, slice(None)) for dim in linop.oshape]
+        return linop.split_forward(ibatch, obatch)
+
+    # Called after all multimethods have been registered
+    split = staticmethod(split)
+
+    @multimethod
+    def adj_split(linop, ibatch: list | tuple, obatch: list | tuple):
         """Split the adjoint version"""
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
+
+    @multimethod
+    def adj_split(linop, slices: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+        """Split the adjoint version"""
+        ibatch = [slices.get(dim, slice(None)) for dim in linop.ishape]
+        obatch = [slices.get(dim, slice(None)) for dim in linop.oshape]
+        splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
+        return splitH
+
+    adj_split = staticmethod(adj_split)
 
     @staticmethod
     def split_fn(linop, ibatch, obatch, /, **kwargs):
@@ -317,6 +340,9 @@ class NamedLinop(nn.Module):
     def oshape(self, val):
         self._shape.oshape = val
 
+    def to(self, device):
+        return memory_aware_to(self, device)
+
     def __copy__(self):
         """
         copying a linop:
@@ -340,6 +366,9 @@ class NamedLinop(nn.Module):
         # Create new shape
         new._shape = deepcopy(self._shape)
         return new
+
+    def __deepcopy__(self, _):
+        return memory_aware_deepcopy(self)
 
 
 class NormalFunctionLookup:

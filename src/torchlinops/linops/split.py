@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from functools import partial
 from math import ceil
 from typing import Literal, Optional
+from warnings import warn
 
 import numpy as np
 import torch
@@ -28,13 +29,19 @@ class BatchSpec:
     device_matrix: Optional[np.ndarray | list] = None
     base_device: Optional[torch.device] = "cpu"
 
+    def __post_init__(self):
+        if not isinstance(self.batch_sizes, dict):
+            warn(
+                f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
+            )
+
 
 def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     """
     Examples
     --------
     >>> from torchlinops import Dense
-    >>> congpu_batchspec = BatchSpec({"B": 2})
+    >>> non_gpu_batchspec = BatchSpec({"B": 2})
     >>> gpu_batchspec = BatchSpec({"C": 1}, device_matrix=[torch.device("cuda:0"), "cpu"])
 
     """
@@ -122,7 +129,9 @@ def split_linop(
 
     for tile in tiles:
         idx = _tile_get_idx(tile, batch_dims)
-        ibatches, obatches, linop_tile = split_linop_with_tile(linop, tile)
+        linop_tile = split_linop_with_tile(linop, tile)
+        linop_flat = linop_tile.flatten()
+        first_linop, last_linop = linop_flat[0], linop_flat[-1]
         if device_matrix is not None:
             device = device_matrix[idx]
             linop_tile = (
@@ -131,8 +140,12 @@ def split_linop(
                 @ ToDevice(base_device, device, linop_tile.ishape)
             )
         linops[idx] = linop_tile
-        input_batches[idx] = ibatches[0]  # input batch of first linop
-        output_batches[idx] = obatches[-1]  # output batch of last linop
+        input_batches[idx] = [
+            tile.get(dim, DEFAULT_BATCH)[1] for dim in first_linop.ishape
+        ]
+        output_batches[idx] = [
+            tile.get(dim, DEFAULT_BATCH)[1] for dim in last_linop.oshape
+        ]
     return linops, input_batches, output_batches
 
 
@@ -181,20 +194,14 @@ def fuzzy_broadcast_to(arr: np.ndarray, target_shape):
 
 def split_linop_with_tile(linop: NamedLinop, tile: Tile):
     """Split a linop according to batch specified in tile"""
-    ibatches = [_tile_shape2batch(tile, op.ishape) for op in linop.flatten()]
-    obatches = [_tile_shape2batch(tile, op.oshape) for op in linop.flatten()]
-    linop_tile = linop.split(linop, *ibatches, *obatches)
-    return ibatches, obatches, linop_tile
+    slice_map = {key: value[1] for key, value in tile.items()}
+    linop_tile = linop.split(linop, slice_map)
+    return linop_tile
 
 
 def _tile_get_idx(tile: Tile, batch_dims) -> tuple[int]:
     """Get all indices from the tile"""
     return tuple(tile.get(dim, DEFAULT_BATCH)[0] for dim in batch_dims)
-
-
-def _tile_shape2batch(tile: Tile, shape: tuple[ND | str, ...]) -> list[slice]:
-    """Get all batches from the tile in a specific order according to the provided shapes"""
-    return [tile.get(dim, DEFAULT_BATCH)[1] for dim in shape]
 
 
 def make_batch_iterators(

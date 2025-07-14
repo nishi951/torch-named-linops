@@ -61,3 +61,8 @@ class BaseNamedLinopTests(ABC):
         A, x, y = linop_input_output
         self.test_adjoint((A.N, x, x))
         self.test_normal((A.N, x, x))
+
+    def test_split(self, linop_input_output):
+        A, x, y = linop_input_output
+        for dim in set(A.ishape + A.oshape):
+            ...
