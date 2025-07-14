@@ -340,8 +340,10 @@ class NamedLinop(nn.Module):
     def oshape(self, val):
         self._shape.oshape = val
 
-    def to(self, device):
-        return memory_aware_to(self, device)
+    def to(self, device, memory_aware: bool = False):
+        if memory_aware:
+            return memory_aware_to(self, device)
+        return super().to(device)
 
     def __copy__(self):
         """
