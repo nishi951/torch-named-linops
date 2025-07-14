@@ -1,6 +1,7 @@
 import gc
 from collections import defaultdict
-from typing import Literal, Optional
+from copy import deepcopy
+from typing import Literal, Optional, TypeVar
 from warnings import warn
 
 import torch
@@ -12,17 +13,65 @@ __all__ = [
     "device_ordinal",
     "same_storage",
     "MemReporter",
-    "move_module_preserve_sharing",
+    "memory_aware_to",
+    "memory_aware_deepcopy",
 ]
 
-
-def cdata(t: Tensor):
-    """Get a pointer to the block of memory that the tensor is part of."""
-    return t.untyped_storage()._cdata
+T = TypeVar("T")
 
 
-def move_module_preserve_sharing(module: nn.Module, device):
-    # Map from original storage ID to list of (tensor, name)
+def memory_aware_to(module: nn.Module, device: Optional[torch.device] = None):
+    """Move a module to a device, without unnecessary memory overhead."""
+    storage_map = create_shared_buffer_map(module, device)
+
+    def remap(m):
+        for name, t in m._parameters.items():
+            if t is not None:
+                new_t = as_view_on_moved(t, storage_map)
+                m._parameters[name] = nn.Parameter(new_t, requires_grad=t.requires_grad)
+        for name, t in m._buffers.items():
+            if t is not None:
+                m._buffers[name] = as_view_on_moved(t, storage_map)
+        for child in m.children():
+            remap(child)
+
+    remap(module)
+    return module
+
+
+def memory_aware_deepcopy(module):
+    """Deepcopy a module, without unnecessary memory overhead."""
+    storage_map = create_shared_buffer_map(module)
+
+    # Recursively
+    def copy_memory_aware(m: nn.Module):
+        cls = type(m)
+        new = cls.__new__(cls)
+        new.__dict__ = m.__dict__.copy()
+        new._parameters = dict()
+        new._buffers = dict()
+        new._modules = dict()
+
+        for name, t in m._parameters.items():
+            if t is not None:
+                new_t = as_view_on_moved(t, storage_map)
+                new._parameters[name] = nn.Parameter(
+                    new_t, requires_grad=t.requires_grad
+                )
+        for name, t in m._buffers.items():
+            if t is not None:
+                new._buffers[name] = as_view_on_moved(t, storage_map)
+
+        for module_name, child_module in m._modules.items():
+            new._modules[module_name] = copy_memory_aware(child_module)
+        return new
+
+    new_module = copy_memory_aware(module)
+    return new_module
+
+
+def create_shared_buffer_map(module, device=None) -> dict:
+    """Construct the smallest set of tensors that can be used to hold all the parameters in a module."""
     storage_tensors = defaultdict(list)
 
     def collect(m):
@@ -39,7 +88,6 @@ def move_module_preserve_sharing(module: nn.Module, device):
 
     collect(module)
 
-    # Move unique storage blocks
     storage_map = {}
     for key, tensors in storage_tensors.items():
         # Find max offset + size for any tensor sharing this storage
@@ -59,22 +107,14 @@ def move_module_preserve_sharing(module: nn.Module, device):
             dtype=dtype,
             device=device_orig,
         )
-        storage_map[key] = base_tensor.to(device)
+        base_device = device if device is not None else device_orig
+        storage_map[key] = base_tensor.to(base_device)
+    return storage_map
 
-    # Replace parameters/buffers
-    def remap(m):
-        for name, t in m._parameters.items():
-            if t is not None:
-                new_t = as_view_on_moved(t, storage_map)
-                m._parameters[name] = nn.Parameter(new_t, requires_grad=t.requires_grad)
-        for name, t in m._buffers.items():
-            if t is not None:
-                m._buffers[name] = as_view_on_moved(t, storage_map)
-        for child in m.children():
-            remap(child)
 
-    remap(module)
-    return module
+def cdata(t: Tensor):
+    """Get a pointer to the block of memory that the tensor is part of."""
+    return t.untyped_storage()._cdata
 
 
 def max_storage_size(tensor):
@@ -88,12 +128,12 @@ def max_storage_size(tensor):
 
 
 def as_view_on_moved(tensor, storage_map):
-    """Convert a"""
+    """Copy the data from a tensor to the actual target location in the target allocated storage."""
     key = cdata(tensor)
     base = storage_map[key]
     view = base.as_strided(
         tensor.size(), tensor.stride(), tensor.storage_offset()
-    ).copy_(tensor.to(base.device))
+    ).copy_(tensor)
     return view
 
 

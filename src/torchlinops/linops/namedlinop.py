@@ -1,6 +1,7 @@
 import logging
 import traceback
 import types
+from collections import defaultdict
 from collections.abc import Mapping
 from copy import copy, deepcopy
 from functools import partial
@@ -11,7 +12,7 @@ import torch.nn as nn
 import torchlinops
 import torchlinops.config as config
 from multimethod import multimethod
-from torchlinops.utils import INDENT
+from torchlinops.utils import INDENT, memory_aware_to, memory_aware_deepcopy
 
 from .nameddim import NS
 from .nameddim import NamedDimension as ND
@@ -339,6 +340,9 @@ class NamedLinop(nn.Module):
     def oshape(self, val):
         self._shape.oshape = val
 
+    def to(self, device):
+        return memory_aware_to(self, device)
+
     def __copy__(self):
         """
         copying a linop:
@@ -362,6 +366,9 @@ class NamedLinop(nn.Module):
         # Create new shape
         new._shape = deepcopy(self._shape)
         return new
+
+    def __deepcopy__(self, _):
+        return memory_aware_deepcopy(self)
 
 
 class NormalFunctionLookup:
