@@ -1,20 +1,18 @@
-from typing import Optional
-from jaxtyping import Integer
-from torch import Tensor
-
+from collections.abc import Mapping
 from copy import copy
+from typing import Optional
 
 import torch
 import torch.nn as nn
+from jaxtyping import Integer
+from torch import Tensor
+from torchlinops.functional import slice2range
+from torchlinops.utils import INDENT
 
-from .namedlinop import NamedLinop
 from .add import Add
 from .identity import Zero
-from .nameddim import NS, isequal, ELLIPSES, NDorStr, ND
-
-from torchlinops.functional import slice2range
-
-from torchlinops.utils import default_to, INDENT
+from .nameddim import ELLIPSES, ND, NS, NDorStr, isequal
+from .namedlinop import NamedLinop
 
 __all__ = ["Stack"]
 
@@ -169,14 +167,19 @@ class Stack(NamedLinop):
         output_linops = []
         # Remove stack dims from slice batch
         if self.idim_idx is not None:
+            ibatch = ibatch.copy()
             ibatch.pop(self.idim_idx)
         if self.odim_idx is not None:
+            obatch = obatch.copy()
             obatch.pop(self.odim_idx)
 
         # Slice each sub-linop
         for i in linop_idxs:
             linop = self.linops[i]
-            output_linops.append(linop.split_forward(ibatch, obatch))
+            islices = {dim: slc for dim, slc in zip(linop.ishape, ibatch)}
+            oslices = {dim: slc for dim, slc in zip(linop.oshape, obatch)}
+            slices = strict_update(islices, oslices)
+            output_linops.append(linop.split(linop, slices))
         return type(self)(
             *output_linops,
             idim_and_idx=(self.idim, self.idim_idx),
@@ -319,3 +322,27 @@ class Stack(NamedLinop):
             output += INDENT.indent(f"idim = {self.idim}, odim = {self.odim}\n")
         output += INDENT.indent(")")
         return output
+
+def strict_update(d1: Mapping, d2: Mapping) -> Mapping:
+    """Strictly updates one dictionary with values from the other.
+
+    Parameters
+    ----------
+    d1, d2 : Mappings
+        The mappings to combine.
+
+    Returns
+    -------
+    Mapping
+        The combined mapping.
+
+    Raises
+    ------
+    ValueError
+        If there are conflicting keys.
+    """
+    for k, v in d2.items():
+        if k in d1 and d1[k] != v:
+            raise ValueError(f"Conflict at key '{k}': {d1[k]} != {v}")
+    d1.update(d2)
+    return d1
