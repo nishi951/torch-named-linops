@@ -7,7 +7,7 @@ import torch.nn as nn
 from jaxtyping import Integer
 from torch import Tensor
 from torchlinops.functional import slice2range
-from torchlinops.utils import INDENT, default_to
+from torchlinops.utils import INDENT
 
 from .add import Add
 from .identity import Zero
