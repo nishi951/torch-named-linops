@@ -24,14 +24,41 @@ def memory_aware_to(module: nn.Module, device: Optional[torch.device] = None):
     """Move a module to a device, without unnecessary memory overhead."""
     storage_map = create_shared_buffer_map(module, device)
 
+# keys = set()
+# ids = dict()
+# total_params_and_buffers = 0
+# def collect(m):
+#     global total_params_and_buffers
+#     for name, p in m._parameters.items():
+#         keys.add(cdata(p))
+#         if id(p) in ids:
+#             print(f'current: {name}')
+#             print(f'previous: {ids[id(p)]}')
+#         else:
+#             ids[id(p)] = name
+#         total_params_and_buffers += 1
+#     for name,b in m._buffers.items():
+#         keys.add(cdata(b))
+#         ids[id(b)] = name
+#         total_params_and_buffers += 1
+#     for child in m.children():
+#         collect(child)
+
+    # Avoid remapping data more than once
+    remapped_data = set()
     def remap(m):
         for name, t in m._parameters.items():
-            if t is not None:
+            if t is not None and id(t.data) not in remapped_data:
+                # Move this data
                 new_t = as_view_on_moved(t, storage_map)
                 m._parameters[name] = nn.Parameter(new_t, requires_grad=t.requires_grad)
-        for name, t in m._buffers.items():
-            if t is not None:
-                m._buffers[name] = as_view_on_moved(t, storage_map)
+                remapped_data.add(id(new_t.data))
+        for name, t in m._buffers.items() and id(t.data) not in remapped_data:
+            if t is not None and id(t.data) not in remapped_data:
+                # Move this data
+                new_t  = as_view_on_moved(t, storage_map)
+                m._buffers[name] = new_t
+                remapped_data.add(id(new_t.data))
         for child in m.children():
             remap(child)
 
