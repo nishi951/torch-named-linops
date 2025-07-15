@@ -51,6 +51,12 @@ class ToDevice(NamedLinop):
         """Return a new instance"""
         return copy(self)
 
+    # def to(self, device):
+    #     new = copy(self)
+    #     new.idevice = device
+    #     new.odevice = device
+    #     return new
+
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
         out = f"({self.idevice} -> {self.odevice})"
