@@ -3,6 +3,7 @@ from collections import defaultdict
 from copy import deepcopy
 from typing import Literal, Optional, TypeVar
 from warnings import warn
+import logging
 
 import torch
 import torch.nn as nn
@@ -18,36 +19,20 @@ __all__ = [
 ]
 
 T = TypeVar("T")
+logger = logging.getLogger("torchlinops.utils")
 
 
 def memory_aware_to(module: nn.Module, device: Optional[torch.device] = None):
     """Move a module to a device, without unnecessary memory overhead."""
     storage_map = create_shared_buffer_map(module, device)
 
-    # keys = set()
-    # ids = dict()
-    # total_params_and_buffers = 0
-    # def collect(m):
-    #     global total_params_and_buffers
-    #     for name, p in m._parameters.items():
-    #         keys.add(cdata(p))
-    #         if id(p) in ids:
-    #             print(f'current: {name}')
-    #             print(f'previous: {ids[id(p)]}')
-    #         else:
-    #             ids[id(p)] = name
-    #         total_params_and_buffers += 1
-    #     for name,b in m._buffers.items():
-    #         keys.add(cdata(b))
-    #         ids[id(b)] = name
-    #         total_params_and_buffers += 1
-    #     for child in m.children():
-    #         collect(child)
+    # Remember which modules were visited
+    memo = set()
 
-    # Avoid remapping data more than once
-    # remapped_data = set()
-
-    def remap(m):
+    def remap(m, level=0):
+        if id(m) in memo:
+            return
+        logger.debug("\t" * level + f"{type(m).__name__}")
         for name, t in m._parameters.items():
             if t is not None:  # and id(t.data) not in remapped_data:
                 # Move this data
@@ -58,7 +43,8 @@ def memory_aware_to(module: nn.Module, device: Optional[torch.device] = None):
                 new_t = as_view_on_moved(t, storage_map)
                 m._buffers[name] = new_t
         for child in m.children():
-            remap(child)
+            remap(child, level + 1)
+        memo.add(id(m))
 
     remap(module)
     return module

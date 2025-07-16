@@ -81,18 +81,11 @@ def test_model_storage_parameterlist():
     memory_aware_to(moduleb, torch.device("cpu"))
 
 
-def make_linop(
-    trj,
-    dcf,
-    mps,
-    nufft_width,
-    nufft_oversamp,
-    nufft_mode,
-):
+def make_linop(trj, dcf, mps, nufft_width, nufft_oversamp, nufft_mode):
+    """Sample linop with some complexity reflecting real-world use"""
     im_size = mps.shape[1:]
     P = trj.shape[0]
     linops = []
-    # SENSE
     S = Dense(
         mps,
         weightshape=Dim("CNxNyNz"),
@@ -128,12 +121,7 @@ def test_full_linop():
     mps = torch.randn(C, Nx, Ny, Nz, dtype=torch.complex64)
 
     A = make_linop(
-        trj,
-        dcf,
-        mps,
-        nufft_width=4,
-        nufft_oversamp=1.25,
-        nufft_mode="sampling",
+        trj, dcf, mps, nufft_width=4, nufft_oversamp=1.25, nufft_mode="sampling"
     )
     memory_aware_to(A, torch.device("cuda"))
-    breakpoint()
+    assert True
