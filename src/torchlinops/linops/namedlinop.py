@@ -5,14 +5,19 @@ from collections import defaultdict
 from collections.abc import Mapping
 from copy import copy, deepcopy
 from functools import partial
-from typing import Optional
+from typing import Any, Optional, overload
 
 import torch
 import torch.nn as nn
 import torchlinops
 import torchlinops.config as config
 from multimethod import multimethod
-from torchlinops.utils import INDENT, memory_aware_to, memory_aware_deepcopy
+from torchlinops.utils import (
+    INDENT,
+    memory_aware_deepcopy,
+    memory_aware_to,
+    check_signature,
+)
 
 from .nameddim import NS
 from .nameddim import NamedDimension as ND
@@ -138,7 +143,9 @@ class NamedLinop(nn.Module):
         adj._shape = adj._shape.H
         # Swap functions (requires staticmethod)
         adj.fn, adj.adj_fn = adj.adj_fn, adj.fn
+        # adj.split = staticmethod(adj.adj_split.__func__)
         adj.split, adj.adj_split = adj.adj_split, adj.split
+        # adj.adj_split = self.split
         adj.split_fn, adj.adj_split_fn = adj.split_fn, adj.adj_split_fn
         adj._update_suffix(adjoint=True)
         return adj
@@ -206,34 +213,56 @@ class NamedLinop(nn.Module):
         normal._shape_updates = getattr(inner, "_shape_updates", {})
         return normal
 
-    @multimethod
-    def split(linop, ibatch: list | tuple, obatch: list | tuple):
-        """Return a split version of the linop such that`forward`
-        performs a split version of the linop
-        ibatch: tuple of slices of same length as ishape
-        obatch: tuple of slices of same length as oshape
-        """
-        split = linop.split_forward(ibatch, obatch)
-        return split
+    @overload
+    def split(linop, ibatch: list, obatch: list):
+        """Split a linop into sub-linops.
 
-    @multimethod
-    def split(linop, slices: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
-        """Split a linop with a mapping of dimensions to slices."""
-        ibatch = [slices.get(dim, slice(None)) for dim in linop.ishape]
-        obatch = [slices.get(dim, slice(None)) for dim in linop.oshape]
+        Parameters
+        ----------
+        linop : NamedLinop
+            The linop to split.
+        ibatch : list
+            List of slices of same length as ishape.
+        obatch : list
+            List of slices of same length as oshape.
+        """
+        ...
+
+    @overload
+    def split(linop, tile: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+        """Split a linop into sub-linops.
+
+        Parameters
+        ----------
+        linop : NamedLinop
+            The linop to split.
+        tile : Mapping[ND | str, slice]
+            Dictionary specifying how to slice the linop dimensions
+        """
+        ...
+
+    def split(linop, *args, **kwargs):
+        if bindings := check_signature(
+            [("linop", Any), ("ibatch", list), ("obatch", list)], *args, **kwargs
+        ):
+            ibatch, obatch = bindings.arguments["ibatch"], bindings.arguments["obatch"]
+
+        elif bindings := check_signature(
+            [("linop", Any), ("tile", Mapping[ND | str, slice])], *args, **kwargs
+        ):
+            tile = bindings.arguments["tile"]
+            ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
+            obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         return linop.split_forward(ibatch, obatch)
 
-    # Called after all multimethods have been registered
-    split = staticmethod(split)
-
     @multimethod
-    def adj_split(linop, ibatch: list | tuple, obatch: list | tuple):
+    def adj_split(linop, ibatch: list, obatch: list):
         """Split the adjoint version"""
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
     @multimethod
-    def adj_split(linop, slices: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+    def adj_split(linop, slices: dict):  # noqa: F811 - multimethod
         """Split the adjoint version"""
         ibatch = [slices.get(dim, slice(None)) for dim in linop.ishape]
         obatch = [slices.get(dim, slice(None)) for dim in linop.oshape]
