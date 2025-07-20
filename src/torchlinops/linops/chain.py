@@ -110,7 +110,7 @@ class Chain(NamedLinop):
         return inner
 
     @staticmethod
-    def split(chain, tile: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+    def split(chain, tile: Mapping[ND | str, slice]):
         """Split a linop into sub-linops.
 
         Parameters
@@ -132,7 +132,7 @@ class Chain(NamedLinop):
         return chain.split_forward(ibatches, obatches)
 
     @staticmethod
-    def adj_split(chain, tile: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+    def adj_split(chain, tile: Mapping[ND | str, slice]):
         """Split an adjoint linop into sub-linops.
 
         Parameters
