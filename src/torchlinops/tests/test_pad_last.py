@@ -1,34 +1,25 @@
 import pytest
-
 import torch
-
-from torchlinops import PadLast
-
+from torchlinops import Dim, PadLast
 from torchlinops.utils import is_adjoint
 
 
 @pytest.fixture
 def P():
-    P = PadLast((20, 20), (10, 10), ("A",))
+    P = PadLast((20, 20), (10, 10), Dim("AXY"))
     return P
 
 
 @pytest.fixture
 def Psplit(P):
-    ibatch = [slice(0, 1), slice(None), slice(None)]
-    obatch = [slice(0, 1), slice(None), slice(None)]
-    Psplit = P.split(P, ibatch, obatch)
+    Psplit = P.split(P, {"A": slice(0, 1)})
     return Psplit
 
 
 @pytest.fixture
 def PHsplit(P):
-    ibatch = [slice(0, 1), slice(None), slice(None)]
-    obatch = [slice(0, 1), slice(None), slice(None)]
-    # breakpoint()
-    # PHsplit = P.H.split(ibatch, obatch)
     PH = P.H
-    PHsplit = PH.split(PH, ibatch, obatch)
+    PHsplit = PH.split(PH, {"A": slice(0, 1)})
     return PHsplit
 
 

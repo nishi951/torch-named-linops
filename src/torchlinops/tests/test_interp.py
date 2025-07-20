@@ -72,9 +72,10 @@ class TestInterp(BaseNamedLinopTests):
 def test_interp_slc():
     locs = torch.rand(8, 6, 5, 3)
     grid_size = (5, 5, 5)
-    linop = Interpolate(locs, grid_size, locs_batch_shape=("A", "B", "C"))
-    ibatch = (slice(None),) * 3
-    obatch = [slice(None), slice(0, 4), slice(2, 3)]
-    linop_split = linop.split(linop, ibatch, obatch)
+    locs_batch_shape = ("A", "B", "C")
+    linop = Interpolate(locs, grid_size, locs_batch_shape=locs_batch_shape)
+    tile = {"B": slice(0, 4), "C": slice(2, 3)}
+    obatch = [tile.get(dim, slice(None)) for dim in locs_batch_shape]
+    linop_split = linop.split(linop, tile)
     assert linop_split.locs.shape == (8, 4, 1, 3)
     assert (linop_split.locs == linop.locs[obatch]).all()
