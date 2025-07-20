@@ -121,7 +121,11 @@ def build_signature(signature_spec: list):
         else:
             raise ValueError(f"Invalid token: {token}")
 
-    return inspect.Signature(params)
+    allow_kwargs = any(
+        token == "**" or (isinstance(token, str) and token.startswith("**"))
+        for token in signature_spec
+    )
+    return inspect.Signature(params), allow_kwargs
 
 
 if __name__ == "__main__":
