@@ -5,7 +5,7 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from multimethod import multimethod
+
 from torchlinops.utils import INDENT
 
 from .nameddim import NS, isequal, NamedDimension as ND
@@ -71,23 +71,10 @@ class Chain(NamedLinop):
         forward op
         """
         linops = [
-            linop.split(linop, ibatch, obatch)
+            linop.split_forward(ibatch, obatch)
             for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
         ]
         return type(self)(*linops, name=self._name)
-
-    def split_forward_fn(self, ibatches, obatches, data_list):
-        """Split data into batches
-        ibatches, obatches specified according to the shape of the
-        forward op
-        """
-        data = [
-            linop.split_forward_fn(ibatch, obatch, *data)
-            for linop, ibatch, obatch, data in zip(
-                self.linops, ibatches, obatches, data_list
-            )
-        ]
-        return data
 
     def size(self, dim):
         out = None
@@ -122,64 +109,66 @@ class Chain(NamedLinop):
             inner = linop.normal(inner)
         return inner
 
-    @multimethod
-    def split(chain, *iobatches: slice):
-        """For compatibility with NamedLinop"""
-        ibatches = iobatches[: len(iobatches) // 2]
-        obatches = iobatches[len(iobatches) // 2 :]
-        return chain.split_forward(ibatches, obatches)
-
-    @multimethod
-    def split(chain, slices: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
-        ibatches = [
-            [slices.get(dim, slice(None)) for dim in linop.ishape]
-            for linop in chain.linops
-        ]
-        obatches = [
-            [slices.get(dim, slice(None)) for dim in linop.oshape]
-            for linop in chain.linops
-        ]
-        return chain.split_forward(ibatches, obatches)
-
-    # Called after all multimethods have been registered
-    split = staticmethod(split)
-
-    @multimethod
-    def adj_split(chain, *iobatches: slice):
-        ibatches = iobatches[: len(iobatches) // 2]
-        obatches = iobatches[len(iobatches) // 2 :]
-        return chain.H.split_forward(obatches, ibatches).H
-
-    @multimethod
-    def adj_split(chain, slices: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
-        ibatches = [
-            [slices.get(dim, slice(None)) for dim in linop.ishape]
-            for linop in chain.linops
-        ]
-        obatches = [
-            [slices.get(dim, slice(None)) for dim in linop.oshape]
-            for linop in chain.linops
-        ]
-        return chain.H.split_forward(obatches, ibatches).H
-
-    adj_split = staticmethod(adj_split)
-
     @staticmethod
-    def split_fn(chain, *iobatchesdata):
-        """Return split versions of the data that can be passed
-        into fn and adj_fn to produce split versions
+    def split(chain, tile: Mapping[ND | str, slice]):
+        """Split a linop into sub-linops.
+
+        Parameters
+        ----------
+        chain : Chain
+            The chain linop to split.
+        tile : Mapping[ND | str, slice]
+            Dictionary specifying how to slice the linop dimensions
         """
-        ibatches = iobatchesdata[: len(iobatchesdata) // 3]
-        obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
-        return chain.split_forward_fn(ibatches, obatches, data)
+        tile = {str(k): v for k, v in tile.items()}
+        ibatches = [
+            [tile.get(str(dim), slice(None)) for dim in linop.ishape]
+            for linop in chain.linops
+        ]
+        obatches = [
+            [tile.get(str(dim), slice(None)) for dim in linop.oshape]
+            for linop in chain.linops
+        ]
+        return chain.split_forward(ibatches, obatches)
 
     @staticmethod
-    def adj_split_fn(chain, *iobatchesdata):
-        ibatches = iobatchesdata[: len(iobatchesdata) // 3]
-        obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
-        data = iobatchesdata[len(iobatchesdata) * 2 // 3]
-        return chain.split_forward_fn(obatches, ibatches, data)
+    def adj_split(chain, tile: Mapping[ND | str, slice]):
+        """Split an adjoint linop into sub-linops.
+
+        Parameters
+        ----------
+        chain : Chain
+            The chain linop to split.
+        tile : Mapping[ND | str, slice]
+            Dictionary specifying how to slice the linop dimensions
+        """
+        ibatches = [
+            [tile.get(str(dim), slice(None)) for dim in linop.ishape]
+            for linop in chain.linops
+        ]
+        obatches = [
+            [tile.get(str(dim), slice(None)) for dim in linop.oshape]
+            for linop in chain.linops
+        ]
+        return chain.H.split_forward(obatches, ibatches).H
+
+    # DEPRECATED/TODO: Remove
+    # @staticmethod
+    # def split_fn(chain, *iobatchesdata):
+    #     """Return split versions of the data that can be passed
+    #     into fn and adj_fn to produce split versions
+    #     """
+    #     ibatches = iobatchesdata[: len(iobatchesdata) // 3]
+    #     obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
+    #     data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
+    #     return chain.split_forward_fn(ibatches, obatches, data)
+
+    # @staticmethod
+    # def adj_split_fn(chain, *iobatchesdata):
+    #     ibatches = iobatchesdata[: len(iobatchesdata) // 3]
+    #     obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
+    #     data = iobatchesdata[len(iobatchesdata) * 2 // 3]
+    #     return chain.split_forward_fn(obatches, ibatches, data)
 
     @property
     def shape(self):

@@ -32,13 +32,10 @@ def test_sampling_slc():
     B = 3  # Batch
     idx = torch.randint(0, N - 1, (R, K, ndim))
     x = torch.randn(B, N, N)
-    # y = torch.randn(B, R, K)
 
     linop = Sampling.from_stacked_idx(idx, (N, N), ("R", "K"))
 
-    ibatch = [slice(None)] * 3
-    obatch = [slice(None), slice(2, 5), slice(4, 10)]
-    linop_split = linop.split(linop, ibatch, obatch)
+    linop_split = linop.split(linop, {"R": slice(2, 5), "K": slice(4, 10)})
     Ax = linop(x)
     Ax_split = linop_split(x)
     assert (Ax[:, 2:5, 4:10] == Ax_split).all()
