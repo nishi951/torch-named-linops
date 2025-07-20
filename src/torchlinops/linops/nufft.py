@@ -341,13 +341,7 @@ class NUFFT(Chain):
         apod = torch.prod(apod, dim=-1)
         return apod
 
-    def split_forward(self, ibatches, obatches):
-        if len(ibatches) > 1 or len(obatches) > 1:
-            raise ValueError(
-                f"Got improper number of input and output batches for flattened chain linop {self}: ibatches: {ibatches}, obatches: {obatches}"
-            )
-        ibatch, obatch = ibatches[0], obatches[0]
-        # Create ibatches and obatches from ibatch, obatch
+    def split_forward(self, ibatch, obatch):
         ibatch_lookup = {d: slc for d, slc in zip(self.ishape, ibatch)}
         obatch_lookup = {d: slc for d, slc in zip(self.oshape, obatch)}
         split_linops = []
@@ -360,7 +354,9 @@ class NUFFT(Chain):
         return out
 
     def flatten(self):
-        """Don't combine constituent linops into a chain with other linops"""
+        """Don't combine constituent linops into a chain with other linops
+        Informs how split_forward should behave
+        """
         return [self]
 
     @property
