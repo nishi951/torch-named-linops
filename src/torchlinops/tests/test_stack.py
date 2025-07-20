@@ -83,15 +83,11 @@ def test_stack_split(denselinops):
     C = Stack(A, B, odim_and_idx=("M", odim))
 
     # Slice along non-stack dim
-    ibatch = [slice(None)]
-    obatch = [slice(0, 1), slice(None)]
-    C1 = C.split(C, ibatch, obatch)
+    C1 = C.split(C, {"P": slice(0, 1)})
     assert (C1[0].weight == A.weight[:1]).all()
 
     # Slice along stack dim
-    ibatch = [slice(None)]
-    obatch = [slice(None), slice(0, 2)]
-    C2 = C.split(C, ibatch, obatch)
+    C2 = C.split(C, {"M": slice(0, 2)})
     assert isinstance(C2, Stack)
     assert (C2[0].weight == A.weight).all()
     assert (C2[1].weight == B.weight).all()
@@ -99,16 +95,12 @@ def test_stack_split(denselinops):
     # Horizontal stack
     C = Stack(A, B, idim_and_idx=("N", idim))
     # Slice along non-stack dim
-    ibatch = [slice(None), slice(1, 2)]
-    obatch = [slice(None)]
-    C3 = C.split(C, ibatch, obatch)
+    C3 = C.split(C, {"Q": slice(1, 2)})
     assert (C3[0].weight == A.weight[:, 1:2]).all()
     assert (C3[1].weight == B.weight[:, 1:2]).all()
 
     # Slice along stack dim
-    ibatch = [slice(1, 2), slice(None)]
-    obatch = [slice(None)]
-    C4 = C.split(C, ibatch, obatch)
+    C4 = C.split(C, {"N": slice(1, 2)})
     assert isinstance(C4, Stack)
     assert (C4[0].weight == B.weight).all()
 

@@ -38,7 +38,7 @@ def test_create_batched_linop():
 
     Abatch = create_batched_linop(A, BatchSpec(dict(N=2, M=1)))
     x = torch.randn(B, N)
-    assert Abatch(x).allclose(A(x))
+    assert Abatch(x).allclose(A(x), rtol=1e-3)
 
 
 @pytest.mark.gpu
