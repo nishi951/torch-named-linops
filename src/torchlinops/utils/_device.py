@@ -34,8 +34,7 @@ def memory_aware_to(module: nn.Module, device: Optional[torch.device] = None):
             return
         logger.debug("\t" * level + f"{type(m).__name__}")
         for name, t in m._parameters.items():
-            if t is not None:  # and id(t.data) not in remapped_data:
-                # Move this data
+            if t is not None:
                 new_t = as_view_on_moved(t, storage_map)
                 m._parameters[name] = nn.Parameter(new_t, requires_grad=t.requires_grad)
         for name, t in m._buffers.items():
