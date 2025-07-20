@@ -11,7 +11,6 @@ import torch
 import torch.nn as nn
 import torchlinops
 import torchlinops.config as config
-from multimethod import multimethod
 from torchlinops.utils import (
     INDENT,
     memory_aware_deepcopy,
@@ -211,7 +210,7 @@ class NamedLinop(nn.Module):
         return normal
 
     @staticmethod
-    def split(linop, tile: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+    def split(linop, tile: Mapping[ND | str, slice]):
         """Split a linop into sub-linops.
 
         Parameters
@@ -227,7 +226,7 @@ class NamedLinop(nn.Module):
         return linop.split_forward(ibatch, obatch)
 
     @staticmethod
-    def adj_split(linop, tile: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
+    def adj_split(linop, tile: Mapping[ND | str, slice]):
         """Split the adjoint version"""
         tile = {str(k): v for k, v in tile.items()}
         ibatch = [tile.get(str(dim), slice(None)) for dim in linop.ishape]
