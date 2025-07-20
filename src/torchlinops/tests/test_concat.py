@@ -86,16 +86,12 @@ def test_concat_split(denselinops):
     C = Concat(A, B, odim="P")
 
     # Single Linop
-    ibatch = [slice(None), slice(None)]
-    obatch = [slice(None), slice(0, 3)]
-    C1 = C.split(C, ibatch, obatch)
+    C1 = C.split(C, {"P": slice(0, 3)})
     assert isinstance(C1, Dense)
     assert (C1.weight == A.weight).all()
 
     # Multiple linops (overlapping)
-    ibatch = [slice(None), slice(None)]
-    obatch = [slice(None), slice(2, 6)]
-    C2 = C.split(C, ibatch, obatch)
+    C2 = C.split(C, {"P": slice(2, 6)})
     assert isinstance(C2, Concat)
     assert (C2[0].weight == A.weight[:, 2:, :]).all()
     assert (C2[1].weight == B.weight[:, :, :]).all()
@@ -103,16 +99,12 @@ def test_concat_split(denselinops):
     # Horizontal stack
     C = Concat(A, B, idim="Q")
     # Single Linop
-    ibatch = [slice(None), slice(0, 4)]
-    obatch = [slice(None), slice(None)]
-    C3 = C.split(C, ibatch, obatch)
+    C3 = C.split(C, {"Q": slice(0, 4)})
     assert isinstance(C3, Dense)
     assert (C3.weight == A.weight).all()
 
     # Multiple linops (overlapping)
-    ibatch = [slice(None), slice(2, 6)]
-    obatch = [slice(None), slice(None)]
-    C4 = C.split(C, ibatch, obatch)
+    C4 = C.split(C, {"Q": slice(2, 6)})
     assert isinstance(C4, Concat)
     assert (C4[0].weight == A.weight[:, :, 2:]).all()
     assert (C4[1].weight == B.weight[:, :, :2]).all()

@@ -11,7 +11,7 @@ def test_namedlinop_adjoint():
 
 def test_namedlinop_split():
     A = NamedLinop(NS(("A", "B"), ("C",)))
-    A1 = A.split(A, [slice(None), slice(None)], [slice(None)])
+    A1 = A.split(A, {})
 
 
 def test_namedlinop_normal():

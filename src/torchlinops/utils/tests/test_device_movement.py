@@ -121,7 +121,12 @@ def test_full_linop():
     mps = torch.randn(C, Nx, Ny, Nz, dtype=torch.complex64)
 
     A = make_linop(
-        trj, dcf, mps, nufft_width=4, nufft_oversamp=1.25, nufft_mode="sampling"
+        trj,
+        dcf,
+        mps,
+        nufft_width=4,
+        nufft_oversamp=1.25,
+        nufft_mode="sampling",
     )
     memory_aware_to(A, torch.device("cuda"))
     assert True

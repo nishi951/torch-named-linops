@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from copy import copy, deepcopy
 from functools import partial
-from typing import Any, Optional, overload
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -143,10 +143,7 @@ class NamedLinop(nn.Module):
         adj._shape = adj._shape.H
         # Swap functions (requires staticmethod)
         adj.fn, adj.adj_fn = adj.adj_fn, adj.fn
-        # adj.split = staticmethod(adj.adj_split.__func__)
         adj.split, adj.adj_split = adj.adj_split, adj.split
-        # adj.adj_split = self.split
-        adj.split_fn, adj.adj_split_fn = adj.split_fn, adj.adj_split_fn
         adj._update_suffix(adjoint=True)
         return adj
 
@@ -213,22 +210,7 @@ class NamedLinop(nn.Module):
         normal._shape_updates = getattr(inner, "_shape_updates", {})
         return normal
 
-    @overload
-    def split(linop, ibatch: list, obatch: list):
-        """Split a linop into sub-linops.
-
-        Parameters
-        ----------
-        linop : NamedLinop
-            The linop to split.
-        ibatch : list
-            List of slices of same length as ishape.
-        obatch : list
-            List of slices of same length as oshape.
-        """
-        ...
-
-    @overload
+    @staticmethod
     def split(linop, tile: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
         """Split a linop into sub-linops.
 
@@ -239,48 +221,31 @@ class NamedLinop(nn.Module):
         tile : Mapping[ND | str, slice]
             Dictionary specifying how to slice the linop dimensions
         """
-        ...
-
-    def split(linop, *args, **kwargs):
-        if bindings := check_signature(
-            [("linop", Any), ("ibatch", list), ("obatch", list)], *args, **kwargs
-        ):
-            ibatch, obatch = bindings.arguments["ibatch"], bindings.arguments["obatch"]
-
-        elif bindings := check_signature(
-            [("linop", Any), ("tile", Mapping[ND | str, slice])], *args, **kwargs
-        ):
-            tile = bindings.arguments["tile"]
-            ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
-            obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
+        tile = {str(k): v for k, v in tile.items()}
+        ibatch = [tile.get(str(dim), slice(None)) for dim in linop.ishape]
+        obatch = [tile.get(str(dim), slice(None)) for dim in linop.oshape]
         return linop.split_forward(ibatch, obatch)
 
-    @multimethod
-    def adj_split(linop, ibatch: list, obatch: list):
+    @staticmethod
+    def adj_split(linop, tile: Mapping[ND | str, slice]):  # noqa: F811 - multimethod
         """Split the adjoint version"""
+        tile = {str(k): v for k, v in tile.items()}
+        ibatch = [tile.get(str(dim), slice(None)) for dim in linop.ishape]
+        obatch = [tile.get(str(dim), slice(None)) for dim in linop.oshape]
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
-    @multimethod
-    def adj_split(linop, slices: dict):  # noqa: F811 - multimethod
-        """Split the adjoint version"""
-        ibatch = [slices.get(dim, slice(None)) for dim in linop.ishape]
-        obatch = [slices.get(dim, slice(None)) for dim in linop.oshape]
-        splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
-        return splitH
+    # DEPRECATED/TODO: Remove
+    # @staticmethod
+    # def split_fn(linop, ibatch, obatch, /, **kwargs):
+    #     """Return split versions of the data that can be passed
+    #     into fn and adj_fn to produce split versions
+    #     """
+    #     return linop.split_forward_fn(ibatch, obatch, **kwargs)
 
-    adj_split = staticmethod(adj_split)
-
-    @staticmethod
-    def split_fn(linop, ibatch, obatch, /, **kwargs):
-        """Return split versions of the data that can be passed
-        into fn and adj_fn to produce split versions
-        """
-        return linop.split_forward_fn(ibatch, obatch, **kwargs)
-
-    @staticmethod
-    def adj_split_fn(linop, ibatch, obatch, /, **kwargs):
-        return linop.split_forward_fn(obatch, ibatch, **kwargs)
+    # @staticmethod
+    # def adj_split_fn(linop, ibatch, obatch, /, **kwargs):
+    #     return linop.split_forward_fn(obatch, ibatch, **kwargs)
 
     def flatten(self):
         """Get a flattened list of constituent linops for composition"""
