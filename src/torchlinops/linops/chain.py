@@ -120,13 +120,12 @@ class Chain(NamedLinop):
         tile : Mapping[ND | str, slice]
             Dictionary specifying how to slice the linop dimensions
         """
-        tile = {str(k): v for k, v in tile.items()}
         ibatches = [
-            [tile.get(str(dim), slice(None)) for dim in linop.ishape]
+            [tile.get(dim, slice(None)) for dim in linop.ishape]
             for linop in chain.linops
         ]
         obatches = [
-            [tile.get(str(dim), slice(None)) for dim in linop.oshape]
+            [tile.get(dim, slice(None)) for dim in linop.oshape]
             for linop in chain.linops
         ]
         return chain.split_forward(ibatches, obatches)
@@ -143,11 +142,11 @@ class Chain(NamedLinop):
             Dictionary specifying how to slice the linop dimensions
         """
         ibatches = [
-            [tile.get(str(dim), slice(None)) for dim in linop.ishape]
+            [tile.get(dim, slice(None)) for dim in linop.ishape]
             for linop in chain.linops
         ]
         obatches = [
-            [tile.get(str(dim), slice(None)) for dim in linop.oshape]
+            [tile.get(dim, slice(None)) for dim in linop.oshape]
             for linop in chain.linops
         ]
         return chain.H.split_forward(obatches, ibatches).H

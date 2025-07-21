@@ -220,17 +220,15 @@ class NamedLinop(nn.Module):
         tile : Mapping[ND | str, slice]
             Dictionary specifying how to slice the linop dimensions
         """
-        tile = {str(k): v for k, v in tile.items()}
-        ibatch = [tile.get(str(dim), slice(None)) for dim in linop.ishape]
-        obatch = [tile.get(str(dim), slice(None)) for dim in linop.oshape]
+        ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
+        obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         return linop.split_forward(ibatch, obatch)
 
     @staticmethod
     def adj_split(linop, tile: Mapping[ND | str, slice]):
         """Split the adjoint version"""
-        tile = {str(k): v for k, v in tile.items()}
-        ibatch = [tile.get(str(dim), slice(None)) for dim in linop.ishape]
-        obatch = [tile.get(str(dim), slice(None)) for dim in linop.oshape]
+        ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
+        obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 

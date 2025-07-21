@@ -97,6 +97,10 @@ class NamedDimension:
         """Tests for simple string equality"""
         return repr(self) == other
 
+    def __hash__(self):
+        """Allow dictionary lookups to work with strings too."""
+        return hash(repr(self))
+
 
 ND = NamedDimension
 
