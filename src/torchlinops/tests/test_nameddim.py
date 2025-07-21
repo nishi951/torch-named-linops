@@ -40,3 +40,11 @@ def test_nameddim_ellipsis():
     ellipsis = ND("...")
     assert ellipsis == "..."
     assert ellipsis == ND("...")
+
+
+def test_nameddim_hash_lookup():
+    foo = {"P": 1}
+    assert foo[ND("P")] == 1
+
+    bar = {ND("Q"): 2}
+    assert bar["Q"] == 2
