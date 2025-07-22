@@ -35,6 +35,7 @@ def fold(
     block_size: tuple,
     stride: tuple,
     mask: Optional[Bool[Tensor, "..."]] = None,
+    output: Optional[Tensor] = None,
 ) -> Tensor:
     """Accumulate an array of blocks into a full array
 
@@ -54,7 +55,7 @@ def fold(
     if is_complex:
         x_flat = torch.view_as_real(x_flat)
         x_flat = torch.flatten(x_flat, -2, -1)  # Flatten real/imag into last dim
-    y_flat = _fold(x_flat, **shapes)
+    y_flat = _fold(x_flat, output=output, **shapes)
     y = y_flat.reshape(*shapes["batch_shape"], *shapes["im_size"])
     if is_complex:
         y = y.reshape(*y.shape[:-1], y.shape[-1] // 2, 2)
@@ -70,9 +71,17 @@ def _fold(
     im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
+    output: Optional[Tensor] = None,
     **kwargs,
 ):
     """Implementation of fold"""
+    # Check dtype if output buffer is provdied
+    if output is not None:
+        if not output.dtype == x.dtype:
+            raise ValueError(
+                f"Output and input dtypes must match but got output {output.dtype} != input {x.dtype}"
+            )
+
     if x.shape[-2 * ndim :] != (*nblocks, *block_size):
         raise RuntimeError(
             f"Fold expected input with full size {(*nblocks, *block_size)} but got {x.shape}"
@@ -80,13 +89,17 @@ def _fold(
     if x.is_cuda and ndim in FOLD.keys():
         x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
-            # Allocate output
-            y = torch.zeros(
-                nbatch,
-                *im_size,
-                device=x.device,
-                dtype=x.dtype,
-            )
+            if output is None:
+                # Allocate output
+                y = torch.zeros(
+                    nbatch,
+                    *im_size,
+                    device=x.device,
+                    dtype=x.dtype,
+                )
+            else:
+                # Use existing buffer
+                y = output.reshape(nbatch, *im_size).zero_()
             grid = _get_grid(ndim, nbatch, im_size)
 
             FOLD[ndim][grid](
@@ -99,7 +112,9 @@ def _fold(
                 *stride,
             )
     else:
-        y = _fold_torch(x, block_size, stride, ndim, im_size, nblocks, nbatch)
+        y = _fold_torch(
+            x, block_size, stride, ndim, im_size, nblocks, nbatch, out=output
+        )
     return y
 
 
@@ -479,12 +494,16 @@ def _fold_torch(
     im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
+    out: Optional[Tensor] = None,
 ) -> Shaped[Tensor, "B I ..."]:
     """Fallback option
 
     Note: Compile takes forever
     """
-    out = torch.zeros((nbatch, *im_size), device=x.device, dtype=x.dtype)
+    if out is None:
+        out = torch.zeros((nbatch, *im_size), device=x.device, dtype=x.dtype)
+    else:
+        out = out.reshape(nbatch, *im_size).zero_()
     # Python implementation
     for batch in range(nbatch):
         for blk in product(*(range(nblk) for nblk in nblocks)):

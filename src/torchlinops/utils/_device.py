@@ -10,6 +10,7 @@ import torch.nn as nn
 from torch import Tensor
 
 __all__ = [
+    "cdata",
     "get_device",
     "device_ordinal",
     "same_storage",

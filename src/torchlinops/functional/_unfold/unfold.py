@@ -33,6 +33,7 @@ def unfold(
     block_size: tuple,
     stride: Optional[tuple] = None,
     mask: Optional[Bool[Tensor, "..."]] = None,
+    output: Optional[Tensor] = None,
 ) -> Tensor:
     """Wrapper that dispatches complex and real tensors
     Also precomputes some shapes
@@ -54,7 +55,7 @@ def unfold(
     if is_complex:
         x_flat = torch.view_as_real(x_flat)
         x_flat = torch.flatten(x_flat, -2, -1)  # Flatten real/imag into last dim
-    y_flat = _unfold(x_flat, **shapes)
+    y_flat = _unfold(x_flat, output=output, **shapes)
     y = y_flat.reshape(
         *shapes["batch_shape"],
         *shapes["nblocks"],
@@ -76,9 +77,16 @@ def _unfold(
     im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
+    output: Optional[Tensor] = None,
     **kwargs,
 ) -> Shaped[Tensor, "B ..."]:
     """Implementation of unfold"""
+    # Check dtype if output buffer is provdied
+    if output is not None:
+        if not output.dtype == x.dtype:
+            raise ValueError(
+                f"Output and input dtypes must match but got output {output.dtype} != input {x.dtype}"
+            )
     if tuple(x.shape[-ndim:]) != tuple(im_size):
         raise RuntimeError(
             f"Unfold expected input with full size {im_size} but got {x.shape}"
@@ -86,14 +94,18 @@ def _unfold(
     if x.is_cuda and ndim in UNFOLD.keys():
         x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
-            # Allocate output
-            y = torch.zeros(
-                nbatch,
-                *nblocks,
-                *block_size,
-                device=x.device,
-                dtype=x.dtype,
-            )
+            if output is None:
+                # Allocate output
+                y = torch.zeros(
+                    nbatch,
+                    *nblocks,
+                    *block_size,
+                    device=x.device,
+                    dtype=x.dtype,
+                )
+            else:
+                # Use existing buffer
+                y = output.reshape(nbatch, *nblocks, *block_size).zero_()
             grid = _get_grid(ndim, nbatch, nblocks)
             BLOCK_SIZE = tuple(
                 min(
@@ -113,7 +125,9 @@ def _unfold(
                 *BLOCK_SIZE,
             )
     else:
-        y = _unfold_torch(x, block_size, stride, ndim, im_size, nblocks, nbatch)
+        y = _unfold_torch(
+            x, block_size, stride, ndim, im_size, nblocks, nbatch, out=output
+        )
     return y
 
 
@@ -522,12 +536,18 @@ def _unfold_torch(
     im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
+    out: Optional[Tensor] = None,
 ) -> Float[Tensor, "B I ..."]:
     """Fallback option
 
     Note: Compile takes forever
     """
-    out = torch.zeros((nbatch, *nblocks, *block_size), device=x.device, dtype=x.dtype)
+    if out is None:
+        out = torch.zeros(
+            (nbatch, *nblocks, *block_size), device=x.device, dtype=x.dtype
+        )
+    else:
+        out = out.reshape(nbatch, *nblocks, *block_size).zero_()
     # Python implementation
     for batch in range(nbatch):
         for blk in product(*(range(nblk) for nblk in nblocks)):
