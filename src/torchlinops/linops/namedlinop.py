@@ -120,6 +120,7 @@ class NamedLinop(nn.Module):
     # Probably don't override these
     @property
     def dims(self):
+        """Get the dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
 
     @property

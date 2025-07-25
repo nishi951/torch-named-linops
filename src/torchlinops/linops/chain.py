@@ -98,6 +98,7 @@ class Chain(NamedLinop):
 
     @property
     def dims(self):
+        """Get the dims that appear anywhere in this linop chain."""
         return set().union(*[linop.dims for linop in self.linops])
 
     def adjoint(self):
