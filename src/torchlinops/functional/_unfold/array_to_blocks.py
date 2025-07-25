@@ -21,16 +21,17 @@ class ArrayToBlocksFn(Function):
         block_shape,  # tuple
         stride,  # tuple
         mask,  # Bool[Tensor]
+        out,  # Optional[Tensor]
     ) -> Tensor:
         """Remembered something about Function not liking type annotations?"""
-        output = unfold(input, block_shape, stride, mask)
+        output = unfold(input, block_shape, stride, mask, out)
         output.requires_grad_(input.requires_grad)
         return output
 
     @staticmethod
     def setup_context(ctx, inputs, output):
         # Unpack input and output
-        input, block_shape, stride, mask = inputs
+        input, block_shape, stride, mask, out = inputs
 
         # Save for backward pass
         ctx.im_size = tuple(input.shape[-len(block_shape) :])
@@ -40,7 +41,7 @@ class ArrayToBlocksFn(Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        grad_input = grad_block_shape = grad_stride = grad_mask = None
+        grad_input = grad_block_shape = grad_stride = grad_mask = grad_out = None
 
         if ctx.needs_input_grad[0]:
             mask = ctx.saved_tensors[0]
@@ -51,7 +52,7 @@ class ArrayToBlocksFn(Function):
                 ctx.stride,
                 mask,
             )
-        return grad_input, grad_block_shape, grad_stride, grad_mask
+        return grad_input, grad_block_shape, grad_stride, grad_mask, grad_out
 
 
 def array_to_blocks(
@@ -59,9 +60,10 @@ def array_to_blocks(
     block_shape: tuple[int, ...],
     stride: Optional[tuple[int, ...]] = None,
     mask: Optional[Bool[Tensor, "..."]] = None,
+    out: Optional[Tensor] = None,
 ):
     """Wrapper for default arguments"""
-    return ArrayToBlocksFn.apply(input, block_shape, stride, mask)
+    return ArrayToBlocksFn.apply(input, block_shape, stride, mask, out)
 
 
 class BlocksToArrayFn(Function):
@@ -74,14 +76,15 @@ class BlocksToArrayFn(Function):
         block_shape,  # tuple
         stride,  # tuple
         mask,  # Tensor
+        out,  # Optional[Tensor]
     ) -> Tensor:
-        output = fold(input, im_size, block_shape, stride, mask)
+        output = fold(input, im_size, block_shape, stride, mask, out)
         output.requires_grad_(input.requires_grad)
         return output
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        input, im_size, block_shape, stride, mask = inputs
+        input, im_size, block_shape, stride, mask, out = inputs
 
         # Save for backward pass
         ctx.block_shape = block_shape
@@ -90,11 +93,20 @@ class BlocksToArrayFn(Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        grad_input = grad_im_size = grad_block_shape = grad_stride = grad_mask = None
+        grad_input = grad_im_size = grad_block_shape = grad_stride = grad_mask = (
+            grad_out
+        ) = None
         if ctx.needs_input_grad[0]:
             mask = ctx.saved_tensors[0]
             grad_input = unfold(grad_output, ctx.block_shape, ctx.stride, mask)
-        return grad_input, grad_im_size, grad_block_shape, grad_stride, grad_mask
+        return (
+            grad_input,
+            grad_im_size,
+            grad_block_shape,
+            grad_stride,
+            grad_mask,
+            grad_out,
+        )
 
 
 def blocks_to_array(
@@ -103,9 +115,10 @@ def blocks_to_array(
     block_shape: tuple,
     stride: Optional[tuple] = None,
     mask: Optional[Bool[Tensor, "..."]] = None,
+    out: Optional[Tensor] = None,
 ):
     """Wrapper for default arguments"""
-    return BlocksToArrayFn.apply(input, im_size, block_shape, stride, mask)
+    return BlocksToArrayFn.apply(input, im_size, block_shape, stride, mask, out)
 
 
 def get_norm_weights(
