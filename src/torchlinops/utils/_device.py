@@ -25,7 +25,7 @@ logger = logging.getLogger("torchlinops.utils")
 
 def memory_aware_to(module: nn.Module, device: Optional[torch.device] = None):
     """Move a module to a device, without unnecessary memory overhead."""
-    storage_map = create_shared_buffer_map(module, device)
+    storage_map = create_shared_buffer_map(module, device, copy=False)
 
     # Remember which modules were visited
     memo = set()
@@ -35,11 +35,11 @@ def memory_aware_to(module: nn.Module, device: Optional[torch.device] = None):
             return
         logger.debug("\t" * level + f"{type(m).__name__}")
         for name, t in m._parameters.items():
-            if t is not None:
+            if t is not None and t.device != device:
                 new_t = as_view_on_moved(t, storage_map)
                 m._parameters[name] = nn.Parameter(new_t, requires_grad=t.requires_grad)
         for name, t in m._buffers.items():
-            if t is not None:
+            if t is not None and t.device != device:
                 new_t = as_view_on_moved(t, storage_map)
                 m._buffers[name] = new_t
         for child in m.children():
@@ -52,7 +52,7 @@ def memory_aware_to(module: nn.Module, device: Optional[torch.device] = None):
 
 def memory_aware_deepcopy(module):
     """Deepcopy a module, without unnecessary memory overhead."""
-    storage_map = create_shared_buffer_map(module)
+    storage_map = create_shared_buffer_map(module, copy=True)
 
     # Recursively
     def copy_memory_aware(m: nn.Module):
@@ -81,7 +81,7 @@ def memory_aware_deepcopy(module):
     return new_module
 
 
-def create_shared_buffer_map(module, device=None) -> dict:
+def create_shared_buffer_map(module, device=None, copy=False) -> dict:
     """Construct the smallest set of tensors that can be used to hold all the parameters in a module."""
     storage_tensors = defaultdict(list)
 
@@ -101,6 +101,9 @@ def create_shared_buffer_map(module, device=None) -> dict:
 
     storage_map = {}
     for key, tensors in storage_tensors.items():
+        if all(tensor.device == device for tensor in tensors) and not copy:
+            # No new memory need be allocated for this block.
+            continue
         # Find max offset + size for any tensor sharing this storage
         max_offset = 0
         dtype = None
