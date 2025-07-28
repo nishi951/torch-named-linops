@@ -51,6 +51,9 @@ class NamedLinop(nn.Module):
     def forward(self, x: torch.Tensor):
         return self.fn(self, x)
 
+    def apply(self, x: torch.Tensor):
+        return LinopFunction.apply(x, self)
+
     # Override
     @staticmethod
     def fn(linop, x: torch.Tensor, /, data=None):
@@ -400,3 +403,29 @@ def new_normal_adjoint(self):
     adj = copy(self)
     adj._shape = adj._shape.H
     return adj
+
+
+class LinopFunction(torch.autograd.Function):
+    """Memory-efficient version of the linop.
+
+    Avoids keeping lots of buffers in the forward pass.
+    """
+
+    @staticmethod
+    def forward(input_, linop):
+        return linop(input_)
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        input_, linop = inputs
+        ctx.linop = linop
+        ctx.input_shape = input_.shape
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_input = grad_linop = None
+        linop = ctx.linop
+        input_shape = ctx.input_shape
+        grad_input = linop.H(grad_output)
+        grad_input = torch.broadcast_to(grad_input, input_shape)
+        return grad_input, grad_linop
