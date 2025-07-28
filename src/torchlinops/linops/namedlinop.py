@@ -332,7 +332,14 @@ class NamedLinop(nn.Module):
     def oshape(self, val):
         self._shape.oshape = val
 
-    def to(self, device, memory_aware: bool = False):
+    def to(self, device, memory_aware: bool = False, called_by_adjoint: bool = False):
+        if self._adjoint and not called_by_adjoint:
+            # bool flag avoids infinite recursion
+            self._adjoint[0] = self._adjoint[0].to(
+                device, memory_aware, called_by_adjoint=True
+            )
+        if self._normal:
+            self._normal[0] = self._normal[0].to(device, memory_aware)
         if memory_aware:
             return memory_aware_to(self, device)
         return super().to(device)
