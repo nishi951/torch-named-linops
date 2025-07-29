@@ -10,3 +10,4 @@ from ._interp.interp import *
 from ._index.index import *
 
 from ._nufft import *
+from ._pad import *
