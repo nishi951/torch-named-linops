@@ -35,6 +35,29 @@ class BatchSpec:
                 f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
             )
 
+    def broadcast_device_matrix(self, linop):
+        if self.device_matrix is not None:
+            batch_dims = list(self.batch_sizes.keys())
+            sizes = {dim: linop.size(dim) for dim in linop.dims}
+            # Create and broadcast device_matrix over requested split
+            tiled_shape = tuple(
+                ceil(sizes[dim] / self.batch_sizes[dim]) for dim in batch_dims
+            )
+            if not isinstance(self.device_matrix, np.ndarray):
+                device_matrix = np.array(self.device_matrix, dtype=object)
+            device_matrix = fuzzy_broadcast_to(device_matrix, tiled_shape)
+            return device_matrix
+        return None
+
+    @staticmethod
+    def linop_to_device(linop, device, base_device, memory_aware: bool = True):
+        linop = (
+            ToDevice(device, base_device, linop.oshape)
+            @ linop.to(device, memory_aware=memory_aware)
+            @ ToDevice(base_device, device, linop.ishape)
+        )
+        return linop
+
 
 def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     """
@@ -52,13 +75,29 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     if len(batch_specs) == 0:
         return linop
     batch_spec = batch_specs[0]
-    linops, _, _ = split_linop(
-        linop, batch_spec.batch_sizes, batch_spec.device_matrix, batch_spec.base_device
-    )
+    linops, _, _ = split_linop(linop, batch_spec.batch_sizes)
+    device_matrix = batch_spec.broadcast_device_matrix(linop)
+    if device_matrix is not None:
+        if device_matrix.shape != linops.shape:
+            raise ValueError(
+                f"Broadcasted device matrix with shape {device_matrix.shape} can't be broadcasted to exact shape of linop tiles with shape {linops.shape}"
+            )
+        device_matrix = device_matrix.reshape(-1)  # Flatten
+
+    # Work with flattened linop
     linops_shape = linops.shape
     linops = linops.reshape(-1)  # Flatten
     for i, linop in enumerate(linops):
-        linops[i] = create_batched_linop(linop, batch_specs[1:])
+        tiled_linop = create_batched_linop(linop, batch_specs[1:])
+        if device_matrix is not None:
+            device = device_matrix[i]
+            tiled_linop = batch_spec.linop_to_device(
+                tiled_linop,
+                device,
+                batch_spec.base_device,
+                memory_aware=True,
+            )
+        linops[i] = tiled_linop
     linops = linops.reshape(linops_shape)
 
     for dim in reversed(batch_spec.batch_sizes):
@@ -80,12 +119,7 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     return linops.item()
 
 
-def split_linop(
-    linop: NamedLinop,
-    batch_sizes: dict[ND | str, int],
-    device_matrix: Optional[list | np.ndarray] = None,
-    base_device: torch.device = "cpu",
-):
+def split_linop(linop: NamedLinop, batch_sizes: dict[ND | str, int]):
     """Split a linop into smaller linops according to some batch sizes
 
     Parameters
@@ -117,28 +151,12 @@ def split_linop(
     linops = np.ndarray(tiled_shape, dtype=object)
     input_batches = np.ndarray(tiled_shape, dtype=object)
     output_batches = np.ndarray(tiled_shape, dtype=object)
-    if device_matrix is not None:
-        # Create and broadcast device_matrix over requested split
-        if not isinstance(device_matrix, np.ndarray):
-            device_matrix = np.array(device_matrix, dtype=object)
-        device_matrix = fuzzy_broadcast_to(device_matrix, tiled_shape)
-        if device_matrix.shape != linops.shape:
-            raise ValueError(
-                f"Broadcasted device matrix with shape {device_matrix.shape} can't be broadcasted to exact shape of linop tiles with shape {tiled_shape}"
-            )
 
     for tile in tiles:
         idx = _tile_get_idx(tile, batch_dims)
         linop_tile = split_linop_with_tile(linop, tile)
         linop_flat = linop_tile.flatten()
         first_linop, last_linop = linop_flat[0], linop_flat[-1]
-        if device_matrix is not None:
-            device = device_matrix[idx]
-            linop_tile = (
-                ToDevice(device, base_device, linop_tile.oshape)
-                @ linop_tile.to(device)
-                @ ToDevice(base_device, device, linop_tile.ishape)
-            )
         linops[idx] = linop_tile
         input_batches[idx] = [
             tile.get(dim, DEFAULT_BATCH)[1] for dim in first_linop.ishape

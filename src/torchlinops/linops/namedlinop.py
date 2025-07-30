@@ -51,6 +51,9 @@ class NamedLinop(nn.Module):
     def forward(self, x: torch.Tensor):
         return self.fn(self, x)
 
+    def apply(self, x: torch.Tensor):
+        return LinopFunction.apply(x, self)
+
     # Override
     @staticmethod
     def fn(linop, x: torch.Tensor, /, data=None):
@@ -120,6 +123,7 @@ class NamedLinop(nn.Module):
     # Probably don't override these
     @property
     def dims(self):
+        """Get the dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
 
     @property
@@ -220,17 +224,15 @@ class NamedLinop(nn.Module):
         tile : Mapping[ND | str, slice]
             Dictionary specifying how to slice the linop dimensions
         """
-        tile = {str(k): v for k, v in tile.items()}
-        ibatch = [tile.get(str(dim), slice(None)) for dim in linop.ishape]
-        obatch = [tile.get(str(dim), slice(None)) for dim in linop.oshape]
+        ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
+        obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         return linop.split_forward(ibatch, obatch)
 
     @staticmethod
     def adj_split(linop, tile: Mapping[ND | str, slice]):
         """Split the adjoint version"""
-        tile = {str(k): v for k, v in tile.items()}
-        ibatch = [tile.get(str(dim), slice(None)) for dim in linop.ishape]
-        obatch = [tile.get(str(dim), slice(None)) for dim in linop.oshape]
+        ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
+        obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
@@ -333,7 +335,14 @@ class NamedLinop(nn.Module):
     def oshape(self, val):
         self._shape.oshape = val
 
-    def to(self, device, memory_aware: bool = False):
+    def to(self, device, memory_aware: bool = False, called_by_adjoint: bool = False):
+        if self._adjoint and not called_by_adjoint:
+            # bool flag avoids infinite recursion
+            self._adjoint[0] = self._adjoint[0].to(
+                device, memory_aware, called_by_adjoint=True
+            )
+        if self._normal:
+            self._normal[0] = self._normal[0].to(device, memory_aware)
         if memory_aware:
             return memory_aware_to(self, device)
         return super().to(device)
@@ -394,3 +403,29 @@ def new_normal_adjoint(self):
     adj = copy(self)
     adj._shape = adj._shape.H
     return adj
+
+
+class LinopFunction(torch.autograd.Function):
+    """Memory-efficient version of the linop.
+
+    Avoids keeping lots of buffers in the forward pass.
+    """
+
+    @staticmethod
+    def forward(input_, linop):
+        return linop(input_)
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        input_, linop = inputs
+        ctx.linop = linop
+        ctx.input_shape = input_.shape
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_input = grad_linop = None
+        linop = ctx.linop
+        input_shape = ctx.input_shape
+        grad_input = linop.H(grad_output)
+        grad_input = torch.broadcast_to(grad_input, input_shape)
+        return grad_input, grad_linop

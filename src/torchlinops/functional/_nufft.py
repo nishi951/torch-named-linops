@@ -21,7 +21,7 @@ def nufft(
     """Functional interface for NUFFT"""
 
     grid_size = x.shape[-locs.shape[-1] :]
-    params = init_nufft(grid_size, locs, oversamp, width)
+    params = init_nufft(grid_size, locs, oversamp, width, x.device)
 
     x = x * params.apodize
     x = PadLast.fn(params.pad_ns, x)
@@ -45,7 +45,7 @@ def nufft_adjoint(
     width: float = 4.0,
 ):
     """Functional interface for adjoint NUFFT"""
-    params = init_nufft(grid_size, locs, oversamp, width)
+    params = init_nufft(grid_size, locs, oversamp, width, x.device)
 
     x = x / params.scale_factor
     x = interpolate_adjoint(
@@ -62,15 +62,16 @@ def nufft_adjoint(
     return x
 
 
-def init_nufft(grid_size, locs, oversamp, width):
+def init_nufft(grid_size, locs, oversamp, width, device):
     ndim = locs.shape[-1]
     dim = tuple(range(-ndim, 0))
     padded_size = tuple(int(s * oversamp) for s in grid_size)
-    locs = NUFFT.prep_locs(locs.clone(), grid_size, padded_size)
+    locs = NUFFT.prep_locs(locs, grid_size, padded_size)
 
     # Apodize weights
     beta = NUFFT.beta(width, oversamp)
     apodize = NUFFT.apodize_weights(grid_size, padded_size, oversamp, width, beta)
+    apodize = apodize.to(device)
 
     # Pad Attrs
     pad = pad_to_size(grid_size, padded_size)
