@@ -81,7 +81,7 @@ def _unfold(
     **kwargs,
 ) -> Shaped[Tensor, "B ..."]:
     """Implementation of unfold"""
-    # Check dtype if output buffer is provdied
+    # Check dtype if output buffer is provided
     if output is not None:
         if not output.dtype == x.dtype:
             raise ValueError(
