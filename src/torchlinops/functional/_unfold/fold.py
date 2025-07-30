@@ -75,7 +75,7 @@ def _fold(
     **kwargs,
 ):
     """Implementation of fold"""
-    # Check dtype if output buffer is provdied
+    # Check dtype if output buffer is provided
     if output is not None:
         if not output.dtype == x.dtype:
             raise ValueError(
