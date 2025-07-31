@@ -1,6 +1,7 @@
 import torchlinops
 
 # Global config variables
+# If True, completely eliminate any inner Identity linops inside a normal(inner) call
 reduce_identity_in_normal = True
 
 
