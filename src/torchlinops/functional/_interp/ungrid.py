@@ -161,7 +161,7 @@ def get_block_width(kernel_width: tuple[float, ...], ndim: int, is_complex: bool
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _ungrid1d(
     in_ptr,
     pts_ptr,
@@ -252,7 +252,7 @@ def _ungrid1d(
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _ungrid2d(
     in_ptr,
     pts_ptr,
@@ -371,7 +371,7 @@ def _ungrid2d(
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _ungrid3d(
     in_ptr,
     pts_ptr,
@@ -513,7 +513,7 @@ def _ungrid3d(
 #         ),
 #     },
 # )
-# @triton.jit
+# @triton.jit # pragma: no cover
 # def _ungridnd(
 #     in_ptr,
 #     pts_ptr,
@@ -536,7 +536,7 @@ def _ungrid3d(
 #     ...
 
 
-# @triton.jit
+# @triton.jit # pragma: no cover
 # def ungrid_nd_helper(
 #     in_ptr, kernel_width_ptr, size_ptr, dim, BLOCK_WIDTH, KERNEL, beta
 # ):
@@ -565,7 +565,7 @@ def _ungrid3d(
 #     # TODO: return dot product of vals and weights
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def one_hot(i, BLOCK_WIDTH: tl.constexpr, dtype: tl.constexpr = tl.float32):
     idx = tl.arange(0, BLOCK_WIDTH)
     return tl.where(idx == i, 1, 0).to(dtype)
