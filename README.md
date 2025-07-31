@@ -1,5 +1,11 @@
 # torch-named-linops
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/nishi951/torch-named-linops/test-python.yml)
+![Codecov](https://img.shields.io/codecov/c/github/nishi951/torch-named-linops)
+![PyPI - Version](https://img.shields.io/pypi/v/torch-named-linops)
+![GitHub License](https://img.shields.io/github/license/nishi951/torch-named-linops)
+
+
 A flexible linear operator abstraction implemented in PyTorch.
 
 Heavily inspired by [einops](https://einops.rocks).
