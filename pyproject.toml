@@ -98,7 +98,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-omit = ["*/tests/*"] # Both test/ and tests/
+omit = ["*/tests/*"]
 
 [build-system]
 requires = ["hatchling"]

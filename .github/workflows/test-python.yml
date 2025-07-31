@@ -24,27 +24,31 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         # deps: ['dev'] # 'test-cuda11' coming soon? https://github.com/github/roadmap/issues/961
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ["3.10", "3.11", "3.12"]
       fail-fast: false
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
-    # uv setup
-    - name: Set up python with uv
-      uses: astral-sh/setup-uv@v6
-    - name: Install python
-      run: uv python install ${{ matrix.python-version }}
-    - name: Initialize environment
-      run: uv sync --group all
-    # uv lint and test
-    - name: Lint with ruff
-      run: uv run ruff check
-    - name: Run tests with coverage
-      run: uv run pytest --cov .
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    # Generates warnings but still works?
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v5.4.2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Set up python with uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install python
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Initialize environment
+        run: uv sync --group all
+
+      - name: Lint with ruff
+        run: uv run ruff check
+
+      - name: Run tests with coverage
+        run: uv run pytest --cov=src --cov-report=xml
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5.4.2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: true
