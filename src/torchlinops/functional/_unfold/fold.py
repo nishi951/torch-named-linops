@@ -147,7 +147,7 @@ def _get_grid(ndim: int, nbatch, im_size):
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _fold1d(
     in_ptr,
     out_ptr,
@@ -229,7 +229,7 @@ def _fold1d(
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _fold2d(
     in_ptr,
     out_ptr,
@@ -341,7 +341,7 @@ def _fold2d(
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _fold3d(
     in_ptr,
     out_ptr,
@@ -475,7 +475,7 @@ def _fold3d(
     tl.store(out_ptr + out_offset + out_range, output, out_mask)
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def cdiv(a, b):
     return tl.cast(tl.ceil(a / b), tl.int32)
 

@@ -166,7 +166,7 @@ def get_block_width(kernel_width: tuple[float, ...], ndim: int, is_complex: bool
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _grid1d(
     in_ptr,
     pts_ptr,
@@ -255,7 +255,7 @@ def _grid1d(
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _grid2d(
     in_ptr,
     pts_ptr,
@@ -377,7 +377,7 @@ def _grid2d(
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _grid3d(
     in_ptr,
     pts_ptr,
