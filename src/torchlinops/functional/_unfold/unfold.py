@@ -162,7 +162,7 @@ def _get_grid(ndim: int, nbatch, nblocks: tuple[int, ...]):
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _unfold1d(
     in_ptr,
     out_ptr,
@@ -227,7 +227,7 @@ def _unfold1d(
         in_blk_ptr = tl.advance(in_blk_ptr, (0, x_stride))
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def load_subblock1d(in_blk_ptr, x_idx: int, X_BLOCK_SIZE: tl.constexpr):
     return tl.load(
         in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE)),
@@ -252,7 +252,7 @@ def load_subblock1d(in_blk_ptr, x_idx: int, X_BLOCK_SIZE: tl.constexpr):
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _unfold2d(
     in_ptr,
     out_ptr,
@@ -346,7 +346,7 @@ def _unfold2d(
         in_blk_ptr = tl.advance(in_blk_ptr, (0, x_stride, 0))
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def load_subblock2d(in_blk_ptr, x_idx, y_idx, X_BLOCK_SIZE, Y_BLOCK_SIZE):
     return tl.load(
         in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE, y_idx * Y_BLOCK_SIZE)),
@@ -377,7 +377,7 @@ def load_subblock2d(in_blk_ptr, x_idx, y_idx, X_BLOCK_SIZE, Y_BLOCK_SIZE):
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _unfold3d(
     in_ptr,
     out_ptr,
@@ -509,7 +509,7 @@ def _unfold3d(
         in_blk_ptr = tl.advance(in_blk_ptr, (0, x_stride, 0, 0))
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def load_subblock3d(
     in_blk_ptr, x_idx, y_idx, z_idx, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE
 ):
