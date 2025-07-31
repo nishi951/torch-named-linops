@@ -148,19 +148,19 @@ def weights_torch(
 
 
 # Euclidean norm
-@triton.jit
+@triton.jit  # pragma: no cover
 def norm1d(vx):
     return tl.abs(vx)
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def norm2d(vx, vy):
     absvx = tl.abs(vx)
     absvy = tl.abs(vy)
     return tl.sqrt(absvx * absvx + absvy * absvy)
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def norm3d(vx, vy, vz):
     absvx = tl.abs(vx)
     absvy = tl.abs(vy)
@@ -168,7 +168,7 @@ def norm3d(vx, vy, vz):
     return tl.sqrt(absvx * absvx + absvy * absvy + absvz * absvz)
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def kaiser_bessel(x, beta):
     """Vectorized kaiser-bessel kernel implementation
     Parameters
@@ -237,7 +237,7 @@ def kaiser_bessel(x, beta):
     return tl.where(smallmask, small, big)
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def spline(x):
     return tl.maximum(1.0 - tl.abs(x), 0.0)
 
@@ -256,7 +256,7 @@ def _apply_default_kernel_params(kernel: KernelTypeStr, kernel_params: dict):
     return kernel_params
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def weights1d(
     x_target,
     x_kernel_width,  # width to load
@@ -283,7 +283,7 @@ def weights1d(
     return weights, x_range, x_mask
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def weights2d(
     x_target,
     y_target,
@@ -329,7 +329,7 @@ def weights2d(
     return weights, x_range, y_range, x_mask, y_mask
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def weights3d(
     x_target,
     y_target,
@@ -384,7 +384,7 @@ def weights3d(
     return weights, x_range, y_range, z_range, x_mask, y_mask, z_mask
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def get_neighborhood(target, kernel_width, base_range):
     lower = target - (kernel_width / 2.0)
     lower = tl.ceil(lower)
@@ -392,7 +392,7 @@ def get_neighborhood(target, kernel_width, base_range):
     return base_range + lower
 
 
-@triton.jit
+@triton.jit  # pragma: no cover
 def mod_pos(t, n):
     """Modulo but ensures positive return value"""
     return tl.where(t >= 0, t % n, (t % n) + n)
