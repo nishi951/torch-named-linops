@@ -590,7 +590,8 @@ def prep_ungrid_shapes(vals, locs, width):
     nbatch = vals_flat.shape[0]
 
     # Ensure locs are in [0, grid_size-1] in each dimension
-    locs = torch.remainder(locs, torch.tensor(grid_size, device=locs.device))
+    # NOTE: This causes gpu synchronization
+    # locs = torch.remainder(locs, torch.tensor(grid_size, device=locs.device))
 
     # Handle locs shapes
     locs_batch_shape = locs.shape[:-1]
