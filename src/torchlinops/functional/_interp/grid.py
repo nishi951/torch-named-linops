@@ -531,7 +531,8 @@ def prep_grid_shapes(vals, locs, grid_size, width):
     npts = prod(locs_batch_shape)
 
     # Ensure locs are in [0, grid_size-1] in each dimension
-    locs = torch.remainder(locs, torch.tensor(grid_size, device=locs.device))
+    # NOTE: this causes gpu synchronization
+    # locs = torch.remainder(locs, torch.tensor(grid_size, device=locs.device))
 
     # Flatten input vals
     batch_shape = vals.shape[: -len(locs_batch_shape)]
