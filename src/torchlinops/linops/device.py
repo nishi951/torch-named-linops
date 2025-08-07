@@ -1,10 +1,14 @@
-from typing import Optional
 from copy import copy
+from dataclasses import dataclass, field
+from typing import Optional
+
 import torch
-from .namedlinop import NamedLinop
+from torch import Tensor
+
+from torchlinops.utils import INDENT
 from .identity import Identity
 from .nameddim import ELLIPSES, NS, Shape
-from torchlinops.utils import INDENT
+from .namedlinop import NamedLinop
 
 __all__ = ["ToDevice"]
 
@@ -26,7 +30,7 @@ class ToDevice(NamedLinop):
             raise RuntimeError(
                 f"Got input to ToDevice on {x.device} but expected {linop.idevice}"
             )
-        return x.to(linop.odevice)
+        return x.to(linop.odevice, non_blocking=True)
 
     @staticmethod
     def adj_fn(linop, x, /):
@@ -34,7 +38,7 @@ class ToDevice(NamedLinop):
             raise RuntimeError(
                 f"Got input to ToDevice on {x.device} but expected {linop.odevice}"
             )
-        return x.to(linop.idevice)
+        return x.to(linop.idevice, non_blocking=True)
 
     def adjoint(self):
         adj = copy(self)
