@@ -3,6 +3,7 @@ import itertools
 import logging
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import dataclass, field
 from typing import Literal, Optional, TypeVar
 from warnings import warn
 
@@ -17,6 +18,7 @@ __all__ = [
     "device_ordinal",
     "same_storage",
     "MemReporter",
+    "ModuleMemoryMap",
     "memory_aware_to",
     "memory_aware_deepcopy",
 ]
@@ -25,93 +27,68 @@ T = TypeVar("T")
 logger = logging.getLogger("torchlinops.utils")
 
 
-def memory_aware_to(
-    module: nn.Module,
-    device: Optional[torch.device] = None,
-    storage_map: Optional[dict] = None,
-):
-    """Move a module to a device, without unnecessary memory overhead."""
-    if storage_map is None:
-        storage_map = create_shared_buffer_map(module, device, copy=False)
-
-    # Remember which modules were visited
-    memo = set()
-
-    def remap(m, level=0):
-        if id(m) in memo:
-            return
-        logger.debug("\t" * level + f"{type(m).__name__}")
-        for name, t in m._parameters.items():
-            if t is not None and t.device != device:
-                new_t = as_view_on_moved(t, storage_map)
-                m._parameters[name] = nn.Parameter(new_t, requires_grad=t.requires_grad)
-        for name, t in m._buffers.items():
-            if t is not None and t.device != device:
-                new_t = as_view_on_moved(t, storage_map)
-                m._buffers[name] = new_t
-        for child in m.children():
-            remap(child, level + 1)
-        memo.add(id(m))
-
-    remap(module)
-    return module
+def memory_aware_to(module, device):
+    """Wrapper function"""
+    return ModuleMemoryMap().memory_aware_to(module, device)
 
 
 def memory_aware_deepcopy(module):
-    """Deepcopy a module, without unnecessary memory overhead."""
-    storage_map = create_shared_buffer_map(module, copy=True)
-
-    # Recursively
-    def copy_memory_aware(m: nn.Module):
-        cls = type(m)
-        new = cls.__new__(cls)
-        new.__dict__ = m.__dict__.copy()
-        new._parameters = dict()
-        new._buffers = dict()
-        new._modules = dict()
-
-        for name, t in m._parameters.items():
-            if t is not None:
-                new_t = as_view_on_moved(t, storage_map)
-                new._parameters[name] = nn.Parameter(
-                    new_t, requires_grad=t.requires_grad
-                )
-        for name, t in m._buffers.items():
-            if t is not None:
-                new_t = as_view_on_moved(t, storage_map)
-                new._buffers[name] = new_t
-        for module_name, child_module in m._modules.items():
-            new._modules[module_name] = copy_memory_aware(child_module)
-        return new
-
-    new_module = copy_memory_aware(module)
-    return new_module
+    """Wrapper function"""
+    return ModuleMemoryMap().memory_aware_deepcopy(module)
 
 
-def create_shared_buffer_map(module, device=None, copy=False) -> dict:
-    """Construct the smallest set of tensors that can be used to hold all the parameters in a module."""
-    storage_tensors = defaultdict(list)
+TensorKey = tuple[int, int, tuple, int, torch.dtype, torch.device]
+CData = int
 
-    def collect(m):
-        """Recursively collect all parameters and buffers in the module."""
-        for name, t in list(m.named_parameters(recurse=False)) + list(
-            m.named_buffers(recurse=False)
-        ):
-            if t is None:
-                continue
-            key = cdata(t)
-            storage_tensors[key].append(t)
-        for child in m.children():
-            collect(child)
 
-    collect(module)
+def get_key(t: Tensor):
+    return (cdata(t), t.size(), t.stride(), t.storage_offset(), t.dtype, t.device)
 
-    # Maps from cdata to the buffer on target device that the tensor should go to.
-    storage_map = {}
-    for key, tensors in storage_tensors.items():
-        if all(tensor.device == device for tensor in tensors) and not copy:
-            # No new memory need be allocated for this block.
-            continue
+
+@dataclass
+class ModuleMemoryMap:
+    """Remembers module and submodule memory layout."""
+
+    tensor_cdata_index: dict[CData, list[Tensor]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+    """Maps cdata to a list of tensors associated with that buffer"""
+
+    storage_map: dict[tuple[CData, torch.device], dict[torch.device, Tensor]] = field(
+        default_factory=lambda: defaultdict(dict)
+    )
+    """Maps (cdata, original device) -> map from (device) to (buffer storage)"""
+
+    tensor_map: dict[TensorKey, dict[torch.device, Tensor]] = field(
+        default_factory=lambda: defaultdict(dict)
+    )
+
+    def register(self, t: Tensor, new_t: Optional[Tensor] = None):
+        device = t.device if new_t is None else new_t.device
+        self.tensor_map[get_key(t)][device] = t
+        self.tensor_cdata_index[cdata(t)].append(t)
+
+    def register_module(self, module):
+        """Construct the smallest set of tensors that can be used to hold all the parameters in a module."""
+
+        def _collect(m):
+            """Recursively collect all parameters and buffers in the module."""
+            for name, t in list(m.named_parameters(recurse=False)) + list(
+                m.named_buffers(recurse=False)
+            ):
+                if t is None:
+                    continue
+                # key = get_key(t)
+                # key = cdata(t)
+                self.register(t.data)
+
+            for child in m.children():
+                _collect(child)
+
+        _collect(module)
+
+    def allocate_new_storage(self, cdata_t, device=None):
+        tensors = self.tensor_cdata_index[cdata_t]
         # Find max offset + size for any tensor sharing this storage
         min_offset = float("inf")
         max_offset = float("-inf")
@@ -127,11 +104,159 @@ def create_shared_buffer_map(module, device=None, copy=False) -> dict:
             device_orig = t.device
 
         # Create a flat tensor that spans the full required storage
-        base_tensor = torch.empty(
+        new_tensor = torch.empty(
             max_offset - min_offset + 1, dtype=dtype, device=device_orig
         )
-        base_device = device if device is not None else device_orig
-        storage_map[key] = (base_tensor.to(base_device), min_offset)
+        new_device = device if device is not None else device_orig
+        return new_tensor.to(new_device), min_offset
+
+    def ensure_view_exists(self, t, device):
+        # If storage has not been allocated, make new storage
+        device_storage_map = self.storage_map[(cdata(t), t.device)]
+        if device not in device_storage_map:
+            # Allocate new storage
+            storage, min_offset = self.allocate_new_storage(cdata(t), device)
+            device_storage_map[device] = (storage, min_offset)
+        else:
+            storage, min_offset = device_storage_map[device]
+
+        # If storage exists, get a view on it
+        if (view := self.tensor_map[get_key(t)].get(device)) is None:
+            view = storage.as_strided(
+                t.size(),
+                t.stride(),
+                t.storage_offset() - min_offset,
+            ).copy_(t)
+            self.tensor_map[get_key(t)][device] = view
+        return view
+
+    def memory_aware_to(self, module: nn.Module, device: torch.device):
+        """Move a module to a device, without unnecessary memory overhead."""
+        # storage_tensors = collect(module)
+        # if id(module) in self.memo[device]:
+        #     return module
+
+        # storage_map = self.storage_maps[device]
+        # create_shared_buffer_map(
+        #     module, device, copy=False, storage_map=self.tensor_map
+        # )
+
+        self.register_module(module)
+
+        # Remember which modules were visited
+        def remap(m, level=0):
+            # Need memoization at the buffer level
+            # if id(m) in self.memo[device]:
+            #     return
+            logger.debug("\t" * level + f"{type(m).__name__}")
+            for name, t in m._parameters.items():
+                if t is not None and t.device != device:
+                    view = self.ensure_view_exists(t, device)
+                    m._parameters[name] = nn.Parameter(
+                        view, requires_grad=t.requires_grad
+                    )
+
+            for name, t in m._buffers.items():
+                if t is not None and t.device != device:
+                    view = self.ensure_view_exists(t, device)
+                    m._buffers[name] = view
+            for child in m.children():
+                remap(child, level + 1)
+            # self.memo[device].add(id(m))
+
+        remap(module)
+
+        return module
+
+    def memory_aware_deepcopy(self, module):
+        """Deepcopy a module, without unnecessary memory overhead."""
+        # storage_map = create_shared_buffer_map(module, copy=True)
+        self.register_module(module)
+        for cdata_t in self.tensor_cdata_index.keys():
+            self.allocate_new_storage(cdata_t)
+        # Make copies of every buffer
+        self.storage_map = deepcopy(self.storage_map)
+
+        # Recursively
+        def copy_memory_aware(m: nn.Module):
+            cls = type(m)
+            new = cls.__new__(cls)
+            new.__dict__ = deepcopy(m.__dict__)
+            new._parameters = dict()
+            new._buffers = dict()
+            new._modules = dict()
+
+            for name, t in m._parameters.items():
+                if t is not None:
+                    new_t = self.ensure_view_exists(t, t.device)
+                    # new_t = as_view_on_moved(t, storage_map)
+                    new._parameters[name] = nn.Parameter(
+                        new_t, requires_grad=t.requires_grad
+                    )
+            for name, t in m._buffers.items():
+                if t is not None:
+                    new_t = self.ensure_view_exists(t, t.device)
+                    # new_t = as_view_on_moved(t, storage_map)
+                    new._buffers[name] = new_t
+            for module_name, child_module in m._modules.items():
+                new._modules[module_name] = copy_memory_aware(child_module)
+            return new
+
+        new_module = copy_memory_aware(module)
+        return new_module
+
+
+def collect(module) -> dict:
+    """Construct the smallest set of tensors that can be used to hold all the parameters in a module."""
+    storage_tensors = defaultdict(list)
+
+    def _collect(m):
+        """Recursively collect all parameters and buffers in the module."""
+        for name, t in list(m.named_parameters(recurse=False)) + list(
+            m.named_buffers(recurse=False)
+        ):
+            if t is None:
+                continue
+            key = cdata(t)
+            storage_tensors[key].append(t)
+        for child in m.children():
+            _collect(child)
+
+    _collect(module)
+
+    return storage_tensors
+
+
+def create_shared_buffer_map(module, device=None, copy: bool = False):
+    storage_tensors = collect(module)
+
+    # Maps from cdata to tensor on target device
+    storage_map = {}
+    for key, tensors in storage_tensors.items():
+        if all(tensor.device == device for tensor in tensors) and not copy:
+            # No new memory need be allocated for this block.
+            continue
+
+        # Find max offset + size for any tensor sharing this storage
+        min_offset = float("inf")
+        max_offset = float("-inf")
+        dtype = None
+        device_orig = None
+        for t in tensors:
+            new_min_offset, new_max_offset = tensor_memory_span(t)
+            # size_bytes = t.element_size() * max_storage_size(t)
+            # offset_bytes = t.storage_offset() * t.element_size()
+            min_offset = min(min_offset, new_min_offset)
+            max_offset = max(max_offset, new_max_offset)
+            dtype = t.dtype
+            device_orig = t.device
+
+        # Create a flat tensor that spans the full required storage
+        new_tensor = torch.empty(
+            max_offset - min_offset + 1, dtype=dtype, device=device_orig
+        )
+        new_device = device if device is not None else device_orig
+        storage_map[key] = (new_tensor.to(new_device), min_offset)
     return storage_map
 
 
