@@ -6,7 +6,7 @@ from warnings import warn
 
 import numpy as np
 import torch
-from torchlinops.utils import NDList, batch_iterator, dict_product
+from torchlinops.utils import NDList, batch_iterator, dict_product, ModuleMemoryMap
 
 from .add import Add
 from .concat import Concat
@@ -49,17 +49,25 @@ class BatchSpec:
             return device_matrix
         return None
 
-    @staticmethod
-    def linop_to_device(linop, device, base_device, memory_aware: bool = True):
-        linop = (
-            ToDevice(device, base_device, linop.oshape)
-            @ linop.to(device, memory_aware=memory_aware)
-            @ ToDevice(base_device, device, linop.ishape)
-        )
-        return linop
+    # @staticmethod
+    # def linop_to_device(
+    #     linop, device, base_device, memory_aware: bool = True, storage_map=None
+    # ):
+    #     linop, storage_map = linop.to(
+    #         device,
+    #         memory_aware=memory_aware,
+    #         storage_map=storage_map,
+    #         return_storage_map=True,
+    #     )
+    #     linop = (
+    #         ToDevice(device, base_device, linop.oshape)
+    #         @ linop
+    #         @ ToDevice(base_device, device, linop.ishape)
+    #     )
+    #     return linop, storage_map
 
 
-def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
+def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=None):
     """
     Examples
     --------
@@ -71,11 +79,14 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     if isinstance(batch_specs, BatchSpec):
         # Ensure list
         batch_specs = [batch_specs]
+    if _mmap is None:
+        _mmap = ModuleMemoryMap()
+        _mmap.register_module(linop)
 
     if len(batch_specs) == 0:
         return linop
     batch_spec = batch_specs[0]
-    linops, _, _ = split_linop(linop, batch_spec.batch_sizes)
+    linops, ibatches, obatches = split_linop(linop, batch_spec.batch_sizes)
     device_matrix = batch_spec.broadcast_device_matrix(linop)
     if device_matrix is not None:
         if device_matrix.shape != linops.shape:
@@ -88,14 +99,14 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     linops_shape = linops.shape
     linops = linops.reshape(-1)  # Flatten
     for i, linop in enumerate(linops):
-        tiled_linop = create_batched_linop(linop, batch_specs[1:])
+        tiled_linop = create_batched_linop(linop, batch_specs[1:], _mmap)
         if device_matrix is not None:
             device = device_matrix[i]
-            tiled_linop = batch_spec.linop_to_device(
-                tiled_linop,
-                device,
-                batch_spec.base_device,
-                memory_aware=True,
+            tiled_linop = _mmap.memory_aware_to(tiled_linop, device)
+            tiled_linop = (
+                ToDevice(device, batch_spec.base_device, ioshape=tiled_linop.oshape)
+                @ tiled_linop
+                @ ToDevice(batch_spec.base_device, device, ioshape=tiled_linop.ishape)
             )
         linops[i] = tiled_linop
     linops = linops.reshape(linops_shape)
