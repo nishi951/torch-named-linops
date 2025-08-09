@@ -1,8 +1,22 @@
 import pytest
 import torch
 import torch.nn as nn
+
 from torchlinops import NUFFT, Dense, Diagonal, Dim, Stack, split_linop
-from torchlinops.utils import memory_aware_to, MemReporter, tensor_memory_span
+from torchlinops.utils import (
+    MemReporter,
+    memory_aware_deepcopy,
+    memory_aware_to,
+    tensor_memory_span,
+)
+
+
+def resolve_device(dev):
+    d = torch.device(dev)
+    if d.type == "cuda" and d.index is None:
+        return torch.device(f"cuda:{torch.cuda.current_device()}")
+    return d
+
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,
@@ -33,7 +47,7 @@ class SampleModule(nn.Module):
 )
 def test_model_storage_after_movement():
     model = SampleModule()
-    model_cuda = memory_aware_to(model, torch.device("cuda"))
+    model_cuda = memory_aware_to(model, resolve_device(torch.device("cuda")))
     assert (
         model_cuda.shared_view.untyped_storage()._cdata
         == model_cuda.same_view.untyped_storage()._cdata
@@ -53,7 +67,7 @@ def test_model_storage_duplicate_submodules():
     weight = torch.randn(3, 4)
     P = Dense(weight, weightshape=Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
     A = Stack(P, P, P, odim_and_idx=("B", 0))
-    memory_aware_to(A, torch.device("cuda"))
+    memory_aware_to(A, resolve_device(torch.device("cuda")))
     assert A[0].weight.is_cuda
     assert id(A[0].weight) == id(A[1].weight)
 
@@ -128,7 +142,7 @@ def test_full_linop():
         nufft_oversamp=1.25,
         nufft_mode="sampling",
     )
-    memory_aware_to(A, torch.device("cuda"))
+    memory_aware_to(A, resolve_device(torch.device("cuda")))
     assert True
 
 
@@ -261,9 +275,64 @@ def test_split_movement():
 
     # linops, _, _ = split_linop(A, {"N": N // 2})
     linops, _, _ = split_linop(A, {"M": M // 2})
-    linop_gpu = memory_aware_to(linops[1], torch.device("cuda"))
+    linop_gpu = memory_aware_to(linops[1], resolve_device(torch.device("cuda")))
     # linop_gpu_2 = linops[1].to(torch.device("cuda"))
     linop_cpu = linops[0]
 
     MemReporter().report(linop_gpu)
     MemReporter().report(linop_cpu)
+
+
+class SimpleCopyModule(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.param = nn.Parameter(torch.randn(3, 3))
+        self.register_buffer("buffer", torch.randn(3, 3))
+
+
+class TestMemoryAwareDeepCopy:
+    def test_deepcopy_parameters(self):
+        module = SimpleCopyModule()
+        copied_module = memory_aware_deepcopy(module)
+
+        assert not copied_module is module
+        assert module.param.data is not copied_module.param.data
+        assert torch.equal(module.param.data, copied_module.param.data)
+
+    def test_deepcopy_buffers(self):
+        module = SimpleCopyModule()
+        copied_module = memory_aware_deepcopy(module)
+
+        assert not copied_module is module
+        assert module.buffer is not copied_module.buffer
+        assert torch.equal(module.buffer, copied_module.buffer)
+
+    def test_nested_deepcopy(self):
+        class NestedModule(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.submodule = SimpleCopyModule()
+
+        module = NestedModule()
+        copied_module = memory_aware_deepcopy(module)
+
+        assert not copied_module is module
+        assert module.submodule.param.data is not copied_module.submodule.param.data
+        assert torch.equal(
+            module.submodule.param.data, copied_module.submodule.param.data
+        )
+
+    def test_deepcopy_empty_module(self):
+        module = nn.Module()
+        copied_module = memory_aware_deepcopy(module)
+
+        assert not copied_module is module
+
+    def test_deepcopy_non_parameter_tensor(self):
+        module = SimpleCopyModule()
+        module.non_param_tensor = torch.Tensor([1, 2, 3])
+        copied_module = memory_aware_deepcopy(module)
+
+        assert not copied_module is module
+        assert module.non_param_tensor is not copied_module.non_param_tensor
+        assert torch.equal(module.non_param_tensor, copied_module.non_param_tensor)
