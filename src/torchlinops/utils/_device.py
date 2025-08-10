@@ -27,6 +27,13 @@ T = TypeVar("T")
 logger = logging.getLogger("torchlinops.utils")
 
 
+def resolve_device(dev):
+    d = torch.device(dev)
+    if d.type == "cuda" and d.index is None:
+        return torch.device(f"cuda:{torch.cuda.current_device()}")
+    return d
+
+
 def memory_aware_to(module, device):
     """Wrapper function"""
     return ModuleMemoryMap().memory_aware_to(module, device)
@@ -132,6 +139,7 @@ class ModuleMemoryMap:
 
     def memory_aware_to(self, module: nn.Module, device: torch.device):
         """Move a module to a device, without unnecessary memory overhead."""
+        device = resolve_device(device)
         # storage_tensors = collect(module)
         # if id(module) in self.memo[device]:
         #     return module
@@ -181,7 +189,7 @@ class ModuleMemoryMap:
         def copy_memory_aware(m: nn.Module):
             cls = type(m)
             new = cls.__new__(cls)
-            new.__dict__ = deepcopy(m.__dict__)
+            new.__dict__ = m.__dict__.copy()
             new._parameters = dict()
             new._buffers = dict()
             new._modules = dict()
