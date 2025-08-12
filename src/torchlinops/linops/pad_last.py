@@ -69,27 +69,23 @@ class PadLast(NamedLinop):
         # Need to reverse crop_slice because padding is reversed
         self.crop_slice = crop_slice_from_pad(self.pad)
 
-    def forward(self, x):
-        """Pad the last n dimensions of x"""
-        return self.fn(self, x)
-
     @staticmethod
-    def fn(linop, x, /):
-        if tuple(x.shape[-linop.D :]) != linop.im_size:
+    def fn(padlast, x, /):
+        if tuple(x.shape[-padlast.D :]) != padlast.im_size:
             raise ValueError(
-                f"Mismatched shapes: expected {linop.im_size} but got {x.shape[-linop.D :]}"
+                f"Mismatched shapes: expected {padlast.im_size} but got {x.shape[-padlast.D :]}"
             )
-        pad = linop.pad + [0, 0] * (x.ndim - linop.D)
+        pad = padlast.pad + [0, 0] * (x.ndim - padlast.D)
         return F.pad(x, pad)
 
     @staticmethod
-    def adj_fn(linop, y, /):
+    def adj_fn(padlast, y, /):
         """Crop the last n dimensions of y"""
-        if tuple(y.shape[-linop.D :]) != linop.pad_im_size:
+        if tuple(y.shape[-padlast.D :]) != padlast.pad_im_size:
             raise ValueError(
-                f"Mismatched shapes: expected {linop.pad_im_size} but got {y.shape[-linop.D :]}"
+                f"Mismatched shapes: expected {padlast.pad_im_size} but got {y.shape[-padlast.D :]}"
             )
-        slc = [slice(None)] * (y.ndim - linop.D) + linop.crop_slice
+        slc = [slice(None)] * (y.ndim - padlast.D) + padlast.crop_slice
         return y[slc]
 
     def adjoint(self):

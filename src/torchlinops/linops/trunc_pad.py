@@ -32,20 +32,17 @@ class Truncate(NamedLinop):
         self.end_slc = tuple(self.slc)
         super().__init__(NS(ishape, oshape))
 
-    def forward(self, x):
-        return self.fn(self, x)
+    @staticmethod
+    def fn(truncate, x, /):
+        return x[truncate.slc]
 
     @staticmethod
-    def fn(linop, x, /):
-        return x[linop.slc]
+    def adj_fn(truncate, y, /):
+        return end_pad_with_zeros(y, truncate.dim, truncate.length)
 
     @staticmethod
-    def adj_fn(linop, y, /):
-        return end_pad_with_zeros(y, linop.dim, linop.length)
-
-    @staticmethod
-    def normal_fn(linop, x, /):
-        x[linop.end_slc] = 0.0
+    def normal_fn(truncate, x, /):
+        x[truncate.end_slc] = 0.0
         return x
 
     def split_forward(self, ibatch, obatch):
@@ -107,9 +104,6 @@ class PadDim(NamedLinop):
         self.end_slc = tuple(self.end_slc)
         super().__init__(NS(ishape, oshape))
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     def adjoint(self):
         return Truncate(self.dim, self.length, self.oshape, self.ishape)
 
@@ -124,16 +118,16 @@ class PadDim(NamedLinop):
         return post @ inner @ pre
 
     @staticmethod
-    def fn(linop, x, /):
-        return end_pad_with_zeros(x, linop.dim, linop.length)
+    def fn(padend, x, /):
+        return end_pad_with_zeros(x, padend.dim, padend.length)
 
     @staticmethod
-    def adj_fn(linop, y, /):
-        return y[linop.slc]
+    def adj_fn(padend, y, /):
+        return y[padend.slc]
 
     @staticmethod
-    def normal_fn(linop, x, /):
-        x[linop.end_slc] = 0.0
+    def normal_fn(padend, x, /):
+        x[padend.end_slc] = 0.0
         return x
 
     def split_forward(self, ibatch, obatch):

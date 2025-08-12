@@ -92,9 +92,6 @@ class Concat(NamedLinop):
         self.idim_idx = self._infer_dim_idx(self.idim, ishape)
         self.odim_idx = self._infer_dim_idx(self.odim, oshape)
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     @staticmethod
     def fn(concat, x):
         return concat._fn(
@@ -147,9 +144,9 @@ class Concat(NamedLinop):
             y += linop(xi)
         return y
 
-    @staticmethod
-    def normal_fn(concat, x):
-        return concat.adj_fn(concat, concat.fn(concat, x))
+    # @staticmethod
+    # def normal_fn(concat, x):
+    #     return concat.adj_fn(concat, concat.fn(concat, x))
 
     def size(self, dim):
         return self.size_fn(dim)

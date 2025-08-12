@@ -6,6 +6,7 @@ from warnings import warn
 
 import numpy as np
 import torch
+from torch.cuda import Stream
 from torchlinops.utils import NDList, batch_iterator, dict_product, ModuleMemoryMap
 
 from .add import Add
@@ -88,7 +89,14 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
     batch_spec = batch_specs[0]
     linops, ibatches, obatches = split_linop(linop, batch_spec.batch_sizes)
     device_matrix = batch_spec.broadcast_device_matrix(linop)
+
     if device_matrix is not None:
+        # Create streams
+        streams = {
+            device: Stream(device)
+            for device in set(batch_spec.device_matrix) | set([batch_spec.base_device])
+            if device.type == "cuda"
+        }
         if device_matrix.shape != linops.shape:
             raise ValueError(
                 f"Broadcasted device matrix with shape {device_matrix.shape} can't be broadcasted to exact shape of linop tiles with shape {linops.shape}"
@@ -103,10 +111,30 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
         if device_matrix is not None:
             device = device_matrix[i]
             tiled_linop = _mmap.memory_aware_to(tiled_linop, device)
+
+            # Wrap with streams
+            if batch_spec.base_device.type == "cuda" and device.type == "cuda":
+                istream = streams[batch_spec.base_device]
+                ostream = streams[device]
+                tiled_linop.stream = ostream
+            else:
+                istream = ostream = None
             tiled_linop = (
-                ToDevice(device, batch_spec.base_device, ioshape=tiled_linop.oshape)
+                ToDevice(
+                    device,
+                    batch_spec.base_device,
+                    ioshape=tiled_linop.oshape,
+                    istream=ostream,
+                    ostream=istream,
+                )
                 @ tiled_linop
-                @ ToDevice(batch_spec.base_device, device, ioshape=tiled_linop.ishape)
+                @ ToDevice(
+                    batch_spec.base_device,
+                    device,
+                    ioshape=tiled_linop.ishape,
+                    istream=istream,
+                    ostream=ostream,
+                )
             )
         linops[i] = tiled_linop
     linops = linops.reshape(linops_shape)

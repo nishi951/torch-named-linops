@@ -4,6 +4,7 @@ from typing import Optional
 
 import torch
 from torch import Tensor
+from torch.cuda import Stream
 
 from torchlinops.utils import INDENT
 from .identity import Identity
@@ -19,10 +20,38 @@ class ToDevice(NamedLinop):
         idevice: torch.device | str,
         odevice: torch.device | str,
         ioshape: Optional[Shape] = None,
+        istream: Optional[Stream] = None,
+        ostream: Optional[Stream] = None,
+        wait_on_input: bool = True,
     ):
         super().__init__(NS(ioshape))
         self.idevice = torch.device(idevice)
         self.odevice = torch.device(odevice)
+
+        if self.idevice.type == "cuda" and self.odevice.type == "cuda":
+            if istream is None and self.idevice.type == "cuda":
+                self.istream = torch.cuda.default_stream(self.idevice)
+            else:
+                self.istream = None
+            if ostream is None and self.odevice.type == "cuda":
+                self.ostream = torch.cuda.default_stream(self.odevice)
+            else:
+                self.ostream = None
+        else:
+            self.istream = None
+            self.ostream = None
+
+        #     self.i2o_stream = (
+        #         i2o_stream if i2o_stream is not None else Stream(self.odevice)
+        #     )
+        #     self.o2i_stream = (
+        #         o2i_stream if o2i_stream is not None else Stream(self.idevice)
+        #     )
+        #     self.wait_on_input = wait_on_input
+        # else:
+        #     self.i2o_stream = None
+        #     self.o2i_stream = None
+        #     self.wait_on_input = False
 
     @staticmethod
     def fn(linop, x, /):
@@ -30,6 +59,11 @@ class ToDevice(NamedLinop):
             raise RuntimeError(
                 f"Got input to ToDevice on {x.device} but expected {linop.idevice}"
             )
+        if linop.istream is not None and linop.ostream is not None:
+            linop.ostream.wait_stream(linop.istream)
+            with torch.cuda.stream(linop.ostream):
+                out = x.to(linop.odevice, non_blocking=True)
+            return out
         return x.to(linop.odevice, non_blocking=True)
 
     @staticmethod
@@ -38,6 +72,11 @@ class ToDevice(NamedLinop):
             raise RuntimeError(
                 f"Got input to ToDevice on {x.device} but expected {linop.odevice}"
             )
+        if linop.istream is not None and linop.ostream is not None:
+            linop.istream.wait_stream(linop.ostream)
+            with torch.cuda.stream(linop.istream):
+                out = x.to(linop.idevice, non_blocking=True)
+            return out
         return x.to(linop.idevice, non_blocking=True)
 
     def adjoint(self):

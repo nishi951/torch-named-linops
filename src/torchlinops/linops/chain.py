@@ -37,34 +37,23 @@ class Chain(NamedLinop):
                 )
             curr_shape = linop.oshape
 
-    def forward(self, x):
-        for linop in self.linops:
-            x = linop(x)
+    @staticmethod
+    def fn(chain, x: torch.Tensor, /):
+        for linop in chain.linops:
+            x = linop.fn(linop, x)
         return x
 
     @staticmethod
-    def fn(chain, x: torch.Tensor, /, data_list):
-        assert len(chain.linops) == len(data_list), (
-            f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain linop"
-        )
-        for linop, data in zip(chain.linops, data_list):
-            x = linop.fn(x, *data)
+    def adj_fn(chain, x: torch.Tensor, /):
+        for linop in reversed(chain.linops):
+            x = linop.adj_fn(linop, x)
         return x
 
-    @staticmethod
-    def adj_fn(chain, x: torch.Tensor, /, data_list):
-        assert len(chain.linops) == len(data_list), (
-            f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain adjoint linop"
-        )
-        for linop, data in zip(reversed(chain.linops), reversed(data_list)):
-            x = linop.adj_fn(x, data)
-        return x
-
-    @staticmethod
-    def normal_fn(chain, x: torch.Tensor, /, data_list):
-        # fn does the reversing so it's unnecessary to do it here
-        # If the normal hasn't been explicitly formed with`.N`, do things the naive way
-        return chain.adj_fn(chain.fn(x, data_list), data_list)
+    # @staticmethod
+    # def normal_fn(chain, x: torch.Tensor):
+    #     # fn does the reversing so it's unnecessary to do it here
+    #     # If the normal hasn't been explicitly formed with`.N`, do things the naive way
+    #     return chain.adj_fn(chain, chain.fn(chain, x))
 
     def split_forward(self, ibatches, obatches):
         """ibatches, obatches specified according to the shape of the

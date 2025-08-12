@@ -56,21 +56,20 @@ class Interpolate(NamedLinop):
             "kernel_params": kernel_params,
         }
 
-    def forward(self, x):
-        return self.fn(self, x, self.locs)
+    @staticmethod
+    def fn(interp, x, /):
+        return F.interpolate(x, interp.locs, **interp._interp_params)
 
     @staticmethod
-    def fn(linop, x, /, locs):
-        return F.interpolate(x, locs, **linop._interp_params)
+    def adj_fn(interp, x, /):
+        return F.interpolate_adjoint(
+            x, interp.locs, interp.grid_size, **interp._interp_params
+        )
 
-    @staticmethod
-    def adj_fn(linop, x, /, locs):
-        return F.interpolate_adjoint(x, locs, linop.grid_size, **linop._interp_params)
-
-    @staticmethod
-    def normal_fn(linop, x, /, locs):
-        return linop.adj_fn(linop, linop.fn(linop, x, locs), locs)
-        # return linop.adj_fn(linop, linop.fn(linop, x, locs), locs)
+    # @staticmethod
+    # def normal_fn(interp, x, /):
+    #     return interp.adj_fn(interp, interp.fn(interp, x, interp.locs), interp.locs)
+    # return linop.adj_fn(linop, linop.fn(linop, x, locs), locs)
 
     def split_forward(self, ibatch, obatch):
         return type(self)(
