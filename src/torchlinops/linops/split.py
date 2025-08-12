@@ -50,23 +50,6 @@ class BatchSpec:
             return device_matrix
         return None
 
-    # @staticmethod
-    # def linop_to_device(
-    #     linop, device, base_device, memory_aware: bool = True, storage_map=None
-    # ):
-    #     linop, storage_map = linop.to(
-    #         device,
-    #         memory_aware=memory_aware,
-    #         storage_map=storage_map,
-    #         return_storage_map=True,
-    #     )
-    #     linop = (
-    #         ToDevice(device, base_device, linop.oshape)
-    #         @ linop
-    #         @ ToDevice(base_device, device, linop.ishape)
-    #     )
-    #     return linop, storage_map
-
 
 def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=None):
     """

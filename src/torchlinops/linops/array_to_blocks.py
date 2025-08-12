@@ -143,10 +143,6 @@ class BlocksToArray(NamedLinop):
             blockstoarray.mask,
         )
 
-    # @staticmethod
-    # def normal_fn(blockstoarray, x, /):
-    #     return blockstoarray.adj_fn(blockstoarray, blockstoarray.fn(blockstoarray, x))
-
     def split_forward(self, ibatch, obatch):
         return copy(self)
 

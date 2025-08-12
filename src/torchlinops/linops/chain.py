@@ -141,24 +141,6 @@ class Chain(NamedLinop):
         ]
         return chain.H.split_forward(obatches, ibatches).H
 
-    # DEPRECATED/TODO: Remove
-    # @staticmethod
-    # def split_fn(chain, *iobatchesdata):
-    #     """Return split versions of the data that can be passed
-    #     into fn and adj_fn to produce split versions
-    #     """
-    #     ibatches = iobatchesdata[: len(iobatchesdata) // 3]
-    #     obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
-    #     data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
-    #     return chain.split_forward_fn(ibatches, obatches, data)
-
-    # @staticmethod
-    # def adj_split_fn(chain, *iobatchesdata):
-    #     ibatches = iobatchesdata[: len(iobatchesdata) // 3]
-    #     obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
-    #     data = iobatchesdata[len(iobatchesdata) * 2 // 3]
-    #     return chain.split_forward_fn(obatches, ibatches, data)
-
     @property
     def shape(self):
         return NS(self.linops[0].ishape, self.linops[-1].oshape)

@@ -144,10 +144,6 @@ class Concat(NamedLinop):
             y += linop(xi)
         return y
 
-    # @staticmethod
-    # def normal_fn(concat, x):
-    #     return concat.adj_fn(concat, concat.fn(concat, x))
-
     def size(self, dim):
         return self.size_fn(dim)
 
@@ -424,7 +420,7 @@ def partition_slices(partition, slc):
         )
     if slc.step is not None and slc.step != 1:
         raise NotImplementedError(
-            f"Partition slicing with step != 1 is not currently supported."
+            "Partition slicing with step != 1 is not currently supported."
         )
 
     start, stop = get_slice_start_stop(slc, partition[-1])
