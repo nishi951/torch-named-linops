@@ -194,9 +194,13 @@ class NUFFT(Chain):
         self.interp = interp
 
     def adjoint(self):
-        adj = super(Chain, self).adjoint()
-        linops = [linop.H for linop in adj.linops]
-        linops.reverse()
+        # Hybrid of chain adjoint and namedlinop adjoint
+        adj = copy(self)
+        adj._shape = adj._shape.H
+
+        linops = list(linop.adjoint() for linop in reversed(self.linops))
+        # linops = [linop.H for linop in adj.linops]
+        # linops.reverse()
         adj.linops = nn.ModuleList(linops)
         return adj
 

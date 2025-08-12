@@ -9,15 +9,16 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
+from torch.cuda import Stream
+
 import torchlinops
 import torchlinops.config as config
 from torchlinops.utils import (
     INDENT,
+    check_signature,
     memory_aware_deepcopy,
     memory_aware_to,
-    check_signature,
 )
-
 from .nameddim import NS
 from .nameddim import NamedDimension as ND
 from .nameddim import NamedShape, NDorStr
@@ -30,7 +31,12 @@ logger = logging.getLogger("torchlinops")
 class NamedLinop(nn.Module):
     """Base Class for all NamedLinops"""
 
-    def __init__(self, shape: NamedShape, name: Optional[str] = None):
+    def __init__(
+        self,
+        shape: NamedShape,
+        name: Optional[str] = None,
+        stream: Optional[Stream] = None,
+    ):
         """
         Parameters
         ----------
@@ -46,9 +52,13 @@ class NamedLinop(nn.Module):
 
         self._suffix = ""
         self._name = name
+        self.stream = stream
 
     # Change the call to self.fn according to the data
     def forward(self, x: torch.Tensor):
+        if self.stream is not None:
+            with torch.cuda.stream(self.stream):
+                return self.fn(self, x)
         return self.fn(self, x)
 
     def apply(self, x: torch.Tensor):
@@ -56,7 +66,7 @@ class NamedLinop(nn.Module):
 
     # Override
     @staticmethod
-    def fn(linop, x: torch.Tensor, /, data=None):
+    def fn(linop, x: torch.Tensor, /):
         """Functional forward operator.
         Non-input arguments should be keyword-only
         self can still be used - kwargs should contain elements
@@ -70,7 +80,7 @@ class NamedLinop(nn.Module):
 
     # Override
     @staticmethod
-    def adj_fn(linop, x: torch.Tensor, /, data=None):
+    def adj_fn(linop, x: torch.Tensor, /):
         """Placeholder for functional adjoint operator.
         Non-input arguments should be keyword-only
 
@@ -80,11 +90,11 @@ class NamedLinop(nn.Module):
 
     # Override
     @staticmethod
-    def normal_fn(linop, x: torch.Tensor, /, data=None):
+    def normal_fn(linop, x: torch.Tensor, /):
         """Placeholder for efficient functional normal operator
         Staticmethod because it needs to be unbound to swap for normal
         """
-        return linop.adj_fn(linop, linop.fn(linop, x, data), data)
+        return linop.adj_fn(linop, linop.fn(linop, x))
 
     # Override
     def split_forward(self, ibatch, obatch):

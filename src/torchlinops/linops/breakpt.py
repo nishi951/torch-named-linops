@@ -10,9 +10,6 @@ class BreakpointLinop(NamedLinop):
     def __init__(self, ioshape: Optional[Shape] = None):
         super().__init__(NS(ioshape))
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     @staticmethod
     def fn(linop, x, /):
         breakpoint()

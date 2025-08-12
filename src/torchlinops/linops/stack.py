@@ -86,11 +86,8 @@ class Stack(NamedLinop):
             idx = None
         return dim, idx, shape
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     @staticmethod
-    def fn(stack, x):
+    def fn(stack, x, /):
         return stack._fn(
             x,
             stack.linops,
@@ -99,7 +96,7 @@ class Stack(NamedLinop):
         )
 
     @staticmethod
-    def adj_fn(stack, x):
+    def adj_fn(stack, x, /):
         adj_linops = [linop.H for linop in stack.linops]
         return stack._fn(
             x,
@@ -134,10 +131,6 @@ class Stack(NamedLinop):
         for xi, linop in zip(xs, linops):
             y += linop(xi)
         return y
-
-    @staticmethod
-    def normal_fn(stack, x):
-        return stack.adj_fn(stack, stack.fn(stack, x))
 
     def size(self, dim):
         return self.size_fn(dim)
@@ -322,6 +315,7 @@ class Stack(NamedLinop):
             output += INDENT.indent(f"idim = {self.idim}, odim = {self.odim}\n")
         output += INDENT.indent(")")
         return output
+
 
 def strict_update(d1: Mapping, d2: Mapping) -> Mapping:
     """Strictly updates one dictionary with values from the other.
