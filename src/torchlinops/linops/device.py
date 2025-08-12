@@ -41,18 +41,6 @@ class ToDevice(NamedLinop):
             self.istream = None
             self.ostream = None
 
-        #     self.i2o_stream = (
-        #         i2o_stream if i2o_stream is not None else Stream(self.odevice)
-        #     )
-        #     self.o2i_stream = (
-        #         o2i_stream if o2i_stream is not None else Stream(self.idevice)
-        #     )
-        #     self.wait_on_input = wait_on_input
-        # else:
-        #     self.i2o_stream = None
-        #     self.o2i_stream = None
-        #     self.wait_on_input = False
-
     @staticmethod
     def fn(linop, x, /):
         if x.device != linop.idevice:

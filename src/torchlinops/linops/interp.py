@@ -66,11 +66,6 @@ class Interpolate(NamedLinop):
             x, interp.locs, interp.grid_size, **interp._interp_params
         )
 
-    # @staticmethod
-    # def normal_fn(interp, x, /):
-    #     return interp.adj_fn(interp, interp.fn(interp, x, interp.locs), interp.locs)
-    # return linop.adj_fn(linop, linop.fn(linop, x, locs), locs)
-
     def split_forward(self, ibatch, obatch):
         return type(self)(
             self.split_forward_fn(ibatch, obatch, self.locs),

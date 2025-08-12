@@ -10,9 +10,6 @@ class Identity(NamedLinop):
     def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
 
-    # def forward(self, x):
-    #     return self.fn(self, x)
-
     def adjoint(self):
         return self
 
@@ -29,9 +26,10 @@ class Identity(NamedLinop):
     def adj_fn(linop, x, /):
         return x
 
-    # @staticmethod
-    # def normal_fn(linop, x, /):
-    #     return x
+    @staticmethod
+    def normal_fn(linop, x, /):
+        # A bit faster
+        return x
 
     def split_forward(self, ibatch, obatch):
         # TODO: Allow non-diagonal splitting
