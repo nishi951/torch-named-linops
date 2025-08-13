@@ -40,13 +40,13 @@ class Chain(NamedLinop):
     @staticmethod
     def fn(chain, x: torch.Tensor, /):
         for linop in chain.linops:
-            x = linop.fn(linop, x)
+            x = linop(x)
         return x
 
     @staticmethod
     def adj_fn(chain, x: torch.Tensor, /):
         for linop in reversed(chain.linops):
-            x = linop.adj_fn(linop, x)
+            x = linop.H(x)
         return x
 
     # @staticmethod

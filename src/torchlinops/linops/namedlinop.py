@@ -54,11 +54,14 @@ class NamedLinop(nn.Module):
         self._name = name
         self.stream = stream
 
-    # Change the call to self.fn according to the data
     def forward(self, x: torch.Tensor):
         if self.stream is not None:
+            # Assumes x has been waited-on previously
             with torch.cuda.stream(self.stream):
-                return self.fn(self, x)
+                y = self.fn(self, x)
+            x.record_stream(self.stream)
+            # Assumes y will be waited-on appropriately
+            return y
         return self.fn(self, x)
 
     def apply(self, x: torch.Tensor):

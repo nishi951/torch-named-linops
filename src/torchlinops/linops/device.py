@@ -22,55 +22,68 @@ class ToDevice(NamedLinop):
         ioshape: Optional[Shape] = None,
         istream: Optional[Stream] = None,
         ostream: Optional[Stream] = None,
-        wait_on_input: bool = True,
     ):
         super().__init__(NS(ioshape))
         self.idevice = torch.device(idevice)
         self.odevice = torch.device(odevice)
 
         if self.idevice.type == "cuda" and self.odevice.type == "cuda":
-            if istream is None and self.idevice.type == "cuda":
+            if istream is None:
                 self.istream = torch.cuda.default_stream(self.idevice)
             else:
-                self.istream = None
-            if ostream is None and self.odevice.type == "cuda":
+                if self.idevice != istream.device:
+                    raise ValueError(
+                        f"stream {istream} must be on {self.idevice} but got {istream.device}"
+                    )
+
+                self.istream = istream
+            if ostream is None:
                 self.ostream = torch.cuda.default_stream(self.odevice)
             else:
-                self.ostream = None
+                if self.odevice != ostream.device:
+                    raise ValueError(
+                        f"stream {ostream} must be on {self.odevice} but got {ostream.device}"
+                    )
+                self.ostream = ostream
         else:
             self.istream = None
             self.ostream = None
 
     @staticmethod
-    def fn(linop, x, /):
-        if x.device != linop.idevice:
+    def _fn(x, idevice, odevice, istream=None, ostream=None):
+        if x.device != idevice:
             raise RuntimeError(
-                f"Got input to ToDevice on {x.device} but expected {linop.idevice}"
+                f"Got input to ToDevice on {x.device} but expected {idevice}"
             )
-        if linop.istream is not None and linop.ostream is not None:
-            linop.ostream.wait_stream(linop.istream)
-            with torch.cuda.stream(linop.ostream):
-                out = x.to(linop.odevice, non_blocking=True)
+        if istream is not None and ostream is not None:
+            # Transfer should be initiated on source device
+            with torch.cuda.stream(istream):
+                out = x.to(odevice, non_blocking=True)
+            # Don't mess with x's memory until transfer is completed
+            x.record_stream(istream)
+            # Target stream should wait until transfer is complete
+            ostream.wait_stream(istream)
             return out
-        return x.to(linop.odevice, non_blocking=True)
+
+        return x.to(odevice, non_blocking=True)
 
     @staticmethod
-    def adj_fn(linop, x, /):
-        if x.device != linop.odevice:
-            raise RuntimeError(
-                f"Got input to ToDevice on {x.device} but expected {linop.odevice}"
-            )
-        if linop.istream is not None and linop.ostream is not None:
-            linop.istream.wait_stream(linop.ostream)
-            with torch.cuda.stream(linop.istream):
-                out = x.to(linop.idevice, non_blocking=True)
-            return out
-        return x.to(linop.idevice, non_blocking=True)
+    def fn(todevice, x, /):
+        return todevice._fn(
+            x, todevice.idevice, todevice.odevice, todevice.istream, todevice.ostream
+        )
+
+    @staticmethod
+    def adj_fn(todevice, x, /):
+        return todevice._fn(
+            x, todevice.odevice, todevice.idevice, todevice.ostream, todevice.istream
+        )
 
     def adjoint(self):
         adj = copy(self)
         adj._shape = adj._shape.H
         adj.idevice, adj.odevice = self.odevice, self.idevice
+        adj.istream, adj.ostream = self.ostream, self.istream
         return adj
 
     def normal(self, inner=None):
@@ -84,6 +97,19 @@ class ToDevice(NamedLinop):
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        out = f"({self.idevice} -> {self.odevice})"
+        if self.istream is not None:
+            irepr = f"{self.idevice}, 0x{self.istream.cuda_stream:x}"
+        else:
+            irepr = f"{self.idevice}"
+        if self.ostream is not None:
+            orepr = f"{self.odevice}, 0x{self.ostream.cuda_stream:x}"
+        else:
+            orepr = f"{self.odevice}"
+        out = f"({irepr} -> {orepr})"
         out = INDENT.indent(out)
         return out
+
+
+def get_stream_device(stream: torch.cuda.Stream) -> torch.device:
+    with torch.cuda.stream(stream):
+        return torch.device(f"cuda:{torch.cuda.current_device()}")

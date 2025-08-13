@@ -77,9 +77,6 @@ class Dense(NamedLinop):
         """
         return " ".join(str(s) for s in arr)
 
-    # def forward(self, x):
-    #     return self.fn(self, x, self.weight)
-
     @staticmethod
     def fn(dense, x, /):
         return einsum(x, dense.weight, dense.forward_einstr)

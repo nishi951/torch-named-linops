@@ -1,10 +1,14 @@
 import time
+import logging
 
 import torch
 from torch.cuda import Stream
 from torch.profiler import ProfilerActivity, profile, record_function
 
 from torchlinops import BatchSpec, Dense, Dim, ToDevice, create_batched_linop
+from torchlinops.utils import setup_console_logger
+
+logger = logging.getLogger("torchlinops-dev")
 
 
 def main(todevice: bool = False):
@@ -22,14 +26,15 @@ def main(todevice: bool = False):
 
         if todevice:
             base_stream = torch.cuda.default_stream(base_device)
-            stream = streams[device]
-            linop.stream = stream
+            transfer_stream = streams[base_device]
+            target_stream = torch.cuda.default_stream(device)
+            linop.stream = target_stream
             As[device] = (
                 ToDevice(
                     idevice=device,
                     odevice=base_device,
                     ioshape=Dim("BM"),
-                    istream=stream,
+                    istream=target_stream,
                     ostream=base_stream,
                 )
                 @ linop
@@ -37,8 +42,8 @@ def main(todevice: bool = False):
                     idevice=base_device,
                     odevice=device,
                     ioshape=Dim("BN"),
-                    istream=base_stream,
-                    ostream=stream,
+                    istream=transfer_stream,
+                    ostream=target_stream,
                 )
             )
         else:
@@ -55,13 +60,14 @@ def main(todevice: bool = False):
         on_trace_ready=lambda p: p.export_chrome_trace("./trace.json"),
     ) as prof:
         if todevice:
+            logger.info("Running linop-based stream/device management")
             for i in range(10):
                 for device in devices:
                     y = As[device](x)
-                time.sleep(0.2)
             for device in devices:
                 torch.cuda.synchronize(device)
         else:
+            logger.info("Running manual stream/device management")
             # Manual
             # - Want computation to occur on default stream of each device
             # - In Pytorch, the Transfer is always registered on a stream of the SOURCE device
@@ -105,4 +111,5 @@ def main(todevice: bool = False):
 
 
 if __name__ == "__main__":
-    main()
+    setup_console_logger()
+    main(todevice=True)
