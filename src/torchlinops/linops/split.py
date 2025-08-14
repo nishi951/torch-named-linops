@@ -7,7 +7,13 @@ from warnings import warn
 import numpy as np
 import torch
 from torch.cuda import Stream, Event
-from torchlinops.utils import NDList, batch_iterator, dict_product, ModuleMemoryMap
+from torchlinops.utils import (
+    NDList,
+    batch_iterator,
+    dict_product,
+    ModuleMemoryMap,
+    RepeatedEvent,
+)
 
 from .add import Add
 from .concat import Concat
@@ -108,7 +114,7 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
                 target_stream = target_streams[device]
                 tiled_linop.stream = target_stream
                 if wait_event is None:
-                    wait_event = Event()  # Trigger start of linops
+                    wait_event = RepeatedEvent()  # Trigger start of linops
             else:
                 base_stream = transfer_stream = target_stream = None
             tiled_linop = (
