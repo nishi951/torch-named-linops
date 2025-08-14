@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
-from torch.cuda import Stream
+from torch.cuda import Stream, Event
 
 import torchlinops
 import torchlinops.config as config
@@ -36,6 +36,7 @@ class NamedLinop(nn.Module):
         shape: NamedShape,
         name: Optional[str] = None,
         stream: Optional[Stream] = None,
+        start_event: Optional[Event] = None,
     ):
         """
         Parameters
@@ -53,8 +54,12 @@ class NamedLinop(nn.Module):
         self._suffix = ""
         self._name = name
         self.stream = stream
+        self.start_event = start_event
 
     def forward(self, x: torch.Tensor):
+        if self.start_event is not None:
+            # Indicate linop has begun
+            self.start_event.record()
         if self.stream is not None:
             # Assumes x has been waited-on previously
             with torch.cuda.stream(self.stream):
@@ -314,7 +319,10 @@ class NamedLinop(nn.Module):
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        out = f"{self.repr_name}({self.ishape} -> {self.oshape})"
+        event = ""
+        if self.start_event is not None:
+            event = repr(self.start_event)
+        out = f"{self.repr_name}({event}{self.ishape} -> {self.oshape})"
         out = INDENT.indent(out)
         return out
 
