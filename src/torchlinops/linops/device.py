@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 from torch.cuda import Stream, Event
 
-from torchlinops.utils import INDENT
+from torchlinops.utils import INDENT, RepeatedEvent
 from .identity import Identity
 from .nameddim import ELLIPSES, NS, Shape
 from .namedlinop import NamedLinop
@@ -60,7 +60,10 @@ class ToDevice(NamedLinop):
             )
         if istream is not None and ostream is not None:
             if wait_event is not None:
-                istream.wait_event(wait_event)
+                if isinstance(wait_event, RepeatedEvent):
+                    istream.wait_event(wait_event.last_event)
+                else:
+                    istream.wait_event(wait_event)
             # Transfer should be initiated on source device
             with torch.cuda.stream(istream):
                 out = x.to(odevice, non_blocking=True)
