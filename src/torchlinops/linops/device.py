@@ -4,7 +4,7 @@ from typing import Optional
 
 import torch
 from torch import Tensor
-from torch.cuda import Stream
+from torch.cuda import Stream, Event
 
 from torchlinops.utils import INDENT
 from .identity import Identity
@@ -22,6 +22,7 @@ class ToDevice(NamedLinop):
         ioshape: Optional[Shape] = None,
         istream: Optional[Stream] = None,
         ostream: Optional[Stream] = None,
+        wait_event: Optional[Event] = None,
     ):
         super().__init__(NS(ioshape))
         self.idevice = torch.device(idevice)
@@ -45,17 +46,21 @@ class ToDevice(NamedLinop):
                         f"stream {ostream} must be on {self.odevice} but got {ostream.device}"
                     )
                 self.ostream = ostream
+            self.wait_event = wait_event
         else:
             self.istream = None
             self.ostream = None
+            self.wait_event = None
 
     @staticmethod
-    def _fn(x, idevice, odevice, istream=None, ostream=None):
+    def _fn(x, idevice, odevice, istream=None, ostream=None, wait_event=None):
         if x.device != idevice:
             raise RuntimeError(
                 f"Got input to ToDevice on {x.device} but expected {idevice}"
             )
         if istream is not None and ostream is not None:
+            if wait_event is not None:
+                istream.wait_event(wait_event)
             # Transfer should be initiated on source device
             with torch.cuda.stream(istream):
                 out = x.to(odevice, non_blocking=True)
@@ -72,13 +77,23 @@ class ToDevice(NamedLinop):
     @staticmethod
     def fn(todevice, x, /):
         return todevice._fn(
-            x, todevice.idevice, todevice.odevice, todevice.istream, todevice.ostream
+            x,
+            todevice.idevice,
+            todevice.odevice,
+            todevice.istream,
+            todevice.ostream,
+            todevice.wait_event,
         )
 
     @staticmethod
     def adj_fn(todevice, x, /):
         return todevice._fn(
-            x, todevice.odevice, todevice.idevice, todevice.ostream, todevice.istream
+            x,
+            todevice.odevice,
+            todevice.idevice,
+            todevice.ostream,
+            todevice.istream,
+            todevice.wait_event,
         )
 
     def adjoint(self):
@@ -107,7 +122,11 @@ class ToDevice(NamedLinop):
             orepr = f"{self.odevice}, 0x{self.ostream.cuda_stream:x}"
         else:
             orepr = f"{self.odevice}"
-        out = f"({irepr} -> {orepr})"
+        if self.wait_event is not None:
+            wait_event_repr = f"on:{repr(self.wait_event)},"
+        else:
+            wait_event_repr = ""
+        out = f"({wait_event_repr}{irepr} -> {orepr})"
         out = INDENT.indent(out)
         return out
 

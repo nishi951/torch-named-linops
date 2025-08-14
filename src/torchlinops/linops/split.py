@@ -6,7 +6,7 @@ from warnings import warn
 
 import numpy as np
 import torch
-from torch.cuda import Stream
+from torch.cuda import Stream, Event
 from torchlinops.utils import NDList, batch_iterator, dict_product, ModuleMemoryMap
 
 from .add import Add
@@ -94,6 +94,7 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
     # Work with flattened linop
     linops_shape = linops.shape
     linops = linops.reshape(-1)  # Flatten
+    wait_event = None
     for i, linop in enumerate(linops):
         tiled_linop = create_batched_linop(linop, batch_specs[1:], _mmap)
         if device_matrix is not None:
@@ -106,8 +107,10 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
                 base_stream = batch_spec.base_stream
                 target_stream = target_streams[device]
                 tiled_linop.stream = target_stream
+                wait_event = Event()  # Trigger start of linops
             else:
                 base_stream = transfer_stream = target_stream = None
+                wait_event = None
             tiled_linop = (
                 ToDevice(
                     device,
@@ -123,6 +126,7 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
                     ioshape=tiled_linop.ishape,
                     istream=transfer_stream,
                     ostream=target_stream,
+                    wait_event=wait_event,
                 )
             )
         linops[i] = tiled_linop
@@ -144,7 +148,11 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
                 new_linop = Add(*linop_arr)
             new_linops[i] = new_linop
         linops = new_linops.reshape(linops.shape[:-1])
-    return linops.item()
+    linop = linops.item()
+    if wait_event is not None:
+        # Trigger transfers at start of linop
+        linop.start_event = wait_event
+    return linop
 
 
 def split_linop(linop: NamedLinop, batch_sizes: dict[ND | str, int]):
