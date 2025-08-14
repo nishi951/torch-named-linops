@@ -72,3 +72,36 @@ def test_create_batched_linop_multi_device():
         Abatch_x = Abatch(x)
         Ax = A(x)
         assert Abatch_x.allclose(Ax, rtol=1e-3)
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available() or torch.cuda.device_count() < 2,
+    reason="At least 2 GPUs are required but not available",
+)
+def test_create_batched_linop_multi_device_gpu_only():
+    ishape = ("B", "N")
+    oshape = ("B", "M")
+    B = 10
+    M, N = (3, 7)
+    weight = torch.randn(B, M, N)
+    weightshape = ("B", "M", "N")
+    A = Dense(weight, weightshape, ishape, oshape).to(torch.device("cuda:0"))
+
+    Abatch = create_batched_linop(
+        A,
+        [
+            BatchSpec(
+                dict(N=2),
+                device_matrix=[torch.device("cuda:0"), torch.device("cuda:1")],
+                base_device=torch.device("cuda:0"),
+            ),
+            BatchSpec(dict(M=1)),
+        ],
+    )
+    for _ in range(10):
+        # Fuzzing with multiple retries
+        x = torch.randn(B, N, device=torch.device("cuda:0"))
+        Abatch_x = Abatch(x)
+        Ax = A(x)
+        assert Abatch_x.allclose(Ax, rtol=1e-3)
