@@ -66,5 +66,9 @@ def test_create_batched_linop_multi_device():
             BatchSpec(dict(M=1)),
         ],
     )
-    x = torch.randn(B, N)
-    assert Abatch(x).allclose(A(x), rtol=1e-3)
+    for _ in range(10):
+        # Fuzzing with multiple retries
+        x = torch.randn(B, N)
+        Abatch_x = Abatch(x)
+        Ax = A(x)
+        assert Abatch_x.allclose(Ax, rtol=1e-3)
