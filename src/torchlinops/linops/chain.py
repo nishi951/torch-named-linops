@@ -37,34 +37,23 @@ class Chain(NamedLinop):
                 )
             curr_shape = linop.oshape
 
-    def forward(self, x):
-        for linop in self.linops:
+    @staticmethod
+    def fn(chain, x: torch.Tensor, /):
+        for linop in chain.linops:
             x = linop(x)
         return x
 
     @staticmethod
-    def fn(chain, x: torch.Tensor, /, data_list):
-        assert len(chain.linops) == len(data_list), (
-            f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain linop"
-        )
-        for linop, data in zip(chain.linops, data_list):
-            x = linop.fn(x, *data)
+    def adj_fn(chain, x: torch.Tensor, /):
+        for linop in reversed(chain.linops):
+            x = linop.H(x)
         return x
 
-    @staticmethod
-    def adj_fn(chain, x: torch.Tensor, /, data_list):
-        assert len(chain.linops) == len(data_list), (
-            f"Length {len(data_list)} data_list does not match length {len(chain.linops)} chain adjoint linop"
-        )
-        for linop, data in zip(reversed(chain.linops), reversed(data_list)):
-            x = linop.adj_fn(x, data)
-        return x
-
-    @staticmethod
-    def normal_fn(chain, x: torch.Tensor, /, data_list):
-        # fn does the reversing so it's unnecessary to do it here
-        # If the normal hasn't been explicitly formed with`.N`, do things the naive way
-        return chain.adj_fn(chain.fn(x, data_list), data_list)
+    # @staticmethod
+    # def normal_fn(chain, x: torch.Tensor):
+    #     # fn does the reversing so it's unnecessary to do it here
+    #     # If the normal hasn't been explicitly formed with`.N`, do things the naive way
+    #     return chain.adj_fn(chain, chain.fn(chain, x))
 
     def split_forward(self, ibatches, obatches):
         """ibatches, obatches specified according to the shape of the
@@ -151,24 +140,6 @@ class Chain(NamedLinop):
             for linop in chain.linops
         ]
         return chain.H.split_forward(obatches, ibatches).H
-
-    # DEPRECATED/TODO: Remove
-    # @staticmethod
-    # def split_fn(chain, *iobatchesdata):
-    #     """Return split versions of the data that can be passed
-    #     into fn and adj_fn to produce split versions
-    #     """
-    #     ibatches = iobatchesdata[: len(iobatchesdata) // 3]
-    #     obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
-    #     data = iobatchesdata[len(iobatchesdata) * 2 // 3 :]
-    #     return chain.split_forward_fn(ibatches, obatches, data)
-
-    # @staticmethod
-    # def adj_split_fn(chain, *iobatchesdata):
-    #     ibatches = iobatchesdata[: len(iobatchesdata) // 3]
-    #     obatches = iobatchesdata[len(iobatchesdata) // 3 : len(iobatchesdata) * 2 // 3]
-    #     data = iobatchesdata[len(iobatchesdata) * 2 // 3]
-    #     return chain.split_forward_fn(obatches, ibatches, data)
 
     @property
     def shape(self):

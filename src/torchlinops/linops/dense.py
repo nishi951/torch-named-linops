@@ -77,20 +77,13 @@ class Dense(NamedLinop):
         """
         return " ".join(str(s) for s in arr)
 
-    def forward(self, x):
-        return self.fn(self, x, self.weight)
+    @staticmethod
+    def fn(dense, x, /):
+        return einsum(x, dense.weight, dense.forward_einstr)
 
     @staticmethod
-    def fn(linop, x, /, weight):
-        return einsum(x, weight, linop.forward_einstr)
-
-    @staticmethod
-    def adj_fn(linop, x, /, weight):
-        return einsum(x, weight.conj(), linop.adj_einstr)
-
-    @staticmethod
-    def normal_fn(linop, x, /, weight):
-        return linop.adj_fn(linop.fn(x, weight), weight)
+    def adj_fn(dense, x, /):
+        return einsum(x, dense.weight.conj(), dense.adj_einstr)
 
     def adjoint(self):
         adj = copy(self)

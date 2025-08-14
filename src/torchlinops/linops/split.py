@@ -6,7 +6,14 @@ from warnings import warn
 
 import numpy as np
 import torch
-from torchlinops.utils import NDList, batch_iterator, dict_product
+from torch.cuda import Stream, Event
+from torchlinops.utils import (
+    NDList,
+    batch_iterator,
+    dict_product,
+    ModuleMemoryMap,
+    RepeatedEvent,
+)
 
 from .add import Add
 from .concat import Concat
@@ -27,13 +34,18 @@ Tile = dict[ND | str, Batch]
 class BatchSpec:
     batch_sizes: dict[ND | str, int]
     device_matrix: Optional[np.ndarray | list] = None
-    base_device: Optional[torch.device] = "cpu"
+    base_device: Optional[torch.device] = torch.device("cpu")
+    base_stream: Optional[Stream] = None
+    transfer_stream: Optional[Stream] = None
 
     def __post_init__(self):
         if not isinstance(self.batch_sizes, dict):
             warn(
                 f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
             )
+        if self.base_stream is None and self.base_device.type == "cuda":
+            self.base_stream = torch.cuda.default_stream(self.base_device)
+            self.transfer_stream = Stream(self.base_device)
 
     def broadcast_device_matrix(self, linop):
         if self.device_matrix is not None:
@@ -49,17 +61,8 @@ class BatchSpec:
             return device_matrix
         return None
 
-    @staticmethod
-    def linop_to_device(linop, device, base_device, memory_aware: bool = True):
-        linop = (
-            ToDevice(device, base_device, linop.oshape)
-            @ linop.to(device, memory_aware=memory_aware)
-            @ ToDevice(base_device, device, linop.ishape)
-        )
-        return linop
 
-
-def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
+def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=None):
     """
     Examples
     --------
@@ -71,13 +74,23 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     if isinstance(batch_specs, BatchSpec):
         # Ensure list
         batch_specs = [batch_specs]
+    if _mmap is None:
+        _mmap = ModuleMemoryMap()
+        _mmap.register_module(linop)
 
     if len(batch_specs) == 0:
         return linop
     batch_spec = batch_specs[0]
-    linops, _, _ = split_linop(linop, batch_spec.batch_sizes)
+    linops, ibatches, obatches = split_linop(linop, batch_spec.batch_sizes)
     device_matrix = batch_spec.broadcast_device_matrix(linop)
+
     if device_matrix is not None:
+        # Create streams
+        target_streams = {
+            device: torch.cuda.default_stream(device)
+            for device in set(batch_spec.device_matrix)
+            if device.type == "cuda"
+        }
         if device_matrix.shape != linops.shape:
             raise ValueError(
                 f"Broadcasted device matrix with shape {device_matrix.shape} can't be broadcasted to exact shape of linop tiles with shape {linops.shape}"
@@ -87,15 +100,40 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
     # Work with flattened linop
     linops_shape = linops.shape
     linops = linops.reshape(-1)  # Flatten
+    wait_event = None
     for i, linop in enumerate(linops):
-        tiled_linop = create_batched_linop(linop, batch_specs[1:])
+        tiled_linop = create_batched_linop(linop, batch_specs[1:], _mmap)
         if device_matrix is not None:
             device = device_matrix[i]
-            tiled_linop = batch_spec.linop_to_device(
-                tiled_linop,
-                device,
-                batch_spec.base_device,
-                memory_aware=True,
+            tiled_linop = _mmap.memory_aware_to(tiled_linop, device)
+
+            # Wrap with streams
+            if batch_spec.base_device.type == "cuda" and device.type == "cuda":
+                transfer_stream = batch_spec.transfer_stream
+                base_stream = batch_spec.base_stream
+                target_stream = target_streams[device]
+                tiled_linop.stream = target_stream
+                if wait_event is None:
+                    wait_event = RepeatedEvent()  # Trigger start of linops
+            else:
+                base_stream = transfer_stream = target_stream = None
+            tiled_linop = (
+                ToDevice(
+                    device,
+                    batch_spec.base_device,
+                    ioshape=tiled_linop.oshape,
+                    istream=target_stream,
+                    ostream=base_stream,
+                )
+                @ tiled_linop
+                @ ToDevice(
+                    batch_spec.base_device,
+                    device,
+                    ioshape=tiled_linop.ishape,
+                    istream=transfer_stream,
+                    ostream=target_stream,
+                    wait_event=wait_event,
+                )
             )
         linops[i] = tiled_linop
     linops = linops.reshape(linops_shape)
@@ -116,7 +154,11 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec]):
                 new_linop = Add(*linop_arr)
             new_linops[i] = new_linop
         linops = new_linops.reshape(linops.shape[:-1])
-    return linops.item()
+    linop = linops.item()
+    if wait_event is not None:
+        # Trigger transfers at start of linop
+        linop.start_event = wait_event
+    return linop
 
 
 def split_linop(linop: NamedLinop, batch_sizes: dict[ND | str, int]):

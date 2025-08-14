@@ -75,16 +75,13 @@ class Sampling(NamedLinop):
         idx = F.canonicalize_idx(idx, dim=-1)
         return cls(idx, *args, **kwargs)
 
-    def forward(self, x):
-        return self.fn(self, x, tuple(self.idx))
+    @staticmethod
+    def fn(sampling, x, /):
+        return F.index(x, tuple(sampling.idx))
 
     @staticmethod
-    def fn(linop, x, idx):
-        return F.index(x, idx)
-
-    @staticmethod
-    def adj_fn(linop, x, idx):
-        return F.index_adjoint(x, idx, linop.input_size)
+    def adj_fn(sampling, x, /):
+        return F.index_adjoint(x, tuple(sampling.idx), sampling.input_size)
 
     def split_forward(self, ibatch, obatch):
         if self._shape.output_shape == ELLIPSES:

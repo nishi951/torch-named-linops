@@ -166,7 +166,7 @@ def get_block_width(kernel_width: tuple[float, ...], ndim: int, is_complex: bool
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _grid1d(
     in_ptr,
     pts_ptr,
@@ -255,7 +255,7 @@ def _grid1d(
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _grid2d(
     in_ptr,
     pts_ptr,
@@ -377,7 +377,7 @@ def _grid2d(
         ),
     },
 )
-@triton.jit
+@triton.jit  # pragma: no cover
 def _grid3d(
     in_ptr,
     pts_ptr,
@@ -531,7 +531,8 @@ def prep_grid_shapes(vals, locs, grid_size, width):
     npts = prod(locs_batch_shape)
 
     # Ensure locs are in [0, grid_size-1] in each dimension
-    locs = torch.remainder(locs, torch.tensor(grid_size, device=locs.device))
+    # NOTE: this causes gpu synchronization
+    # locs = torch.remainder(locs, torch.tensor(grid_size, device=locs.device))
 
     # Flatten input vals
     batch_shape = vals.shape[: -len(locs_batch_shape)]

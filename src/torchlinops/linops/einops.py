@@ -41,9 +41,6 @@ class Rearrange(NamedLinop):
     def axes_lengths(self):
         return self._shape.axes_lengths
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     @staticmethod
     def fn(linop, x, /):
         axes_lengths = {str(k): v for k, v in linop.axes_lengths.items()}
@@ -110,17 +107,14 @@ class SumReduce(NamedLinop):
             f"Reduce must be over at least one dimension: got {self.ishape} -> {self.oshape}"
         )
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     @staticmethod
-    def fn(linop, x, /):
-        x = reduce(x, f"{linop.ipattern} -> {linop.opattern}", "sum")
+    def fn(sumreduce, x, /):
+        x = reduce(x, f"{sumreduce.ipattern} -> {sumreduce.opattern}", "sum")
         return x
 
     @staticmethod
-    def adj_fn(linop, x, /):
-        x = repeat(x, f"{linop.opattern} -> {linop.adj_ipattern}")
+    def adj_fn(sumreduce, x, /):
+        x = repeat(x, f"{sumreduce.opattern} -> {sumreduce.adj_ipattern}")
         return x
 
     def split_forward(self, ibatch, obatch):

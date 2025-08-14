@@ -1,77 +1,41 @@
-from dataclasses import dataclass, field
-from typing import Any, Callable, List
-from collections import defaultdict
+import torch
 
-__all__ = [
-    "EventManager",
-    "Callback",
-]
+__all__ = ["RepeatedEvent"]
 
 
-@dataclass
-class Callback:
-    name: str
-    fn: Callable
-    deps: List[str] = field(default_factory=lambda: [])
-
-
-class EventManager:
-    def __init__(self, handlers: dict = None):
+class RepeatedEvent:
+    def __init__(self, **event_kwargs):
         """
-        handlers : defaultdict(list)
-            defaultdict mapping event names to lists of (callback_name, callback_deps, callback_fn) triples
+        A wrapper so each record() creates a fresh CUDA event,
+        but the wrapper itself can be passed directly to wait_event().
+
+        Args:
+            event_kwargs: Passed to torch.cuda.Event(...)
         """
-        self.handlers = defaultdict(list) if handlers is None else handlers
-        for event, callbacks in self.handlers.items():
-            self.handlers[event] = self.sort_callbacks(callbacks)
+        self._event_kwargs = event_kwargs
+        self._last_event = None
 
-    def register_handler(
-        self,
-        event,
-        callback: Callback,
-        sort_now: bool = True,
-    ):
-        self.handlers[event].append(callback)
-        if sort_now:
-            self.handlers[event] = self.sort_callbacks(self.handlers[event])
+    def record(self, stream=None):
+        """
+        Create a new CUDA event and record it on the given stream.
+        Old events are dropped immediately to free resources.
+        """
+        # Drop old event reference
+        self._last_event = None
 
-    def dispatch(self, event, s: Any):
-        for handler in self.handlers[event]:
-            s = handler.fn(s)
-        return s
+        # Create and record new event
+        ev = torch.cuda.Event(**self._event_kwargs)
+        if stream is None:
+            stream = torch.cuda.current_stream()
+        ev.record(stream)
 
-    def handlers(self, event):
-        return [handler.name for handler in self.handlers[event]]
+        # Store and return self for chaining
+        self._last_event = ev
+        return self
 
-    @staticmethod
-    def sort_callbacks(callbacks):
-        """ChatGPT"""
-        # Create a mapping from callback name to callback instance
-        callback_map = {cb.name: cb for cb in callbacks}
+    @property
+    def last_event(self):
+        return self._last_event
 
-        # Track visited callbacks to avoid cycles and repeated visits
-        visited = set()
-        # Use a list to act as an ordered stack for the sorted elements
-        sorted_callbacks = []
-
-        def dfs(cb: Callback):
-            if cb.name in visited:
-                return
-            visited.add(cb.name)
-            # Visit all dependencies first
-            for dep_name in cb.deps:
-                if dep_name in callback_map:
-                    dfs(callback_map[dep_name])
-                else:
-                    raise ValueError(
-                        f"Dependency {dep_name} not found for callback {cb.name}"
-                    )
-            # Add this callback to the sorted list
-            sorted_callbacks.append(cb)
-
-        # Iterate through all callbacks and perform DFS
-        for cb in callbacks:
-            if cb.name not in visited:
-                dfs(cb)
-
-        return sorted_callbacks
+    def __repr__(self):
+        return f"<RepeatedEvent wrapping {self._last_event!r}>"
