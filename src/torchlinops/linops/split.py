@@ -28,13 +28,18 @@ Tile = dict[ND | str, Batch]
 class BatchSpec:
     batch_sizes: dict[ND | str, int]
     device_matrix: Optional[np.ndarray | list] = None
-    base_device: Optional[torch.device] = "cpu"
+    base_device: Optional[torch.device] = torch.device("cpu")
+    base_stream: Optional[Stream] = None
+    transfer_stream: Optional[Stream] = None
 
     def __post_init__(self):
         if not isinstance(self.batch_sizes, dict):
             warn(
                 f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
             )
+        if self.base_stream is None and self.base_device.type == "cuda":
+            self.base_stream = torch.cuda.default_stream(self.base_device)
+            self.transfer_stream = Stream(self.base_device)
 
     def broadcast_device_matrix(self, linop):
         if self.device_matrix is not None:
@@ -75,9 +80,9 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
 
     if device_matrix is not None:
         # Create streams
-        streams = {
-            device: Stream(device)
-            for device in set(batch_spec.device_matrix) | set([batch_spec.base_device])
+        target_streams = {
+            device: torch.cuda.default_stream(device)
+            for device in set(batch_spec.device_matrix)
             if device.type == "cuda"
         }
         if device_matrix.shape != linops.shape:
@@ -97,26 +102,27 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
 
             # Wrap with streams
             if batch_spec.base_device.type == "cuda" and device.type == "cuda":
-                istream = streams[batch_spec.base_device]
-                ostream = streams[device]
-                tiled_linop.stream = ostream
+                transfer_stream = batch_spec.transfer_stream
+                base_stream = batch_spec.base_stream
+                target_stream = target_streams[device]
+                tiled_linop.stream = target_stream
             else:
-                istream = ostream = None
+                base_stream = transfer_stream = target_stream = None
             tiled_linop = (
                 ToDevice(
                     device,
                     batch_spec.base_device,
                     ioshape=tiled_linop.oshape,
-                    istream=ostream,
-                    ostream=istream,
+                    istream=target_stream,
+                    ostream=base_stream,
                 )
                 @ tiled_linop
                 @ ToDevice(
                     batch_spec.base_device,
                     device,
                     ioshape=tiled_linop.ishape,
-                    istream=istream,
-                    ostream=ostream,
+                    istream=transfer_stream,
+                    ostream=target_stream,
                 )
             )
         linops[i] = tiled_linop

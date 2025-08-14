@@ -65,7 +65,9 @@ class ToDevice(NamedLinop):
             ostream.wait_stream(istream)
             return out
 
-        return x.to(odevice, non_blocking=True)
+        if odevice.type == "cuda":
+            return x.to(odevice, non_blocking=True)
+        return x.to(odevice)
 
     @staticmethod
     def fn(todevice, x, /):
