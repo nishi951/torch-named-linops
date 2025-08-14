@@ -107,10 +107,10 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
                 base_stream = batch_spec.base_stream
                 target_stream = target_streams[device]
                 tiled_linop.stream = target_stream
-                wait_event = Event()  # Trigger start of linops
+                if wait_event is None:
+                    wait_event = Event()  # Trigger start of linops
             else:
                 base_stream = transfer_stream = target_stream = None
-                wait_event = None
             tiled_linop = (
                 ToDevice(
                     device,
