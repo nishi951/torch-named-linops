@@ -6,11 +6,12 @@ __all__ = ["setup_console_logger", "Indenter", "INDENT"]
 
 
 def setup_console_logger(
-    logger,
-    log_level: int,
+    logger=None,
+    log_level: int = logging.INFO,
     fmt: str = "%(asctime)s | %(name)s | %(levelname)s | %(message)s",
     handler_cls=logging.StreamHandler,
 ):
+    logger = logging.getLogger() if logger is None else logger
     logger.setLevel(log_level)
     formatter = logging.Formatter(fmt)
     for handler in logger.handlers:

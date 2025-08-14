@@ -80,20 +80,17 @@ class Diagonal(NamedLinop):
         self._shape.oshape = val
         self._shape.ishape = val
 
-    def forward(self, x):
-        return self.fn(self, x, self.weight)
+    @staticmethod
+    def fn(diagonal, x, /):
+        return x * diagonal.weight
 
     @staticmethod
-    def fn(linop, x, /, weight):
-        return x * weight
+    def adj_fn(diagonal, x, /):
+        return x * torch.conj(diagonal.weight)
 
     @staticmethod
-    def adj_fn(linop, x, /, weight):
-        return x * torch.conj(weight)
-
-    @staticmethod
-    def normal_fn(linop, x, /, weight):
-        return x * torch.abs(weight) ** 2
+    def normal_fn(diagonal, x, /):
+        return x * torch.abs(diagonal.weight) ** 2
 
     def adjoint(self):
         adj = copy(self)

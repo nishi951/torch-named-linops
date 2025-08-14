@@ -63,9 +63,6 @@ class FFT(NamedLinop):
     def batch_shape(self):
         return self._shape.lookup("batch_shape")
 
-    def forward(self, x, /):
-        return self.fn(self, x)
-
     @staticmethod
     def fn(linop, x):
         if linop.centered:

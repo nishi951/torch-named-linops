@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - develop
+  push:
+    branches:
+      - main
+      - develop
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,6 +17,10 @@ concurrency:
 jobs:
   python-install-lint-test:
     name: ${{ matrix.os }} - Python ${{ matrix.python-version }}
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     runs-on: ${{ matrix.os  }}
     timeout-minutes: 15
     defaults:

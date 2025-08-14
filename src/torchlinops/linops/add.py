@@ -8,40 +8,29 @@ __all__ = ["Add"]
 
 
 class Add(NamedLinop):
-    def __init__(self, *linops):
-        assert all(
-            isequal(linop.ishape, linops[0].ishape) for linop in linops
-        ), f"Add: All linops must share same ishape. Found {linops}"
-        assert all(
-            isequal(linop.oshape, linops[0].oshape) for linop in linops
-        ), f"Add: All linops must share same oshape. Linops: {linops}"
+    def __init__(self, *linops, stream=None):
+        assert all(isequal(linop.ishape, linops[0].ishape) for linop in linops), (
+            f"Add: All linops must share same ishape. Found {linops}"
+        )
+        assert all(isequal(linop.oshape, linops[0].oshape) for linop in linops), (
+            f"Add: All linops must share same oshape. Linops: {linops}"
+        )
         # TODO: specialize the ishape and oshape on most specific one
-        super().__init__(NS(linops[0].ishape, linops[0].oshape))
+        super().__init__(NS(linops[0].ishape, linops[0].oshape), stream=stream)
         self.linops = nn.ModuleList(linops)
 
-    def forward(self, x):
-        return sum(linop(x) for linop in self.linops)
+    @staticmethod
+    def fn(add, x: torch.Tensor, /):
+        return sum(linop.fn(linop, x) for linop in add.linops)
 
     @staticmethod
-    def fn(linop, x: torch.Tensor, /, data_list):
-        assert (
-            len(linop.linops) == len(data_list)
-        ), f"Length {len(data_list)} data_list does not match length {len(linop.linops)} chain linop"
-        return sum(linop.fn(x, *data) for linop, data in zip(linop.linops, data_list))
+    def adj_fn(add, x: torch.Tensor, /):
+        return sum(linop.adj_fn(linop, x) for linop in add.linops)
 
-    @staticmethod
-    def adj_fn(linop, x: torch.Tensor, /, data_list):
-        assert (
-            len(linop.linops) == len(data_list)
-        ), f"Length {len(data_list)} data_list does not match length {len(linop.linops)} chain adjoint linop"
-        return sum(
-            linop.adj_fn(x, *data) for linop, data in zip(linop.linops, data_list)
-        )
-
-    @staticmethod
-    def normal_fn(linop, x: torch.Tensor, /, data_list):
-        # Note: Alternatively, make every possible combination of terms? Might be faster in some cases?
-        return linop.adj_fn(linop.fn(x, data_list), data_list)
+    # @staticmethod
+    # def normal_fn(add, x: torch.Tensor, /):
+    #     # Note: Alternatively, make every possible combination of terms? Might be faster in some cases?
+    #     return add.adj_fn(add, add.fn(add, x))
 
     def split_forward(self, ibatch, obatch):
         """ibatch, obatch specified according to the shape of the

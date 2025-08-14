@@ -46,31 +46,28 @@ class ArrayToBlocks(NamedLinop):
         else:
             self.mask = mask
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     @staticmethod
-    def fn(linop, x):
+    def fn(arraytoblocks, x, /):
         return F.array_to_blocks(
             x,
-            linop.block_size,
-            linop.stride,
-            linop.mask,
+            arraytoblocks.block_size,
+            arraytoblocks.stride,
+            arraytoblocks.mask,
         )
 
     @staticmethod
-    def adj_fn(linop, x):
+    def adj_fn(arraytoblocks, x, /):
         return F.blocks_to_array(
             x,
-            linop.grid_size,
-            linop.block_size,
-            linop.stride,
-            linop.mask,
+            arraytoblocks.grid_size,
+            arraytoblocks.block_size,
+            arraytoblocks.stride,
+            arraytoblocks.mask,
         )
 
     @staticmethod
-    def normal_fn(linop, x):
-        return linop.adj_fn(linop, linop.fn(linop, x))
+    def normal_fn(arraytoblocks, x, /):
+        return arraytoblocks.adj_fn(arraytoblocks, arraytoblocks.fn(arraytoblocks, x))
 
     def split_forward(self, ibatch, obatch):
         return copy(self)
@@ -123,35 +120,28 @@ class BlocksToArray(NamedLinop):
         else:
             self.mask = mask
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     @staticmethod
-    def fn(linop, x):
+    def fn(blockstoarray, x, /):
         return F.blocks_to_array(
             x,
-            linop.grid_size,
-            linop.block_size,
-            linop.stride,
-            linop.mask,
+            blockstoarray.grid_size,
+            blockstoarray.block_size,
+            blockstoarray.stride,
+            blockstoarray.mask,
         )
 
     @staticmethod
-    def adj_fn(linop, x):
-        if x.shape[-linop.ndim :] != linop.grid_size:
+    def adj_fn(blockstoarray, x, /):
+        if x.shape[-blockstoarray.ndim :] != blockstoarray.grid_size:
             raise RuntimeError(
-                f"BlocksToArray expected input with full size {linop.grid_size} but got {x.shape}"
+                f"BlocksToArray expected input with full size {blockstoarray.grid_size} but got {x.shape}"
             )
         return F.array_to_blocks(
             x,
-            linop.block_size,
-            linop.stride,
-            linop.mask,
+            blockstoarray.block_size,
+            blockstoarray.stride,
+            blockstoarray.mask,
         )
-
-    @staticmethod
-    def normal_fn(linop, x):
-        return linop.adj_fn(linop, linop.fn(linop, x))
 
     def split_forward(self, ibatch, obatch):
         return copy(self)
