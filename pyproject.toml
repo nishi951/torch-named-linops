@@ -36,7 +36,6 @@ classifiers = [
 
 [dependency-groups]
 dev = [
-    "furo>=2024.8.6",
     "ipykernel>=6.29.5",
     "isort>=6.0.1",
     "jupyterlab>=4.4.3",
@@ -51,6 +50,7 @@ dev = [
     "ruff>=0.8.4",
     "sphinx>=8.0",
     "sphinx-autobuild>=2024.10.3",
+    "sphinx-immaterial>=0.13.6",
 ]
 sigpy = [
     "numba>=0.60.0",

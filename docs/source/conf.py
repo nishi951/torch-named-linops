@@ -30,6 +30,7 @@ extensions = [
     # "numpydoc",
     # "myst_parser",  # Allow markdown, comment out if myst_nb is enabled
     "myst_nb",  # Execute code blocks in docs
+    "sphinx_immaterial",
 ]
 
 templates_path = ["_templates"]
@@ -57,7 +58,7 @@ templates_path = ["_templates"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_static_path = ["_static"]
-html_theme = "furo"
+html_theme = "sphinx_immaterial"
 html_title = "torch-named-linops"
 html_theme_options = {
     "sidebar_hide_name": False,
