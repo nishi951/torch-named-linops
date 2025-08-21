@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 import torchlinops
 
 project = "torch-named-linops"
-copyright = "2024, Mark Nishimura"
+copyright = "2025, Mark Nishimura"
 author = "Mark Nishimura"
 version = torchlinops.__version__
 release = torchlinops.__version__
@@ -64,3 +64,5 @@ html_theme_options = {
     "sidebar_hide_name": False,
 }
 html_css_files = ["codecells.css"]
+# html_css_files = []
+nb_render_plugin = "default"
