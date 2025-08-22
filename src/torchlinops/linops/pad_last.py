@@ -86,7 +86,7 @@ class PadLast(NamedLinop):
                 f"Mismatched shapes: expected {padlast.pad_im_size} but got {y.shape[-padlast.D :]}"
             )
         slc = [slice(None)] * (y.ndim - padlast.D) + padlast.crop_slice
-        return y[slc]
+        return y[tuple(slc)]
 
     def adjoint(self):
         adj = super().adjoint()
