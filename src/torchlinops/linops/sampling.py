@@ -98,7 +98,7 @@ class Sampling(NamedLinop):
     def split_forward_fn(self, ibatch, obatch, idx):
         nM = len(idx[0].shape)
         if nM > 0:
-            idx_slc = list(obatch[-nM:])
+            idx_slc = tuple(obatch[-nM:])
             return [i[idx_slc] for i in idx]
         return idx
 
