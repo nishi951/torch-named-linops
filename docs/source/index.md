@@ -6,8 +6,8 @@
 # torch-named-linops
 
 Welcome to the documentation for `torch-named-linops`, a linear operator
-abstraction designed for large-scale numerical computing, optimization, and
-machine learning.
+abstraction designed for matrix-free, large-scale numerical computing,
+optimization, and machine learning.
 
 
 ```{toctree}
@@ -16,8 +16,9 @@ machine learning.
 
 installation
 getting_started
-linops
-api
+how_to
+reference/api
+explanations/design_notes
 why_this_package
 faq
 ```

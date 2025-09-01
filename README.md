@@ -8,7 +8,7 @@
 
 A flexible linear operator abstraction implemented in PyTorch.
 
-Heavily inspired by [einops](https://einops.rocks).
+Heavily inspired by [einops](https://einops.rocks) and [sigpy](https://github.com/mikgroup/sigpy).
 
 Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_linops)
 
@@ -22,11 +22,10 @@ Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_lino
     - Useful for local patch extraction
   - `Interpolate`[^1] (similar to SigPy's
     [interpolate/gridding](https://sigpy.readthedocs.io/en/latest/generated/sigpy.linop.Interpolate.html))
-     - Comes with `kaiser_bessel` and (1D) `spline` kernels.
+     - Comes with `kaiser_bessel` and first-order `spline` kernels.
 - `.H` and `.N` properties for adjoint $A^H$ and normal $A^HA$ linop creation.
 - `Chain` and `Add` for composing linops together.
-- `Batch` and `MPBatch` wrappers for splitting linops temporally on a
-  single GPU, or across multiple GPUs (via `torch.multiprocessing`).
+- Splitting a single linop across multiple GPUs.
 - Full support for complex numbers. Adjoint takes the conjugate transpose.
 - Full support for `autograd`-based automatic differentiation.
 
