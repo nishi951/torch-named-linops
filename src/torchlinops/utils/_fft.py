@@ -16,9 +16,11 @@ def cfftn(x, dim=None, norm="ortho"):
         The dimensions over which to take the ifft.
     norm : norm (str, optional)
         Normalization mode. For the forward transform (fft()), these correspond to:
-        "forward" - normalize by 1/n
-        "backward" - no normalization
-        "ortho" - normalize by 1/sqrt(n) (making the FFT orthonormal)
+
+        - "forward" - normalize by 1/n
+        - "backward" - no normalization
+        - "ortho" - normalize by 1/sqrt(n) (making the FFT orthonormal)
+
         Calling the backward transform (cifftn()) with the same normalization
         mode will apply an overall normalization of 1/n between the two transforms.
         This is required to make ifft() the exact inverse. Default is "backward"
@@ -42,9 +44,11 @@ def cifftn(x, dim=None, norm="ortho"):
         The dimensions over which to take the ifft.
     norm : norm (str, optional)
         Normalization mode. For the backward transform (ifft()), these correspond to:
-        "forward" - no normalization
-        "backward" - normalize by 1/n
-        "ortho" - normalize by 1/sqrt(n) (making the IFFT orthonormal)
+
+        - "forward" - no normalization
+        - "backward" - normalize by 1/n
+        - "ortho" - normalize by 1/sqrt(n) (making the IFFT orthonormal)
+
         Calling the forward transform (cfftn()) with the same normalization mode
         will apply an overall normalization of 1/n between the two transforms. This
         is required to make ifft() the exact inverse. Default is "backward"
