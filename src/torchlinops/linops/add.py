@@ -8,7 +8,17 @@ __all__ = ["Add"]
 
 
 class Add(NamedLinop):
+    """The sum of one or more linear operators."""
+
     def __init__(self, *linops, stream=None):
+        """
+        Parameters
+        ----------
+        *linops : list[NamedLinop]
+            One or more linear operators to be added together
+        stream : Optional
+
+        """
         assert all(isequal(linop.ishape, linops[0].ishape) for linop in linops), (
             f"Add: All linops must share same ishape. Found {linops}"
         )
