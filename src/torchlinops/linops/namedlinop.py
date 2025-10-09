@@ -9,7 +9,8 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
-from torch.cuda import Stream, Event
+from torch import Tensor
+from torch.cuda import Event, Stream
 
 import torchlinops
 import torchlinops.config as config
@@ -61,7 +62,7 @@ class NamedLinop(nn.Module):
         self.stream = stream
         self.start_event = start_event
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         if self.start_event is not None:
             self.start_event.record()
         if self.stream is not None:
@@ -71,13 +72,13 @@ class NamedLinop(nn.Module):
             return y
         return self.fn(self, x)
 
-    def apply(self, x: torch.Tensor):
+    def apply(self, x: Tensor) -> Tensor:
         """Apply the linear operator with LinopFunction."""
         return LinopFunction.apply(x, self)
 
     # Override
     @staticmethod
-    def fn(linop, x: torch.Tensor, /):
+    def fn(linop, x: Tensor, /) -> Tensor:
         """Apply the linop to a tensor.
 
         Parameters
@@ -100,7 +101,7 @@ class NamedLinop(nn.Module):
 
     # Override
     @staticmethod
-    def adj_fn(linop, x: torch.Tensor, /):
+    def adj_fn(linop, x: Tensor, /) -> Tensor:
         """Apply the adjoint of a linop to a tensor.
 
         Parameters
@@ -118,7 +119,7 @@ class NamedLinop(nn.Module):
 
     # Override
     @staticmethod
-    def normal_fn(linop, x: torch.Tensor, /):
+    def normal_fn(linop, x: Tensor, /) -> Tensor:
         """Apply the normal of a linop to a tensor.
 
         Parameters
@@ -154,13 +155,14 @@ class NamedLinop(nn.Module):
         return None
 
     # Override
-    def size(self, dim: str):
+    def size(self, dim: str) -> int | None:
         """Get the size of a particular dim, or return
         None if this linop doesn't determine the size
         """
         return None
 
     # Override
+    # TODO: Deprecate
     def size_fn(self, dim: str, /, data=None):
         """Functional version of size. Determines sizes from kwargs
         kwargs should be the same as the inputs to fn or adj_fn
@@ -170,8 +172,8 @@ class NamedLinop(nn.Module):
 
     # Probably don't override these
     @property
-    def dims(self):
-        """Get the dims that appear in this linop."""
+    def dims(self) -> set:
+        """Get the set of dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
 
     @property
@@ -284,24 +286,24 @@ class NamedLinop(nn.Module):
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
-    # DEPRECATED/TODO: Remove
-    # @staticmethod
-    # def split_fn(linop, ibatch, obatch, /, **kwargs):
-    #     """Return split versions of the data that can be passed
-    #     into fn and adj_fn to produce split versions
-    #     """
-    #     return linop.split_forward_fn(ibatch, obatch, **kwargs)
-
-    # @staticmethod
-    # def adj_split_fn(linop, ibatch, obatch, /, **kwargs):
-    #     return linop.split_forward_fn(obatch, ibatch, **kwargs)
-
     def flatten(self):
-        """Get a flattened list of constituent linops for composition"""
+        """Get a flattened list of constituent linops for composition."""
         return [self]
 
     def compose(self, inner):
-        """Do self AFTER inner"""
+        """Compose this linop with another linop.
+
+        Parameters
+        ----------
+        inner : NamedLinop
+            The linop to call before this one.
+
+        Returns
+        -------
+        NamedLinop
+            The composition of self and inner. If A = self and B = inner then this returns
+            C = AB.
+        """
         before = inner.flatten()
         after = self.flatten()
         return torchlinops.Chain(*(before + after))
@@ -329,6 +331,7 @@ class NamedLinop(nn.Module):
             return self.compose(right)
         if isinstance(right, torch.Tensor):
             return self(right)
+        return NotImplemented
 
     def __rmatmul__(self, left):
         return left.compose(self)
@@ -348,7 +351,6 @@ class NamedLinop(nn.Module):
         return self.name + self._suffix
 
     def __repr__(self):
-        """Helps prevent recursion error caused by .H and .N"""
         event = ""
         if self.start_event is not None:
             event = repr(self.start_event)
@@ -357,11 +359,9 @@ class NamedLinop(nn.Module):
         return out
 
     def reset_adjoint_and_normal(self):
-        """Clean up cached stuff."""
         self._adjoint = None
         self._normal = None
 
-    # Pass these through to the shape representation
     @property
     def shape(self):
         return self._shape
@@ -427,15 +427,18 @@ class NamedLinop(nn.Module):
 
 
 class NormalFunctionLookup:
-    """Helper class to avoid lambda function definitions
-    helps with multiprocessing
+    """Helper class for creating new normal functions for a normal linop.
+
+    If the linop is A, and its normal is A.N, this helps with computing A.N.H and A.N.N. Note that A.N.H = A.N
+
+    Helps with multiprocessing by avoiding lambda function definitions, thereby maintaining pickleability.
     """
 
     def __init__(self, linop):
         self.linop = linop
 
     def new_forward_adjoint_fn(self, _, x, *args, **kwargs):
-        """Replace forward/adjoint with normal fn from self"""
+        """Replace forward/adjoint with normal fn from self."""
         return self.linop.normal_fn(self.linop, x, *args, **kwargs)
 
     def new_normal_fn(self, _, x, *args, **kwargs):
@@ -445,11 +448,9 @@ class NormalFunctionLookup:
 
 
 def new_normal_adjoint(self):
-    """Adjoint creation
-    Note that this `self` is not this class' instance, because this is a
-    staticmethod.
+    """Adjoint-of-normal creation helper function.
 
-    Replace adjoint() constructor with trivial copy
+    Top-level definition to maintain pickleability.
     """
     adj = copy(self)
     adj._shape = adj._shape.H
@@ -459,7 +460,9 @@ def new_normal_adjoint(self):
 class LinopFunction(torch.autograd.Function):
     """Wrap a linop in an autograd function.
 
-    Experimental
+    At one point, this may have helped with memory usage in some cases.
+
+    Experimental.
     """
 
     @staticmethod
