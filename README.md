@@ -5,15 +5,14 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/torch-named-linops)](https://pypi.org/project/torch-named-linops/)
 [![GitHub License](https://img.shields.io/github/license/nishi951/torch-named-linops)](https://www.apache.org/licenses/LICENSE-2.0)
 
-
 A flexible linear operator abstraction implemented in PyTorch.
 
-Heavily inspired by [einops](https://einops.rocks) and [sigpy](https://github.com/mikgroup/sigpy).
-
-Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_linops)
+``` sh
+$ pip install torch-named-linops
+```
 
 ## Selected Feature List
-- Dedicated abstraction for naming linear operator dimensions.
+- A dedicated abstraction for naming linear operator dimensions.
 - A set of core linops, including:
   - `Dense`
   - `Diagonal`
@@ -31,31 +30,10 @@ Unrelated to the (also good) [torch_linops](https://github.com/cvxgrp/torch_lino
 
 [^1]: Includes a `functional` interface and [triton](https://github.com/triton-lang/triton) backend for 1D/2D/3D.
 
-## Installation
-### Via `pip`
 
-``` sh
-$ pip install torch-named-linops
-```
-
-### From source (recommended for developers)
-1. Clone the repo with `git clone`
-2. Run `pip install -e .` from the root directory.
-  - Or `uv add path/to/cloned/repo`
-
-3. Pull upstream changes as required.
-
-### Via `pip`'s git integration (deprecated)
-Run the following, replacing `<TAG>` with the appropriate version (e.g. `0.3.7``)
-
-- http version:
-```sh
-$ pip install git+https://github.com/nishi951/torch-named-linops.git@<TAG>
-```
-
-- ssh version:
-``` sh
-$ pip install git+ssh://git@github.com/nishi951/torch-named-linops.git@<TAG>
-```
-
+## Other Packages
+This package was heavily inspired by a few other influential packages. In no particular order:
+- [einops](https://einops.rocks): named dimensions/naming things in general.
+- [sigpy](https://github.com/mikgroup/sigpy): the linop abstraction and the idea of having dedicated adjoint and normal properties. Also inspired the NUFFT, Interpolate, and ArrayToBlocks/BlocksToArray operators.
+- [torch_linops](https://github.com/cvxgrp/torch_linops): another linop abstraction. Geared more towards optimization.
 
