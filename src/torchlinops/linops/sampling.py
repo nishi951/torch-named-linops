@@ -103,7 +103,7 @@ class Sampling(NamedLinop):
         return idx
 
     def register_shape(self, name, shape: tuple):
-        self._shape.add(name, shape)
+        self._shape[name] = shape
 
     def size(self, dim):
         if dim in self._shape.output_shape:

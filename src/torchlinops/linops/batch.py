@@ -97,9 +97,9 @@ class Batch(NamedLinop):
             disable=(not self.pbar),
         ):
             try:
-                xbatch = x[in_batch]
+                xbatch = x[tuple(in_batch)]
                 ybatch = linop(xbatch)
-                y[out_batch] += ybatch
+                y[tuple(out_batch)] += ybatch
             except RuntimeError:
                 print(
                     f"linop: {linop}, in_batch: {in_batch}, out_batch: {out_batch}, self.batch_sizes: {self.batch_sizes}"

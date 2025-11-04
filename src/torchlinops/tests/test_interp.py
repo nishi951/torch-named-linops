@@ -78,4 +78,4 @@ def test_interp_slc():
     obatch = [tile.get(dim, slice(None)) for dim in locs_batch_shape]
     linop_split = linop.split(linop, tile)
     assert linop_split.locs.shape == (8, 4, 1, 3)
-    assert (linop_split.locs == linop.locs[obatch]).all()
+    assert (linop_split.locs == linop.locs[tuple(obatch)]).all()

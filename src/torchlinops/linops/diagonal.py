@@ -39,7 +39,7 @@ class Diagonal(NamedLinop):
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         if ANY in self.ishape:
             broadcast_dims.append(ANY)
-        self._shape.add("broadcast_dims", broadcast_dims)
+        self._shape.broadcast_dims = broadcast_dims
 
     @classmethod
     def from_weight(
@@ -63,7 +63,7 @@ class Diagonal(NamedLinop):
 
     @property
     def broadcast_dims(self):
-        return self._shape.lookup("broadcast_dims")
+        return self._shape.broadcast_dims
 
     @broadcast_dims.setter
     def broadcast_dims(self, val):

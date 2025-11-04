@@ -49,18 +49,18 @@ class Dense(NamedLinop):
         """
         super().__init__(NS(ishape, oshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
-        self._shape.add("weightshape", weightshape)
+        self._shape.weightshape = weightshape
 
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        self._shape.add("broadcast_dims", broadcast_dims)
+        self._shape.broadcast_dims = broadcast_dims
 
     @property
     def weightshape(self):
-        return self._shape.lookup("weightshape")
+        return self._shape.weightshape
 
     @property
     def broadcast_dims(self):
-        return self._shape.lookup("broadcast_dims")
+        return self._shape.broadcast_dims
 
     @property
     def forward_einstr(self):
@@ -199,7 +199,7 @@ class Dense(NamedLinop):
         for dim, batch in zip(self.oshape, obatch):
             if dim in self.weightshape and dim not in self.broadcast_dims:
                 weightbatch[self.weightshape.index(dim)] = batch
-        return weight[weightbatch]
+        return weight[tuple(weightbatch)]
 
     def size(self, dim: str):
         return self.size_fn(dim, self.weight)

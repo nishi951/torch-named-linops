@@ -35,7 +35,7 @@ class Rearrange(NamedLinop):
         self.ipattern = ipattern
         self.opattern = opattern
         axes_lengths = axes_lengths if axes_lengths is not None else {}
-        self._shape.add("axes_lengths", axes_lengths)
+        self._shape.axes_lengths = axes_lengths
 
     @property
     def axes_lengths(self):
@@ -200,11 +200,9 @@ class Repeat(NamedLinop):
         assert len(self.oshape) > len(self.ishape), (
             f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
         )
-        self._shape.add("axes_lengths", n_repeats)
-        # self.axes_lengths = n_repeats
-        # self.axes_lengths = {ND.infer(k): v for k, v in self.axes_lengths.items()}
-        broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        self._shape.add("broadcast_dims", broadcast_dims)
+        self._shape.axes_lengths = n_repeats
+        if broadcast_dims is not None:
+            self._shape.broadcast_dims = broadcast_dims
 
     @property
     def axes_lengths(self):

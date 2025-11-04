@@ -53,15 +53,15 @@ class FFT(NamedLinop):
             dim_shape = NS(*grid_shapes)
         shape = NS(batch_shape) + dim_shape
         super().__init__(shape)
-        self._shape.add("batch_shape", batch_shape)
-        self._shape.add("input_grid_shape", grid_shapes[0])
-        self._shape.add("output_grid_shape", grid_shapes[1])
+        self._shape.batch_shape = batch_shape
+        self._shape.input_grid_shape = grid_shapes[0]
+        self._shape.output_grid_shape = grid_shapes[1]
         self.norm = norm
         self.centered = centered
 
     @property
     def batch_shape(self):
-        return self._shape.lookup("batch_shape")
+        return self._shape.batch_shape
 
     @staticmethod
     def fn(linop, x):

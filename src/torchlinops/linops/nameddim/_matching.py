@@ -39,7 +39,7 @@ def isequal(
     shape2: Sequence,
     return_assignments: bool = False,
 ) -> bool:
-    """Test if two sequences with ellipses are compatible
+    """Test if two sequences with ellipses are length-compatible and value-compatible.
 
     Implemented with bottom-up DP
 
