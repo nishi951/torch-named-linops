@@ -64,7 +64,7 @@ class MPBatch(Batch):
             device=self.output_device,
         )
         for ybatch, out_batch in zip(ys, self._output_batches):
-            y[out_batch] += ybatch.to(self.output_device)
+            y[tuple(out_batch)] += ybatch.to(self.output_device)
         return y
 
     def adjoint(self):

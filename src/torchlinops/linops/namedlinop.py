@@ -73,7 +73,7 @@ class NamedLinop(nn.Module):
         return self.fn(self, x)
 
     def apply(self, x: Tensor) -> Tensor:
-        """Apply the linear operator with LinopFunction."""
+        """Apply the linear operator to a tensor."""
         return LinopFunction.apply(x, self)
 
     # Override
@@ -151,7 +151,7 @@ class NamedLinop(nn.Module):
 
     # Override
     def split_forward_fn(self, ibatch, obatch, /, data=None):
-        """Split this linop's data"""
+        """Split this linop's data."""
         return None
 
     # Override

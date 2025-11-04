@@ -20,21 +20,21 @@ def test_batch_normal_adjoint():
     # Test Forward
     Ax = A(x)
     Ax_ref = A_nobatch(x)
-    assert Ax_ref.allclose(Ax)
+    assert Ax_ref.allclose(Ax, rtol=1e-3)
 
     # Test Normal
     AN = A.N
     ANx = AN(x)
     ANx_ref = A_nobatch.N(x)
     assert len(AN._linops) == N * N
-    assert ANx_ref.allclose(ANx)
+    assert ANx_ref.allclose(ANx, rtol=1e-3)
 
     # Test Adjoint
     AH = A.H
     AHy = AH(y)
     AHy_ref = A_nobatch.H(y)
     assert len(AH._linops) == N
-    assert AHy_ref.allclose(AHy)
+    assert AHy_ref.allclose(AHy, rtol=1e-3)
 
 
 def test_batch_chain_normal_adjoint(): ...

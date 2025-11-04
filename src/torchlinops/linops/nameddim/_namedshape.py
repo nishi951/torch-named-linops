@@ -18,16 +18,13 @@ def NS(ishape: Shape, oshape: Optional[Shape] = None, **additional_shapes):
     If shape is empty, use tuple(), not None
     """
     if ishape is None:
-        shape = NamedShape(ishape=("...",), oshape=("...",))
+        shape = NamedShape(ishape=("...",), oshape=("...",), **additional_shapes)
     elif oshape is None:
         if isinstance(ishape, NamedShape):
             return ishape
-        shape = NamedShape(ishape=ishape, oshape=ishape)
+        shape = NamedShape(ishape=ishape, oshape=ishape, **additional_shapes)
     else:
-        shape = NamedShape(ishape=ishape, oshape=oshape)
-    # Option to add extra shapes
-    for k, v in additional_shapes.items():
-        shape.add(k, v)
+        shape = NamedShape(ishape=ishape, oshape=oshape, **additional_shapes)
     return shape
 
 
@@ -37,46 +34,50 @@ class NamedShape(NamedDimCollection):
     - e.g. splitting ishape and oshape into subparts that are linked
     """
 
-    def __init__(self, ishape: Iterable[NDorStr], oshape: Iterable[NDorStr]):
-        super().__init__(_ishape=ishape, _oshape=oshape)
+    def __init__(
+        self, ishape: Iterable[NDorStr], oshape: Iterable[NDorStr], **other_shapes
+    ):
+        super().__init__(ishape=ishape, oshape=oshape, **other_shapes)
 
-    @staticmethod
-    def convert(a: Iterable[NDorStr]):
-        return list(ND.infer(a))
+    @property
+    def other_shapes(self):
+        """Shapes that are not ishape or oshape."""
+        other_shapes = self.shapes
+        for name in ["ishape", "oshape"]:  # Special attributes
+            other_shapes.pop(name)
+        return other_shapes
 
     def adjoint(self):
         """Return the adjoint shape. Don't call this method directly, but definitely override it"""
-        new = type(self)(self.oshape, self.ishape)
-        for shape in self.shapes:
-            if shape not in ["_ishape", "_oshape"]:
-                new.add(shape, self.lookup(shape))
+        new = type(self)(self.oshape, self.ishape, **self.other_shapes)
         return new
 
     def normal(self):
         new_oshape = tuple(d.next_unused(self.ishape) for d in self.ishape)
-        new = type(self)(self.ishape, new_oshape)
-        for shape in self.shapes:
-            if shape not in ["_ishape", "_oshape"]:
-                new.add(shape, self.lookup(shape))
+        new = type(self)(self.ishape, new_oshape, **self.other_shapes)
         return new
 
-    @property
-    def ishape(self) -> tuple[ND]:
-        return self._ishape
+    # @staticmethod
+    # def convert(a: Iterable[NDorStr]):
+    #     return list(ND.infer(a))
 
-    @ishape.setter
-    def ishape(self, val: Iterable[NDorStr]):
-        _ishape = self.convert(val)
-        self._ishape = _ishape
+    # @property
+    # def ishape(self) -> tuple[ND]:
+    #     return self._ishape
 
-    @property
-    def oshape(self) -> tuple[ND]:
-        return self._oshape
+    # @ishape.setter
+    # def ishape(self, val: Iterable[NDorStr]):
+    #     _ishape = self.convert(val)
+    #     self._ishape = _ishape
 
-    @oshape.setter
-    def oshape(self, val: Iterable[NDorStr]):
-        _oshape = self.convert(val)
-        self._oshape = _oshape
+    # @property
+    # def oshape(self) -> tuple[ND]:
+    #     return self._oshape
+
+    # @oshape.setter
+    # def oshape(self, val: Iterable[NDorStr]):
+    #     _oshape = self.convert(val)
+    #     self._oshape = _oshape
 
     @property
     def H(self):
@@ -103,13 +104,8 @@ class NamedShape(NamedDimCollection):
                 f"Problem combining shapes {self.oshape} + {right.oshape}"
             ) from e
         new = type(self)(ishape=_ishape, oshape=_oshape)
-        # Add all the subshapes
-        for shape in self.shapes:
-            if shape not in ["_ishape", "_oshape"]:
-                new.add(shape, self.lookup(shape))
-        for shape in right.shapes:
-            if shape not in ["_ishape", "_oshape"]:
-                new.add(shape, right.lookup(shape))
+        new.update(self.other_shapes)
+        new.update(right.other_shapes)
         return new
 
     def __radd__(self, left):
