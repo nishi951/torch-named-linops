@@ -9,10 +9,30 @@ Welcome to the documentation for `torch-named-linops`, a linear operator
 abstraction designed for matrix-free, large-scale numerical computing,
 optimization, and machine learning.
 
+## Quickstart
+TODO
+
+## Features
+TODO
+
+
+
+## Other Interesting Packages
+If you like this package, you may find these other packages interesting as well.
+Check them out!
+- [SigPy](https://github.com/mikgroup/sigpy/tree/main)
+- [MIRTorch](https://github.com/guanhuaw/MIRTorch)
+- [SCICO](https://github.com/lanl/scico)
+- [matmri](https://gitlab.com/cfmm/matlab/matmri/-/tree/master)
+- [einops](https://einops.rocks)
+- [torch_linops](https://github.com/cvxgrp/torch_linops)
+- [PyLops](https://pylops.readthedocs.io/en/stable/)
+- [linear_operator](https://github.com/cornellius-gp/linear_operator)
+
 
 ```{toctree}
-:caption: 'Contents:'
 :maxdepth: 1
+:hidden:
 
 installation
 getting_started
@@ -23,18 +43,3 @@ why_this_package
 faq
 ```
 
-## Other intersting packages
-- SigPy
-- MIRTorch
-- sci-co
-- matmri
-- einops
-- torch_linops
-- PyLops
-- linear_operator
-
-## Indices and tables
-
-- {ref}`genindex`
-- {ref}`modindex`
-- {ref}`search`

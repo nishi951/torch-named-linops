@@ -41,3 +41,8 @@ This will install the library in
   - `[sigpy]` - installs with sigpy to enable unit testing against `sp.ArrayToBlocks` and `sp.Interpolate`
     - Careful doing this, as [sigpy](https://github.com/mikgroup/sigpy) might not like certain package versions of things.
   - `[all]` - installs all optional dependencies!
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+```

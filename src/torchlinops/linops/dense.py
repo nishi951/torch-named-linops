@@ -14,8 +14,12 @@ __all__ = ["Dense"]
 
 
 class Dense(NamedLinop):
-    """
-    Example:
+    """A basic matrix-vector multiplication linear operator.
+
+    "Dense" is used to distinguish from "sparse" linear operators.
+
+    Examples
+    --------
     x: [A, Nx, Ny]
     weightshape: [A, T]
     oshape: [T, Nx, Ny]
@@ -43,6 +47,16 @@ class Dense(NamedLinop):
         broadcast_dims: Optional[list] = None,
     ):
         """
+        Parameters
+        ----------
+        weight : Tensor
+            The dense matrix used for this linop.
+        weightshape : Shape
+            The shape of the matrix, in symbolic form.
+        ishape : Shape
+            The input shape of the matrix.
+        oshape : Shape
+            The output shape of the matrix.
         broadcast_dims : list
             A list of the dimensions of weight that are intended to be broadcasted over the input.
             As such, they are excluded from splitting.
@@ -72,9 +86,6 @@ class Dense(NamedLinop):
 
     @staticmethod
     def einstr(arr):
-        """
-        tup: Iterable of str-able objects
-        """
         return " ".join(str(s) for s in arr)
 
     @staticmethod
@@ -96,7 +107,9 @@ class Dense(NamedLinop):
 
     def normal(self, inner=None):
         """
-        If no inner, consolidate two Dense's into a single Dense
+        Notes
+        -----
+        If inner is None, consolidate two Dense's into a single Dense
         ishape: [A B X Y]
         oshape: [C D X Y]
         wshape: [A B C D]

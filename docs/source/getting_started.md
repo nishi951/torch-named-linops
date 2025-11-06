@@ -87,3 +87,8 @@ print(A.N) # No longer contains Identity
 
 ## Creating a custom linop
 
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+```

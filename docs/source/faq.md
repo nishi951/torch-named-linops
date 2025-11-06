@@ -27,3 +27,8 @@ comments or docstrings to elucidate its meaning. This idea was partially inspire
 that uses a simple and clear syntax to solve an annoying problem.
 
 
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+```
