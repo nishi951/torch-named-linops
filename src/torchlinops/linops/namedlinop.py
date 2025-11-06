@@ -150,6 +150,7 @@ class NamedLinop(nn.Module):
         return type(self)(self._shape)
 
     # Override
+    # TODO: Deprecate
     def split_forward_fn(self, ibatch, obatch, /, data=None):
         """Split this linop's data."""
         return None
@@ -399,8 +400,10 @@ class NamedLinop(nn.Module):
         return super().to(device)
 
     def __copy__(self):
-        """
-        copying a linop:
+        """Specialized copying for linops.
+
+        Notes
+        -----
         - Shares previous data
         - Removes references to adjoint and normal
         - Creates a new shape object, rather than using the old one

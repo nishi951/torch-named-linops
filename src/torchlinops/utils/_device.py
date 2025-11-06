@@ -26,8 +26,23 @@ __all__ = [
 T = TypeVar("T")
 logger = logging.getLogger("torchlinops.utils")
 
+TensorKey = tuple[int, int, tuple, int, torch.dtype, torch.device]
+CData = int
+
 
 def resolve_device(dev):
+    """Resolve the device to be used for tensors.
+
+    Parameters
+    ----------
+    dev : str or torch.device
+        The device string or torch.device object to resolve.
+
+    Returns
+    -------
+    torch.device
+        A device object representing the resolved device.
+    """
     d = torch.device(dev)
     if d.type == "cuda" and d.index is None:
         return torch.device(f"cuda:{torch.cuda.current_device()}")
@@ -35,17 +50,37 @@ def resolve_device(dev):
 
 
 def memory_aware_to(module, device):
-    """Wrapper function"""
+    """Move the given module to the specified device while being memory aware.
+
+    Parameters
+    ----------
+    module : torch.nn.Module
+        The module to move to the specified device.
+    device : str or torch.device
+        The device to which the module should be moved.
+
+    Returns
+    -------
+    torch.nn.Module
+        The module moved to the specified device.
+    """
     return ModuleMemoryMap().memory_aware_to(module, device)
 
 
 def memory_aware_deepcopy(module):
-    """Wrapper function"""
+    """Create a deep copy of the given module while being memory aware.
+
+    Parameters
+    ----------
+    module : torch.nn.Module
+        The module to be deep copied.
+
+    Returns
+    -------
+    torch.nn.Module
+        A deep copy of the module.
+    """
     return ModuleMemoryMap().memory_aware_deepcopy(module)
-
-
-TensorKey = tuple[int, int, tuple, int, torch.dtype, torch.device]
-CData = int
 
 
 def get_key(t: Tensor):
