@@ -1,18 +1,16 @@
-from typing import Optional
-from jaxtyping import Integer
-from torch import Tensor
-
 from copy import copy
+from typing import Optional
 
 import torch
 import torch.nn as nn
+from jaxtyping import Integer
+from torch import Tensor
 
-from .namedlinop import NamedLinop
+from torchlinops.utils import INDENT, default_to
 from .add import Add
 from .identity import Zero
-from .nameddim import NS, isequal, ELLIPSES, NDorStr, ND
-
-from torchlinops.utils import default_to, INDENT
+from .nameddim import ELLIPSES, ND, NS, NDorStr, isequal
+from .namedlinop import NamedLinop
 
 __all__ = ["Concat"]
 

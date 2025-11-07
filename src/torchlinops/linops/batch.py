@@ -1,21 +1,19 @@
-from collections.abc import Callable
-from typing import Union, Optional, Tuple
-from typing_extensions import Self
-from torch import Tensor
-
 import traceback
+from collections.abc import Callable
 from pprint import pformat
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
+from torch import Tensor
 from tqdm import tqdm
+from typing_extensions import Self
 
-from .namedlinop import NamedLinop
+from torchlinops.utils import INDENT, batch_iterator, dict_product
 from .identity import ShapeSpec
 from .nameddim import ND, NS, Shape
+from .namedlinop import NamedLinop
 from .split import split_linop
-
-from torchlinops.utils import batch_iterator, dict_product, INDENT
 
 __all__ = ["Batch"]
 

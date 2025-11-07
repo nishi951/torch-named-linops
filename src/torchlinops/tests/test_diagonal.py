@@ -1,11 +1,9 @@
-import pytest
-
 from copy import copy
 
+import pytest
 import torch
 
 from torchlinops import Diagonal
-
 from torchlinops.utils import inner, is_adjoint
 
 

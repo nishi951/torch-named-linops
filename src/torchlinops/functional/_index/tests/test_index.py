@@ -1,6 +1,6 @@
 import pytest
-
 import torch
+
 from torchlinops.functional import index, index_adjoint
 
 

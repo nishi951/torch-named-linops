@@ -1,6 +1,6 @@
 import pytest
 
-from torchlinops import NamedDimCollection, ANY
+from torchlinops import ANY, NamedDimCollection
 
 
 def test_overwrite_any():

@@ -1,5 +1,4 @@
 import pytest
-
 import torch
 
 import torchlinops.functional as F

@@ -6,15 +6,15 @@ from warnings import warn
 
 import numpy as np
 import torch
-from torch.cuda import Stream, Event
+from torch.cuda import Event, Stream
+
 from torchlinops.utils import (
+    ModuleMemoryMap,
     NDList,
+    RepeatedEvent,
     batch_iterator,
     dict_product,
-    ModuleMemoryMap,
-    RepeatedEvent,
 )
-
 from .add import Add
 from .concat import Concat
 from .device import ToDevice

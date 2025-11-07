@@ -4,7 +4,7 @@ from typing import Optional
 
 import torch
 from torch import Tensor
-from torch.cuda import Stream, Event
+from torch.cuda import Event, Stream
 
 from torchlinops.utils import INDENT, RepeatedEvent
 from .identity import Identity

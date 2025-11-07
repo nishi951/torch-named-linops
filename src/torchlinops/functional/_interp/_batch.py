@@ -1,5 +1,5 @@
-from typing import Optional
 from collections.abc import Iterable
+from typing import Optional
 
 __all__ = ["batch_iterator"]
 

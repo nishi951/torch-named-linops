@@ -1,12 +1,10 @@
 import pytest
 import torch
-
 from einops import rearrange
-from torchlinops.functional import unfold
-from torchlinops.functional import fold
-from torchlinops.functional._unfold.nblocks import get_nblocks
-from torchlinops.functional._unfold.array_to_blocks import get_norm_weights
 
+from torchlinops.functional import fold, unfold
+from torchlinops.functional._unfold.array_to_blocks import get_norm_weights
+from torchlinops.functional._unfold.nblocks import get_nblocks
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,

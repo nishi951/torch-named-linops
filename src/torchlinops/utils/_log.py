@@ -1,5 +1,4 @@
 import logging
-
 from textwrap import indent
 
 __all__ = ["setup_console_logger", "Indenter", "INDENT"]

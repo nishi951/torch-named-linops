@@ -1,10 +1,9 @@
-from torch import Tensor
-
 from functools import partial
-import torch
 
-from einops import rearrange
+import torch
 import torch.nn.functional as F
+from einops import rearrange
+from torch import Tensor
 from torch.autograd.functional import vjp
 
 

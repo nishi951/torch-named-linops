@@ -1,7 +1,7 @@
 import pytest
-
 import torch
-from torchlinops import NamedLinop, NS
+
+from torchlinops import NS, NamedLinop
 
 
 def test_namedlinop_adjoint():

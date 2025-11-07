@@ -1,7 +1,7 @@
 from copy import copy
 
-from .namedlinop import NamedLinop
 from .nameddim import NS
+from .namedlinop import NamedLinop
 
 __all__ = ["Identity", "Zero", "ShapeSpec"]
 

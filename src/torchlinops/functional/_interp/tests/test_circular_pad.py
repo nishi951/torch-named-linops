@@ -1,5 +1,4 @@
 import pytest
-
 import torch
 
 from torchlinops.functional._interp._circ_pad import circular_pad, circular_pad_adjoint

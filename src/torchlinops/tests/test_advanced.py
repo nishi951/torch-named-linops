@@ -1,8 +1,7 @@
 import pytest
-
 import torch
 
-from torchlinops import Diagonal, NUFFT, Concat
+from torchlinops import NUFFT, Concat, Diagonal
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 
 

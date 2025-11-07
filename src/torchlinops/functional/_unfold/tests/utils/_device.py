@@ -1,6 +1,7 @@
 from collections.abc import Iterable
-from torch import Tensor
+
 import torch
+from torch import Tensor
 
 __all__ = ["device_ordinal", "same_storage", "idx2dev"]
 

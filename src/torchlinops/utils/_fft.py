@@ -1,5 +1,5 @@
-from torch import Tensor
 import torch.fft as fft
+from torch import Tensor
 
 __all__ = ["cfft", "cifft", "cfft2", "cifft2", "cfftn", "cifftn"]
 

@@ -1,10 +1,8 @@
 import pytest
-
 import torch
-
-from torchlinops import Stack, Dense, Diagonal, ND, Dim
 from einops import einsum
 
+from torchlinops import ND, Dense, Diagonal, Dim, Stack
 from torchlinops.tests.test_base import BaseNamedLinopTests
 from torchlinops.utils import inner
 

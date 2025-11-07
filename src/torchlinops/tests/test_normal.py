@@ -1,15 +1,15 @@
 import torch
 
-from torchlinops import NS
 from torchlinops import (
-    NamedLinop,
+    FFT,
+    NS,
+    Add,
     Chain,
     Dense,
     Diagonal,
-    FFT,
-    Scalar,
     Identity,
-    Add,
+    NamedLinop,
+    Scalar,
 )
 
 

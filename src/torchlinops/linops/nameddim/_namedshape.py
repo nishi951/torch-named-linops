@@ -1,11 +1,11 @@
-from copy import copy
-from typing import Union, Optional
 from collections import OrderedDict
 from collections.abc import Iterable, Sequence
+from copy import copy
+from typing import Optional, Union
 
+from ._matching import isequal
 from ._nameddim import ND
 from ._nameddimcollection import NamedDimCollection
-from ._matching import isequal
 
 __all__ = ["NS", "NamedShape", "NDorStr", "Shape"]
 

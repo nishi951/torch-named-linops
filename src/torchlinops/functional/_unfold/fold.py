@@ -1,19 +1,20 @@
-from typing import Optional
-from jaxtyping import Shaped, Bool
-from torch import Tensor
-
 from itertools import product
+from typing import Optional
 
 import torch
+from jaxtyping import Bool, Shaped
+from torch import Tensor
 
 try:
     import triton
     import triton.language as tl
+
     from .casting import scalar_cast as cast
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+    from torchlinops.utils import fake_tl as tl
+    from torchlinops.utils import fake_triton as triton
 
     TRITON_ENABLED = False
 

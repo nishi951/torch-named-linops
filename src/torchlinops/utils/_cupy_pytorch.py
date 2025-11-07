@@ -1,10 +1,10 @@
 """Functions for interoperability between cupy and pytorch."""
 
-from torch import Tensor
-
 from warnings import warn
-import torch
+
 import numpy as np
+import torch
+from torch import Tensor
 
 try:
     import cupy as cp

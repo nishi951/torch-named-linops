@@ -1,10 +1,10 @@
 from collections import defaultdict
 from copy import deepcopy
-from typing import Sequence, Any, Tuple
 from pprint import pprint
+from typing import Any, Sequence, Tuple
 from warnings import warn
 
-from ._nameddim import ELLIPSES, ANY
+from ._nameddim import ANY, ELLIPSES
 
 __all__ = ["partition", "isequal", "iscompatible"]
 

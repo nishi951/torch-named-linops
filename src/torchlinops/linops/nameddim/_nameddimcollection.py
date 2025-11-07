@@ -1,17 +1,9 @@
-from copy import copy
-from typing import (
-    Iterable,
-    Sequence,
-    Tuple,
-    Union,
-    Optional,
-    Mapping,
-    List,
-)
 from collections import OrderedDict
+from copy import copy
+from typing import Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
-from ._nameddim import NamedDimension, ND, ELLIPSES, ANY
 from ._matching import iscompatible
+from ._nameddim import ANY, ELLIPSES, ND, NamedDimension
 
 __all__ = ["NamedDimCollection"]
 
