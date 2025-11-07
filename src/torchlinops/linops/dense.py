@@ -1,14 +1,14 @@
-from typing import Optional
-from torch import Tensor
 from copy import copy, deepcopy
+from typing import Optional
 
-from einops import einsum
 import torch.nn as nn
+from einops import einsum
+from torch import Tensor
 
 import torchlinops.config as config
-from .namedlinop import NamedLinop
-from .nameddim import ND, NS, NamedShape, Shape
 from .identity import Identity
+from .nameddim import ND, NS, NamedShape, Shape
+from .namedlinop import NamedLinop
 
 __all__ = ["Dense"]
 

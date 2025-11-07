@@ -1,14 +1,14 @@
-from warnings import warn
+from collections.abc import Mapping
 from copy import copy, deepcopy
 from typing import Optional
-from collections.abc import Mapping
+from warnings import warn
 
 import torch
 from einops import rearrange, reduce, repeat
 
 from .identity import Identity
-from .namedlinop import NamedLinop
 from .nameddim import ND, NS, NamedShape, Shape
+from .namedlinop import NamedLinop
 
 __all__ = [
     "Rearrange",

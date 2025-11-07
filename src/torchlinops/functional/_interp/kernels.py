@@ -1,11 +1,10 @@
-from jaxtyping import Float, Integer, Bool
-from torch import Tensor
-from typing import Literal
 from collections.abc import Callable
-
 from functools import partial
+from typing import Literal
 
 import torch
+from jaxtyping import Bool, Float, Integer
+from torch import Tensor
 
 try:
     import triton
@@ -13,7 +12,8 @@ try:
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+    from torchlinops.utils import fake_tl as tl
+    from torchlinops.utils import fake_triton as triton
 
     TRITON_ENABLED = False
 

@@ -1,13 +1,14 @@
 """Differentiable forms of Grid/Ungrid"""
 
-from typing import Optional, Literal
-from jaxtyping import Inexact, Float
+from typing import Literal, Optional
+
+import torch
+from jaxtyping import Float, Inexact
 from torch import Tensor
 from torch.autograd import Function
 
-import torch
-from .ungrid import ungrid
 from .grid import grid
+from .ungrid import ungrid
 
 __all__ = ["interpolate", "interpolate_adjoint"]
 

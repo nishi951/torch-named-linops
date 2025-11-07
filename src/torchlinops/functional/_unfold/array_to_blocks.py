@@ -1,13 +1,14 @@
 """Differentiable Block/Unblock functions"""
 
-from typing import Optional, Literal
+from typing import Literal, Optional
+
+import torch
 from jaxtyping import Bool
 from torch import Tensor
 from torch.autograd import Function
 
-import torch
-from .unfold import unfold
 from .fold import fold
+from .unfold import unfold
 
 __all__ = ["array_to_blocks", "blocks_to_array"]
 

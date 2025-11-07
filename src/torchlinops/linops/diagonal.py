@@ -1,15 +1,14 @@
-from typing import Optional
-from torch import Tensor
-
 from copy import copy
+from typing import Optional
 from warnings import warn
 
-from einops import repeat
 import torch
 import torch.nn as nn
+from einops import repeat
+from torch import Tensor
 
-from .nameddim import NS, Shape, ANY
-from .namedlinop import NamedLinop, ND
+from .nameddim import ANY, NS, Shape
+from .namedlinop import ND, NamedLinop
 
 __all__ = ["Diagonal"]
 

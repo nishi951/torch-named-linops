@@ -1,7 +1,8 @@
-import pytest
 from math import prod
 
+import pytest
 import torch
+
 import torchlinops.functional as F
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 

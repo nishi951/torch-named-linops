@@ -1,8 +1,6 @@
-from typing import Optional
-
 from copy import copy
 from dataclasses import dataclass
-from typing import Any, Tuple, List
+from typing import Any, List, Optional, Tuple
 
 __all__ = ["ND", "NamedDimension", "ELLIPSES", "ANY", "Dim", "parse_dim_str"]
 

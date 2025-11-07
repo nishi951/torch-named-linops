@@ -1,30 +1,27 @@
-from typing import Optional, Literal
 from collections.abc import Callable
-from jaxtyping import Float, Shaped
-from torch import Tensor
-
 from copy import copy, deepcopy
-from math import prod
 from itertools import product
+from math import prod
+from typing import Literal, Optional
 from warnings import warn
 
 import torch
 import torch.nn as nn
+from jaxtyping import Float, Shaped
+from torch import Tensor
 
-from torchlinops.utils import default_to, cfftn
-
-from .nameddim import NDorStr, ELLIPSES, NS, ND, get_nd_shape, Shape
-from .namedlinop import NamedLinop
+from torchlinops.utils import cfftn, default_to
 from .chain import Chain
 from .dense import Dense
 from .diagonal import Diagonal
-from .scalar import Scalar
-from .pad_last import PadLast
 from .fft import FFT
-from .interp import Interpolate
 from .identity import Identity
+from .interp import Interpolate
+from .nameddim import ELLIPSES, ND, NS, NDorStr, Shape, get_nd_shape
+from .namedlinop import NamedLinop
+from .pad_last import PadLast
 from .sampling import Sampling
-
+from .scalar import Scalar
 
 __all__ = ["NUFFT"]
 

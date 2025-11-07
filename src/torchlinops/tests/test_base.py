@@ -1,9 +1,9 @@
-from typing import Literal
-import pytest
-
 from abc import ABC, abstractmethod
+from typing import Literal
 
+import pytest
 import torch
+
 from torchlinops.utils import inner
 
 

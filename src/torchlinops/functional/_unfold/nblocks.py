@@ -1,8 +1,8 @@
 from typing import Optional
-from jaxtyping import Bool
-from torch import Tensor
 
 import torch
+from jaxtyping import Bool
+from torch import Tensor
 
 __all__ = ["get_nblocks"]
 
@@ -29,9 +29,9 @@ def get_nblocks(
     >>> get_nblocks((10, 10), (8, 8), (4, 4))
     (1, 1)
     """
-    assert len(im_size) == len(
-        block_size
-    ), f"im_size {im_size} and block_size {block_size} don't match"
+    assert len(im_size) == len(block_size), (
+        f"im_size {im_size} and block_size {block_size} don't match"
+    )
     block_stride = block_stride if block_stride is not None else (1,) * len(block_size)
     output = tuple(
         (im - bl) // st + 1 for im, bl, st in zip(im_size, block_size, block_stride)

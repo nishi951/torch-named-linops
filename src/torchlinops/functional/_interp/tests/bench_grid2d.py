@@ -1,14 +1,13 @@
-from math import prod, ceil
+from math import ceil, prod
 
-import torch
 import sigpy as sp
+import torch
 
-from torchlinops.utils.benchmark import benchmark_and_summarize
-from torchlinops.utils._device import device_ordinal
-from torchlinops.utils import to_pytorch, from_pytorch
 from torchlinops.functional import grid
-
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
+from torchlinops.utils import from_pytorch, to_pytorch
+from torchlinops.utils._device import device_ordinal
+from torchlinops.utils.benchmark import benchmark_and_summarize
 
 
 def main():

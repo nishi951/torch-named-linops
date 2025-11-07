@@ -1,14 +1,12 @@
-from typing import Optional, Literal
-
-from pathlib import Path
 import copy
 import gc
 import logging
-
-import torch
+from pathlib import Path
+from typing import Literal, Optional
 
 import cupy as cp
 import numpy as np
+import torch
 from easydict import EasyDict
 
 from ._defaults import default_to

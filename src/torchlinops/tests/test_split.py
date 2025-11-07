@@ -1,7 +1,7 @@
 import pytest
-
 import torch
-from torchlinops import Dense, split_linop, create_batched_linop, BatchSpec
+
+from torchlinops import BatchSpec, Dense, create_batched_linop, split_linop
 
 
 def test_split_linop():

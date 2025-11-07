@@ -1,16 +1,13 @@
-import pytest
 from itertools import product
-
 from math import prod
 
+import pytest
 import torch
 
 from torchlinops import Interpolate
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
-
-from torchlinops.utils import is_adjoint
 from torchlinops.tests.test_base import BaseNamedLinopTests
-
+from torchlinops.utils import is_adjoint
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,

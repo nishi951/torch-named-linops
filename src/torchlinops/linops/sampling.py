@@ -1,15 +1,14 @@
 from typing import Optional
-from torch import Tensor
 
 import torch
 import torch.nn as nn
+from torch import Tensor
 
-from .namedlinop import NamedLinop
-from .nameddim import NDorStr, ELLIPSES, NS, Shape
-from torchlinops.utils import default_to
 import torchlinops.functional as F
 from torchlinops.functional._index.index import ensure_tensor_indexing
-
+from torchlinops.utils import default_to
+from .nameddim import ELLIPSES, NS, NDorStr, Shape
+from .namedlinop import NamedLinop
 
 __all__ = ["Sampling"]
 

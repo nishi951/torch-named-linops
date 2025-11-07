@@ -1,15 +1,12 @@
-import pytest
-
-import torch
 import numpy as np
-
-from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
-from torchlinops import NUFFT, Diagonal, Dense, Dim
-from torchlinops.utils import from_pytorch
-
-from torchlinops.linops.nufft import toeplitz_psf
-
+import pytest
+import torch
 from sigpy.fourier import toeplitz_psf as sp_toeplitz_psf
+
+from torchlinops import NUFFT, Dense, Diagonal, Dim
+from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
+from torchlinops.linops.nufft import toeplitz_psf
+from torchlinops.utils import from_pytorch
 
 
 @pytest.fixture

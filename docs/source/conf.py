@@ -27,6 +27,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
     # "numpydoc",
     # "myst_parser",  # Allow markdown, comment out if myst_nb is enabled
     "myst_nb",  # Execute code blocks in docs
@@ -52,6 +53,9 @@ autodoc_default_options = {
 }
 autosummary_generate = True
 templates_path = ["_templates"]
+
+# Options for viewcode
+viewcode_line_numbers = True
 
 
 # -- Options for HTML output -------------------------------------------------

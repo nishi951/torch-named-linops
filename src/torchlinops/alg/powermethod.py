@@ -1,11 +1,10 @@
-from typing import Callable, Tuple, Optional
-from torch import Tensor
+from typing import Callable, Optional, Tuple
 
 import torch
+from torch import Tensor
 from tqdm import tqdm
 
 from torchlinops.utils import default_to_dict
-
 
 __all__ = ["power_method"]
 

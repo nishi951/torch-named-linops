@@ -1,6 +1,6 @@
-from typing import Any
-from types import SimpleNamespace
 from functools import wraps
+from types import SimpleNamespace
+from typing import Any
 
 __all__ = ["fake_triton", "fake_tl"]
 

@@ -1,16 +1,14 @@
 from typing import Optional
-from jaxtyping import Float
-from torch import Tensor
-
 from warnings import warn
 
 import torch.nn as nn
+from jaxtyping import Float
+from torch import Tensor
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to, default_to_dict
-
-from .namedlinop import NamedLinop
 from .nameddim import ELLIPSES, NS, Shape
+from .namedlinop import NamedLinop
 
 __all__ = ["Interpolate"]
 

@@ -2,25 +2,24 @@
 DOI: https://zenodo.org/badge/latestdoi/452385092I
 """
 
-from typing import Callable, Literal
-
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from typing import Callable, Literal
 
 import numpy as np
 from scipy.special import binom
 from sympy import (
-    symbols,
-    simplify,
-    stationary_points,
+    Float,
     Interval,
     Poly,
-    Float,
     diff,
     integrate,
+    simplify,
+    stationary_points,
+    symbols,
 )
 
-from torchlinops.linops import NamedLinop, Identity
+from torchlinops.linops import Identity, NamedLinop
 
 __all__ = ["polynomial_preconditioner"]
 

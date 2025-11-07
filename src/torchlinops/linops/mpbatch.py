@@ -1,8 +1,7 @@
-from torch import Tensor
-
 from itertools import cycle
 
 import torch
+from torch import Tensor
 from tqdm import tqdm
 
 from .batch import Batch

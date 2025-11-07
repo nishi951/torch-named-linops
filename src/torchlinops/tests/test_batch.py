@@ -1,7 +1,7 @@
 import pytest
-
 import torch
-from torchlinops import Dense, Batch
+
+from torchlinops import Batch, Dense
 
 
 def test_batch_normal_adjoint():

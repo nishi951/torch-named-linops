@@ -2,8 +2,8 @@
 
 from typing import Callable, Mapping, Optional
 
-import torch
 import numpy as np
+import torch
 
 __all__ = [
     "apply_struct",

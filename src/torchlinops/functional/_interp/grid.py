@@ -1,11 +1,10 @@
-from typing import Literal
-from jaxtyping import Shaped, Float, Inexact
-from torch import Tensor
-
 from functools import partial
-from math import prod, ceil
+from math import ceil, prod
+from typing import Literal
 
 import torch
+from jaxtyping import Float, Inexact, Shaped
+from torch import Tensor
 
 try:
     import triton
@@ -13,21 +12,22 @@ try:
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+    from torchlinops.utils import fake_tl as tl
+    from torchlinops.utils import fake_triton as triton
 
     TRITON_ENABLED = False
 
+from ._batch import batch_iterator
 from .kernels import (
+    KernelTypeStr,
+    _apply_default_kernel_params,
+    get_kernel_fn,
+    mod_pos,
     weights1d,
     weights2d,
     weights3d,
     weights_torch,
-    get_kernel_fn,
-    _apply_default_kernel_params,
-    KernelTypeStr,
-    mod_pos,
 )
-from ._batch import batch_iterator
 
 __all__ = ["grid"]
 

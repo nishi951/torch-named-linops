@@ -1,6 +1,6 @@
 import copy
 
-from torchlinops import NamedDimension, ND
+from torchlinops import ND, NamedDimension
 
 
 def test_nameddim():

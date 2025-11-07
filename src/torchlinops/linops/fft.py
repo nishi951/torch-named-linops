@@ -1,11 +1,11 @@
+from copy import deepcopy
 from typing import Optional
 
-from copy import deepcopy
 import torch.fft as fft
 
-from .namedlinop import NamedLinop
-from .nameddim import get_nd_shape, NS, Shape
 from .identity import Identity
+from .nameddim import NS, Shape, get_nd_shape
+from .namedlinop import NamedLinop
 
 
 class FFT(NamedLinop):

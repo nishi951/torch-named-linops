@@ -1,7 +1,8 @@
-import pytest
 from collections import OrderedDict
 
-from torchlinops import NamedShape, NS, ND
+import pytest
+
+from torchlinops import ND, NS, NamedShape
 
 
 def test_getter_setter():
