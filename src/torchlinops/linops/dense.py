@@ -14,7 +14,7 @@ __all__ = ["Dense"]
 
 
 class Dense(NamedLinop):
-    """Dense matrix-vector multiply.
+    r"""Dense matrix-vector multiply.
 
     "Dense" is used to distinguish from "sparse" linear operators. This
     operator performs a matrix-vector multiplication, potentially with batch
