@@ -24,7 +24,7 @@ class Dense(NamedLinop):
 
     .. math::
 
-        y_{o\dots} = \\sum_{i\dots} W_{i\dots, o\dots} x_{i\dots}
+        y_{o\\dots} = \\sum_{i\\dots} W_{i\\dots, o\\dots} x_{i\\dots}
 
     where :math:`x` is the input, :math:`W` is the weight matrix, and
     :math:`y` is the output. :math:`i\dots` and :math:`o\dots` represent
