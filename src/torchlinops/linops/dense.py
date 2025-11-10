@@ -14,11 +14,12 @@ __all__ = ["Dense"]
 
 
 class Dense(NamedLinop):
-    """Dense matrix-vector multiply
+    """Dense matrix-vector multiply.
 
     "Dense" is used to distinguish from "sparse" linear operators. This
     operator performs a matrix-vector multiplication, potentially with batch
     and broadcast dimensions, implemented via :func:`einops.einsum`.
+
     The core operation is:
 
     .. math::
@@ -54,25 +55,11 @@ class Dense(NamedLinop):
     - Output :math:`y` shape: :math:`(C, A_1, N_x, N_y)`
 
     The operation is:
+
     .. math::
 
         y_{c, a_1, n_x, n_y} = \\sum_{a} W_{c, a, a_1} x_{c, a, n_x, n_y}
 
-    """
-
-
-    shape:
-        diag.ioshape = [Nx, Ny]
-        dense.ishape = [A]
-        dense.oshape = [T]
-
-
-    # Diagonal/elementwise dimensions
-    # Einsum can infer which dims are shared (literally the point of
-    # the summation notation)
-    x: [C, A, Nx, Ny]
-    weight: [C, A, A1]
-    oshape: [C, A1, Nx, Ny]
     """
 
     def __init__(
