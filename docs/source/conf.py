@@ -41,7 +41,7 @@ myst_enable_extensions = [
     "colon_fence",
 ]
 
-# Options for autodoc
+# Options for autodoc/autosummary
 # Prevent inheriting from torch base modules
 autodoc_inherit_docstrings = False
 autodoc_default_options = {
@@ -52,11 +52,11 @@ autodoc_default_options = {
     "show-inheritance": False,
 }
 autosummary_generate = True
+add_module_names = False
 templates_path = ["_templates"]
 
 # Options for viewcode
-viewcode_line_numbers = True
-
+viewcode_line_numbers = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

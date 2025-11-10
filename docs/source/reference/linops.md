@@ -2,17 +2,19 @@
 
 ## Operations
 ```{eval-rst}
+.. currentmodule:: torchlinops
+
 .. autosummary::
     :toctree: generated/linops
     :template: linop_template.rst
     :nosignatures:
 
-    torchlinops.ArrayToBlocks
-    torchlinops.Dense
-    torchlinops.Diagonal
-    torchlinops.FFT
-    torchlinops.NUFFT
-    torchlinops.PadLast
+    ArrayToBlocks
+    Dense
+    Diagonal
+    FFT
+    NUFFT
+    PadLast
 
 ```
 
@@ -22,10 +24,10 @@
    :template: linop_template.rst
    :nosignatures:
 
-   torchlinops.Add
-   torchlinops.Chain
-   torchlinops.Concat
-   torchlinops.Stack
+   Add
+   Chain
+   Concat
+   Stack
 ```
 
 ## Other
@@ -35,6 +37,6 @@
    :template: linop_template.rst
    :nosignatures:
 
-   torchlinops.BreakpointLinop
-   torchlinops.ToDevice
+   BreakpointLinop
+   ToDevice
 ```
