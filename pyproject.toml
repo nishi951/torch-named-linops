@@ -11,7 +11,7 @@ dependencies = [
     # Torch on mac (intel)
     "torch>1.13,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "torchvision<0.22.1; sys_platform == 'darwin' and platform_machine == 'x86_64'",
-    "torchaudio>1.13,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "torchaudio>2.9,<3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     # Torch on other platforms
     "torch>=2.5.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "torchvision>=0.20.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
