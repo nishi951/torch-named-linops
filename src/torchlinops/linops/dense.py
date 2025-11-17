@@ -24,7 +24,7 @@ class Dense(NamedLinop):
 
     .. math::
 
-        y_{o\\dots} = \\sum_{i\\dots} W_{i\\dots, o\\dots} x_{i\\dots}
+        y_{o\dots} = \sum_{i\dots} W_{i\dots, o\dots} x_{i\dots}
 
     where :math:`x` is the input, :math:`W` is the weight matrix, and
     :math:`y` is the output. :math:`i\dots` and :math:`o\dots` represent
@@ -45,7 +45,7 @@ class Dense(NamedLinop):
 
     .. math::
 
-        y_{t, n_x, n_y} = \\sum_{a} W_{a, t} x_{a, n_x, n_y}
+        y_{t, n_x, n_y} = \sum_{a} W_{a, t} x_{a, n_x, n_y}
 
     Another example with a batch dimension :math:`C` shared between input
     and weights:
@@ -58,7 +58,7 @@ class Dense(NamedLinop):
 
     .. math::
 
-        y_{c, a_1, n_x, n_y} = \\sum_{a} W_{c, a, a_1} x_{c, a, n_x, n_y}
+        y_{c, a_1, n_x, n_y} = \sum_{a} W_{c, a, a_1} x_{c, a, n_x, n_y}
 
     """
 
@@ -156,7 +156,7 @@ class Dense(NamedLinop):
         oshape: [C2 A]
         wshape = [C C2]
 
-        einsum(weight.conj(), weight, 'C1 C2, C C1 -> C C2)
+        einsum(weight.conj(), weight, 'C1 C2, C C1 -> C C2')
 
 
         """
