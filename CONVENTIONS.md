@@ -1,0 +1,2 @@
+- Use python types where possible
+- Use numpy-style docstrings
