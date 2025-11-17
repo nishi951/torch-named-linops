@@ -20,3 +20,6 @@ pyrightconfig.json
 
 # Custom scripts
 activate
+
+# Agentic
+.aider*
