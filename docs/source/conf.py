@@ -64,9 +64,9 @@ viewcode_line_numbers = False
 html_static_path = ["_static"]
 html_theme = "sphinx_immaterial"
 html_title = "torch-named-linops"
-html_theme_options = {
-    "sidebar_hide_name": False,
-}
-html_css_files = ["codecells.css"]
+# html_theme_options = {
+#     "sidebar_hide_name": False,
+# }
+html_css_files = ["css/codecells.css"]
 # html_css_files = []
 nb_render_plugin = "default"

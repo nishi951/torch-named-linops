@@ -50,7 +50,7 @@ dev = [
     "ruff>=0.8.4",
     "sphinx>=8.0",
     "sphinx-autobuild>=2024.10.3",
-    "sphinx-immaterial>=0.13.6",
+    "sphinx-immaterial>=0.13.8",
 ]
 sigpy = [
     "numba>=0.60.0",
