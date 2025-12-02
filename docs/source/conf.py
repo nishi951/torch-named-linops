@@ -63,7 +63,13 @@ viewcode_line_numbers = False
 
 html_static_path = ["_static"]
 html_theme = "sphinx_immaterial"
-html_title = "torch-named-linops"
+html_title = "Torch Named Linops"
+html_logo = "_static/logo.svg"
+html_theme_options = {
+    "repo_url": "https://github.com/nishi951/torch-named-linops",
+    "repo_name": " ",  # Only show logo
+    "icon": {"repo": "fontawesome/brands/github"},
+}
 # html_theme_options = {
 #     "sidebar_hide_name": False,
 # }
