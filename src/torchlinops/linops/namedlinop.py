@@ -16,7 +16,7 @@ import torchlinops
 import torchlinops.config as config
 from torchlinops.utils import (
     INDENT,
-    check_signature,
+    check_signature,  # TODO Deprecate
     memory_aware_deepcopy,
     memory_aware_to,
 )

@@ -36,6 +36,7 @@ classifiers = [
 
 [dependency-groups]
 dev = [
+    "bandit>=1.9.2",
     "ipykernel>=6.29.5",
     "isort>=6.0.1",
     "jupyterlab>=4.4.3",
@@ -116,3 +117,9 @@ packages = ["src/torchlinops"]
 
 [tool.hatch.version]
 path = "src/torchlinops/__init__.py"
+
+[tool.bandit]
+exclude = ["**/tests/*"]
+skips = [
+    "B101" # Asserts
+]
