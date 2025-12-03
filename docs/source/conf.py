@@ -41,7 +41,7 @@ exclude_patterns = []
 myst_enable_extensions = [
     "colon_fence",
     "dollarmath",  # Enable $...$ and $$...$$ syntax
-    "amsmath",     # Enable LaTeX math environments like \begin{align}...\end{align}
+    "amsmath",  # Enable LaTeX math environments like \begin{align}...\end{align}
 ]
 
 # Options for autodoc/autosummary
@@ -63,7 +63,6 @@ viewcode_line_numbers = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
 html_static_path = ["_static"]
 html_theme = "sphinx_immaterial"
 html_title = "Torch Named Linops"
@@ -72,6 +71,8 @@ html_theme_options = {
     "repo_url": "https://github.com/nishi951/torch-named-linops",
     "repo_name": " ",  # Only show logo
     "icon": {"repo": "fontawesome/brands/github"},
+    "globaltoc_depth": 2,
+    "globaltoc_collapse": False,
 }
 # html_theme_options = {
 #     "sidebar_hide_name": False,
