@@ -71,7 +71,6 @@ html_theme_options = {
     "repo_url": "https://github.com/nishi951/torch-named-linops",
     "repo_name": " ",  # Only show logo
     "icon": {"repo": "fontawesome/brands/github"},
-    "globaltoc_depth": 2,
     "globaltoc_collapse": False,
 }
 # html_theme_options = {
