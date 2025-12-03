@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "sphinx.ext.mathjax",  # Enable MathJax for math rendering
     # "numpydoc",
     # "myst_parser",  # Allow markdown, comment out if myst_nb is enabled
     "myst_nb",  # Execute code blocks in docs
@@ -39,6 +40,8 @@ exclude_patterns = []
 
 myst_enable_extensions = [
     "colon_fence",
+    "dollarmath",  # Enable $...$ and $$...$$ syntax
+    "amsmath",     # Enable LaTeX math environments like \begin{align}...\end{align}
 ]
 
 # Options for autodoc/autosummary
