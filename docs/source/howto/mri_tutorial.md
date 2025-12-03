@@ -3,7 +3,7 @@ file_format: mystnb
 kernelspec:
   name: python3
 ---
-# MRI Reconstruction with torchlinops
+# MRI Reconstruction
 
 This guide demonstrates how to perform MRI reconstruction using torchlinops with three key components:
 - **NUFFT**: Non-uniform Fast Fourier Transform for radial sampling
@@ -97,7 +97,7 @@ print(f"Forward: {test_image.shape} -> {kspace_test.shape}")
 print(f"Adjoint: {kspace_test.shape} -> {image_test_adj.shape}")
 ```
 
-## Component 2: Coil Sensitivities (Dense Operator)
+## Component 2: Coil Sensitivities (Diagonal Operator)
 
 ```{code-cell} python
 # Generate Gaussian coil sensitivity maps
@@ -105,17 +105,19 @@ coil_sens = generate_gaussian_coil_sensitivities(image_size, num_coils)
 print(f"Coil sensitivities shape: {coil_sens.shape}")  # Should be (num_coils, Nx, Ny)
 
 # Create Dense operator for coil encoding
-# Dense is used because coil sensitivities multiply each coil differently
 coil_op = Dense(
     weight=coil_sens,
-    weight_shape=Dim("CNxy"),  # Coil × Image dimensions
-    ishape=Dim("Nxy"),         # Input image dimensions
-    oshape=Dim("CNxy")         # Output multi-coil image dimensions
+    weight_shape=Dim("CNxNy"),  # Coil × Image dimensions
+    ishape=Dim("NxNy"),         # Input image dimensions
+    oshape=Dim("CNxNy")         # Output multi-coil image dimensions
 )
 
 # Test coil encoding
-multi_coil_image = coil_op(x_true)
-print(f"Coil encoding: {x_true.shape} -> {multi_coil_image.shape}")
+# Dense operator needs proper input handling for multi-coil encoding
+# We need to expand the single-coil image for Dense to work properly
+x_expanded = x_true.unsqueeze(0).expand(num_coils, -1, -1)
+multi_coil_image = coil_op(x_expanded)
+print(f"Coil encoding: {x_expanded.shape} -> {multi_coil_image.shape}")
 ```
 
 ## Component 3: Density Compensation (Diagonal Operator)
@@ -144,7 +146,9 @@ print(f"Density compensation: {kspace_test.shape} -> {kspace_compensated.shape}"
 forward_model = density_op @ nufft_op @ coil_op
 
 # Simulate k-space data from ground truth image
-kspace_data = forward_model(x_true)
+# Need to expand single-coil image to multi-coil for coil encoding
+x_expanded = x_true.unsqueeze(0).expand(num_coils, -1, -1)
+kspace_data = forward_model(x_expanded)
 
 # Add realistic noise
 noise = torch.randn_like(kspace_data) * noise_level
@@ -158,12 +162,13 @@ print(f"Data SNR estimate: {20 * torch.log10(torch.norm(kspace_data) / torch.nor
 
 ```{code-cell} python
 # Create normal operator A^H A for least-squares reconstruction
-A_normal = forward_model.N()
+A_normal = forward_model.N  # Access property, not call method
 
 # Compute RHS: A^H y
 rhs = forward_model.H(kspace_noisy)
 
 # Solve A^H A x = A^H y using conjugate gradients
+# Note: A_normal is a NamedLinop which is callable, so we can pass it directly
 x_recon = conjugate_gradients(
     A=A_normal,
     y=rhs,
@@ -215,8 +220,35 @@ def generate_radial_trajectory(num_spokes, num_readouts, grid_size):
     torch.Tensor
         K-space locations with shape (num_spokes * num_readouts, 2)
     """
-    # Implementation to be filled later
-    pass
+    Nx, Ny = grid_size
+    max_radius = min(Nx, Ny) // 2
+    
+    # Generate angles for each spoke (evenly distributed around circle)
+    # Note: endpoint=False not available in older PyTorch, so we exclude last point manually
+    angles = torch.linspace(0, 2 * torch.pi, num_spokes + 1)[:-1]
+    
+    # Generate readout positions (from -max_radius to +max_radius)
+    readout_pos = torch.linspace(-max_radius, max_radius, num_readouts)
+    
+    # Initialize trajectory
+    locs = torch.zeros(num_spokes * num_readouts, 2)
+    
+    # Fill trajectory
+    for i, angle in enumerate(angles):
+        start_idx = i * num_readouts
+        end_idx = (i + 1) * num_readouts
+        
+        # Convert to Cartesian coordinates
+        x = readout_pos * torch.cos(angle)
+        y = readout_pos * torch.sin(angle)
+        
+        locs[start_idx:end_idx, 0] = x
+        locs[start_idx:end_idx, 1] = y
+    
+    # Normalize to [-0.5, 0.5] range (standard for NUFFT)
+    locs = locs / (2 * max_radius)
+    
+    return locs
 
 def generate_gaussian_coil_sensitivities(grid_size, num_coils):
     """Generate Gaussian coil sensitivity maps.
@@ -233,8 +265,33 @@ def generate_gaussian_coil_sensitivities(grid_size, num_coils):
     torch.Tensor
         Coil sensitivity maps with shape (num_coils, Nx, Ny)
     """
-    # Implementation to be filled later
-    pass
+    Nx, Ny = grid_size
+    
+    # Create coordinate grids
+    x = torch.linspace(-0.5, 0.5, Nx)
+    y = torch.linspace(-0.5, 0.5, Ny)
+    X, Y = torch.meshgrid(x, y, indexing="ij")
+    
+    # Initialize coil sensitivities
+    coil_sens = torch.zeros(num_coils, Nx, Ny, dtype=torch.complex64)
+    
+    # Generate Gaussian sensitivities with different centers
+    for c in range(num_coils):
+        # Place coil centers around the image in a circular pattern
+        angle = 2 * torch.pi * c / num_coils
+        center_x = 0.3 * torch.cos(torch.tensor(angle))
+        center_y = 0.3 * torch.sin(torch.tensor(angle))
+        
+        # Create Gaussian sensitivity profile
+        sigma = 0.25  # Width of Gaussian
+        gaussian = torch.exp(-((X - center_x)**2 + (Y - center_y)**2) / (2 * sigma**2))
+        
+        # Add phase variation for more realistic coil sensitivities
+        phase = torch.exp(1j * 2 * torch.pi * (0.1 * X + 0.1 * Y))
+        
+        coil_sens[c] = gaussian * phase
+    
+    return coil_sens
 
 def analytic_radial_dcf(locs, grid_size):
     """Compute analytic density compensation for radial trajectories.
@@ -251,6 +308,19 @@ def analytic_radial_dcf(locs, grid_size):
     torch.Tensor
         Density compensation weights with shape (N,)
     """
-    # Implementation to be filled later
-    pass
+    Nx, Ny = grid_size
+    
+    # Compute radius for each k-space location
+    radius = torch.sqrt(locs[:, 0]**2 + locs[:, 1]**2)
+    
+    # For radial trajectories, density is proportional to radius
+    # This is because outer regions have fewer samples per unit area
+    # The analytic DCF for radial is: dcf = radius
+    # We add a small constant to avoid division by zero at center
+    dcf = radius + 1e-6
+    
+    # Normalize to have unit mean
+    dcf = dcf / torch.mean(dcf)
+    
+    return dcf
 ```

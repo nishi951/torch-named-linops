@@ -66,13 +66,14 @@ Check them out!
 - [linear_operator](https://github.com/cornellius-gp/linear_operator)
 
 
+
 ```{toctree}
-:maxdepth: 1
+:tocdepth: 0
 :hidden:
 
 installation
 getting_started
-how_to
+howto/how_to
 reference/api
 explanations/design_notes
 why_this_package
