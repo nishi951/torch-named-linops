@@ -1,0 +1,101 @@
+site_name: Torch Named Linops
+site_dir: _site
+repo_url: https://github.com/nishi951/torch-named-linops
+repo_name: torch-named-linops
+site_description: A flexible linear operator abstraction in pytorch.
+copyright: Copyright &copy; 2025 Mark Nishimura
+
+theme:
+  name: material
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/logo_dark.svg
+  favicon: assets/favicon.svg
+
+extra_css:
+  - assets/css/logo.css
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+  - gallery:
+      examples_dirs: tutorials
+      gallery_dirs: docs/tutorials
+      filename_pattern: .py
+  - gen-files:
+      scripts:
+        - docs/gen_ref_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - admonition
+  - attr_list
+  - md_in_html
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Getting Started: getting_started.md
+  - Tutorials: tutorials/index.md
+  - How-To Guides:
+      - howto/how_to.md
+      - howto/mri_tutorial.md
+  - Reference:
+      - API Overview: reference/api.md
+      - Linear Operators: reference/linops.md
+      - Algorithms: reference/algorithms.md
+      - Utils: reference/utils.md
+  - Explanations:
+      - explanations/design_notes.md
+      - explanations/copying_linops.md
+      - explanations/multi_gpu.md
+  - FAQ: faq.md
+  - Why this package?: why_this_package.md

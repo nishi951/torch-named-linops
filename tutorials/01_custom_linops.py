@@ -1,7 +1,8 @@
-# Tutorials
+"""
+# Custom Linops
 
-### Custom Linops
 Custom linops should satisfy the following:
+
 - `@staticmethod` `.fn()`, `.adj_fn()`, and `.normal_fn()`
   - Allows for swapping of functions rather than `bound_methods` in `adjoint()`.
 - Calling the constructor of itself via `type(self)` inside `.split_forward()`.
@@ -12,4 +13,4 @@ Custom linops should satisfy the following:
 - Use of `super().__init__(NS(ishape, oshape))` in the constructor.
   - This initializes the linop's shape
   - May change later to not require `NS`
-
+"""

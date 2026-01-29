@@ -1,8 +1,3 @@
----
-file_format: mystnb
-kernelspec:
-  name: python3
----
 # MRI Reconstruction
 
 This guide demonstrates how to perform MRI reconstruction using torchlinops with three key components:
@@ -32,7 +27,7 @@ where $A = E F S$ is the combined forward operator.
 
 ## Setup and Imports
 
-```{code-cell} python
+```python
 import torch
 from torchlinops import Dense, Diagonal, NUFFT, Dim
 from torchlinops.alg import conjugate_gradients
@@ -50,7 +45,7 @@ noise_level = 0.01       # Additive noise level
 
 ## Generate Ground Truth Image
 
-```{code-cell} python
+```python
 # Create a simple phantom image
 Nx, Ny = image_size
 x_true = torch.zeros(Nx, Ny, dtype=torch.complex64)
@@ -74,7 +69,7 @@ print(f"Ground truth image shape: {x_true.shape}")
 
 ## Component 1: Radial Trajectory and NUFFT
 
-```{code-cell} python
+```python
 # Generate radial k-space trajectory
 locs = generate_radial_trajectory(num_spokes, num_readouts, image_size)
 print(f"Trajectory shape: {locs.shape}")  # Should be (num_spokes * num_readouts, 2)
@@ -99,7 +94,7 @@ print(f"Adjoint: {kspace_test.shape} -> {image_test_adj.shape}")
 
 ## Component 2: Coil Sensitivities (Diagonal Operator)
 
-```{code-cell} python
+```python
 # Generate Gaussian coil sensitivity maps
 coil_sens = generate_gaussian_coil_sensitivities(image_size, num_coils)
 print(f"Coil sensitivities shape: {coil_sens.shape}")  # Should be (num_coils, Nx, Ny)
@@ -122,7 +117,7 @@ print(f"Coil encoding: {x_expanded.shape} -> {multi_coil_image.shape}")
 
 ## Component 3: Density Compensation (Diagonal Operator)
 
-```{code-cell} python
+```python
 # Compute analytic density compensation for radial trajectories
 dcf_weights = analytic_radial_dcf(locs, image_size)
 print(f"Density weights shape: {dcf_weights.shape}")
@@ -141,7 +136,7 @@ print(f"Density compensation: {kspace_test.shape} -> {kspace_compensated.shape}"
 
 ## Complete Forward Model
 
-```{code-cell} python
+```python
 # Combine all operators: A = density_comp @ nufft @ coil_sens
 forward_model = density_op @ nufft_op @ coil_op
 
@@ -160,7 +155,7 @@ print(f"Data SNR estimate: {20 * torch.log10(torch.norm(kspace_data) / torch.nor
 
 ## Iterative Reconstruction
 
-```{code-cell} python
+```python
 # Create normal operator A^H A for least-squares reconstruction
 A_normal = forward_model.N  # Access property, not call method
 
@@ -186,7 +181,7 @@ print(f"Relative reconstruction error: {recon_error:.4f}")
 
 ## Results Summary
 
-```{code-cell} python
+```python
 # Print summary statistics
 print("=== MRI Reconstruction Summary ===")
 print(f"Image size: {image_size}")
@@ -202,7 +197,7 @@ print(f"Relative reconstruction error: {recon_error:.4f}")
 
 The following helper functions are used in this tutorial. You can reference them later if you need to understand the implementation details.
 
-```{code-cell} python
+```python
 def generate_radial_trajectory(num_spokes, num_readouts, grid_size):
     """Generate radial k-space trajectory.
     

@@ -1,8 +1,3 @@
-% torchlinops documentation master file, created by
-% sphinx-quickstart on Fri Feb 16 01:34:36 2024.
-% You can adapt this file completely to your liking, but it should at least
-% contain the root `toctree` directive.
-
 # torch-named-linops
 
 Welcome to the documentation for `torch-named-linops`, a linear operator
@@ -64,19 +59,4 @@ Check them out!
 - [torch_linops](https://github.com/cvxgrp/torch_linops)
 - [PyLops](https://pylops.readthedocs.io/en/stable/)
 - [linear_operator](https://github.com/cornellius-gp/linear_operator)
-
-
-
-```{toctree}
-:tocdepth: 0
-:hidden:
-
-installation
-getting_started
-howto/how_to
-reference/api
-explanations/design_notes
-why_this_package
-faq
-```
 

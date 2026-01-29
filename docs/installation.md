@@ -9,18 +9,17 @@ $ uv add torch-named-linops
 $ pip install torch-named-linops
 ```
 
-:::{note}
-Cupy doesn't like `nccl` dependencies installed as wheels from pip. Importing
-cupy the first time will present an import error with a python command that can
-be used to manually install the nccl library, e.g. (for cuda 12.x - replace with
-relevant cuda version)
+!!! note
+    Cupy doesn't like `nccl` dependencies installed as wheels from pip. Importing
+    cupy the first time will present an import error with a python command that can
+    be used to manually install the nccl library, e.g. (for cuda 12.x - replace with
+    relevant cuda version)
+    
+    ```console
+    $ python -m cupyx.tools.install_library --library nccl --cuda 12.x
+    ```
 
-```console
-$ python -m cupyx.tools.install_library --library nccl --cuda 12.x
-```
-
-For more up-to-date info, can follow the issue [here](https://github.com/cupy/cupy/issues/8227).
-:::
+    For more up-to-date info, can follow the issue [here](https://github.com/cupy/cupy/issues/8227).
 ## Installing from source (development)
 Clone the repo, then choose from the following:
 
@@ -42,7 +41,3 @@ This will install the library in
     - Careful doing this, as [sigpy](https://github.com/mikgroup/sigpy) might not like certain package versions of things.
   - `[all]` - installs all optional dependencies!
 
-```{toctree}
-:maxdepth: 1
-:hidden:
-```
