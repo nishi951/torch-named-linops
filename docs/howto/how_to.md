@@ -11,9 +11,3 @@ This section contains practical guides for using torchlinops in various applicat
 
 ---
 
-```{toctree}
-:tocdepth: 0
-:hidden:
-
-mri_tutorial
-```
