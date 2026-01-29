@@ -54,6 +54,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "ruff>=0.8.4",
     "pyqt6>=6.10.2",
+    "mkdocs-macros-plugin>=1.5.0",
 ]
 sigpy = [
     "numba>=0.60.0",

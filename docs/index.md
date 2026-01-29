@@ -1,4 +1,9 @@
-# torch-named-linops
+# Torch Named Linops
+
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/nishi951/torch-named-linops/test-python.yml)](https://github.com/nishi951/torch-named-linops/actions/workflows/test-python.yml)
+[![Codecov](https://img.shields.io/codecov/c/github/nishi951/torch-named-linops)](https://app.codecov.io/gh/nishi951/torch-named-linops)
+[![PyPI - Version](https://img.shields.io/pypi/v/torch-named-linops)](https://pypi.org/project/torch-named-linops/)
+[![GitHub License](https://img.shields.io/github/license/nishi951/torch-named-linops)](https://www.apache.org/licenses/LICENSE-2.0)
 
 Welcome to the documentation for `torch-named-linops`, a linear operator
 abstraction designed for matrix-free, large-scale numerical computing,
