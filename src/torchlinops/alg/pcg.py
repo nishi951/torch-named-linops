@@ -20,7 +20,7 @@ def conjugate_gradients(
     ltol: float = 1e-5,
     disable_tracking: bool = False,
     tqdm_kwargs: Optional[dict] = None,
-):
+) -> Tensor | None:
     """Solve Ax = y with conjugate gradients.
 
     A is a positive semidefinite matrix.

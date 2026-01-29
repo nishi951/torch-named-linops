@@ -1,4 +1,3 @@
-"""
 # Custom Linops
 
 Custom linops should satisfy the following:
@@ -13,4 +12,3 @@ Custom linops should satisfy the following:
 - Use of `super().__init__(NS(ishape, oshape))` in the constructor.
   - This initializes the linop's shape
   - May change later to not require `NS`
-"""
