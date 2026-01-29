@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from copy import copy
 from typing import Optional
 
@@ -11,7 +11,7 @@ from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
 from .add import Add
 from .identity import Zero
-from .nameddim import ELLIPSES, ND, NS, NDorStr, isequal
+from .nameddim import ELLIPSES, ND, NS, Shape, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Stack"]
@@ -49,9 +49,9 @@ class Stack(NamedLinop):
 
     def __init__(
         self,
-        *linops,
-        idim_and_idx: Optional[tuple[NDorStr, int]] = (None, None),
-        odim_and_idx: Optional[tuple[NDorStr, int]] = (None, None),
+        *linops: NamedLinop,
+        idim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
+        odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
     ):
         """
         stack_input_dim / stack_output_dim : int
@@ -132,14 +132,15 @@ class Stack(NamedLinop):
             y += linop(xi)
         return y
 
-    def size(self, dim):
+    def size(self, dim) -> int | None:
         return self.size_fn(dim)
 
     def size_fn(self, dim, /):
         if dim == self.idim or dim == self.odim:
             return len(self.linops)
         else:
-            return self.linops[0].size(dim)
+            # https://github.com/pytorch/pytorch/issues/80821
+            return self.linops[0].size(dim)  # type: ignore
 
     def split_forward(self, ibatch, obatch):
         """Split stack linop"""
@@ -154,8 +155,6 @@ class Stack(NamedLinop):
         if len(linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
             return Zero(self.ishape, self.oshape)
-            # elif len(output_linop_idxs) == 1:
-            # else:
         linop_idxs = sorted(list(linop_idxs))
         output_linops = []
         # Remove stack dims from slice batch
@@ -281,7 +280,7 @@ class Stack(NamedLinop):
         return new_idim, new_odim
 
     @staticmethod
-    def _check_linop_compatibility(linops: list[NamedLinop]):
+    def _check_linop_compatibility(linops: tuple[NamedLinop, ...]):
         """Ensure linops can actually be concatenated along the requested dimension"""
         target_shape = linops[0].shape
         for linop in linops:

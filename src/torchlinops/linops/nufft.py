@@ -17,7 +17,7 @@ from .diagonal import Diagonal
 from .fft import FFT
 from .identity import Identity
 from .interp import Interpolate
-from .nameddim import ELLIPSES, ND, NS, NDorStr, Shape, get_nd_shape
+from .nameddim import ELLIPSES, ND, NS, Shape, get_nd_shape
 from .namedlinop import NamedLinop
 from .pad_last import PadLast
 from .sampling import Sampling
@@ -46,7 +46,9 @@ class NUFFT(Chain):
         Parameters
         ----------
         locs : Tensor, float
-            Shape [... D] Tensor where last dimension is the spatial dimension
+            Shape [... D] Tensor where last dimension is the spatial dimension.
+            locs[..., i] Should be in the range [-N//2, N//2] where N is the grid_size[i], i.e.
+            the grid size associated with that dimension
         grid_size : tuple of ints
             The expected spatial dimension of the input tensor.
         output_shape : Shape

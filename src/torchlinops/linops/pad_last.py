@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from torchlinops.utils import default_to
 from .identity import Identity
-from .nameddim import ND, NS, NDorStr, Shape, get_nd_shape
+from .nameddim import ND, NS, Shape, get_nd_shape
 from .namedlinop import NamedLinop
 
 __all__ = ["PadLast"]
