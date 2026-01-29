@@ -1,17 +1,16 @@
 import traceback
 from collections.abc import Callable
 from pprint import pformat
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
-from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import Self
 
-from torchlinops.utils import INDENT, batch_iterator, dict_product
+from torchlinops.utils import INDENT, dict_product
 from .identity import ShapeSpec
-from .nameddim import ND, NS, Shape
+from .nameddim import NS, Shape
 from .namedlinop import NamedLinop
 from .split import split_linop
 

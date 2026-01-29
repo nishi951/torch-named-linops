@@ -1,13 +1,12 @@
 from copy import copy
 from typing import Optional
-from warnings import warn
 
 import torch.nn as nn
 from torch import Tensor
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to
-from .nameddim import ELLIPSES, NS, Shape
+from .nameddim import NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["ArrayToBlocks", "BlocksToArray"]

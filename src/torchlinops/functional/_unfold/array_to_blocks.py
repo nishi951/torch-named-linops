@@ -1,6 +1,6 @@
 """Differentiable Block/Unblock functions"""
 
-from typing import Literal, Optional
+from typing import Optional
 
 import torch
 from jaxtyping import Bool

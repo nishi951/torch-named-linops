@@ -1,9 +1,5 @@
 from typing import Optional
 
-import torch
-from jaxtyping import Bool
-from torch import Tensor
-
 __all__ = ["get_nblocks"]
 
 

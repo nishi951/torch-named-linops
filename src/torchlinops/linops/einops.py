@@ -3,11 +3,10 @@ from copy import copy, deepcopy
 from typing import Optional
 from warnings import warn
 
-import torch
 from einops import rearrange, reduce, repeat
 
 from .identity import Identity
-from .nameddim import ND, NS, NamedShape, Shape
+from .nameddim import NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = [

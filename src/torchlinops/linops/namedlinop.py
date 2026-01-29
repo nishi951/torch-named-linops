@@ -1,11 +1,9 @@
 import logging
 import traceback
-import types
-from collections import defaultdict
 from collections.abc import Mapping
 from copy import copy, deepcopy
 from functools import partial
-from typing import Any, Optional
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -14,11 +12,9 @@ from torch.cuda import Event, Stream
 
 import torchlinops
 import torchlinops.config as config
-from torchlinops.utils import check_signature  # TODO Deprecate
 from torchlinops.utils import INDENT, memory_aware_deepcopy, memory_aware_to
-from .nameddim import NS, Shape
 from .nameddim import NamedDimension as ND
-from .nameddim import NamedShape
+from .nameddim import NamedShape, Shape
 
 __all__ = ["NamedLinop"]
 

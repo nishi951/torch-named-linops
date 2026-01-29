@@ -1,10 +1,8 @@
-from copy import copy, deepcopy
 from typing import Optional
 
 import torch.nn.functional as F
 
 from torchlinops.utils import default_to
-from .identity import Identity
 from .nameddim import ND, NS, Shape, get_nd_shape
 from .namedlinop import NamedLinop
 

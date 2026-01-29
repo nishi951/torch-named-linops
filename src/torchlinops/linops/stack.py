@@ -1,17 +1,16 @@
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from copy import copy
 from typing import Optional
 
 import torch
 import torch.nn as nn
-from jaxtyping import Integer
 from torch import Tensor
 
 from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
 from .add import Add
 from .identity import Zero
-from .nameddim import ELLIPSES, ND, NS, Shape, isequal
+from .nameddim import ND, NS, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Stack"]
