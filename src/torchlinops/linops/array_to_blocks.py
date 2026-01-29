@@ -6,7 +6,8 @@ from torch import Tensor
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to
-from .nameddim import NS, Shape
+
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["ArrayToBlocks", "BlocksToArray"]

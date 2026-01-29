@@ -3,8 +3,9 @@ from typing import Optional
 import torch
 
 from torchlinops.utils import default_to
+
 from .diagonal import Diagonal
-from .nameddim import Shape
+from ..nameddim import Shape
 
 __all__ = ["Scalar"]
 

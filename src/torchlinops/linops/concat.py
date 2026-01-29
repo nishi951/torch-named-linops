@@ -6,9 +6,10 @@ import torch.nn as nn
 from torch import Tensor
 
 from torchlinops.utils import INDENT
+
+from ..nameddim import ELLIPSES, NamedDimension as ND, NamedShape as NS, isequal
 from .add import Add
 from .identity import Zero
-from .nameddim import ELLIPSES, ND, NS, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Concat"]

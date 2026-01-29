@@ -1,32 +1,15 @@
-from collections.abc import Iterable
-from typing import Optional
+from collections import OrderedDict
+from collections.abc import Iterable, Sequence
+from copy import copy
+from typing import Optional, Union
 
 from ._matching import isequal
-from ._nameddim import ND
+from ._nameddim import NamedDimension as ND
 from ._nameddimcollection import NamedDimCollection
 
-__all__ = ["NS", "NamedShape", "Shape"]
+__all__ = ["NamedShape", "Shape"]
 
 Shape = Iterable[ND | str]
-
-
-def NS(
-    ishape: Optional[Shape] = None,
-    oshape: Optional[Shape] = None,
-    **additional_shapes,
-):
-    """
-    If shape is empty, use tuple(), not None
-    """
-    if ishape is None:
-        shape = NamedShape(ishape=("...",), oshape=("...",), **additional_shapes)
-    elif oshape is None:
-        if isinstance(ishape, NamedShape):
-            return ishape
-        shape = NamedShape(ishape=ishape, oshape=ishape, **additional_shapes)
-    else:
-        shape = NamedShape(ishape=ishape, oshape=oshape, **additional_shapes)
-    return shape
 
 
 class NamedShape(NamedDimCollection):
@@ -36,8 +19,25 @@ class NamedShape(NamedDimCollection):
     """
 
     def __init__(
-        self, ishape: Iterable[ND | str], oshape: Iterable[ND | str], **other_shapes
+        self,
+        ishape: Optional["Shape | NamedShape"],
+        oshape: Optional[Shape] = None,
+        **other_shapes,
     ):
+        # Pass-through
+        if isinstance(ishape, type(self)):
+            super().__init__(**ishape.shapes)
+            return
+
+        if oshape is None:
+            if ishape is None:
+                # Empty shape
+                oshape = ("...",)
+            else:
+                # Diagonal
+                oshape = ishape
+        if ishape is None:
+            ishape = ("...",)
         super().__init__(ishape=ishape, oshape=oshape, **other_shapes)
 
     @property

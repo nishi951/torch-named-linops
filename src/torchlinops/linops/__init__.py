@@ -12,7 +12,6 @@ from .fft import *
 from .identity import *
 from .interp import *
 from .mpbatch import *
-from .nameddim import *
 from .namedlinop import *
 from .nufft import *
 from .pad_last import *

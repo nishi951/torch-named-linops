@@ -1,7 +1,9 @@
-from typing import Iterable, List, Mapping, Tuple
+from collections import OrderedDict
+from copy import copy
+from typing import Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 from ._matching import iscompatible
-from ._nameddim import ANY, ELLIPSES, ND, NamedDimension
+from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
 
 __all__ = ["NamedDimCollection"]
 
@@ -148,8 +150,8 @@ class NamedDimCollection:
     def _update_shape(self, oldshape_name, newshape):
         """Update some shape with a new shape"""
         oldshape = self._lookup(oldshape_name)
-        if isinstance(oldshape, NamedDimension):  # Updating a Singleton
-            if not isinstance(newshape, NamedDimension):
+        if isinstance(oldshape, ND):  # Updating a Singleton
+            if not isinstance(newshape, ND):
                 raise ValueError(
                     f"Trying to update singleton shape {oldshape_name} with non-singleton {newshape}"
                 )

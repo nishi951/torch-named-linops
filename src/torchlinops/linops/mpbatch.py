@@ -22,6 +22,7 @@ class MPBatch(Batch):
             MPBatch will attempt to parallelize the work evenly over
             all the devices specified.
 
+        Deprecated, will be removed in 0.6.0
 
         """
         self.devices = devices

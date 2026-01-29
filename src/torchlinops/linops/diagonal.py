@@ -6,7 +6,7 @@ import torch.nn as nn
 from einops import repeat
 from torch import Tensor
 
-from .nameddim import ANY, NS, Shape
+from ..nameddim import ANY, NamedShape as NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["Diagonal"]

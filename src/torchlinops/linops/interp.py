@@ -6,7 +6,8 @@ from torch import Tensor
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to, default_to_dict
-from .nameddim import ELLIPSES, NS, Shape
+
+from ..nameddim import ELLIPSES, NamedShape as NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["Interpolate"]

@@ -1,6 +1,8 @@
 from copy import copy
 
-from .nameddim import NS
+from torch import Tensor
+
+from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
 __all__ = ["Identity", "Zero", "ShapeSpec"]
@@ -19,15 +21,15 @@ class Identity(NamedLinop):
         return inner
 
     @staticmethod
-    def fn(linop, x, /):
+    def fn(linop: NamedLinop, x, /):
         return x
 
     @staticmethod
-    def adj_fn(linop, x, /):
+    def adj_fn(linop: NamedLinop, x, /):
         return x
 
     @staticmethod
-    def normal_fn(linop, x, /):
+    def normal_fn(linop: NamedLinop, x, /):
         # A bit faster
         return x
 
@@ -40,7 +42,7 @@ class Identity(NamedLinop):
         assert ibatch == obatch, "Identity linop must be split identically"
         return None
 
-    def __pow__(self, exponent):
+    def __pow__(self, _: float | Tensor):
         return type(self)(self.ishape, self.oshape)
 
 

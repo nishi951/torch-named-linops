@@ -6,7 +6,7 @@ from warnings import warn
 from einops import rearrange, reduce, repeat
 
 from .identity import Identity
-from .nameddim import NS, Shape
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = [

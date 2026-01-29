@@ -12,9 +12,8 @@ from torch.cuda import Event, Stream
 
 import torchlinops
 import torchlinops.config as config
+from torchlinops.nameddim import NamedDimension as ND, NamedShape, Shape
 from torchlinops.utils import INDENT, memory_aware_deepcopy, memory_aware_to
-from .nameddim import NamedDimension as ND
-from .nameddim import NamedShape, Shape
 
 __all__ = ["NamedLinop"]
 
@@ -35,7 +34,7 @@ class NamedLinop(nn.Module):
         Parameters
         ----------
         shape : NamedShape
-            The shape of this linop, e.g. ``NS(("N",), ("M",))``
+            The shape of this linop, e.g. ``NamedShape(("N",), ("M",))``
         name : str, optional
             Optional name to display for this linop.
         stream : Stream, optional

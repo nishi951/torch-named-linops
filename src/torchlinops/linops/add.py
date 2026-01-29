@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .nameddim import NS, isequal
+from ..nameddim import NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Add"]

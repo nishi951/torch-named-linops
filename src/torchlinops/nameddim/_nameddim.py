@@ -2,29 +2,29 @@ from copy import copy
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
-__all__ = ["ND", "NamedDimension", "ELLIPSES", "ANY", "Dim", "parse_dim_str"]
+__all__ = ["NamedDimension", "ELLIPSES", "ANY", "Dim"]
 
 # Special dim names
 ELLIPSES = "..."
 ANY = "()"
 
 
-# Convenience function
-def parse_dim_str(s: Optional[str] = None) -> tuple[str]:
-    """
+def Dim(s: Optional[str] = None) -> tuple[str]:
+    """Convenience function for splitting a string into a tuple based on simple parsing rules.
+
     Rules:
     - dim begins with an uppercase letter
     - dim cannot start with a number
 
     Examples
     --------
-    >>> parse_dim_str("ABCD")
+    >>> Dim("ABCD")
     ('A', 'B', 'C', 'D')
-    >>> parse_dim_str("NxNyNz")
+    >>> Dim("NxNyNz")
     ('Nx', 'Ny', 'Nz')
-    >>> parse_dim_str("A1B2Kx1Ky2")
+    >>> Dim("A1B2Kx1Ky2")
     ('A1', 'B2', 'Kx1', 'Ky2')
-    >>> parse_dim_str("()A()B")
+    >>> Dim("()A()B")
     ('()', 'A', '()', 'B')
     """
     if s is None or len(s) == 0:
@@ -48,9 +48,6 @@ def parse_dim_str(s: Optional[str] = None) -> tuple[str]:
             current += char
     parts.append(current)
     return tuple(parts)
-
-
-Dim = parse_dim_str
 
 
 @dataclass(slots=True, frozen=True)
@@ -99,8 +96,6 @@ class NamedDimension:
         """Allow dictionary lookups to work with strings too."""
         return hash(repr(self))
 
-
-ND = NamedDimension
 
 if __name__ == "__main__":
     import doctest

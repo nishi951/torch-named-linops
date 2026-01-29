@@ -5,9 +5,8 @@ import torch
 import torch.nn as nn
 
 from torchlinops.utils import INDENT
-from .nameddim import NS
-from .nameddim import NamedDimension as ND
-from .nameddim import isequal
+
+from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 
 

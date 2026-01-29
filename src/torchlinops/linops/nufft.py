@@ -9,13 +9,20 @@ from jaxtyping import Float, Shaped
 from torch import Tensor
 
 from torchlinops.utils import cfftn, default_to
+
 from .chain import Chain
 from .dense import Dense
 from .diagonal import Diagonal
 from .fft import FFT
 from .identity import Identity
 from .interp import Interpolate
-from .nameddim import ELLIPSES, ND, NS, Shape, get_nd_shape
+from ..nameddim import (
+    ELLIPSES,
+    NamedDimension as ND,
+    NamedShape as NS,
+    Shape,
+    get_nd_shape,
+)
 from .namedlinop import NamedLinop
 from .pad_last import PadLast
 from .sampling import Sampling

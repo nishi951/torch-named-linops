@@ -1,6 +1,6 @@
 from typing import Optional
 
-from .nameddim import NS, Shape
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["BreakpointLinop"]

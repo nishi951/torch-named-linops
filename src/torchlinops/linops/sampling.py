@@ -7,7 +7,8 @@ from torch import Tensor
 import torchlinops.functional as F
 from torchlinops.functional._index.index import ensure_tensor_indexing
 from torchlinops.utils import default_to
-from .nameddim import ELLIPSES, NS, Shape
+
+from ..nameddim import ELLIPSES, NamedShape as NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["Sampling"]

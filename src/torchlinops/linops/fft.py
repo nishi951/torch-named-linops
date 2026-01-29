@@ -4,7 +4,7 @@ from typing import Optional
 import torch.fft as fft
 
 from .identity import Identity
-from .nameddim import NS, Shape, get_nd_shape
+from ..nameddim import NamedShape as NS, Shape, get_nd_shape
 from .namedlinop import NamedLinop
 
 
