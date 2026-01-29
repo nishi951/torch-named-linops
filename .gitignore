@@ -22,4 +22,6 @@ activate
 
 # Agentic
 .aider*
+
+# Docs
 _site/
