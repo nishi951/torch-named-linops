@@ -53,6 +53,7 @@ dev = [
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
     "ruff>=0.8.4",
+    "pyqt6>=6.10.2",
 ]
 sigpy = [
     "numba>=0.60.0",

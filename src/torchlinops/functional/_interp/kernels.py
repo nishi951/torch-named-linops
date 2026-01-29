@@ -1,3 +1,4 @@
+import platform
 from collections.abc import Callable
 from functools import partial
 from typing import Literal
@@ -25,7 +26,6 @@ __all__ = [
 ]
 
 
-@torch.compile
 def kaiser_bessel_torch(x: Float[Tensor, "..."], beta: float):
     """Vectorized kaiser-bessel kernel implementation
     Parameters
@@ -89,9 +89,16 @@ def kaiser_bessel_torch(x: Float[Tensor, "..."], beta: float):
     return torch.where(smallmask, small, big)
 
 
-@torch.compile
+if platform.system().startswith("Linux"):
+    kaiser_bessel_torch = torch.compile(kaiser_bessel_torch)
+
+
 def spline_torch(x):
     return torch.maximum(1.0 - torch.abs(x), torch.tensor(0.0))
+
+
+if platform.system().startswith("Linux"):
+    spline_torch = torch.compile(spline_torch)
 
 
 def get_kernel_fn(kernel, kernel_params) -> Callable[[Tensor], Tensor]:
