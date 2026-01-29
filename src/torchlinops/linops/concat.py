@@ -9,7 +9,7 @@ from torch import Tensor
 from torchlinops.utils import INDENT, default_to
 from .add import Add
 from .identity import Zero
-from .nameddim import ELLIPSES, ND, NS, NDorStr, isequal
+from .nameddim import ELLIPSES, ND, NS, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Concat"]
@@ -48,8 +48,8 @@ class Concat(NamedLinop):
     def __init__(
         self,
         *linops,
-        idim: Optional[NDorStr] = None,
-        odim: Optional[NDorStr] = None,
+        idim: Optional[ND | str] = None,
+        odim: Optional[ND | str] = None,
     ):
         self._check_linop_compatibility(linops)
         super().__init__(NS(linops[0].ishape, linops[0].oshape))

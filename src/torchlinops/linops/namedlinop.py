@@ -14,15 +14,11 @@ from torch.cuda import Event, Stream
 
 import torchlinops
 import torchlinops.config as config
-from torchlinops.utils import (
-    INDENT,
-    check_signature,  # TODO Deprecate
-    memory_aware_deepcopy,
-    memory_aware_to,
-)
-from .nameddim import NS
+from torchlinops.utils import check_signature  # TODO Deprecate
+from torchlinops.utils import INDENT, memory_aware_deepcopy, memory_aware_to
+from .nameddim import NS, Shape
 from .nameddim import NamedDimension as ND
-from .nameddim import NamedShape, NDorStr
+from .nameddim import NamedShape
 
 __all__ = ["NamedLinop"]
 
@@ -136,7 +132,7 @@ class NamedLinop(nn.Module):
         return linop.adj_fn(linop, linop.fn(linop, x))
 
     # Override
-    def split_forward(self, ibatch, obatch):
+    def split_forward(self, ibatch, obatch) -> "NamedLinop":
         """Split this linop into a sub-linop according to slices over its dimensions
 
         Parameters
@@ -178,7 +174,7 @@ class NamedLinop(nn.Module):
         return set(self.ishape).union(set(self.oshape))
 
     @property
-    def H(self):
+    def H(self) -> "NamedLinop":
         """Adjoint operator, with caching"""
         if self._adjoint is None:
             try:
@@ -191,7 +187,7 @@ class NamedLinop(nn.Module):
             logger.debug(f"{type(self).__name__}: Making new adjoint {_adjoint._shape}")
         return self._adjoint[0]
 
-    def adjoint(self):
+    def adjoint(self) -> "NamedLinop":
         """Create a new adjoint linop"""
         adj = copy(self)  # Retains data
         adj._shape = adj._shape.H
@@ -211,7 +207,7 @@ class NamedLinop(nn.Module):
             self._suffix += ".N"
 
     @property
-    def N(self):
+    def N(self) -> "NamedLinop":
         """Normal operator
         Note that the naive normal operator can always be created
         via A.H @ A. Therefore, this function is reserved
@@ -227,7 +223,7 @@ class NamedLinop(nn.Module):
                 raise e
         return self._normal[0]
 
-    def normal(self, inner=None):
+    def normal(self, inner=None) -> "NamedLinop":
         """Create a new normal linop
         inner: Optional linop for toeplitz embedding
         TODO: Add splitting for normal ops created this way.
@@ -265,7 +261,7 @@ class NamedLinop(nn.Module):
         return normal
 
     @staticmethod
-    def split(linop, tile: Mapping[ND | str, slice]):
+    def split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
         """Split a linop into sub-linops.
 
         Parameters
@@ -280,18 +276,18 @@ class NamedLinop(nn.Module):
         return linop.split_forward(ibatch, obatch)
 
     @staticmethod
-    def adj_split(linop, tile: Mapping[ND | str, slice]):
+    def adj_split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
         """Split the adjoint version"""
         ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
         obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
-    def flatten(self):
+    def flatten(self) -> list["NamedLinop"]:
         """Get a flattened list of constituent linops for composition."""
         return [self]
 
-    def compose(self, inner):
+    def compose(self, inner) -> "NamedLinop":
         """Compose this linop with another linop.
 
         Parameters
@@ -309,32 +305,32 @@ class NamedLinop(nn.Module):
         after = self.flatten()
         return torchlinops.Chain(*(before + after))
 
-    def __add__(self, right):
+    def __add__(self, right) -> "NamedLinop":
         return torchlinops.Add(self, right)
 
-    def __radd__(self, left):
+    def __radd__(self, left) -> "NamedLinop":
         return torchlinops.Add(left, self)
 
-    def __mul__(self, right):
+    def __mul__(self, right) -> "NamedLinop":
         if isinstance(right, float) or isinstance(right, torch.Tensor):
             right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
             return self.compose(right)
         return NotImplemented
 
-    def __rmul__(self, left):
+    def __rmul__(self, left) -> "NamedLinop":
         if isinstance(left, float) or isinstance(left, torch.Tensor):
             left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
             return left.compose(self)
         return NotImplemented
 
-    def __matmul__(self, right):
+    def __matmul__(self, right) -> "NamedLinop":
         if isinstance(right, NamedLinop):
             return self.compose(right)
         if isinstance(right, torch.Tensor):
             return self(right)
         return NotImplemented
 
-    def __rmatmul__(self, left):
+    def __rmatmul__(self, left) -> "NamedLinop":
         return left.compose(self)
 
     @property
@@ -364,7 +360,7 @@ class NamedLinop(nn.Module):
         self._normal = None
 
     @property
-    def shape(self):
+    def shape(self) -> Shape:
         return self._shape
 
     @shape.setter

@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from torchlinops.utils import default_to
 from .diagonal import Diagonal
-from .nameddim import NDorStr, Shape
+from .nameddim import Shape
 
 __all__ = ["Scalar"]
 

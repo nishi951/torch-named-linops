@@ -7,8 +7,6 @@ from ._nameddim import ANY, ELLIPSES, ND, NamedDimension
 
 __all__ = ["NamedDimCollection"]
 
-NDorStr = Union[ND, str]
-
 
 class NamedDimCollection:
     """A collection of NamedDimensions, grouped into named shapes.
@@ -96,7 +94,7 @@ class NamedDimCollection:
         else:
             self._add(key, val)
 
-    def _index(self, data: Iterable[NDorStr]):
+    def _index(self, data: Iterable[ND | str]):
         """Get index i of data stream (integer-valued)"""
         if isinstance(data, Mapping):
             return {self._dims.index(k): v for k, v in data.items()}

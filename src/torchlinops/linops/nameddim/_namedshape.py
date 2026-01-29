@@ -7,13 +7,16 @@ from ._matching import isequal
 from ._nameddim import ND
 from ._nameddimcollection import NamedDimCollection
 
-__all__ = ["NS", "NamedShape", "NDorStr", "Shape"]
+__all__ = ["NS", "NamedShape", "Shape"]
 
-NDorStr = Union[ND, str]
-Shape = Iterable[NDorStr]
+Shape = Iterable[ND | str]
 
 
-def NS(ishape: Shape, oshape: Optional[Shape] = None, **additional_shapes):
+def NS(
+    ishape: Optional[Shape] = None,
+    oshape: Optional[Shape] = None,
+    **additional_shapes,
+):
     """
     If shape is empty, use tuple(), not None
     """
@@ -35,7 +38,7 @@ class NamedShape(NamedDimCollection):
     """
 
     def __init__(
-        self, ishape: Iterable[NDorStr], oshape: Iterable[NDorStr], **other_shapes
+        self, ishape: Iterable[ND | str], oshape: Iterable[ND | str], **other_shapes
     ):
         super().__init__(ishape=ishape, oshape=oshape, **other_shapes)
 
@@ -58,7 +61,7 @@ class NamedShape(NamedDimCollection):
         return new
 
     # @staticmethod
-    # def convert(a: Iterable[NDorStr]):
+    # def convert(a: Iterable[ND | str]):
     #     return list(ND.infer(a))
 
     # @property
@@ -66,7 +69,7 @@ class NamedShape(NamedDimCollection):
     #     return self._ishape
 
     # @ishape.setter
-    # def ishape(self, val: Iterable[NDorStr]):
+    # def ishape(self, val: Iterable[ND | str]):
     #     _ishape = self.convert(val)
     #     self._ishape = _ishape
 
@@ -75,16 +78,16 @@ class NamedShape(NamedDimCollection):
     #     return self._oshape
 
     # @oshape.setter
-    # def oshape(self, val: Iterable[NDorStr]):
+    # def oshape(self, val: Iterable[ND | str]):
     #     _oshape = self.convert(val)
     #     self._oshape = _oshape
 
     @property
-    def H(self):
+    def H(self) -> "NamedShape":
         return self.adjoint()
 
     @property
-    def N(self):
+    def N(self) -> "NamedShape":
         return self.normal()
 
     def __repr__(self):
