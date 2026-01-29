@@ -86,7 +86,6 @@ nav:
   - Getting Started: getting_started.md
   - Tutorials: tutorials/index.md
   - How-To Guides:
-      - howto/how_to.md
       - howto/mri_tutorial.md
   - Reference:
       - API Overview: reference/api.md

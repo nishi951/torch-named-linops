@@ -1,8 +1,9 @@
 # MRI Reconstruction
 
 This guide demonstrates how to perform MRI reconstruction using torchlinops with three key components:
+
 - **NUFFT**: Non-uniform Fast Fourier Transform for radial sampling
-- **Dense operator**: Multi-coil sensitivity encoding  
+- **Dense operator**: Multi-coil sensitivity encoding
 - **Diagonal operator**: Density compensation for radial trajectories
 
 ## Problem Formulation
@@ -12,6 +13,7 @@ The MRI forward model can be written as:
 $$y = E F S x + n$$
 
 Where:
+
 - $S$: coil sensitivities (Dense operator)
 - $F$: NUFFT (non-uniform FFT)
 - $E$: density compensation (Diagonal operator)
