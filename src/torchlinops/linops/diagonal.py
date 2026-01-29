@@ -1,6 +1,5 @@
 from copy import copy
 from typing import Optional
-from warnings import warn
 
 import torch
 import torch.nn as nn
@@ -8,7 +7,7 @@ from einops import repeat
 from torch import Tensor
 
 from .nameddim import ANY, NS, Shape
-from .namedlinop import ND, NamedLinop
+from .namedlinop import NamedLinop
 
 __all__ = ["Diagonal"]
 

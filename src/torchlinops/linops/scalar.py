@@ -1,7 +1,6 @@
 from typing import Optional
 
 import torch
-import torch.nn as nn
 
 from torchlinops.utils import default_to
 from .diagonal import Diagonal

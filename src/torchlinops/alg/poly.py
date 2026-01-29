@@ -2,9 +2,7 @@
 DOI: https://zenodo.org/badge/latestdoi/452385092I
 """
 
-import logging
-from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Literal
 
 import numpy as np
 from scipy.special import binom

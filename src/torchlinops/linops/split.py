@@ -1,16 +1,14 @@
 from dataclasses import dataclass
-from functools import partial
 from math import ceil
-from typing import Literal, Optional
+from typing import Optional
 from warnings import warn
 
 import numpy as np
 import torch
-from torch.cuda import Event, Stream
+from torch.cuda import Stream
 
 from torchlinops.utils import (
     ModuleMemoryMap,
-    NDList,
     RepeatedEvent,
     batch_iterator,
     dict_product,

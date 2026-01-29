@@ -1,7 +1,5 @@
 """Functions for interoperability between cupy and pytorch."""
 
-from warnings import warn
-
 import numpy as np
 import torch
 from torch import Tensor

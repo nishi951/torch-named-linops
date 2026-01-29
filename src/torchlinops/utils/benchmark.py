@@ -9,7 +9,6 @@ import numpy as np
 import torch
 from easydict import EasyDict
 
-from ._defaults import default_to
 from ._log import Indenter
 
 logger = logging.getLogger("torchmri.utils")

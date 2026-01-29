@@ -1,6 +1,4 @@
-from collections import OrderedDict
-from copy import copy
-from typing import Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Iterable, List, Mapping, Tuple
 
 from ._matching import iscompatible
 from ._nameddim import ANY, ELLIPSES, ND, NamedDimension

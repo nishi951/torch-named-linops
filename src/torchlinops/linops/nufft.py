@@ -1,9 +1,7 @@
-from collections.abc import Callable
-from copy import copy, deepcopy
+from copy import copy
 from itertools import product
 from math import prod
 from typing import Literal, Optional
-from warnings import warn
 
 import torch
 import torch.nn as nn

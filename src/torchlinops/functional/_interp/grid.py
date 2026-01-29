@@ -1,4 +1,3 @@
-from functools import partial
 from math import ceil, prod
 from typing import Literal
 

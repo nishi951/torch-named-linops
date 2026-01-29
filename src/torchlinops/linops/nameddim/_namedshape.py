@@ -1,7 +1,5 @@
-from collections import OrderedDict
-from collections.abc import Iterable, Sequence
-from copy import copy
-from typing import Optional, Union
+from collections.abc import Iterable
+from typing import Optional
 
 from ._matching import isequal
 from ._nameddim import ND

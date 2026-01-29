@@ -1,8 +1,5 @@
 """Differentiable forms of Grid/Ungrid"""
 
-from typing import Literal, Optional
-
-import torch
 from jaxtyping import Float, Inexact
 from torch import Tensor
 from torch.autograd import Function

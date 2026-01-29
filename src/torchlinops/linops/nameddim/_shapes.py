@@ -1,4 +1,4 @@
-from typing import Any, Sequence, Tuple
+from typing import Tuple
 
 from ._nameddim import NamedDimension as ND
 

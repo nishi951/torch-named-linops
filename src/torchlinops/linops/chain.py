@@ -1,5 +1,3 @@
-import sys
-import traceback
 from collections.abc import Mapping
 from typing import Optional
 
