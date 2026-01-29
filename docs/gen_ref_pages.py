@@ -10,6 +10,7 @@ src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
 import torchlinops  # noqa: E402
+import torchlinops.nameddim  # noqa: E402
 import torchlinops.utils  # noqa: E402
 import torchlinops.alg  # noqa: E402
 
@@ -39,7 +40,7 @@ def generate_pages(module, output_subdir, nav):
 
         # Basic check to skip unrelated imports
         if hasattr(obj, "__module__") and obj.__module__:
-            if not obj.__module__.startswith("torchlinops"):
+            if not obj.__module__.startswith(f"torchlinops.{output_subdir}"):
                 continue
 
         # linops/some_linop
@@ -57,8 +58,9 @@ def generate_pages(module, output_subdir, nav):
 
 
 # Generate
+generate_pages(torchlinops.nameddim, "nameddim", nav)
 generate_pages(torchlinops.linops, "linops", nav)
-generate_pages(torchlinops.alg, "algorithms", nav)
+generate_pages(torchlinops.alg, "alg", nav)
 generate_pages(torchlinops.utils, "utils", nav)
 
 with mkdocs_gen_files.open("reference/SUMMARY.md", "w") as nav_file:

@@ -1,4 +1,4 @@
-site_name: Torch Named Linops
+site_name: "Torch Named Linops"
 site_dir: _site
 repo_url: https://github.com/nishi951/torch-named-linops
 repo_name: torch-named-linops
@@ -10,7 +10,6 @@ theme:
   features:
     - navigation.indexes
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - search.suggest
     - search.highlight
@@ -40,6 +39,7 @@ theme:
 extra_css:
   - assets/css/logo.css
   - assets/css/dark_mode_shell_output.css
+  - assets/css/extras.css
 
 plugins:
   - search
@@ -89,21 +89,22 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
-  - Home: index.md
-  - Installation: installation.md
-  - Getting Started: getting_started.md
+  - Getting Started:
+      - getting_started/index.md
+      - getting_started/installation.md
   - Tutorials: tutorials/index.md
   - How-To Guides:
       - Custom Linops: howto/custom_linops.md
-  - Reference:
+  - Explanations:
+      - explanations/design_notes.md
+      - explanations/copying_linops.md
+      - explanations/multi_gpu.md
+      - explanations/faq.md
+      - explanations/why_this_package.md
+  - API Reference:
+      - reference/index.md
       - torchlinops: reference/
 
       # - Linear Operators: reference/linops.md
       # - Algorithms: reference/algorithms.md
       # - Utils: reference/utils.md
-  - Explanations:
-      - explanations/design_notes.md
-      - explanations/copying_linops.md
-      - explanations/multi_gpu.md
-  - FAQ: faq.md
-  - Why this package?: why_this_package.md
