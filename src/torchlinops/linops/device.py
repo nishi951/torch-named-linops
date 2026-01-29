@@ -5,8 +5,9 @@ import torch
 from torch.cuda import Event, Stream
 
 from torchlinops.utils import INDENT, RepeatedEvent
+
+from ..nameddim import NamedShape as NS, Shape
 from .identity import Identity
-from .nameddim import NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["ToDevice"]

@@ -8,9 +8,10 @@ from torch import Tensor
 
 from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
+
 from .add import Add
 from .identity import Zero
-from .nameddim import ND, NS, isequal
+from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Stack"]

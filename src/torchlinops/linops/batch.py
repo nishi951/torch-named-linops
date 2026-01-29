@@ -9,8 +9,9 @@ from tqdm import tqdm
 from typing_extensions import Self
 
 from torchlinops.utils import INDENT, dict_product
+
+from ..nameddim import NamedShape as NS, Shape
 from .identity import ShapeSpec
-from .nameddim import NS, Shape
 from .namedlinop import NamedLinop
 from .split import split_linop
 
@@ -35,6 +36,8 @@ class Batch(NamedLinop):
         """
         hook : Callable, optional
             Function that takes in the newly-created batch object and does stuff
+
+        Deprecated, will be removed in 0.6.0.
         """
         # TODO: Should batch even have a shape???
         super().__init__(NS(linop.ishape, linop.oshape), name=name)

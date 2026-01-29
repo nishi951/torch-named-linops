@@ -5,8 +5,7 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 
-from torchlinops.utils import default_to_dict
-from torchlinops.utils import inner as zdot
+from torchlinops.utils import default_to_dict, inner as zdot
 
 __all__ = ["conjugate_gradients"]
 

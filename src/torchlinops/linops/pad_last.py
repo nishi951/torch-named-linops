@@ -3,7 +3,8 @@ from typing import Optional
 import torch.nn.functional as F
 
 from torchlinops.utils import default_to
-from .nameddim import ND, NS, Shape, get_nd_shape
+
+from ..nameddim import NamedDimension as ND, NamedShape as NS, Shape, get_nd_shape
 from .namedlinop import NamedLinop
 
 __all__ = ["PadLast"]

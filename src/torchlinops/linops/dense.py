@@ -6,7 +6,8 @@ from einops import einsum
 from torch import Tensor
 
 import torchlinops.config as config
-from .nameddim import NS, Shape
+
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["Dense"]

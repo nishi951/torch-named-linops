@@ -1,6 +1,6 @@
 from collections import defaultdict
 from copy import deepcopy
-from typing import Any, Sequence, Tuple
+from typing import Any, Optional, Sequence, Tuple
 from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES
@@ -37,7 +37,7 @@ def isequal(
     shape1: Sequence,
     shape2: Sequence,
     return_assignments: bool = False,
-) -> bool:
+) -> bool | tuple[bool, Optional[dict[int, list]]]:
     """Test if two sequences with ellipses are length-compatible and value-compatible.
 
     Implemented with bottom-up DP
@@ -84,7 +84,7 @@ def isequal(
     >>> isequal(("...", "A", "C", "..."), ("...", "A"))
     True
     """
-    ptrs = [[None for _ in range(len(shape2) + 1)] for _ in range(len(shape1) + 1)]
+    ptrs = [[(0, 0) for _ in range(len(shape2) + 1)] for _ in range(len(shape1) + 1)]
     # Base cases
     ptrs[0][0] = (0, 0)  # True (note that bool(tuple()) == False)
     for i in range(1, len(shape1) + 1):
@@ -148,7 +148,7 @@ def iscompatible(
     shape1: Sequence,
     shape2: Sequence,
     return_assignments: bool = False,
-):
+) -> bool | tuple[bool, Optional[dict]]:
     """Whether the two shapes are length-compatible.
 
     >>> iscompatible(("A","B"), ("C", "D"))

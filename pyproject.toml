@@ -105,7 +105,8 @@ omit = ["*/tests/*"]
 
 [tool.isort]
 known_first_party = ["torchlinops"]
-no_lines_before = ["LOCALFOLDER"]
+combine_as_imports = true
+# no_lines_before = ["LOCALFOLDER"]
 
 [build-system]
 requires = ["hatchling"]
