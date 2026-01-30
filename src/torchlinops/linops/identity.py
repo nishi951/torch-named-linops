@@ -9,6 +9,8 @@ __all__ = ["Identity", "Zero", "ShapeSpec"]
 
 
 class Identity(NamedLinop):
+    """Linop that returns its input."""
+
     def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
 
