@@ -17,6 +17,7 @@ class ArrayToBlocks(NamedLinop):
     """Extract sliding windows from an array.
 
     Adjoint of [BlocksToArray](#BlocksToArray).
+
     """
 
     def __init__(

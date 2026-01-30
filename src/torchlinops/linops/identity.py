@@ -9,7 +9,7 @@ __all__ = ["Identity", "Zero", "ShapeSpec"]
 
 
 class Identity(NamedLinop):
-    """Linop that returns its input."""
+    """Linop that simply returns its input."""
 
     def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
@@ -73,8 +73,9 @@ class Zero(NamedLinop):
         return self
 
 
-# Alias for changing input and output shapes
 class ShapeSpec(Identity):
+    """Identity linop that changes the names of the input and output shapes."""
+
     def adjoint(self):
         return type(self)(self.oshape, self.ishape)
 
