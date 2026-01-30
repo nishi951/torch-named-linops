@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch import Tensor
 
 import torchlinops.functional as F
-from torchlinops.functional._index.index import ensure_tensor_indexing
 from torchlinops.utils import default_to
 
 from ..nameddim import ELLIPSES, NamedShape as NS, Shape
@@ -50,7 +49,7 @@ class Sampling(NamedLinop):
         #     raise ValueError(
         #         f"Input shape {input_shape} doesn't correspond to idx with shape {len(idx)}"
         #     )
-        idx = ensure_tensor_indexing(idx, self.input_size)
+        idx = F.ensure_tensor_indexing(idx, self.input_size)
         for d, (t, s) in enumerate(zip(idx, self.input_size)):
             if (t < 0).any() or (t >= s).any():
                 raise ValueError(

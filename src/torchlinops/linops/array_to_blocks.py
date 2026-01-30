@@ -14,6 +14,11 @@ __all__ = ["ArrayToBlocks", "BlocksToArray"]
 
 
 class ArrayToBlocks(NamedLinop):
+    """Extract sliding windows from an array.
+
+    Adjoint of [BlocksToArray](#BlocksToArray).
+    """
+
     def __init__(
         self,
         grid_size: tuple[int, ...],
@@ -93,6 +98,11 @@ class ArrayToBlocks(NamedLinop):
 
 
 class BlocksToArray(NamedLinop):
+    """Compose several equally-sized blocks into a larger array.
+
+    Adjoint of [ArrayToBlocks](#ArrayToBlocks).
+    """
+
     def __init__(
         self,
         grid_size: tuple[int, ...],

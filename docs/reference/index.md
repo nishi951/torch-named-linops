@@ -7,9 +7,9 @@
 
 Fundamental linear operators that form the building blocks for more complex operations.
 
-- [NamedLinop](linops/NamedLinop.md)
-- [Identity](linops/Identity.md)
-- [Zero](linops/Zero.md)
+- [NamedLinop](torchlinops/linops/namedlinop.md)
+- [Identity](torchlinops/linops/identity.md#torchlinops.linops.identity.Identity)
+- [Zero](torchlinops/linops/identity.md#torchlinops.linops.identity.Zero)
 - [Scalar](linops/Scalar.md)
 - [Diagonal](linops/Diagonal.md)
 - [Dense](linops/Dense.md)

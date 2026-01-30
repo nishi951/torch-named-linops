@@ -58,21 +58,25 @@ The project is organized as follows:
 
 ## Documentation
 
-To build the documentation using sphinx-autobuild, which provides a live-reloading server, run the following command:
-
-Note: Moving doctrees outside of `build/html` is suspected to help with re-rendering issues.
+To build the documentation using `mkdocs serve`, which provides a live-reloading server, run the following command:
 
 ```sh
-uv run sphinx-autobuild docs/source docs/build/html --watch src/torchlinops --doctree-dir docs/build/doctrees
+uv run mkdocs serve
 ```
 
-To build documentation without the live server:
+### Documentation strategy
+#### Linops
+Use the following conventions:
 
-```sh
-uv run sphinx-build docs/source docs/build/html
-```
+- In the class-level docstring:
+  - Document the important attributes
+  - Put an example (with math, ideally) of the linop in use.
+- In the `__init__` docstring:
+  - Document the input arguments.
+- Document any other useful methods (e.g. alternative `@classmethod` constructors or `@staticmethod` helper functions)
 
-If you run into issues, completely deleting and regenerating the `docs/build` directory is a good place to start.
+#### Functions
+
 
 ## Testing
 
