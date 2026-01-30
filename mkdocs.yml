@@ -89,22 +89,10 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
-  - Getting Started:
-      - getting_started/index.md
-      - getting_started/installation.md
-  - Tutorials: tutorials/index.md
-  - How-To Guides:
-      - Custom Linops: howto/custom_linops.md
-  - Explanations:
-      - explanations/design_notes.md
-      - explanations/copying_linops.md
-      - explanations/multi_gpu.md
-      - explanations/faq.md
-      - explanations/why_this_package.md
+  - Getting Started: getting_started/
+  - Tutorials: tutorials/
+  - How-To Guides: howto/
+  - Explanations: explanations/
   - API Reference:
       - reference/index.md
       - torchlinops: reference/
-
-      # - Linear Operators: reference/linops.md
-      # - Algorithms: reference/algorithms.md
-      # - Utils: reference/utils.md
