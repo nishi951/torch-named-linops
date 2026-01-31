@@ -70,10 +70,6 @@ class Rearrange(NamedLinop):
         )
         return out
 
-    def split_forward_fn(self, ibatch, obatch, /):
-        """Rearranging is transparent to splitting"""
-        return None
-
     def size(self, dim: str):
         """Rearranging does not determine any dimensions"""
         return None
