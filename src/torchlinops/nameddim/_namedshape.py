@@ -1,7 +1,5 @@
-from collections import OrderedDict
-from collections.abc import Iterable, Sequence
-from copy import copy
-from typing import Optional, Union
+from collections.abc import Sequence
+from typing import Optional
 
 from ._matching import isequal
 from ._nameddim import NamedDimension as ND
@@ -9,7 +7,7 @@ from ._nameddimcollection import NamedDimCollection
 
 __all__ = ["NamedShape", "Shape"]
 
-Shape = Iterable[ND | str]
+Shape = Sequence[ND | str]
 
 
 class NamedShape(NamedDimCollection):

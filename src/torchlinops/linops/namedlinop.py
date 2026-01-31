@@ -141,12 +141,6 @@ class NamedLinop(nn.Module):
         return type(self)(self._shape)
 
     # Override
-    # TODO: Deprecate
-    def split_forward_fn(self, ibatch, obatch, /, data=None):
-        """Split this linop's data."""
-        return None
-
-    # Override
     def size(self, dim: str) -> int | None:
         """Get the size of a particular dim, or return
         None if this linop doesn't determine the size

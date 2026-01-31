@@ -17,7 +17,6 @@ except ImportError:
 
 from ._batch import batch_iterator
 from .kernels import (
-    KernelTypeStr,
     _apply_default_kernel_params,
     get_kernel_fn,
     mod_pos,
@@ -40,16 +39,16 @@ def ungrid(
     locs: Float[Tensor, "... D"],
     width: float | tuple[float, ...],
     kernel: str = "kaiser_bessel",
-    norm: str = "1",
+    norm: int = 1,
     pad_mode: Literal["zero", "circular"] = "circular",
     kernel_params: dict = None,
 ):
     """Interpolate from on-grid values to off-grid locations.
 
-    norm: str, 1 or 2
-        if 2, uses Euclidean norm to grid points to compute weights
+    norm: int, 1 or 2
         if 1, computes weights as product of axis-aligned norm weights
             - Same as sigpy
+        if 2, uses Euclidean norm to grid points to compute weights
     """
 
     kernel_params = {} if kernel_params is None else kernel_params
@@ -73,8 +72,8 @@ def _ungrid(
     locs: Float[Tensor, "... D"],
     grid_size: tuple[int, ...],
     width: tuple[float, ...],
-    kernel: KernelTypeStr,
-    norm: str,
+    kernel: str,
+    norm: int,
     pad_mode: str,
     ndim: int,
     nbatch: int,
@@ -628,7 +627,7 @@ def ungrid_torch(
     grid_size: tuple[int, ...],
     width: tuple[float, ...],
     kernel: str = "kaiser_bessel",
-    norm: str = "1",
+    norm: int = 1,
     pad_mode: Literal["zero", "circular"] = "circular",
     batch_size: int = 2**20,
     **kernel_params,
@@ -650,7 +649,7 @@ def ungrid_torch(
     locs_batch_shape = locs.shape[:-1]
     npts = prod(locs_batch_shape)
     device = vals.device
-    grid_size = torch.tensor(grid_size, device=vals.device)
+    grid_size_tensor = torch.tensor(grid_size, device=vals.device)
 
     # Get difference grid
     diff = torch.meshgrid(*(torch.arange(w + 1) for w in width), indexing="ij")
@@ -676,7 +675,7 @@ def ungrid_torch(
             radius,
             norm,
             kernel_fn,
-            grid_size,
+            grid_size_tensor,
             pad_mode,
         )
         grid_locs = (slice(None), *tuple(grid_locs[..., i] for i in range(ndim)))

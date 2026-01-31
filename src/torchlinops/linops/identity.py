@@ -40,10 +40,6 @@ class Identity(NamedLinop):
         assert ibatch == obatch, "Identity linop must be split identically"
         return self
 
-    def split_forward_fn(self, ibatch, obatch, /):
-        assert ibatch == obatch, "Identity linop must be split identically"
-        return None
-
     def __pow__(self, _: float | Tensor):
         return type(self)(self.ishape, self.oshape)
 

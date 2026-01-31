@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 import torch.nn as nn
 from jaxtyping import Float
@@ -14,6 +14,23 @@ __all__ = ["Interpolate"]
 
 
 class Interpolate(NamedLinop):
+    """Interpolate from a grid to a set of off-grid points.
+
+    ```
+    Input: (batch_shape, grid_shape)
+    Output: (batch_shape, locs_batch_shape)
+    ```
+
+    Attributes
+    ----------
+    locs : nn.Parameter
+        The target interpolation locations.
+    grid_size : tuple[int, ...]
+        The expected input grid size.
+    interp_params : dict
+        Dictionary of arguments for interpolation kernel.
+    """
+
     def __init__(
         self,
         locs: Float[Tensor, "... D"],
@@ -24,10 +41,33 @@ class Interpolate(NamedLinop):
         # Interp params
         width: float = 4.0,
         kernel: str = "kaiser_bessel",
-        norm: str = "1",
+        norm: int = 1,
         pad_mode: str = "circular",
         kernel_params: Optional[dict] = None,
     ):
+        """
+        Parameters
+        ----------
+        locs : Float[Tensor, "... D"]
+            The target interpolation locations, as a tensor of size (*locs_batch_size, num_dimensions).
+            Uses 'ij' indexing.
+        grid_size : tuple[int, ...]
+            The expected input grid size. Should have same length as number of dimensions.
+        batch_shape : Shape, optional
+            The input/output batch shape. Defaults to "...".
+        locs_batch_shape : Shape, optional
+            The shape of the locs. Defaults to "...".
+        grid_shape : Shape, optional
+            The shape of the grid. Defaults to "...".
+        width : float
+            The width of the interpolation kernel.
+        kernel : str
+            The type of kernel to use. Current options are "kaiser_bessel" and "spline".
+        norm : int
+            The type of norm to use to measure distances. Current options are 1 and 2
+        pad_mode : str
+            The type of padding to apply.
+        """
         if locs_batch_shape is not None:
             if len(locs_batch_shape) > len(locs.shape) - 1:
                 raise ValueError(
@@ -46,7 +86,7 @@ class Interpolate(NamedLinop):
 
         # Do this here instead of repeating it in both fn() and adjoint_fn()
         kernel_params = default_to_dict(dict(beta=1.0), kernel_params)
-        self._interp_params = {
+        self.interp_params = {
             "width": width,
             "kernel": kernel,
             "norm": norm,
@@ -56,28 +96,27 @@ class Interpolate(NamedLinop):
 
     @staticmethod
     def fn(interp, x, /):
-        return F.interpolate(x, interp.locs, **interp._interp_params)
+        return F.interpolate(x, interp.locs, **interp.interp_params)
 
     @staticmethod
     def adj_fn(interp, x, /):
         return F.interpolate_adjoint(
-            x, interp.locs, interp.grid_size, **interp._interp_params
+            x, interp.locs, interp.grid_size, **interp.interp_params
         )
 
     def split_forward(self, ibatch, obatch):
         return type(self)(
-            self.split_forward_fn(ibatch, obatch, self.locs),
+            self.split_locs(ibatch, obatch, self.locs),
             self.grid_size,
             self._shape.batch_shape,
             self._shape.locs_batch_shape,
             self._shape.grid_shape,
-            **self._interp_params,
+            **self.interp_params,
         )
 
-    def split_forward_fn(self, ibatch, obatch, /, locs):
+    def split_locs(self, ibatch, obatch, /, locs):
         """Can only split on locs dimensions"""
         if self._shape.locs_batch_shape == ELLIPSES:
-            # warn(f"Attempted to split {self.__class__.__name__} but ")
             return locs
 
         N = len(self._shape.locs_batch_shape)
