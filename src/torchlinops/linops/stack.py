@@ -178,7 +178,7 @@ class Stack(NamedLinop):
             odim_and_idx=(self.odim, self.odim_idx),
         )
 
-    def split_forward_fn(self, ibatch, obatch, data_list):
+    def split_data(self, ibatch, obatch, data_list):
         """Split stack linop, making a new stack linop if necessary
 
         Parameters
@@ -212,7 +212,7 @@ class Stack(NamedLinop):
         for i in linop_idxs:
             linop = self.linops[i]
             data = data_list[i]
-            output_linop_data.append(linop.split_forward_fn(ibatch, obatch, data))
+            output_linop_data.append(linop.split_data(ibatch, obatch, data))
         return output_linop_data
 
     def adjoint(self):

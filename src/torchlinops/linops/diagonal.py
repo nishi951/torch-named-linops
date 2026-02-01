@@ -109,12 +109,12 @@ class Diagonal(NamedLinop):
         return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
-        weight = self.split_forward_fn(ibatch, obatch, self.weight)
+        weight = self.split_weight(ibatch, obatch, self.weight)
         split = copy(self)
         split.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
         return split
 
-    def split_forward_fn(self, ibatch, obatch, /, weight):
+    def split_weight(self, ibatch, obatch, /, weight):
         assert ibatch == obatch, "Diagonal linop must be split identically"
         # Filter out broadcastable dims
         ibatch = [
