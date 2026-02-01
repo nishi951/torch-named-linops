@@ -21,7 +21,19 @@ logger = logging.getLogger("torchlinops")
 
 
 class NamedLinop(nn.Module):
-    """Base class for all NamedLinops"""
+    """Base class for all NamedLinops
+
+    Attributes
+    ----------
+    shape : NamedShape
+        The shape of the linop.
+    stream : torch.cuda.Stream, optional
+        The stream on which this linop will be run.
+    start_event : torch.cuda.Event, optional
+        An event that signals when the linop has started. Useful for synchronizing multiple
+        linops across multiple devices.
+
+    """
 
     def __init__(
         self,
@@ -44,6 +56,8 @@ class NamedLinop(nn.Module):
             linops across multiple devices.
         """
         super().__init__()
+        # Note: this attribute is private because the `.shape` attribute may be derived
+        # dynamically
         self._shape = shape
 
         self.reset_adjoint_and_normal()
