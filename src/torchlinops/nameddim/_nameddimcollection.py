@@ -38,6 +38,14 @@ class NamedDimCollection:
         return self._lookup(key)
 
     def __setitem__(self, key, newvalue):
+        """
+        Examples
+        --------
+        >>> s = NamedDimCollection()
+        >>> s.someshape = ("A", "B")
+        >>> s.someshape
+        (A, B)
+        """
         setattr(self, key, newvalue)
 
     def update(self, shape_mapping: dict):
