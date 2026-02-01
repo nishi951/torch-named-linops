@@ -223,12 +223,12 @@ class Dense(NamedLinop):
         return normal
 
     def split_forward(self, ibatch, obatch):
-        weight = self.split_forward_fn(ibatch, obatch, self.weight)
+        weight = self.split_weight(ibatch, obatch, self.weight)
         out = copy(self)
         out.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
         return out
 
-    def split_forward_fn(self, ibatch, obatch, /, weight):
+    def split_weight(self, ibatch, obatch, /, weight):
         weightbatch = [slice(None)] * len(self.weightshape)
         for dim, batch in zip(self.ishape, ibatch):
             if dim in self.weightshape and dim not in self.broadcast_dims:

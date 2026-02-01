@@ -22,6 +22,3 @@ class BreakpointLinop(NamedLinop):
 
     def split_forward(self, ibatch, obatch):
         return self
-
-    def split_forward_fn(self, ibatch, obatch, /, data):
-        return None

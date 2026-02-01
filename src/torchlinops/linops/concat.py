@@ -178,39 +178,6 @@ class Concat(NamedLinop):
                 output_linops.append(linop.split_forward(ibatch, obatch))
             return type(self)(*output_linops, idim=self.idim, odim=self.odim)
 
-    def split_forward_fn(self, ibatch, obatch, data_list):
-        """Split concat linop, making a new concat linop if necessary
-
-        Parameters
-        ----------
-        data_list : list, same length as linops
-            List of data for each linop in this concat linop
-
-        """
-        ibatches = self.subslice(ibatch, self.idim_idx, self.islices, len(self.linops))
-        obatches = self.subslice(obatch, self.odim_idx, self.oslices, len(self.linops))
-
-        output_linop_idxs = ibatches.keys() & obatches.keys()
-        if len(output_linop_idxs) == 0:
-            # No linops satisfy this slice (diagonal stacking)
-            return 0.0  # TODO is this ok
-        elif len(output_linop_idxs) == 1:
-            # Singleton linop
-            linop_idx = output_linop_idxs.pop()
-            linop = self.linops[linop_idx]
-            data = data_list[linop_idx]
-            ibatch, obatch = ibatches[linop_idx], obatches[linop_idx]
-            return linop.split_forward_fn(ibatch, obatch, data)
-        else:
-            output_linop_idxs = sorted(list(output_linop_idxs))
-            output_linop_data = []
-            for i in output_linop_idxs:
-                linop = self.linops[i]
-                data = data_list[i]
-                ibatch, obatch = ibatches[i], obatches[i]
-                output_linop_data.append(linop.split_forward_fn(ibatch, obatch, data))
-            return output_linop_data
-
     @staticmethod
     def subslice(batch: list[slice], dim_idx: Optional[int], slices, num_linops):
         """Given a slice over some dims of a concat linop,

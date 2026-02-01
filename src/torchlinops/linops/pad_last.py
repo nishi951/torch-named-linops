@@ -93,16 +93,12 @@ class PadLast(NamedLinop):
         return adj
 
     def split_forward(self, ibatch, obatch):
-        self.split_forward_fn(ibatch, obatch)
-        return self
-
-    def split_forward_fn(self, ibatch, obatch, /):
         for islc, oslc in zip(ibatch[-self.D :], obatch[-self.D :]):
             if islc != slice(None) or oslc != slice(None):
                 raise ValueError(
                     f"{type(self).__name__} cannot be split along image dim"
                 )
-        return None
+        return self
 
     def size(self, dim: str):
         return self.size_fn(dim)

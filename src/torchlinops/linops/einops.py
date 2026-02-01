@@ -115,10 +115,6 @@ class SumReduce(NamedLinop):
     def split_forward(self, ibatch, obatch):
         return self
 
-    def split_forward_fn(self, ibatch, obatch, /):
-        """Reducing is transparent to splitting"""
-        return None
-
     def size(self, dim: str):
         """Reducing does not determine any dimensions"""
         return None
@@ -233,10 +229,6 @@ class Repeat(NamedLinop):
         return type(self)(
             new_axes_lengths, self.ishape, self.oshape, self.broadcast_dims
         )
-
-    def split_forward_fn(self, ibatch, obatch, /):
-        """No data to split"""
-        return None
 
     def size(self, dim: str):
         return self.size_fn(dim)

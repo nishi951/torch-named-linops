@@ -22,7 +22,7 @@ class Scalar(Diagonal):
         ioshape = default_to(("...",), ioshape)
         super().__init__(weight, ioshape=ioshape)
 
-    def split_forward_fn(self, ibatch, obatch, /, weight):
+    def split_weight(self, ibatch, obatch, /, weight):
         assert ibatch == obatch, "Scalar linop must be split identically"
         return weight
 
