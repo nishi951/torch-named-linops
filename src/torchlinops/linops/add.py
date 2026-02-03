@@ -55,13 +55,6 @@ class Add(NamedLinop):
                 return out
         return None
 
-    def size_fn(self, dim, data):
-        for linop, data in zip(self.linops, data):
-            out = linop.size_fn(dim, data)
-            if out is not None:
-                return out
-        return None
-
     @property
     def dims(self):
         return set().union(*[linop.dims for linop in self.linops])

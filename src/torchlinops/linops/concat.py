@@ -143,9 +143,6 @@ class Concat(NamedLinop):
         return y
 
     def size(self, dim):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim, /):
         if dim == self.idim:
             return sum(self.isizes)
         elif dim == self.odim:

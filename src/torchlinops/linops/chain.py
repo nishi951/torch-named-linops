@@ -76,13 +76,6 @@ class Chain(NamedLinop):
                     )
         return out
 
-    def size_fn(self, dim, data):
-        for linop, data in zip(self.linops, data):
-            out = linop.size_fn(dim, data)
-            if out is not None:
-                return out
-        return None
-
     @property
     def dims(self):
         """Get the dims that appear anywhere in this linop chain."""

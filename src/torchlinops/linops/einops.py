@@ -74,10 +74,6 @@ class Rearrange(NamedLinop):
         """Rearranging does not determine any dimensions"""
         return None
 
-    def size_fn(self, dim: str, /):
-        """Rearranging does not determine any dimensions"""
-        return None
-
     def normal(self, inner=None):
         if inner is None:
             return Identity(self.ishape)
@@ -116,10 +112,6 @@ class SumReduce(NamedLinop):
         return self
 
     def size(self, dim: str):
-        """Reducing does not determine any dimensions"""
-        return None
-
-    def size_fn(self, dim: str, /, ipattern, opattern, size_spec):
         """Reducing does not determine any dimensions"""
         return None
 
@@ -185,7 +177,11 @@ class Repeat(NamedLinop):
     """Unsqueezes and expands a tensor along dim"""
 
     def __init__(
-        self, n_repeats: Mapping, ishape, oshape, broadcast_dims: Optional[list] = None
+        self,
+        n_repeats: Mapping,
+        ishape: Shape,
+        oshape: Shape,
+        broadcast_dims: Optional[list] = None,
     ):
         super().__init__(NS(ishape, oshape))
         assert len(self.oshape) > len(self.ishape), (
@@ -231,9 +227,6 @@ class Repeat(NamedLinop):
         )
 
     def size(self, dim: str):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim, /):
         if dim in self.broadcast_dims:
             return None
         return self.axes_lengths.get(dim, None)

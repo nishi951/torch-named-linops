@@ -124,15 +124,12 @@ class Diagonal(NamedLinop):
         return weight[ibatch[-len(weight.shape) :]]
 
     def size(self, dim: str):
-        return self.size_fn(dim, self.weight)
-
-    def size_fn(self, dim: str, weight):
         if dim in self.ishape:
-            n_broadcast = len(self.ishape) - len(weight.shape)
+            n_broadcast = len(self.ishape) - len(self.weight.shape)
             if self.ishape.index(dim) < n_broadcast or dim in self.broadcast_dims:
                 return None
             else:
-                return weight.shape[self.ishape.index(dim) - n_broadcast]
+                return self.weight.shape[self.ishape.index(dim) - n_broadcast]
         return None
 
     def __pow__(self, exponent):

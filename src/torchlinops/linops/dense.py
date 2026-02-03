@@ -1,5 +1,5 @@
 from copy import copy, deepcopy
-from typing import Optional
+from typing import Optional, Sequence
 
 import torch.nn as nn
 from einops import einsum
@@ -93,8 +93,13 @@ class Dense(NamedLinop):
         self._shape.broadcast_dims = broadcast_dims
 
     @property
-    def weightshape(self):
-        return self._shape.weightshape
+    def weightshape(self) -> Shape:
+        weightshape = self._shape.weightshape
+        if not isinstance(weightshape, Sequence):
+            raise ValueError(
+                f"Expected weightshape to be a sequence but got {type(weightshape)}: {weightshape}"
+            )
+        return weightshape
 
     @property
     def broadcast_dims(self):
@@ -239,13 +244,10 @@ class Dense(NamedLinop):
         return weight[tuple(weightbatch)]
 
     def size(self, dim: str):
-        return self.size_fn(dim, self.weight)
-
-    def size_fn(self, dim: str, weight):
         if dim in self.broadcast_dims:
             return None
         if dim in self.weightshape:
-            return weight.shape[self.weightshape.index(dim)]
+            return self.weight.shape[self.weightshape.index(dim)]
         return None
 
 

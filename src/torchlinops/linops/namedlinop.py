@@ -161,15 +161,6 @@ class NamedLinop(nn.Module):
         """
         return None
 
-    # Override
-    # TODO: Deprecate
-    def size_fn(self, dim: str, /, data=None):
-        """Functional version of size. Determines sizes from kwargs
-        kwargs should be the same as the inputs to fn or adj_fn
-        Return None if this linop doesn't determine the size of dim
-        """
-        return None
-
     # Probably don't override these
     @property
     def dims(self) -> set:

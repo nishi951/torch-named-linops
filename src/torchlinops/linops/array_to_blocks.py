@@ -88,9 +88,6 @@ class ArrayToBlocks(NamedLinop):
         )
 
     def size(self, dim):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim):
         ndim = len(self.grid_size)
         if dim in self.ishape[-ndim:]:
             i = self.ishape.index(dim) - len(self.ishape)
@@ -167,9 +164,6 @@ class BlocksToArray(NamedLinop):
         )
 
     def size(self, dim):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim):
         ndim = len(self.grid_size)
         if dim in self.oshape[-ndim:]:
             i = self.oshape.index(dim) - len(self.oshape)
