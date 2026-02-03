@@ -26,5 +26,5 @@ class Scalar(Diagonal):
         assert ibatch == obatch, "Scalar linop must be split identically"
         return weight
 
-    def size_fn(self, dim: str, weight):
+    def size(self, dim: str):
         return None

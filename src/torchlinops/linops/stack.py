@@ -133,9 +133,6 @@ class Stack(NamedLinop):
         return y
 
     def size(self, dim) -> int | None:
-        return self.size_fn(dim)
-
-    def size_fn(self, dim, /):
         if dim == self.idim or dim == self.odim:
             return len(self.linops)
         else:

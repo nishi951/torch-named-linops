@@ -55,9 +55,6 @@ class Truncate(NamedLinop):
     def size(self, dim):
         return None
 
-    def size_fn(self, dim, /, data=None):
-        return None
-
     def adjoint(self):
         return PadDim(self.dim, self.length, self.oshape, self.ishape)
 
@@ -133,9 +130,6 @@ class PadDim(NamedLinop):
 
     # Linop changes relative size, but can't determine the size itself
     def size(self, dim):
-        return None
-
-    def size_fn(self, dim, /, data=None):
         return None
 
     @staticmethod

@@ -101,9 +101,6 @@ class PadLast(NamedLinop):
         return self
 
     def size(self, dim: str):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim: str, /):
         if dim in self.ishape[-self.D :]:
             return self.in_im_size[self.in_im_shape.index(dim)]
         elif dim in self.oshape[-self.D :]:

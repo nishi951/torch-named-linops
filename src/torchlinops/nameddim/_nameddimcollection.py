@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from copy import copy
-from typing import Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 from ._matching import iscompatible
 from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
@@ -34,7 +34,7 @@ class NamedDimCollection:
         for k, v in shapes.items():
             self._add(k, v)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> Sequence | Mapping:
         return self._lookup(key)
 
     def __setitem__(self, key, newvalue):
