@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.11' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
@@ -3165,7 +3165,7 @@ requires-dist = [
     { name = "torchaudio", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = ">=2.5.1" },
     { name = "torchaudio", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = ">1.13,<2.3" },
     { name = "torchvision", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = ">=0.20.1" },
-    { name = "torchvision", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "<0.22.1" },
+    { name = "torchvision", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "<0.25.1" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "triton", marker = "sys_platform != 'darwin'", specifier = ">=3.0" },
 ]
