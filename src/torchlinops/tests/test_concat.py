@@ -1,11 +1,7 @@
 import pytest
-
 import torch
 
-from torchlinops import Concat, Dense, Diagonal, ND
-from einops import einsum
-
-from torchlinops.tests.test_base import BaseNamedLinopTests
+from torchlinops import ND, Concat, Dense
 
 
 def test_concat_init():

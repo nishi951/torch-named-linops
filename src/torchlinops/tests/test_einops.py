@@ -1,11 +1,9 @@
 import pytest
-
 import torch
 
-from torchlinops import SumReduce, Repeat
-
-from torchlinops.utils import is_adjoint
+from torchlinops import Repeat, SumReduce
 from torchlinops.tests.test_base import BaseNamedLinopTests
+from torchlinops.utils import is_adjoint
 
 
 class TestSumReduce(BaseNamedLinopTests):

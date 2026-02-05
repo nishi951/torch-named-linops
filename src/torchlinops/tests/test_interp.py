@@ -1,16 +1,12 @@
-import pytest
 from itertools import product
-
 from math import prod
 
+import pytest
 import torch
 
 from torchlinops import Interpolate
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
-
-from torchlinops.utils import is_adjoint
 from torchlinops.tests.test_base import BaseNamedLinopTests
-
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,
@@ -78,4 +74,4 @@ def test_interp_slc():
     obatch = [tile.get(dim, slice(None)) for dim in locs_batch_shape]
     linop_split = linop.split(linop, tile)
     assert linop_split.locs.shape == (8, 4, 1, 3)
-    assert (linop_split.locs == linop.locs[obatch]).all()
+    assert (linop_split.locs == linop.locs[tuple(obatch)]).all()

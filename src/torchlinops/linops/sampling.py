@@ -1,27 +1,34 @@
+from jaxtyping import Integer
 from typing import Optional
-from torch import Tensor
 
 import torch
 import torch.nn as nn
+from torch import Tensor
 
-from .namedlinop import NamedLinop
-from .nameddim import NDorStr, ELLIPSES, NS, Shape
-from torchlinops.utils import default_to
 import torchlinops.functional as F
-from torchlinops.functional._index.index import ensure_tensor_indexing
+from torchlinops.utils import default_to
 
+from ..nameddim import ELLIPSES, NamedShape as NS, Shape
+from .namedlinop import NamedLinop
 
 __all__ = ["Sampling"]
 
 
 class Sampling(NamedLinop):
-    """Sampling linop"""
+    """Sample a tensor at some specified integer locations.
+
+    ```
+    Input: (batch_shape, input_shape)
+    Output: (batch_shape, output_shape)
+    ```
+
+    """
 
     def __init__(
         self,
-        idx: tuple,
-        input_size: tuple,
-        output_shape: Shape,
+        idx: tuple[Integer[Tensor, "..."], ...],
+        input_size: tuple[int, ...],
+        output_shape: Optional[Shape] = None,
         input_shape: Optional[Shape] = None,
         batch_shape: Optional[Shape] = None,
     ):
@@ -30,27 +37,31 @@ class Sampling(NamedLinop):
 
         Parameters
         ----------
-        idx : tuple of [M...] tensors
+        idx : tuple[Integer[Tensor, "..."], ...]
+            tuple of of D  tensors, each of shape [M...]
             One index for each "sampled" axis of the input tensor
             Use `canonicalize_idx` to turn a tensor of shape [M... D] to a D-tuple of index tensors.
             idx is in range [0, size-1]
+        input_size : tuple[int, ...]
+            Actual shape of the input interpolated tensor, without the batch dimensions.
 
 
         """
+        dim = len(input_size)
+        if len(idx) != dim:
+            raise ValueError(
+                f"Input size {input_size} doesn't match index with length {len(idx)}."
+            )
         self.input_size = input_size
         batch_shape = default_to(("...",), batch_shape)
         input_shape = default_to(("...",), input_shape)
         output_shape = default_to(("...",), output_shape)
         shape = NS(batch_shape) + NS(input_shape, output_shape)
         super().__init__(shape)
-        self.register_shape("input_shape", input_shape)
-        self.register_shape("output_shape", output_shape)
-        self.register_shape("batch_shape", batch_shape)
-        # if len(input_shape) != len(idx):
-        #     raise ValueError(
-        #         f"Input shape {input_shape} doesn't correspond to idx with shape {len(idx)}"
-        #     )
-        idx = ensure_tensor_indexing(idx, self.input_size)
+        self._shape.batch_shape = batch_shape
+        self._shape.input_shape = input_shape
+        self._shape.output_shape = output_shape
+        idx = F.ensure_tensor_indexing(idx, self.input_size)
         for d, (t, s) in enumerate(zip(idx, self.input_size)):
             if (t < 0).any() or (t >= s).any():
                 raise ValueError(
@@ -88,22 +99,22 @@ class Sampling(NamedLinop):
             # Cannot split if idx batch shape is not split
             return self
         return type(self)(
-            self.split_forward_fn(ibatch, obatch, self.idx),
+            self.split_idx(ibatch, obatch, self.idx),
             self.input_size,
             self._shape.output_shape,
             self._shape.input_shape,
             self._shape.batch_shape,
         )
 
-    def split_forward_fn(self, ibatch, obatch, idx):
-        nM = len(idx[0].shape)
-        if nM > 0:
-            idx_slc = list(obatch[-nM:])
+    def split_idx(self, ibatch, obatch, idx):
+        num_output_dims = len(idx[0].shape)
+        if num_output_dims > 0:
+            idx_slc = tuple(obatch[-num_output_dims:])
             return [i[idx_slc] for i in idx]
         return idx
 
     def register_shape(self, name, shape: tuple):
-        self._shape.add(name, shape)
+        self._shape[name] = shape
 
     def size(self, dim):
         if dim in self._shape.output_shape:

@@ -12,13 +12,11 @@ from .fft import *
 from .identity import *
 from .interp import *
 from .mpbatch import *
+from .namedlinop import *
 from .nufft import *
+from .pad_last import *
 from .sampling import *
 from .scalar import *
 from .split import *
 from .stack import *
 from .trunc_pad import *
-from .pad_last import *
-
-from .nameddim import *
-from .namedlinop import *

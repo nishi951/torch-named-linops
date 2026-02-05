@@ -1,13 +1,11 @@
-import torch
-
-from torchlinops.functional import unfold
-import sigpy as sp
 import cupy as cp
 import numpy as np
-
+import sigpy as sp
+import torch
+from utils import Indenter, device_ordinal, from_pytorch, to_pytorch
 from utils.benchmark import benchmark
-from utils import Indenter, device_ordinal
-from utils import from_pytorch, to_pytorch
+
+from torchlinops.functional import unfold
 
 
 def main():

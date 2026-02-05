@@ -1,11 +1,9 @@
+from math import ceil, prod
 from typing import Literal
-from jaxtyping import Shaped, Float, Inexact
-from torch import Tensor
-
-from functools import partial
-from math import prod, ceil
 
 import torch
+from jaxtyping import Float, Inexact, Shaped
+from torch import Tensor
 
 try:
     import triton
@@ -13,21 +11,20 @@ try:
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+    from torchlinops.utils import fake_tl as tl, fake_triton as triton
 
     TRITON_ENABLED = False
 
+from ._batch import batch_iterator
 from .kernels import (
+    _apply_default_kernel_params,
+    get_kernel_fn,
+    mod_pos,
     weights1d,
     weights2d,
     weights3d,
     weights_torch,
-    get_kernel_fn,
-    _apply_default_kernel_params,
-    KernelTypeStr,
-    mod_pos,
 )
-from ._batch import batch_iterator
 
 __all__ = ["grid"]
 
@@ -43,7 +40,7 @@ def grid(
     grid_size: tuple[int, ...],
     width: float | tuple[float, ...],
     kernel: str = "kaiser_bessel",
-    norm: str = "1",
+    norm: int = 1,
     pad_mode: Literal["zero", "circular"] = "circular",
     kernel_params: dict = None,
 ):
@@ -54,7 +51,7 @@ def grid(
         For example, if the gridded output should have shape [3, 64, 64],
         where 3 is the batch size, then grid_size would be [64, 64]
 
-    norm: str, 1 or 2
+    norm: int, 1 or 2
         if 2, uses Euclidean norm to grid points to compute weights
         if 1, computes weights as product of axis-aligned norm weights
             - Same as sigpy
@@ -80,8 +77,8 @@ def _grid(
     locs: Float[Tensor, "... D"],
     grid_size: tuple[int, ...],
     width: tuple[float, ...],
-    kernel: KernelTypeStr,
-    norm: str,
+    kernel: str,
+    norm: int,
     pad_mode: str,
     ndim: int,
     nbatch: int,
@@ -575,7 +572,7 @@ def grid_torch(
     grid_size: tuple[int, ...],
     width: tuple[float, ...],
     kernel: str = "kaiser_bessel",
-    norm: str = "1",
+    norm: int = 1,
     pad_mode: Literal["zero", "circular"] = "circular",
     batch_size: int = 2**20,
     **kernel_params,
@@ -598,7 +595,7 @@ def grid_torch(
     nbatch = vals.shape[0]
     diff = torch.meshgrid(*(torch.arange(w + 1) for w in width), indexing="ij")
     # patch_size = diff[0].shape
-    grid_size = torch.tensor(grid_size, device=vals.device)
+    grid_size_tensor = torch.tensor(grid_size, device=vals.device)
 
     # [prod(patch_size), ndim]
     diff = torch.stack(diff, axis=-1).reshape(-1, ndim).to(device)
@@ -606,7 +603,7 @@ def grid_torch(
     locs_lower = torch.ceil(locs - radius).to(torch.int64)
 
     # For loop for memory purposes
-    out = torch.zeros(nbatch, *tuple(grid_size), dtype=vals.dtype, device=device)
+    out = torch.zeros(nbatch, *grid_size, dtype=vals.dtype, device=device)
     vals = vals.reshape(nbatch, -1)  # [nbatch, npts]
     npts = vals.shape[1]
     locs = locs.reshape(-1, ndim)  # [npts, ndim]
@@ -623,7 +620,7 @@ def grid_torch(
             radius,
             norm,
             kernel_fn,
-            grid_size,
+            grid_size_tensor,
             pad_mode,
         )
         val = vals[:, p0:p1, None]  # [nbatch, npts, 1]

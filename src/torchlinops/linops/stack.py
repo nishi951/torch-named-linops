@@ -4,14 +4,14 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from jaxtyping import Integer
 from torch import Tensor
+
 from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
 
 from .add import Add
 from .identity import Zero
-from .nameddim import ELLIPSES, ND, NS, NDorStr, isequal
+from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Stack"]
@@ -49,9 +49,9 @@ class Stack(NamedLinop):
 
     def __init__(
         self,
-        *linops,
-        idim_and_idx: Optional[tuple[NDorStr, int]] = (None, None),
-        odim_and_idx: Optional[tuple[NDorStr, int]] = (None, None),
+        *linops: NamedLinop,
+        idim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
+        odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
     ):
         """
         stack_input_dim / stack_output_dim : int
@@ -132,14 +132,12 @@ class Stack(NamedLinop):
             y += linop(xi)
         return y
 
-    def size(self, dim):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim, /):
+    def size(self, dim) -> int | None:
         if dim == self.idim or dim == self.odim:
             return len(self.linops)
         else:
-            return self.linops[0].size(dim)
+            # https://github.com/pytorch/pytorch/issues/80821
+            return self.linops[0].size(dim)  # type: ignore
 
     def split_forward(self, ibatch, obatch):
         """Split stack linop"""
@@ -154,8 +152,6 @@ class Stack(NamedLinop):
         if len(linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
             return Zero(self.ishape, self.oshape)
-            # elif len(output_linop_idxs) == 1:
-            # else:
         linop_idxs = sorted(list(linop_idxs))
         output_linops = []
         # Remove stack dims from slice batch
@@ -179,7 +175,7 @@ class Stack(NamedLinop):
             odim_and_idx=(self.odim, self.odim_idx),
         )
 
-    def split_forward_fn(self, ibatch, obatch, data_list):
+    def split_data(self, ibatch, obatch, data_list):
         """Split stack linop, making a new stack linop if necessary
 
         Parameters
@@ -213,7 +209,7 @@ class Stack(NamedLinop):
         for i in linop_idxs:
             linop = self.linops[i]
             data = data_list[i]
-            output_linop_data.append(linop.split_forward_fn(ibatch, obatch, data))
+            output_linop_data.append(linop.split_data(ibatch, obatch, data))
         return output_linop_data
 
     def adjoint(self):
@@ -281,7 +277,7 @@ class Stack(NamedLinop):
         return new_idim, new_odim
 
     @staticmethod
-    def _check_linop_compatibility(linops: list[NamedLinop]):
+    def _check_linop_compatibility(linops: tuple[NamedLinop, ...]):
         """Ensure linops can actually be concatenated along the requested dimension"""
         target_shape = linops[0].shape
         for linop in linops:

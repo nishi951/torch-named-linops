@@ -1,13 +1,11 @@
 from typing import Optional
-from copy import copy, deepcopy
 
 import torch.nn.functional as F
 
-from .namedlinop import NamedLinop
-from .identity import Identity
-from .nameddim import ND, get_nd_shape, NS, NDorStr, Shape
 from torchlinops.utils import default_to
 
+from ..nameddim import NamedDimension as ND, NamedShape as NS, Shape, get_nd_shape
+from .namedlinop import NamedLinop
 
 __all__ = ["PadLast"]
 
@@ -86,7 +84,7 @@ class PadLast(NamedLinop):
                 f"Mismatched shapes: expected {padlast.pad_im_size} but got {y.shape[-padlast.D :]}"
             )
         slc = [slice(None)] * (y.ndim - padlast.D) + padlast.crop_slice
-        return y[slc]
+        return y[tuple(slc)]
 
     def adjoint(self):
         adj = super().adjoint()
@@ -95,21 +93,14 @@ class PadLast(NamedLinop):
         return adj
 
     def split_forward(self, ibatch, obatch):
-        self.split_forward_fn(ibatch, obatch)
-        return self
-
-    def split_forward_fn(self, ibatch, obatch, /):
         for islc, oslc in zip(ibatch[-self.D :], obatch[-self.D :]):
             if islc != slice(None) or oslc != slice(None):
                 raise ValueError(
                     f"{type(self).__name__} cannot be split along image dim"
                 )
-        return None
+        return self
 
     def size(self, dim: str):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim: str, /):
         if dim in self.ishape[-self.D :]:
             return self.in_im_size[self.in_im_shape.index(dim)]
         elif dim in self.oshape[-self.D :]:

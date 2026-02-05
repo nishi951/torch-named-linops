@@ -5,8 +5,9 @@ Maybe replace with more generic slicing linop later
 from copy import copy
 
 from torchlinops.utils import end_pad_with_zeros
+
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
-from .nameddim import NS, Shape
 
 __all__ = ["Truncate", "PadDim"]
 
@@ -50,16 +51,8 @@ class Truncate(NamedLinop):
             raise ValueError("Cannot slice a Truncate linop along truncation dimension")
         return type(self)(self.dim, self.length, self.ishape, self.oshape)
 
-    def split_forward_fn(self, ibatch, obatch, /, data=None):
-        if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
-            raise ValueError("Cannot slice a Truncate linop along truncation dimension")
-        return None
-
     # Linop changes relative size, but can't determine the size itself
     def size(self, dim):
-        return None
-
-    def size_fn(self, dim, /, data=None):
         return None
 
     def adjoint(self):
@@ -135,16 +128,8 @@ class PadDim(NamedLinop):
             raise ValueError("Cannot slice a PadEnd linop along truncation dimension")
         return type(self)(self.dim, self.length, self.ishape, self.oshape)
 
-    def split_forward_fn(self, ibatch, obatch, /, data=None):
-        if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
-            raise ValueError("Cannot slice a PadEnd linop along truncation dimension")
-        return None
-
     # Linop changes relative size, but can't determine the size itself
     def size(self, dim):
-        return None
-
-    def size_fn(self, dim, /, data=None):
         return None
 
     @staticmethod

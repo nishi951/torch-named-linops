@@ -1,16 +1,11 @@
-import pytest
 from itertools import product
 
-from math import prod
-
+import pytest
 import torch
 
 import torchlinops.functional as F
 from torchlinops import ArrayToBlocks
-
-from torchlinops.utils import is_adjoint
 from torchlinops.tests.test_base import BaseNamedLinopTests
-
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,

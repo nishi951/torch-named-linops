@@ -1,8 +1,6 @@
 import pytest
-
 import torch
 
-import torchlinops.functional as F
 from torchlinops import Sampling
 from torchlinops.tests.test_base import BaseNamedLinopTests
 

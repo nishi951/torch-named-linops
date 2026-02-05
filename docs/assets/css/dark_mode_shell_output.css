@@ -1,0 +1,7 @@
+[data-md-color-scheme="slate"] .md-typeset .language-shell code,
+[data-md-color-scheme="slate"] .md-typeset .language-bash code,
+[data-md-color-scheme="slate"] .md-typeset .language-console code,
+[data-md-color-scheme="slate"] .md-typeset .language-sh code {
+    background-color: var(--md-code-bg-color);
+    color: var(--md-default-fg-color);
+}

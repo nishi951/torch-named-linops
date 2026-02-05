@@ -1,14 +1,13 @@
 from copy import copy
-from dataclasses import dataclass, field
 from typing import Optional
 
 import torch
-from torch import Tensor
-from torch.cuda import Stream, Event
+from torch.cuda import Event, Stream
 
 from torchlinops.utils import INDENT, RepeatedEvent
+
+from ..nameddim import NamedShape as NS, Shape
 from .identity import Identity
-from .nameddim import ELLIPSES, NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["ToDevice"]

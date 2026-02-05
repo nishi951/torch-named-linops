@@ -1,11 +1,11 @@
-from jaxtyping import Float, Integer, Bool
-from torch import Tensor
-from typing import Literal
+import platform
 from collections.abc import Callable
-
 from functools import partial
+from typing import Literal
 
 import torch
+from jaxtyping import Bool, Float, Integer
+from torch import Tensor
 
 try:
     import triton
@@ -13,7 +13,7 @@ try:
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_triton as triton, fake_tl as tl
+    from torchlinops.utils import fake_tl as tl, fake_triton as triton
 
     TRITON_ENABLED = False
 
@@ -109,7 +109,7 @@ def weights_torch(
     locs: Float[Tensor, "P G D"],
     grid_locs: Float[Tensor, "P G D"],
     radius: Float[Tensor, "D"],  # noqa: F821
-    norm: Literal["1", "2"],
+    norm: int,
     kernel_fn: Callable,
     grid_size: Integer[Tensor, "D"],  # noqa: F821
     padding: Literal["zero", "circular"],
@@ -119,7 +119,7 @@ def weights_torch(
     G: Patch size (flattened)
     D: Dim (e.g. 3D)
 
-    norm : str, 1 or 2
+    norm : int, 1 or 2
         Type of norm to use
     """
     # Normalized delta(locations)
@@ -127,11 +127,11 @@ def weights_torch(
 
     # Weights shape: [npts, npatch]
     # Mask shape: [npts, npatch]
-    if norm == "2":
+    if norm == 2:
         dist = torch.linalg.vector_norm(dlocs, dim=-1)
         weights = kernel_fn(dist)
         mask = dist <= radius
-    elif norm == "1":
+    elif norm == 1:
         weights = kernel_fn(dlocs).prod(dim=-1)
         mask = (torch.abs(dlocs) <= radius).all(dim=-1)
     else:
@@ -242,11 +242,7 @@ def spline(x):
     return tl.maximum(1.0 - tl.abs(x), 0.0)
 
 
-### Common functions for grid/ungrid
-KernelTypeStr = Literal["kaiser_bessel", "spline"]
-
-
-def _apply_default_kernel_params(kernel: KernelTypeStr, kernel_params: dict):
+def _apply_default_kernel_params(kernel: str, kernel_params: dict):
     if kernel == "kaiser_bessel":
         kernel_params["beta"] = kernel_params.get("beta", 1.0)
     elif kernel == "spline":
@@ -304,7 +300,7 @@ def weights2d(
     x_mask = tl.abs(dx) <= rx
     dy, ry = (y_range - y_target), (y_kernel_width / 2.0)
     y_mask = tl.abs(dy) <= ry
-    if NORM == "2":
+    if NORM == 2:
         d = norm2d(dx / rx, dy / ry)
         if KERNEL == "kaiser_bessel":
             weights = kaiser_bessel(d, beta)
@@ -312,7 +308,7 @@ def weights2d(
             weights = spline(d)
         else:
             tl.device_assert(False, f"Invalid kernel type: {KERNEL}")
-    elif NORM == "1":
+    elif NORM == 1:
         if KERNEL == "kaiser_bessel":
             wx = kaiser_bessel(norm1d(dx) / rx, beta)
             wy = kaiser_bessel(norm1d(dy) / ry, beta)
@@ -356,7 +352,7 @@ def weights3d(
     y_mask = tl.abs(dy) <= ry
     dz, rz = (z_range - z_target), (z_kernel_width / 2.0)
     z_mask = tl.abs(dz) <= rz
-    if NORM == "2":
+    if NORM == 2:
         d = norm3d(dx / rx, dy / ry, dz / rz)
         if KERNEL == "kaiser_bessel":
             weights = kaiser_bessel(d, beta)
@@ -364,7 +360,7 @@ def weights3d(
             weights = spline(d)
         else:
             tl.device_assert(False, f"Invalid kernel type: {KERNEL}")
-    elif NORM == "1":
+    elif NORM == 1:
         if KERNEL == "kaiser_bessel":
             wx = kaiser_bessel(norm1d(dx) / rx, beta)
             wy = kaiser_bessel(norm1d(dy) / ry, beta)

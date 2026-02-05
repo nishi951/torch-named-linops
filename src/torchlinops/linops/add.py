@@ -1,14 +1,28 @@
 import torch
 import torch.nn as nn
 
-from .nameddim import NS, isequal
+from ..nameddim import NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 
 __all__ = ["Add"]
 
 
 class Add(NamedLinop):
-    def __init__(self, *linops, stream=None):
+    """The sum of one or more linear operators.
+
+    Attributes
+    ----------
+    linops : nn.ModuleList
+        The list of linops being added together.
+    """
+
+    def __init__(self, *linops, **kwargs):
+        """
+        Parameters
+        ----------
+        *linops : tuple[NamedLinop]
+            The linear operators to be added together.
+        """
         assert all(isequal(linop.ishape, linops[0].ishape) for linop in linops), (
             f"Add: All linops must share same ishape. Found {linops}"
         )
@@ -16,7 +30,7 @@ class Add(NamedLinop):
             f"Add: All linops must share same oshape. Linops: {linops}"
         )
         # TODO: specialize the ishape and oshape on most specific one
-        super().__init__(NS(linops[0].ishape, linops[0].oshape), stream=stream)
+        super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
         self.linops = nn.ModuleList(linops)
 
     @staticmethod
@@ -27,28 +41,9 @@ class Add(NamedLinop):
     def adj_fn(add, x: torch.Tensor, /):
         return sum(linop.adj_fn(linop, x) for linop in add.linops)
 
-    # @staticmethod
-    # def normal_fn(add, x: torch.Tensor, /):
-    #     # Note: Alternatively, make every possible combination of terms? Might be faster in some cases?
-    #     return add.adj_fn(add, add.fn(add, x))
-
     def split_forward(self, ibatch, obatch):
-        """ibatch, obatch specified according to the shape of the
-        forward op
-        """
         linops = [linop.split_forward(ibatch, obatch) for linop in self.linops]
         return type(self)(*linops)
-
-    def split_forward_fn(self, ibatch, obatch, data_list):
-        """Split data into batches
-        ibatches, obatches specified according to the shape of the
-        forward op
-        """
-        data = [
-            linop.split_forward_fn(ibatch, obatch, data)
-            for linop, data in zip(self.linops, data_list)
-        ]
-        return data
 
     def adjoint(self):
         return type(self)(*(linop.adjoint() for linop in self.linops))
@@ -60,20 +55,12 @@ class Add(NamedLinop):
                 return out
         return None
 
-    def size_fn(self, dim, data):
-        for linop, data in zip(self.linops, data):
-            out = linop.size_fn(dim, data)
-            if out is not None:
-                return out
-        return None
-
     @property
     def dims(self):
         return set().union(*[linop.dims for linop in self.linops])
 
     @property
     def H(self):
-        """Adjoint operator"""
         if self._adj is None:
             linops = list(linop.adjoint() for linop in self.linops)
             _adj = type(self)(*linops)
@@ -82,7 +69,6 @@ class Add(NamedLinop):
 
     @property
     def N(self):
-        """Normal operator (is this really necessary?)"""
         if self._normal is None:
             linops = list(linop.normal() for linop in self.linops)
             _normal = type(self)(*linops)

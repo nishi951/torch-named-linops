@@ -1,14 +1,12 @@
+from math import prod
+
 import pytest
-
-from math import prod, ceil, floor
-
-import torch
 import sigpy as sp
+import torch
 
 from torchlinops.functional import grid
-from torchlinops.utils import to_pytorch, from_pytorch
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
-
+from torchlinops.utils import from_pytorch, to_pytorch
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,
