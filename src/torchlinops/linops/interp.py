@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Optional
 
 import torch.nn as nn
 from jaxtyping import Float

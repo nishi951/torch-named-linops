@@ -8,7 +8,7 @@ import torch.nn as nn
 from tqdm import tqdm
 from typing_extensions import Self
 
-from torchlinops.utils import INDENT, dict_product
+from torchlinops.utils import INDENT
 
 from ..nameddim import NamedShape as NS, Shape
 from .identity import ShapeSpec

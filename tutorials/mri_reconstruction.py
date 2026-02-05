@@ -109,7 +109,7 @@ def generate_radial_trajectory(num_spokes, num_readouts, grid_size):
     return locs
 
 
-def generate_cartesian_trajectory(grid_size, oversamp=2.0, resolution_scale=2.0):
+def generate_cartesian_trajectory(grid_size, oversamp=2.0):
     """Generate Cartesian k-space trajectory.
 
     Parameters
@@ -178,7 +178,7 @@ def generate_gaussian_coil_sensitivities(grid_size, num_coils):
     return coil_sens
 
 
-def analytic_radial_dcf(locs, grid_size):
+def analytic_radial_dcf(locs):
     """Compute analytic density compensation for radial trajectories.
 
     Parameters
@@ -193,8 +193,6 @@ def analytic_radial_dcf(locs, grid_size):
     torch.Tensor
         Density compensation weights with shape (N,)
     """
-    Nx, Ny = grid_size
-
     # Compute radius for each k-space location
     radius = torch.sqrt(locs[:, 0] ** 2 + locs[:, 1] ** 2)
 
@@ -395,7 +393,7 @@ coil_op = Dense(
 if use_cartesian:
     dcf_weights = analytic_cartesian_dcf(locs)
 else:
-    dcf_weights = analytic_radial_dcf(locs, image_size)
+    dcf_weights = analytic_radial_dcf(locs)
 
 print(f"Density weights shape: {dcf_weights.shape}")
 
