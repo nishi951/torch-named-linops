@@ -41,7 +41,7 @@ class NamedShape(NamedDimCollection):
     @property
     def other_shapes(self):
         """Shapes that are not ishape or oshape."""
-        other_shapes = self.shapes
+        other_shapes = self.shapes.copy()
         for name in ["ishape", "oshape"]:  # Special attributes
             other_shapes.pop(name)
         return other_shapes
@@ -55,28 +55,6 @@ class NamedShape(NamedDimCollection):
         new_oshape = tuple(d.next_unused(self.ishape) for d in self.ishape)
         new = type(self)(self.ishape, new_oshape, **self.other_shapes)
         return new
-
-    # @staticmethod
-    # def convert(a: Iterable[ND | str]):
-    #     return list(ND.infer(a))
-
-    # @property
-    # def ishape(self) -> tuple[ND]:
-    #     return self._ishape
-
-    # @ishape.setter
-    # def ishape(self, val: Iterable[ND | str]):
-    #     _ishape = self.convert(val)
-    #     self._ishape = _ishape
-
-    # @property
-    # def oshape(self) -> tuple[ND]:
-    #     return self._oshape
-
-    # @oshape.setter
-    # def oshape(self, val: Iterable[ND | str]):
-    #     _oshape = self.convert(val)
-    #     self._oshape = _oshape
 
     @property
     def H(self) -> "NamedShape":

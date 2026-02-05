@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchlinops import Diagonal
-from torchlinops.utils import inner, is_adjoint
+from torchlinops.utils import is_adjoint
 
 
 @pytest.fixture

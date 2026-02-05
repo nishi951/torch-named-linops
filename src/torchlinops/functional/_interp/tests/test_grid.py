@@ -1,4 +1,4 @@
-from math import ceil, floor, prod
+from math import prod
 
 import pytest
 import sigpy as sp
