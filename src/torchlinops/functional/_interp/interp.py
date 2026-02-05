@@ -1,19 +1,17 @@
-"""Differentiable forms of Grid/Ungrid"""
+"""Differentiable implementations of Grid/Ungrid"""
 
-from typing import Optional, Literal
-from jaxtyping import Inexact, Float
+from jaxtyping import Float, Inexact
 from torch import Tensor
 from torch.autograd import Function
 
-import torch
-from .ungrid import ungrid
 from .grid import grid
+from .ungrid import ungrid
 
 __all__ = ["interpolate", "interpolate_adjoint"]
 
 
 class InterpolateFn(Function):
-    """Equal to block/unfold"""
+    """Equal to ungrid"""
 
     @staticmethod
     def forward(
@@ -21,7 +19,7 @@ class InterpolateFn(Function):
         locs: Float[Tensor, "... D"],
         width: float | tuple[float, ...],
         kernel: str,
-        norm: str,
+        norm: int,
         pad_mode: str,
         kernel_params: dict,
     ) -> Tensor:
@@ -79,7 +77,7 @@ def interpolate(
     locs: Float[Tensor, "... D"],
     width: float | tuple[float, ...],
     kernel="kaiser_bessel",
-    norm: str = "1",
+    norm: int = 1,
     pad_mode: str = "circular",
     kernel_params: dict = None,
 ):
@@ -88,7 +86,7 @@ def interpolate(
 
 
 class InterpolateAdjointFn(Function):
-    """Equal to block_adjoint/fold"""
+    """Equal to grid."""
 
     @staticmethod
     def forward(
@@ -97,7 +95,7 @@ class InterpolateAdjointFn(Function):
         grid_size: tuple[int, ...],
         width: float | tuple[float, ...],
         kernel: str,
-        norm: str,
+        norm: int,
         pad_mode: str,
         kernel_params: dict,
     ) -> Tensor:
@@ -160,7 +158,7 @@ def interpolate_adjoint(
     grid_size: tuple[int, ...],
     width: float | tuple[float, ...],
     kernel: str = "kaiser_bessel",
-    norm: str = "1",
+    norm: int = 1,
     pad_mode: str = "circular",
     kernel_params: dict = None,
 ):

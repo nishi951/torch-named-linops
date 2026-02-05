@@ -1,17 +1,16 @@
-from typing import Callable, Optional
-from torch import Tensor
-
 from dataclasses import dataclass
+from typing import Callable, Optional
 
 import torch
+from torch import Tensor
 from tqdm import tqdm
 
 from torchlinops.utils import default_to_dict, inner as zdot
 
-__all__ = ["cg"]
+__all__ = ["conjugate_gradients"]
 
 
-def cg(
+def conjugate_gradients(
     A: Callable,
     y: Tensor,
     x0: Optional[Tensor] = None,
@@ -20,12 +19,10 @@ def cg(
     ltol: float = 1e-5,
     disable_tracking: bool = False,
     tqdm_kwargs: Optional[dict] = None,
-):
+) -> Tensor | None:
     """Solve Ax = y with conjugate gradients.
 
     A is a positive semidefinite matrix.
-
-
 
     Parameters
     ----------

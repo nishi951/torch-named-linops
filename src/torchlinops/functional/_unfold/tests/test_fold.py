@@ -1,14 +1,12 @@
-import pytest
-
 from math import prod
 
-import torch
+import pytest
 import sigpy as sp
+import torch
 
 from torchlinops.functional import fold
 from torchlinops.functional._unfold.nblocks import get_nblocks
 from torchlinops.utils import from_pytorch, to_pytorch
-
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,

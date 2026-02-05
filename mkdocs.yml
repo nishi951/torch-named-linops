@@ -1,0 +1,144 @@
+site_name: "Torch Named Linops"
+site_dir: _site
+repo_url: https://github.com/nishi951/torch-named-linops
+repo_name: torch-named-linops
+site_description: A flexible linear operator abstraction in pytorch.
+copyright: Copyright &copy; 2026 Mark Nishimura
+
+theme:
+  name: material
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/logo_dark.svg
+  favicon: assets/favicon.svg
+
+extra_css:
+  - assets/css/logo.css
+  - assets/css/dark_mode_shell_output.css
+  - assets/css/extras.css
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src/torchlinops]
+          inventories:
+            - https://docs.python.org/3/objects.inv
+            - https://pytorch.org/docs/stable/objects.inv
+          options:
+            docstring_section_style: spacy
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            show_signature: true
+            show_signature_annotations: true
+            separate_signature: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+
+  - gallery:
+      examples_dirs: tutorials
+      gallery_dirs: docs/tutorials
+      filename_pattern: .py
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - admonition
+  - attr_list
+  - md_in_html
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Getting Started:
+      - getting_started/index.md
+      - getting_started/installation.md
+  - Tutorials: tutorials/
+  - How-To Guides:
+      - howto/index.md
+      - Custom Linops: howto/custom_linops.md
+  - Explanations:
+      - explanations/index.md
+      - explanations/design_notes.md
+      - explanations/copying_linops.md
+      - explanations/faq.md
+      - explanations/multi_gpu.md
+      - explanations/why_this_package.md
+  - API Reference:
+      - reference/index.md
+      - Linops:
+        - reference/linops/index.md
+        - NamedLinop: reference/linops/namedlinop.md
+        - Add: reference/linops/add.md
+        - ArrayToBlocks/BlocksToArray: reference/linops/array_manipulation.md
+        - Batching: reference/linops/batch.md
+        - Chain: reference/linops/chain.md
+        - Concat & Stack: reference/linops/concat_stack.md
+        - Dense: reference/linops/dense.md
+        - Device Transfer: reference/linops/device.md
+        - Diagonal & Scalar: reference/linops/diagonal.md
+        - Einops: reference/linops/einops.md
+        - FFT: reference/linops/fft.md
+        - Identity: reference/linops/identity.md
+        - Interpolation: reference/linops/interp.md
+        - NUFFT: reference/linops/nufft.md
+        - Padding & Truncation: reference/linops/pad.md
+        - Sampling: reference/linops/sampling.md
+        - Splitting: reference/linops/split.md
+      - Functional:
+        - Interpolation: reference/functional/interp.md
+        - Indexing: reference/functional/index.md
+        - NUFFT: reference/functional/nufft.md
+        - Padding: reference/functional/pad.md
+        - Unfold/Fold: reference/functional/unfold.md
+      - NamedDim:
+        - NamedDimension: reference/nameddim/nameddimension.md
+        - NamedShape: reference/nameddim/namedshape.md
+        - Matching: reference/nameddim/matching.md
+      - Algorithms:
+        - Conjugate Gradient: reference/alg/cg.md
+        - Polynomial: reference/alg/poly.md
+        - Power Method: reference/alg/powermethod.md
+      - Utils:
+        - Math & FFT: reference/utils/math.md
+        - Memory & Device: reference/utils/memory.md
+        - Benchmarking: reference/utils/benchmark.md
+watch:
+  - src/torchlinops

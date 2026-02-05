@@ -1,15 +1,13 @@
-from typing import Optional
-from torch import Tensor
-
 from copy import copy
-from warnings import warn
+from typing import Optional
 
-from einops import repeat
 import torch
 import torch.nn as nn
+from einops import repeat
+from torch import Tensor
 
-from .nameddim import NS, Shape, ANY
-from .namedlinop import NamedLinop, ND
+from ..nameddim import ANY, NamedShape as NS, Shape
+from .namedlinop import NamedLinop
 
 __all__ = ["Diagonal"]
 
@@ -39,7 +37,7 @@ class Diagonal(NamedLinop):
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         if ANY in self.ishape:
             broadcast_dims.append(ANY)
-        self._shape.add("broadcast_dims", broadcast_dims)
+        self._shape.broadcast_dims = broadcast_dims
 
     @classmethod
     def from_weight(
@@ -63,7 +61,7 @@ class Diagonal(NamedLinop):
 
     @property
     def broadcast_dims(self):
-        return self._shape.lookup("broadcast_dims")
+        return self._shape.broadcast_dims
 
     @broadcast_dims.setter
     def broadcast_dims(self, val):
@@ -111,12 +109,12 @@ class Diagonal(NamedLinop):
         return super().normal(inner)
 
     def split_forward(self, ibatch, obatch):
-        weight = self.split_forward_fn(ibatch, obatch, self.weight)
+        weight = self.split_weight(ibatch, obatch, self.weight)
         split = copy(self)
         split.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
         return split
 
-    def split_forward_fn(self, ibatch, obatch, /, weight):
+    def split_weight(self, ibatch, obatch, /, weight):
         assert ibatch == obatch, "Diagonal linop must be split identically"
         # Filter out broadcastable dims
         ibatch = [
@@ -126,15 +124,12 @@ class Diagonal(NamedLinop):
         return weight[ibatch[-len(weight.shape) :]]
 
     def size(self, dim: str):
-        return self.size_fn(dim, self.weight)
-
-    def size_fn(self, dim: str, weight):
         if dim in self.ishape:
-            n_broadcast = len(self.ishape) - len(weight.shape)
+            n_broadcast = len(self.ishape) - len(self.weight.shape)
             if self.ishape.index(dim) < n_broadcast or dim in self.broadcast_dims:
                 return None
             else:
-                return weight.shape[self.ishape.index(dim) - n_broadcast]
+                return self.weight.shape[self.ishape.index(dim) - n_broadcast]
         return None
 
     def __pow__(self, exponent):

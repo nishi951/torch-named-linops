@@ -1,21 +1,25 @@
-from typing import Optional
 from copy import copy
-from torch import Tensor
-
-from warnings import warn
+from typing import Optional
 
 import torch.nn as nn
+from torch import Tensor
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to
 
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
-from .nameddim import ELLIPSES, NS, Shape
 
 __all__ = ["ArrayToBlocks", "BlocksToArray"]
 
 
 class ArrayToBlocks(NamedLinop):
+    """Extract sliding windows from an array.
+
+    Adjoint of [BlocksToArray](#BlocksToArray).
+
+    """
+
     def __init__(
         self,
         grid_size: tuple[int, ...],
@@ -84,9 +88,6 @@ class ArrayToBlocks(NamedLinop):
         )
 
     def size(self, dim):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim):
         ndim = len(self.grid_size)
         if dim in self.ishape[-ndim:]:
             i = self.ishape.index(dim) - len(self.ishape)
@@ -95,6 +96,11 @@ class ArrayToBlocks(NamedLinop):
 
 
 class BlocksToArray(NamedLinop):
+    """Compose several equally-sized blocks into a larger array.
+
+    Adjoint of [ArrayToBlocks](#ArrayToBlocks).
+    """
+
     def __init__(
         self,
         grid_size: tuple[int, ...],
@@ -158,9 +164,6 @@ class BlocksToArray(NamedLinop):
         )
 
     def size(self, dim):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim):
         ndim = len(self.grid_size)
         if dim in self.oshape[-ndim:]:
             i = self.oshape.index(dim) - len(self.oshape)

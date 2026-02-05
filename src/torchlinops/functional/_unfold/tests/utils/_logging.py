@@ -1,7 +1,6 @@
-from typing import Optional
-
 import logging
 from textwrap import indent
+from typing import Optional
 
 __all__ = ["setup_console_logger", "Indenter"]
 

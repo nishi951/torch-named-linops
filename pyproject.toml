@@ -36,21 +36,25 @@ classifiers = [
 
 [dependency-groups]
 dev = [
-    "furo>=2024.8.6",
+    "bandit>=1.9.2",
     "ipykernel>=6.29.5",
     "isort>=6.0.1",
     "jupyterlab>=4.4.3",
     "marimo>=0.12.0",
     "markdown-pytest>=0.3.2",
     "matplotlib>=3.10.1",
-    "myst-nb>=1.2.0",
-    "myst-parser>=3.0.1",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.25.0",
+    "mkdocs-gallery>=0.10.0",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.0",
     "pre-commit>=4.0.1",
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
     "ruff>=0.8.4",
-    "sphinx>=8.0",
-    "sphinx-autobuild>=2024.10.3",
+    "pyqt6>=6.10.2",
+    "mkdocs-macros-plugin>=1.5.0",
 ]
 sigpy = [
     "numba>=0.60.0",
@@ -102,7 +106,8 @@ omit = ["*/tests/*"]
 
 [tool.isort]
 known_first_party = ["torchlinops"]
-no_lines_before = ["LOCALFOLDER"]
+combine_as_imports = true
+# no_lines_before = ["LOCALFOLDER"]
 
 [build-system]
 requires = ["hatchling"]
@@ -116,3 +121,9 @@ packages = ["src/torchlinops"]
 
 [tool.hatch.version]
 path = "src/torchlinops/__init__.py"
+
+[tool.bandit]
+exclude = ["**/tests/*"]
+skips = [
+    "B101" # Asserts
+]

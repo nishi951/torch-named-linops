@@ -1,13 +1,11 @@
 from typing import Optional
 
 import torch
-import torch.nn as nn
 
 from torchlinops.utils import default_to
 
 from .diagonal import Diagonal
-from .nameddim import NDorStr, Shape
-
+from ..nameddim import Shape
 
 __all__ = ["Scalar"]
 
@@ -24,9 +22,9 @@ class Scalar(Diagonal):
         ioshape = default_to(("...",), ioshape)
         super().__init__(weight, ioshape=ioshape)
 
-    def split_forward_fn(self, ibatch, obatch, /, weight):
+    def split_weight(self, ibatch, obatch, /, weight):
         assert ibatch == obatch, "Scalar linop must be split identically"
         return weight
 
-    def size_fn(self, dim: str, weight):
+    def size(self, dim: str):
         return None

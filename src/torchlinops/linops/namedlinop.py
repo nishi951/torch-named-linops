@@ -1,27 +1,19 @@
 import logging
 import traceback
-import types
-from collections import defaultdict
 from collections.abc import Mapping
 from copy import copy, deepcopy
 from functools import partial
-from typing import Any, Optional
+from typing import Optional
 
 import torch
 import torch.nn as nn
-from torch.cuda import Stream, Event
+from torch import Tensor
+from torch.cuda import Event, Stream
 
 import torchlinops
 import torchlinops.config as config
-from torchlinops.utils import (
-    INDENT,
-    check_signature,
-    memory_aware_deepcopy,
-    memory_aware_to,
-)
-from .nameddim import NS
-from .nameddim import NamedDimension as ND
-from .nameddim import NamedShape, NDorStr
+from torchlinops.nameddim import NamedDimension as ND, NamedShape, Shape
+from torchlinops.utils import INDENT, memory_aware_deepcopy, memory_aware_to
 
 __all__ = ["NamedLinop"]
 
@@ -29,7 +21,19 @@ logger = logging.getLogger("torchlinops")
 
 
 class NamedLinop(nn.Module):
-    """Base Class for all NamedLinops"""
+    """Base class for all NamedLinops
+
+    Attributes
+    ----------
+    shape : NamedShape
+        The shape of the linop.
+    stream : torch.cuda.Stream, optional
+        The stream on which this linop will be run.
+    start_event : torch.cuda.Event, optional
+        An event that signals when the linop has started. Useful for synchronizing multiple
+        linops across multiple devices.
+
+    """
 
     def __init__(
         self,
@@ -42,11 +46,18 @@ class NamedLinop(nn.Module):
         Parameters
         ----------
         shape : NamedShape
-            The shape of this linop, e.g. ``NS(("N",), ("M",))``
+            The shape of this linop, e.g. ``NamedShape(("N",), ("M",))``
         name : str, optional
-            Optional name to display for this linop
+            Optional name to display for this linop.
+        stream : Stream, optional
+            The CUDA stream on which to run this linop.
+        start_event : Event, optional
+            An event that signals when the linop has started. Useful for synchronizing multiple
+            linops across multiple devices.
         """
         super().__init__()
+        # Note: this attribute is private because the `.shape` attribute may be derived
+        # dynamically
         self._shape = shape
 
         self.reset_adjoint_and_normal()
@@ -56,56 +67,81 @@ class NamedLinop(nn.Module):
         self.stream = stream
         self.start_event = start_event
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         if self.start_event is not None:
-            # Indicate linop has begun
             self.start_event.record()
         if self.stream is not None:
-            # Assumes x has been waited-on previously
             with torch.cuda.stream(self.stream):
                 y = self.fn(self, x)
             x.record_stream(self.stream)
-            # Assumes y will be waited-on appropriately
             return y
         return self.fn(self, x)
 
-    def apply(self, x: torch.Tensor):
+    def apply(self, x: Tensor) -> Tensor:
+        """Apply the linear operator to a tensor."""
         return LinopFunction.apply(x, self)
 
     # Override
     @staticmethod
-    def fn(linop, x: torch.Tensor, /):
-        """Functional forward operator.
-        Non-input arguments should be keyword-only
-        self can still be used - kwargs should contain elements
-        that may change frequently (e.g. trajectories) and can
-        ignore hyperparameters (e.g. normalization modes)
+    def fn(linop, x: Tensor, /) -> Tensor:
+        """Apply the linop to a tensor.
 
-        Staticmethod because it needs to be unbound to swap for the adjoint
+        Parameters
+        ----------
+        x : Tensor
+            The input to the linop.
 
+        Returns
+        -------
+        Tensor
+            A(x)
+            The result of applying the linop.
+
+        Notes
+        -----
+        - Other parameters are passed in as attributes of the linop object.
+        - Declared as a staticmethod because it needs to be unbound when swapping with adj_fn.
         """
         return x
 
     # Override
     @staticmethod
-    def adj_fn(linop, x: torch.Tensor, /):
-        """Placeholder for functional adjoint operator.
-        Non-input arguments should be keyword-only
+    def adj_fn(linop, x: Tensor, /) -> Tensor:
+        """Apply the adjoint of a linop to a tensor.
 
-        Staticmethod because it needs to be unbound to swap for adjoint
+        Parameters
+        ----------
+        x : torch.Tensor
+            The input to the linop.
+
+        Returns
+        -------
+        Tensor
+            A.H(x)
+            The result of applying the linop's adjoint.
         """
         return x
 
     # Override
     @staticmethod
-    def normal_fn(linop, x: torch.Tensor, /):
-        """Placeholder for efficient functional normal operator
-        Staticmethod because it needs to be unbound to swap for normal
+    def normal_fn(linop, x: Tensor, /) -> Tensor:
+        """Apply the normal of a linop to a tensor.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The input to the linop.
+
+        Returns
+        -------
+        Tensor
+            A.H(A(x)) == A.N(x)
+            The result of applying the linop's normal function.
         """
         return linop.adj_fn(linop, linop.fn(linop, x))
 
     # Override
-    def split_forward(self, ibatch, obatch):
+    def split_forward(self, ibatch, obatch) -> "NamedLinop":
         """Split this linop into a sub-linop according to slices over its dimensions
 
         Parameters
@@ -119,33 +155,20 @@ class NamedLinop(nn.Module):
         return type(self)(self._shape)
 
     # Override
-    def split_forward_fn(self, ibatch, obatch, /, data=None):
-        """Split this linop's data"""
-        return None
-
-    # Override
-    def size(self, dim: str):
+    def size(self, dim: str) -> int | None:
         """Get the size of a particular dim, or return
         None if this linop doesn't determine the size
         """
         return None
 
-    # Override
-    def size_fn(self, dim: str, /, data=None):
-        """Functional version of size. Determines sizes from kwargs
-        kwargs should be the same as the inputs to fn or adj_fn
-        Return None if this linop doesn't determine the size of dim
-        """
-        return None
-
     # Probably don't override these
     @property
-    def dims(self):
-        """Get the dims that appear in this linop."""
+    def dims(self) -> set:
+        """Get the set of dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
 
     @property
-    def H(self):
+    def H(self) -> "NamedLinop":
         """Adjoint operator, with caching"""
         if self._adjoint is None:
             try:
@@ -158,7 +181,7 @@ class NamedLinop(nn.Module):
             logger.debug(f"{type(self).__name__}: Making new adjoint {_adjoint._shape}")
         return self._adjoint[0]
 
-    def adjoint(self):
+    def adjoint(self) -> "NamedLinop":
         """Create a new adjoint linop"""
         adj = copy(self)  # Retains data
         adj._shape = adj._shape.H
@@ -178,7 +201,7 @@ class NamedLinop(nn.Module):
             self._suffix += ".N"
 
     @property
-    def N(self):
+    def N(self) -> "NamedLinop":
         """Normal operator
         Note that the naive normal operator can always be created
         via A.H @ A. Therefore, this function is reserved
@@ -194,7 +217,7 @@ class NamedLinop(nn.Module):
                 raise e
         return self._normal[0]
 
-    def normal(self, inner=None):
+    def normal(self, inner=None) -> "NamedLinop":
         """Create a new normal linop
         inner: Optional linop for toeplitz embedding
         TODO: Add splitting for normal ops created this way.
@@ -232,7 +255,7 @@ class NamedLinop(nn.Module):
         return normal
 
     @staticmethod
-    def split(linop, tile: Mapping[ND | str, slice]):
+    def split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
         """Split a linop into sub-linops.
 
         Parameters
@@ -247,60 +270,61 @@ class NamedLinop(nn.Module):
         return linop.split_forward(ibatch, obatch)
 
     @staticmethod
-    def adj_split(linop, tile: Mapping[ND | str, slice]):
+    def adj_split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
         """Split the adjoint version"""
         ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
         obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
-    # DEPRECATED/TODO: Remove
-    # @staticmethod
-    # def split_fn(linop, ibatch, obatch, /, **kwargs):
-    #     """Return split versions of the data that can be passed
-    #     into fn and adj_fn to produce split versions
-    #     """
-    #     return linop.split_forward_fn(ibatch, obatch, **kwargs)
-
-    # @staticmethod
-    # def adj_split_fn(linop, ibatch, obatch, /, **kwargs):
-    #     return linop.split_forward_fn(obatch, ibatch, **kwargs)
-
-    def flatten(self):
-        """Get a flattened list of constituent linops for composition"""
+    def flatten(self) -> list["NamedLinop"]:
+        """Get a flattened list of constituent linops for composition."""
         return [self]
 
-    def compose(self, inner):
-        """Do self AFTER inner"""
+    def compose(self, inner) -> "NamedLinop":
+        """Compose this linop with another linop.
+
+        Parameters
+        ----------
+        inner : NamedLinop
+            The linop to call before this one.
+
+        Returns
+        -------
+        NamedLinop
+            The composition of self and inner. If A = self and B = inner then this returns
+            C = AB.
+        """
         before = inner.flatten()
         after = self.flatten()
         return torchlinops.Chain(*(before + after))
 
-    def __add__(self, right):
+    def __add__(self, right) -> "NamedLinop":
         return torchlinops.Add(self, right)
 
-    def __radd__(self, left):
+    def __radd__(self, left) -> "NamedLinop":
         return torchlinops.Add(left, self)
 
-    def __mul__(self, right):
+    def __mul__(self, right) -> "NamedLinop":
         if isinstance(right, float) or isinstance(right, torch.Tensor):
             right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
             return self.compose(right)
         return NotImplemented
 
-    def __rmul__(self, left):
+    def __rmul__(self, left) -> "NamedLinop":
         if isinstance(left, float) or isinstance(left, torch.Tensor):
             left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
             return left.compose(self)
         return NotImplemented
 
-    def __matmul__(self, right):
+    def __matmul__(self, right) -> "NamedLinop":
         if isinstance(right, NamedLinop):
             return self.compose(right)
         if isinstance(right, torch.Tensor):
             return self(right)
+        return NotImplemented
 
-    def __rmatmul__(self, left):
+    def __rmatmul__(self, left) -> "NamedLinop":
         return left.compose(self)
 
     @property
@@ -318,7 +342,6 @@ class NamedLinop(nn.Module):
         return self.name + self._suffix
 
     def __repr__(self):
-        """Helps prevent recursion error caused by .H and .N"""
         event = ""
         if self.start_event is not None:
             event = repr(self.start_event)
@@ -327,13 +350,11 @@ class NamedLinop(nn.Module):
         return out
 
     def reset_adjoint_and_normal(self):
-        """Clean up cached stuff."""
         self._adjoint = None
         self._normal = None
 
-    # Pass these through to the shape representation
     @property
-    def shape(self):
+    def shape(self) -> Shape:
         return self._shape
 
     @shape.setter
@@ -369,8 +390,10 @@ class NamedLinop(nn.Module):
         return super().to(device)
 
     def __copy__(self):
-        """
-        copying a linop:
+        """Specialized copying for linops.
+
+        Notes
+        -----
         - Shares previous data
         - Removes references to adjoint and normal
         - Creates a new shape object, rather than using the old one
@@ -397,15 +420,18 @@ class NamedLinop(nn.Module):
 
 
 class NormalFunctionLookup:
-    """Helper class to avoid lambda function definitions
-    helps with multiprocessing
+    """Helper class for creating new normal functions for a normal linop.
+
+    If the linop is A, and its normal is A.N, this helps with computing A.N.H and A.N.N. Note that A.N.H = A.N
+
+    Helps with multiprocessing by avoiding lambda function definitions, thereby maintaining pickleability.
     """
 
     def __init__(self, linop):
         self.linop = linop
 
     def new_forward_adjoint_fn(self, _, x, *args, **kwargs):
-        """Replace forward/adjoint with normal fn from self"""
+        """Replace forward/adjoint with normal fn from self."""
         return self.linop.normal_fn(self.linop, x, *args, **kwargs)
 
     def new_normal_fn(self, _, x, *args, **kwargs):
@@ -415,11 +441,9 @@ class NormalFunctionLookup:
 
 
 def new_normal_adjoint(self):
-    """Adjoint creation
-    Note that this `self` is not this class' instance, because this is a
-    staticmethod.
+    """Adjoint-of-normal creation helper function.
 
-    Replace adjoint() constructor with trivial copy
+    Top-level definition to maintain pickleability.
     """
     adj = copy(self)
     adj._shape = adj._shape.H
@@ -427,9 +451,11 @@ def new_normal_adjoint(self):
 
 
 class LinopFunction(torch.autograd.Function):
-    """Memory-efficient version of the linop.
+    """Wrap a linop in an autograd function.
 
-    Avoids keeping lots of buffers in the forward pass.
+    At one point, this may have helped with memory usage in some cases.
+
+    Experimental.
     """
 
     @staticmethod

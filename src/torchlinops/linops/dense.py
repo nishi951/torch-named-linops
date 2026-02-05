@@ -1,37 +1,65 @@
-from typing import Optional
-from torch import Tensor
 from copy import copy, deepcopy
+from typing import Optional, Sequence
 
-from einops import einsum
 import torch.nn as nn
+from einops import einsum
+from torch import Tensor
 
 import torchlinops.config as config
+
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
-from .nameddim import ND, NS, NamedShape, Shape
-from .identity import Identity
 
 __all__ = ["Dense"]
 
 
 class Dense(NamedLinop):
-    """
-    Example:
-    x: [A, Nx, Ny]
-    weightshape: [A, T]
-    oshape: [T, Nx, Ny]
+    r"""Dense matrix-vector multiply.
 
-    shape:
-        diag.ioshape = [Nx, Ny]
-        dense.ishape = [A]
-        dense.oshape = [T]
+    "Dense" is used to distinguish from "sparse" linear operators. This
+    operator performs a matrix-vector multiplication, potentially with batch
+    and broadcast dimensions, implemented via :func:`einops.einsum`.
 
+    The core operation is:
 
-    # Diagonal/elementwise dimensions
-    # Einsum can infer which dims are shared (literally the point of
-    # the summation notation)
-    x: [C, A, Nx, Ny]
-    weight: [C, A, A1]
-    oshape: [C, A1, Nx, Ny]
+    .. math::
+
+        y_{o\dots} = \sum_{i\dots} W_{i\dots, o\dots} x_{i\dots}
+
+    where :math:`x` is the input, :math:`W` is the weight matrix, and
+    :math:`y` is the output. :math:`i\dots` and :math:`o\dots` represent
+    the input and output dimensions involved in the multiplication. Other
+    dimensions are treated as batch or broadcast dimensions.
+
+    Examples
+    --------
+    A simple batched multiplication:
+
+    - Input :math:`x` shape: :math:`(A, N_x, N_y)`
+    - Weight :math:`W` shape: :math:`(A, T)`
+    - Output :math:`y` shape: :math:`(T, N_x, N_y)`
+
+    Here, :math:`A` is the input feature dimension, :math:`T` is the output
+    feature dimension, and :math:`(N_x, N_y)` are broadcast dimensions.
+    The operation is:
+
+    .. math::
+
+        y_{t, n_x, n_y} = \sum_{a} W_{a, t} x_{a, n_x, n_y}
+
+    Another example with a batch dimension :math:`C` shared between input
+    and weights:
+
+    - Input :math:`x` shape: :math:`(C, A, N_x, N_y)`
+    - Weight :math:`W` shape: :math:`(C, A, A_1)`
+    - Output :math:`y` shape: :math:`(C, A_1, N_x, N_y)`
+
+    The operation is:
+
+    .. math::
+
+        y_{c, a_1, n_x, n_y} = \sum_{a} W_{c, a, a_1} x_{c, a, n_x, n_y}
+
     """
 
     def __init__(
@@ -43,24 +71,39 @@ class Dense(NamedLinop):
         broadcast_dims: Optional[list] = None,
     ):
         """
+        Parameters
+        ----------
+        weight : Tensor
+            The dense matrix used for this linop.
+        weightshape : Shape
+            The shape of the matrix, in symbolic form.
+        ishape : Shape
+            The input shape of the matrix.
+        oshape : Shape
+            The output shape of the matrix.
         broadcast_dims : list
             A list of the dimensions of weight that are intended to be broadcasted over the input.
             As such, they are excluded from splitting.
         """
         super().__init__(NS(ishape, oshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
-        self._shape.add("weightshape", weightshape)
+        self._shape.weightshape = weightshape
 
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        self._shape.add("broadcast_dims", broadcast_dims)
+        self._shape.broadcast_dims = broadcast_dims
 
     @property
-    def weightshape(self):
-        return self._shape.lookup("weightshape")
+    def weightshape(self) -> Shape:
+        weightshape = self._shape.weightshape
+        if not isinstance(weightshape, Sequence):
+            raise ValueError(
+                f"Expected weightshape to be a sequence but got {type(weightshape)}: {weightshape}"
+            )
+        return weightshape
 
     @property
     def broadcast_dims(self):
-        return self._shape.lookup("broadcast_dims")
+        return self._shape.broadcast_dims
 
     @property
     def forward_einstr(self):
@@ -72,9 +115,6 @@ class Dense(NamedLinop):
 
     @staticmethod
     def einstr(arr):
-        """
-        tup: Iterable of str-able objects
-        """
         return " ".join(str(s) for s in arr)
 
     @staticmethod
@@ -96,7 +136,9 @@ class Dense(NamedLinop):
 
     def normal(self, inner=None):
         """
-        If no inner, consolidate two Dense's into a single Dense
+        Notes
+        -----
+        If inner is None, consolidate two Dense's into a single Dense
         ishape: [A B X Y]
         oshape: [C D X Y]
         wshape: [A B C D]
@@ -119,7 +161,7 @@ class Dense(NamedLinop):
         oshape: [C2 A]
         wshape = [C C2]
 
-        einsum(weight.conj(), weight, 'C1 C2, C C1 -> C C2)
+        einsum(weight.conj(), weight, 'C1 C2, C C1 -> C C2')
 
 
         """
@@ -186,12 +228,12 @@ class Dense(NamedLinop):
         return normal
 
     def split_forward(self, ibatch, obatch):
-        weight = self.split_forward_fn(ibatch, obatch, self.weight)
+        weight = self.split_weight(ibatch, obatch, self.weight)
         out = copy(self)
         out.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
         return out
 
-    def split_forward_fn(self, ibatch, obatch, /, weight):
+    def split_weight(self, ibatch, obatch, /, weight):
         weightbatch = [slice(None)] * len(self.weightshape)
         for dim, batch in zip(self.ishape, ibatch):
             if dim in self.weightshape and dim not in self.broadcast_dims:
@@ -199,16 +241,13 @@ class Dense(NamedLinop):
         for dim, batch in zip(self.oshape, obatch):
             if dim in self.weightshape and dim not in self.broadcast_dims:
                 weightbatch[self.weightshape.index(dim)] = batch
-        return weight[weightbatch]
+        return weight[tuple(weightbatch)]
 
     def size(self, dim: str):
-        return self.size_fn(dim, self.weight)
-
-    def size_fn(self, dim: str, weight):
         if dim in self.broadcast_dims:
             return None
         if dim in self.weightshape:
-            return weight.shape[self.weightshape.index(dim)]
+            return self.weight.shape[self.weightshape.index(dim)]
         return None
 
 

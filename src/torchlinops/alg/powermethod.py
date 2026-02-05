@@ -1,21 +1,18 @@
-from typing import Callable, Tuple, Optional
-from torch import Tensor
+from typing import Callable, Optional, Tuple
 
 import torch
+from torch import Tensor
 from tqdm import tqdm
 
 from torchlinops.utils import default_to_dict
-
 
 __all__ = ["power_method"]
 
 
 def power_method(
     A: Callable[[Tensor], Tensor],
-    ishape: Tuple,
-    v_init: Optional[Tensor] = None,
+    v_init: Tensor,
     max_iters: int = 50,
-    device: torch.device = "cpu",
     eps: float = 0.0,
     tol: float = 1e-5,
     dim: Optional[int | Tuple] = None,
@@ -37,13 +34,9 @@ def power_method(
     """
     # Default values
     tqdm_kwargs = default_to_dict(dict(desc="Power Method"), tqdm_kwargs)
-    if v_init is None:
-        v = torch.randn(ishape, dtype=torch.complex64, device=device)
-    else:
-        v = v_init.clone()
+    v = v_init.clone()
 
     # Initialize
-    A.to(device)
     vnorm = torch.linalg.vector_norm(v, dim=dim, keepdim=True)
     v = v / (vnorm + eps)
     pbar = tqdm(range(max_iters), total=max_iters, **tqdm_kwargs)

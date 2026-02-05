@@ -1,8 +1,7 @@
-from torch import Tensor
-
 from itertools import cycle
 
 import torch
+from torch import Tensor
 from tqdm import tqdm
 
 from .batch import Batch
@@ -23,6 +22,7 @@ class MPBatch(Batch):
             MPBatch will attempt to parallelize the work evenly over
             all the devices specified.
 
+        Deprecated, will be removed in 0.6.0
 
         """
         self.devices = devices
@@ -64,7 +64,7 @@ class MPBatch(Batch):
             device=self.output_device,
         )
         for ybatch, out_batch in zip(ys, self._output_batches):
-            y[out_batch] += ybatch.to(self.output_device)
+            y[tuple(out_batch)] += ybatch.to(self.output_device)
         return y
 
     def adjoint(self):

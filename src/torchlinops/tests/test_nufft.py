@@ -1,16 +1,14 @@
-import pytest
 from math import prod
 
-import torch
-import sigpy as sp
 import numpy as np
+import pytest
+import sigpy as sp
+import torch
 
-from torchlinops import NUFFT, PadLast, Interpolate
+from torchlinops import NUFFT, Interpolate, PadLast
+from torchlinops.functional import nufft, nufft_adjoint
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.tests.test_base import BaseNamedLinopTests
-from torchlinops.utils import cifftn
-
-from torchlinops.functional import nufft, nufft_adjoint
 
 
 class TestNUFFT(BaseNamedLinopTests):

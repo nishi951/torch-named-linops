@@ -1,30 +1,32 @@
-from typing import Optional, Literal
-from collections.abc import Callable
-from jaxtyping import Float, Shaped
-from torch import Tensor
-
-from copy import copy, deepcopy
-from math import prod
+from copy import copy
 from itertools import product
-from warnings import warn
+from math import prod
+from typing import Literal, Optional
 
 import torch
 import torch.nn as nn
+from jaxtyping import Float, Shaped
+from torch import Tensor
 
-from torchlinops.utils import default_to, cfftn
+from torchlinops.utils import cfftn, default_to
 
-from .nameddim import NDorStr, ELLIPSES, NS, ND, get_nd_shape, Shape
-from .namedlinop import NamedLinop
 from .chain import Chain
 from .dense import Dense
 from .diagonal import Diagonal
-from .scalar import Scalar
-from .pad_last import PadLast
 from .fft import FFT
-from .interp import Interpolate
 from .identity import Identity
+from .interp import Interpolate
+from ..nameddim import (
+    ELLIPSES,
+    NamedDimension as ND,
+    NamedShape as NS,
+    Shape,
+    get_nd_shape,
+)
+from .namedlinop import NamedLinop
+from .pad_last import PadLast
 from .sampling import Sampling
-
+from .scalar import Scalar
 
 __all__ = ["NUFFT"]
 
@@ -49,7 +51,9 @@ class NUFFT(Chain):
         Parameters
         ----------
         locs : Tensor, float
-            Shape [... D] Tensor where last dimension is the spatial dimension
+            Shape [... D] Tensor where last dimension is the spatial dimension.
+            locs[..., i] Should be in the range [-N//2, N//2] where N is the grid_size[i], i.e.
+            the grid size associated with that dimension
         grid_size : tuple of ints
             The expected spatial dimension of the input tensor.
         output_shape : Shape

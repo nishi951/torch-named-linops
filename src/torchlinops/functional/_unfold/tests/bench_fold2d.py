@@ -1,16 +1,13 @@
-import torch
 from math import prod
 
-from fold import fold
-import sigpy as sp
 import cupy as cp
 import numpy as np
-
-from utils.benchmark import benchmark
-from utils import Indenter, device_ordinal
-from utils import from_pytorch, to_pytorch
-
+import sigpy as sp
+import torch
+from fold import fold
 from nblocks import get_nblocks
+from utils import Indenter, device_ordinal, from_pytorch, to_pytorch
+from utils.benchmark import benchmark
 
 
 def main():

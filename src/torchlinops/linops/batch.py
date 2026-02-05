@@ -1,21 +1,19 @@
-from collections.abc import Callable
-from typing import Union, Optional, Tuple
-from typing_extensions import Self
-from torch import Tensor
-
 import traceback
+from collections.abc import Callable
 from pprint import pformat
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+from typing_extensions import Self
 
-from .namedlinop import NamedLinop
+from torchlinops.utils import INDENT
+
+from ..nameddim import NamedShape as NS, Shape
 from .identity import ShapeSpec
-from .nameddim import ND, NS, Shape
+from .namedlinop import NamedLinop
 from .split import split_linop
-
-from torchlinops.utils import batch_iterator, dict_product, INDENT
 
 __all__ = ["Batch"]
 
@@ -38,6 +36,8 @@ class Batch(NamedLinop):
         """
         hook : Callable, optional
             Function that takes in the newly-created batch object and does stuff
+
+        Deprecated, will be removed in 0.6.0.
         """
         # TODO: Should batch even have a shape???
         super().__init__(NS(linop.ishape, linop.oshape), name=name)
@@ -97,9 +97,9 @@ class Batch(NamedLinop):
             disable=(not self.pbar),
         ):
             try:
-                xbatch = x[in_batch]
+                xbatch = x[tuple(in_batch)]
                 ybatch = linop(xbatch)
-                y[out_batch] += ybatch
+                y[tuple(out_batch)] += ybatch
             except RuntimeError:
                 print(
                     f"linop: {linop}, in_batch: {in_batch}, out_batch: {out_batch}, self.batch_sizes: {self.batch_sizes}"
@@ -170,41 +170,41 @@ class Batch(NamedLinop):
 
         return normal
 
-    @staticmethod
-    def fn(self, x, /, data):
-        """TODO: Functional interface
-        Specify data as a tuple of data entries, one for each linop in linops"""
-        raise NotImplementedError(f"Batched functional interface not available yet.")
-        sizes = {}
-        for dim in self.linop.dims:
-            sizes[dim] = self.linop.size_fn(dim, data)
-        for dim, total in zip(self.ishape, x.shape):
-            sizes[dim] = total
-        batch_iterators = self._make_batch_iterators(sizes, self.batch_sizes)
-        ishapes = [linop.ishape for linop in self.linop.flatten()]
-        oshapes = [linop.oshape for linop in self.linop.flatten()]
+    # @staticmethod
+    # def fn(self, x, /, data):
+    #     """TODO: Functional interface
+    #     Specify data as a tuple of data entries, one for each linop in linops"""
+    #     raise NotImplementedError(f"Batched functional interface not available yet.")
+    #     sizes = {}
+    #     for dim in self.linop.dims:
+    #         sizes[dim] = self.linop.size_fn(dim, data)
+    #     for dim, total in zip(self.ishape, x.shape):
+    #         sizes[dim] = total
+    #     batch_iterators = self._make_batch_iterators(sizes, self.batch_sizes)
+    #     ishapes = [linop.ishape for linop in self.linop.flatten()]
+    #     oshapes = [linop.oshape for linop in self.linop.flatten()]
 
-        y = torch.zeros(
-            tuple(sizes[dim] for dim in self.oshape),
-            dtype=self.output_dtype,
-            device=self.output_device,
-        )
-        for tile in tqdm(
-            dict_product(batch_iterators),
-            desc=f"Batch({self.batch_sizes})",
-            disable=(not self.pbar),
-        ):
-            ibatches = [
-                [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
-            ]
-            obatches = [
-                [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
-            ]
-            split_data = self.linop.split_fn(*ibatches, *obatches, *data)
-            xbatch = x[ibatches[0]].to(self.input_device)
-            ybatch = self.linop.fn(xbatch, split_data)
-            y[obatches[-0]] += ybatch
-        return y
+    #     y = torch.zeros(
+    #         tuple(sizes[dim] for dim in self.oshape),
+    #         dtype=self.output_dtype,
+    #         device=self.output_device,
+    #     )
+    #     for tile in tqdm(
+    #         dict_product(batch_iterators),
+    #         desc=f"Batch({self.batch_sizes})",
+    #         disable=(not self.pbar),
+    #     ):
+    #         ibatches = [
+    #             [tile.get(dim, slice(None)) for dim in ishape] for ishape in ishapes
+    #         ]
+    #         obatches = [
+    #             [tile.get(dim, slice(None)) for dim in oshape] for oshape in oshapes
+    #         ]
+    #         split_data = self.linop.split_fn(*ibatches, *obatches, *data)
+    #         xbatch = x[ibatches[0]].to(self.input_device)
+    #         ybatch = self.linop.fn(xbatch, split_data)
+    #         y[obatches[-0]] += ybatch
+    #     return y
 
     @staticmethod
     def adj_fn(self, x, /, data):
@@ -212,9 +212,6 @@ class Batch(NamedLinop):
 
     def size(self, dim):
         return self.linop.size(dim)
-
-    def size_fn(self, dim, /, data=None):
-        raise NotImplementedError()
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""

@@ -1,0 +1,23 @@
+/* Removing bad background color inside show code cell */
+/* div.cell details.hide > summary .admonition-title { */
+/*     background-color: var(--md-default-bg-color); */
+/*     padding-left: 1rem; */
+/* } */
+
+/* Modifying appearance of code cell borders */
+/* div.cell > div.cell_input { */
+/*     border-left-width: unset; */
+/*     border-left-color: unset; */
+/*     border-radius: unset; */
+/*     border: unset; */
+/* } */
+
+/* .md-typeset .admonition, .md-typeset details.hide { */
+/*     border: unset; */
+/* } */
+
+/* Removing admonition icon next to show code cell */
+/* div.cell .admonition-title::before { */
+/*     content: none; */
+/*     display: none; */
+/* } */

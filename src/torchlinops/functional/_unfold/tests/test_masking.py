@@ -1,5 +1,6 @@
-import pytest
 from math import prod
+
+import pytest
 import torch
 
 from torchlinops.functional import unfold

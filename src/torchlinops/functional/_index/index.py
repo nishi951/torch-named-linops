@@ -1,7 +1,6 @@
-from jaxtyping import Shaped, Bool, Integer
-from torch import Tensor
-
 import torch
+from jaxtyping import Bool, Integer, Shaped
+from torch import Tensor
 
 __all__ = [
     "index",

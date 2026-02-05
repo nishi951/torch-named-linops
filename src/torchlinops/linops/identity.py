@@ -1,12 +1,16 @@
 from copy import copy
 
+from torch import Tensor
+
+from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
-from .nameddim import NS
 
 __all__ = ["Identity", "Zero", "ShapeSpec"]
 
 
 class Identity(NamedLinop):
+    """Linop that simply returns its input."""
+
     def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
 
@@ -19,15 +23,15 @@ class Identity(NamedLinop):
         return inner
 
     @staticmethod
-    def fn(linop, x, /):
+    def fn(linop: NamedLinop, x, /):
         return x
 
     @staticmethod
-    def adj_fn(linop, x, /):
+    def adj_fn(linop: NamedLinop, x, /):
         return x
 
     @staticmethod
-    def normal_fn(linop, x, /):
+    def normal_fn(linop: NamedLinop, x, /):
         # A bit faster
         return x
 
@@ -36,11 +40,7 @@ class Identity(NamedLinop):
         assert ibatch == obatch, "Identity linop must be split identically"
         return self
 
-    def split_forward_fn(self, ibatch, obatch, /):
-        assert ibatch == obatch, "Identity linop must be split identically"
-        return None
-
-    def __pow__(self, exponent):
+    def __pow__(self, _: float | Tensor):
         return type(self)(self.ishape, self.oshape)
 
 
@@ -69,8 +69,9 @@ class Zero(NamedLinop):
         return self
 
 
-# Alias for changing input and output shapes
 class ShapeSpec(Identity):
+    """Identity linop that changes the names of the input and output shapes."""
+
     def adjoint(self):
         return type(self)(self.oshape, self.ishape)
 

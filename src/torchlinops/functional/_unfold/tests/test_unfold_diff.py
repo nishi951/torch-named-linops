@@ -1,7 +1,8 @@
-import pytest
 from math import prod
 
+import pytest
 import torch
+
 import torchlinops.functional as F
 from torchlinops.functional._unfold.nblocks import get_nblocks
 

@@ -1,5 +1,3 @@
-import sys
-import traceback
 from collections.abc import Mapping
 from typing import Optional
 
@@ -8,7 +6,7 @@ import torch.nn as nn
 
 from torchlinops.utils import INDENT
 
-from .nameddim import NS, isequal, NamedDimension as ND
+from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 
 
@@ -77,13 +75,6 @@ class Chain(NamedLinop):
                         f"Conflicting linop sizes found: {out} and {tmp} for dim {dim} in linop {linop} out of all linops {self.linops}"
                     )
         return out
-
-    def size_fn(self, dim, data):
-        for linop, data in zip(self.linops, data):
-            out = linop.size_fn(dim, data)
-            if out is not None:
-                return out
-        return None
 
     @property
     def dims(self):

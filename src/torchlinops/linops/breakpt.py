@@ -1,7 +1,7 @@
 from typing import Optional
 
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
-from .nameddim import NS, Shape
 
 __all__ = ["BreakpointLinop"]
 
@@ -22,6 +22,3 @@ class BreakpointLinop(NamedLinop):
 
     def split_forward(self, ibatch, obatch):
         return self
-
-    def split_forward_fn(self, ibatch, obatch, /, data):
-        return None

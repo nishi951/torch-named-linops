@@ -1,14 +1,13 @@
-from warnings import warn
+from collections.abc import Mapping
 from copy import copy, deepcopy
 from typing import Optional
-from collections.abc import Mapping
+from warnings import warn
 
-import torch
 from einops import rearrange, reduce, repeat
 
 from .identity import Identity
+from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
-from .nameddim import ND, NS, NamedShape, Shape
 
 __all__ = [
     "Rearrange",
@@ -35,7 +34,7 @@ class Rearrange(NamedLinop):
         self.ipattern = ipattern
         self.opattern = opattern
         axes_lengths = axes_lengths if axes_lengths is not None else {}
-        self._shape.add("axes_lengths", axes_lengths)
+        self._shape.axes_lengths = axes_lengths
 
     @property
     def axes_lengths(self):
@@ -71,15 +70,7 @@ class Rearrange(NamedLinop):
         )
         return out
 
-    def split_forward_fn(self, ibatch, obatch, /):
-        """Rearranging is transparent to splitting"""
-        return None
-
     def size(self, dim: str):
-        """Rearranging does not determine any dimensions"""
-        return None
-
-    def size_fn(self, dim: str, /):
         """Rearranging does not determine any dimensions"""
         return None
 
@@ -120,15 +111,7 @@ class SumReduce(NamedLinop):
     def split_forward(self, ibatch, obatch):
         return self
 
-    def split_forward_fn(self, ibatch, obatch, /):
-        """Reducing is transparent to splitting"""
-        return None
-
     def size(self, dim: str):
-        """Reducing does not determine any dimensions"""
-        return None
-
-    def size_fn(self, dim: str, /, ipattern, opattern, size_spec):
         """Reducing does not determine any dimensions"""
         return None
 
@@ -194,17 +177,19 @@ class Repeat(NamedLinop):
     """Unsqueezes and expands a tensor along dim"""
 
     def __init__(
-        self, n_repeats: Mapping, ishape, oshape, broadcast_dims: Optional[list] = None
+        self,
+        n_repeats: Mapping,
+        ishape: Shape,
+        oshape: Shape,
+        broadcast_dims: Optional[list] = None,
     ):
         super().__init__(NS(ishape, oshape))
         assert len(self.oshape) > len(self.ishape), (
             f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
         )
-        self._shape.add("axes_lengths", n_repeats)
-        # self.axes_lengths = n_repeats
-        # self.axes_lengths = {ND.infer(k): v for k, v in self.axes_lengths.items()}
-        broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        self._shape.add("broadcast_dims", broadcast_dims)
+        self._shape.axes_lengths = n_repeats
+        if broadcast_dims is not None:
+            self._shape.broadcast_dims = broadcast_dims
 
     @property
     def axes_lengths(self):
@@ -241,14 +226,7 @@ class Repeat(NamedLinop):
             new_axes_lengths, self.ishape, self.oshape, self.broadcast_dims
         )
 
-    def split_forward_fn(self, ibatch, obatch, /):
-        """No data to split"""
-        return None
-
     def size(self, dim: str):
-        return self.size_fn(dim)
-
-    def size_fn(self, dim, /):
         if dim in self.broadcast_dims:
             return None
         return self.axes_lengths.get(dim, None)

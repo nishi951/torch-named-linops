@@ -1,10 +1,10 @@
 """Functions for interoperability between cupy and pytorch."""
 
-from torch import Tensor
-
 from warnings import warn
-import torch
+
 import numpy as np
+import torch
+from torch import Tensor
 
 try:
     import cupy as cp
@@ -84,7 +84,7 @@ def from_pytorch(tensor):  # pragma: no cover
             output = cp.from_dlpack(to_dlpack(tensor.contiguous()))
         else:
             raise TypeError(
-                "CuPy not installed, " "but trying to convert GPU PyTorch Tensor."
+                "CuPy not installed, but trying to convert GPU PyTorch Tensor."
             )
 
     # No longer necessary

@@ -1,7 +1,7 @@
 import torch
 
-from torchlinops.utils.benchmark import benchmark_and_summarize
 import torchlinops.functional as F
+from torchlinops.utils.benchmark import benchmark_and_summarize
 
 
 def main():
@@ -70,14 +70,14 @@ def multi_grid(
     Might need nonnegative indices
     """
     if not raveled:
-        assert (
-            len(final_size) == idx.shape[-1]
-        ), f"final_size should be of dimension {idx.shape[-1]}"
+        assert len(final_size) == idx.shape[-1], (
+            f"final_size should be of dimension {idx.shape[-1]}"
+        )
         idx = ravel(idx, final_size, dim=-1)
     ndims = len(idx.shape)
-    assert (
-        x.shape[-ndims:] == idx.shape
-    ), f"x and idx should correspond in last {ndims} dimensions"
+    assert x.shape[-ndims:] == idx.shape, (
+        f"x and idx should correspond in last {ndims} dimensions"
+    )
     x_flat = torch.flatten(x, start_dim=-ndims, end_dim=-1)  # [N... (I...)]
     idx_flat = torch.flatten(idx)
 

@@ -1,24 +1,23 @@
 from dataclasses import dataclass
-from functools import partial
 from math import ceil
-from typing import Literal, Optional
+from typing import Optional
 from warnings import warn
 
 import numpy as np
 import torch
-from torch.cuda import Stream, Event
+from torch.cuda import Stream
+
 from torchlinops.utils import (
-    NDList,
-    batch_iterator,
-    dict_product,
     ModuleMemoryMap,
     RepeatedEvent,
+    batch_iterator,
+    dict_product,
 )
 
 from .add import Add
 from .concat import Concat
 from .device import ToDevice
-from .nameddim import ND
+from ..nameddim import NamedDimension as ND
 from .namedlinop import NamedLinop
 
 __all__ = ["split_linop", "create_batched_linop", "BatchSpec"]
