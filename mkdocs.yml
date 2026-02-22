@@ -96,11 +96,12 @@ nav:
       - Custom Linops: howto/custom_linops.md
   - Explanations:
       - explanations/index.md
-      - explanations/design_notes.md
-      - explanations/copying_linops.md
-      - explanations/faq.md
-      - explanations/multi_gpu.md
-      - explanations/why_this_package.md
+      - Named Abstractions: explanations/named_abstractions.md
+      - Why This Package?: explanations/why_this_package.md
+      - Design Notes: explanations/design_notes.md
+      - Copying Linops: explanations/copying_linops.md
+      - Multi-GPU Splitting: explanations/multi_gpu.md
+      - FAQ: explanations/faq.md
   - API Reference:
       - reference/index.md
       - Linops:
