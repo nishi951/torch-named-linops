@@ -32,6 +32,21 @@ __all__ = ["NUFFT"]
 
 
 class NUFFT(Chain):
+    """Non-uniform Fast Fourier Transform (type II) as a named linear operator.
+
+    Implemented as a ``Chain`` of zero-padding, FFT, and interpolation. Supports
+    forward (image-to-kspace) and adjoint (kspace-to-image) operations.
+
+    Attributes
+    ----------
+    ndim : int
+        Number of spatial dimensions.
+    oversamp : float
+        Oversampling factor for the padded grid.
+    width : int
+        Interpolation kernel width.
+    """
+
     def __init__(
         self,
         locs: Float[Tensor, "... D"],
@@ -383,8 +398,17 @@ def toeplitz_psf(
     dtype: Optional[torch.dtype] = None,
     oversamp: float = 2.0,
 ) -> NamedLinop:
-    """Compute the toeplitz PSF for this NUFFT, with
-    # TODO: maybe accommodate other oversampling factors (more complicated)
+    """Compute the Toeplitz point spread function (PSF) for a NUFFT operator.
+
+    Parameters
+    ----------
+    nufft : NUFFT
+        The NUFFT operator.
+
+    Returns
+    -------
+    Tensor
+        The Toeplitz PSF kernel.
     """
     if isinstance(nufft.interp, Sampling):
         raise NotImplementedError(
@@ -515,6 +539,11 @@ def rescale_locs(locs, c0: tuple, w0: tuple, c1: tuple, w1: tuple, dim: int = -1
         The desired center and width parameters.
     dim : int
         The dimension of locs to unstack
+
+    Returns
+    -------
+    Tensor
+        The rescaled trajectory coordinates.
     """
     ndim = locs.shape[dim]
     out = []

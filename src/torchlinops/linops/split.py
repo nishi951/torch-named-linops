@@ -31,6 +31,23 @@ Tile = dict[ND | str, Batch]
 
 @dataclass
 class BatchSpec:
+    """Specification for splitting and distributing a linop across devices.
+
+    Parameters
+    ----------
+    batch_sizes : dict[ND | str, int]
+        Mapping from dimension names to chunk sizes for tiling.
+    device_matrix : np.ndarray or list, optional
+        Array of ``torch.device`` objects specifying target devices for each
+        tile. Broadcast to match the tile grid shape.
+    base_device : torch.device, optional
+        The device where input/output data resides. Default is CPU.
+    base_stream : Stream, optional
+        CUDA stream on *base_device* (auto-created for CUDA devices).
+    transfer_stream : Stream, optional
+        CUDA stream used for host-to-device transfers (auto-created for CUDA).
+    """
+
     batch_sizes: dict[ND | str, int]
     device_matrix: Optional[np.ndarray | list] = None
     base_device: Optional[torch.device] = torch.device("cpu")
@@ -62,13 +79,30 @@ class BatchSpec:
 
 
 def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=None):
-    """
-    Examples
-    --------
-    >>> from torchlinops import Dense
-    >>> non_gpu_batchspec = BatchSpec({"B": 2})
-    >>> gpu_batchspec = BatchSpec({"C": 1}, device_matrix=[torch.device("cuda:0"), "cpu"])
+    """Split and distribute a linop across devices according to batch specs.
 
+    Recursively processes a list of ``BatchSpec`` objects: the first spec
+    splits the linop into tiles, optionally places each tile on a target
+    device, then passes remaining specs to each tile recursively. Tiles are
+    reassembled via ``Concat`` (for partitioned dimensions) or ``Add`` (for
+    reduced dimensions).
+
+    Parameters
+    ----------
+    linop : NamedLinop
+        The operator to split and distribute.
+    batch_specs : BatchSpec or list[BatchSpec]
+        One or more batch specifications to apply (processed in order).
+    _mmap : ModuleMemoryMap, optional
+        Internal memory map for efficient device transfers. Created
+        automatically on the first call.
+
+    Returns
+    -------
+    NamedLinop
+        A composite linop (tree of ``Concat``/``Add``/``ToDevice`` operators)
+        that is functionally equivalent to the original but distributed
+        according to the batch specs.
     """
     if isinstance(batch_specs, BatchSpec):
         # Ensure list
@@ -161,21 +195,24 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
 
 
 def split_linop(linop: NamedLinop, batch_sizes: dict[ND | str, int]):
-    """Split a linop into smaller linops according to some batch sizes
+    """Split a linop into an nd-array of sub-linops according to batch sizes.
 
     Parameters
     ----------
     linop : NamedLinop
-        The NamedLinop to be split.
+        The linop to be split.
     batch_sizes : dict[ND | str, int]
-        Dictionary mapping dims to batch sizes for those dims.
-    device_matrix : list | np.ndarray, optional
-        Optional list of devices to broadcast the linop over. See notes for device
-        broadcasting rules.
+        Dictionary mapping dimension names to chunk sizes.
 
     Returns
     -------
-
+    linops : np.ndarray
+        Array of sub-linops with shape determined by the number of tiles
+        per dimension.
+    input_batches : np.ndarray
+        Corresponding input slices for each tile.
+    output_batches : np.ndarray
+        Corresponding output slices for each tile.
     """
     # Precompute sizes and shapes
     batch_sizes = {ND.infer(k): v for k, v in batch_sizes.items()}
@@ -267,24 +304,29 @@ def make_batch_iterators(
     total_sizes: dict[str, int],
     batch_sizes: dict[str, int],
 ) -> Tile:
-    """Construct dictionaries mapping batchable dims to lists of slices
-    corresponding to the actual batches
+    """Build per-dimension lists of ``(index, slice)`` pairs for tiling.
 
-    Also includes an int index at dim 0
+    Parameters
+    ----------
+    total_sizes : dict[str, int]
+        Total size of each dimension.
+    batch_sizes : dict[str, int]
+        Chunk size for dimensions that should be batched.
 
-    Explanation
-    -----------
-    If we have batch size 3 for dim D (i.e. batch_sizes = {"D": 3})
-    and the total size for dim D is 7, then
+    Returns
+    -------
+    dict
+        Maps each dimension to a list of ``(tile_index, slice)`` tuples.
 
-    batch_iterators["D"] = [(0, slice(0, 3)), (1, slice(3, 6)), (2, slice(6, 7))]
+    Notes
+    -----
+    If ``batch_sizes = {"D": 3}`` and the total size for ``D`` is 7::
 
-    If "E" is some other dimension not batched, then
+        batch_iterators["D"] = [(0, slice(0,3)), (1, slice(3,6)), (2, slice(6,7))]
 
-    batch_iterators["E"] = [(0, slice(None))]
+    Unbatched dimension ``E``::
 
-
-
+        batch_iterators["E"] = [(0, slice(None))]
     """
     batch_iterators = {}
     for dim, total in total_sizes.items():
@@ -335,17 +377,20 @@ def is_broadcastable(a, b):
 
 
 def repeat_along_axes(arr, repeats):
-    """
-    Repeat a numpy array along its axes.
+    """Repeat a numpy array along its axes.
 
-    Parameters:
-    - arr: np.ndarray
-    - repeats: list or tuple of ints, with one repeat count per axis.
-               If len(repeats) < arr.ndim, remaining axes are not repeated.
-               If len(repeats) > arr.ndim, array is reshaped to add new axes.
+    Parameters
+    ----------
+    arr : np.ndarray
+        The array to repeat.
+    repeats : list or tuple of int
+        One repeat count per axis. If shorter than ``arr.ndim``, remaining
+        axes are not repeated. If longer, singleton dimensions are added.
 
-    Returns:
-    - Repeated array.
+    Returns
+    -------
+    np.ndarray
+        The repeated array.
     """
     arr = np.asarray(arr)
     ndim = arr.ndim
@@ -362,17 +407,20 @@ def repeat_along_axes(arr, repeats):
 
 
 def tile_along_axes(arr, tile_counts):
-    """
-    Tile a numpy array along its axes.
+    """Tile a numpy array along its axes.
 
-    Parameters:
-    - arr: np.ndarray
-    - tile_counts: list or tuple of ints, with one tile count per axis.
-                   If len(tile_counts) < arr.ndim, missing axes default to 1.
-                   If len(tile_counts) > arr.ndim, singleton dimensions are added.
+    Parameters
+    ----------
+    arr : np.ndarray
+        The array to tile.
+    tile_counts : list or tuple of int
+        One tile count per axis. If shorter than ``arr.ndim``, missing axes
+        default to 1. If longer, singleton dimensions are added.
 
-    Returns:
-    - Tiled array.
+    Returns
+    -------
+    np.ndarray
+        The tiled array.
     """
     arr = np.asarray(arr)
     ndim = arr.ndim

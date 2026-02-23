@@ -9,7 +9,11 @@ __all__ = ["Identity", "Zero", "ShapeSpec"]
 
 
 class Identity(NamedLinop):
-    """Linop that simply returns its input."""
+    """Identity operator $I(x) = x$.
+
+    Returns the input unchanged. The adjoint, normal, and any power of the
+    identity are also the identity.
+    """
 
     def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
@@ -45,7 +49,10 @@ class Identity(NamedLinop):
 
 
 class Zero(NamedLinop):
-    """Simple linop that always outputs 0, but with the same shape as the input"""
+    """Zero operator $0(x) = 0$.
+
+    Always returns a zero tensor with the same shape as the input.
+    """
 
     def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
@@ -70,7 +77,11 @@ class Zero(NamedLinop):
 
 
 class ShapeSpec(Identity):
-    """Identity linop that changes the names of the input and output shapes."""
+    """Identity operator that renames dimensions.
+
+    Functionally identical to ``Identity`` but maps from one set of named
+    dimensions to another, acting as a shape adapter between linops.
+    """
 
     def adjoint(self):
         return type(self)(self.oshape, self.ishape)

@@ -10,20 +10,28 @@ __all__ = ["MPBatch"]
 
 
 class MPBatch(Batch):
+    """Multi-process batched linop execution across devices.
+
+    Similar to ``Batch`` but distributes chunks across multiple devices
+    using ``torch.multiprocessing``.
+    """
+
     def __init__(self, *args, devices: list[torch.device], **kwargs):
         """
         Parameters
         ----------
-        Same as Batch.
-
-        Additional parameters:
+        *args
+            Positional arguments forwarded to ``Batch.__init__``.
         devices : list[torch.device]
-            A list of devices to parallelize the linop over
+            A list of devices to parallelize the linop over.
             MPBatch will attempt to parallelize the work evenly over
             all the devices specified.
+        **kwargs
+            Keyword arguments forwarded to ``Batch.__init__``.
 
-        Deprecated, will be removed in 0.6.0
-
+        Notes
+        -----
+        Deprecated -- will be removed in a future version.
         """
         self.devices = devices
         super().__init__(*args, **kwargs)

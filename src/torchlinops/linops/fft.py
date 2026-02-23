@@ -9,6 +9,22 @@ from .namedlinop import NamedLinop
 
 
 class FFT(NamedLinop):
+    """$n$-dimensional Fast Fourier Transform as a named linear operator.
+
+    With ``norm="ortho"`` (the default), the FFT is unitary: $F^H F = I$.
+    This means the normal operator is the identity and the adjoint is the
+    inverse FFT.
+
+    Attributes
+    ----------
+    ndim : int
+        Number of spatial dimensions to transform.
+    norm : str or None
+        FFT normalization mode.
+    centered : bool
+        Whether to treat the array center as the origin (sigpy convention).
+    """
+
     def __init__(
         self,
         ndim: int,
@@ -21,24 +37,20 @@ class FFT(NamedLinop):
         Parameters
         ----------
         ndim : int
-            Dimension of this fourier transform
-        batch_shape: Shape, optional
-            Batch dimensions, otherwise defaults to
-        grid_shapes: (Shape, Shape), optional
-            Pair of shapes corresponding to input (primal domain) and
-            output (fourier/dual domain)
-            Otherwise, defaults to (Nx[, Ny [, Nz]]) and (Kx[, Ky[, Kz]])
-        norm : 'ortho' or None, default 'ortho'
-            Normalization to apply to FFT.
-            Note: technically only "ortho" results in a "true" forward/adjoint relationship.
+            Number of dimensions to transform (1, 2, or 3).
+        batch_shape : Shape, optional
+            Named batch dimensions prepended to the grid dimensions.
+            Defaults to an empty shape.
+        grid_shapes : tuple[Shape, Shape], optional
+            Pair of shapes ``(primal, dual)`` naming the input (image-space)
+            and output (k-space) grid dimensions. Defaults to
+            ``(Nx[, Ny[, Nz]])`` and ``(Kx[, Ky[, Kz]])``.
+        norm : str or None, default ``"ortho"``
+            Normalization applied to the FFT. Only ``"ortho"`` gives a true
+            unitary forward/adjoint pair.
         centered : bool, default False
-            If True, treats the center of the array (i.e. N // 2) as the origin of k-space and image space
-            If False, treats the array index origin (i.e. (0, 0) for 2D) as the origin of k-space and image space
-            centered = True mimicks sigpy behavior.
-
-
-
-
+            If ``True``, treat the center of the array (``N // 2``) as the
+            origin via ``fftshift`` / ``ifftshift``. Mimics sigpy convention.
         """
         self.ndim = ndim
         self.dim = tuple(range(-self.ndim, 0))
@@ -97,6 +109,21 @@ class FFT(NamedLinop):
         return new
 
     def normal(self, inner=None):
+        """Return the normal operator $F^H F$.
+
+        With orthonormal normalization, $F^H F = I$, so this returns an
+        ``Identity`` when no inner operator is provided.
+
+        Parameters
+        ----------
+        inner : NamedLinop, optional
+            Inner operator for Toeplitz embedding.
+
+        Returns
+        -------
+        NamedLinop
+            ``Identity`` if *inner* is ``None``, otherwise the composed normal.
+        """
         if inner is None:
             return Identity(self.ishape)
         return super().normal(inner)

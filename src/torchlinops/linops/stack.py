@@ -54,9 +54,14 @@ class Stack(NamedLinop):
         odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
     ):
         """
-        stack_input_dim / stack_output_dim : int
-            If not None, inputs will be stacked (rather than concatenated) along the requested
-            dimension. idim / odim must NOT be present if the respective stack_* flag is set.
+        Parameters
+        ----------
+        *linops : NamedLinop
+            The linops to stack.
+        idim_and_idx : tuple, optional
+            Tuple of ``(dim_name, index_tensor)`` for the input stacking dimension.
+        odim_and_idx : tuple, optional
+            Tuple of ``(dim_name, index_tensor)`` for the output stacking dimension.
         """
         self._check_linop_compatibility(linops)
 

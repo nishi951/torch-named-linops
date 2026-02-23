@@ -16,10 +16,9 @@ __all__ = ["Interpolate"]
 class Interpolate(NamedLinop):
     """Interpolate from a grid to a set of off-grid points.
 
-    ```
-    Input: (batch_shape, grid_shape)
-    Output: (batch_shape, locs_batch_shape)
-    ```
+    Input/output pattern::
+
+        (batch_shape, grid_shape) -> (batch_shape, locs_batch_shape)
 
     Attributes
     ----------
