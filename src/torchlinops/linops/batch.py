@@ -19,6 +19,12 @@ __all__ = ["Batch"]
 
 
 class Batch(NamedLinop):
+    """Wrapper that applies a linop in batches over named dimensions.
+
+    Splits the input along specified batch dimensions, applies the wrapped
+    linop to each chunk, and concatenates the results.
+    """
+
     def __init__(
         self,
         linop: NamedLinop,
@@ -34,7 +40,7 @@ class Batch(NamedLinop):
         **batch_sizes,
     ):
         """
-        hook : Callable, optional
+        post_batch_hook : Callable, optional
             Function that takes in the newly-created batch object and does stuff
 
         Deprecated, will be removed in 0.6.0.

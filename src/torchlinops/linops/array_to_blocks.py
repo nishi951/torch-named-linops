@@ -31,8 +31,22 @@ class ArrayToBlocks(NamedLinop):
         blocks_shape: Optional[Shape] = None,
     ):
         """
-
-        mask : Tensor
+        Parameters
+        ----------
+        grid_size : tuple[int, ...]
+            Size of the input array spatial dimensions.
+        block_size : tuple[int, ...]
+            Size of each extracted block.
+        stride : tuple[int, ...]
+            Stride between consecutive blocks.
+        mask : Tensor, optional
+            Boolean mask selecting a subset of blocks.
+        batch_shape : Shape, optional
+            Named shape for batch dimensions.
+        array_shape : Shape, optional
+            Named shape for the input array dimensions.
+        blocks_shape : Shape, optional
+            Named shape for the output block dimensions.
         """
         self.grid_size = grid_size
         self.ndim = len(self.grid_size)
@@ -111,6 +125,24 @@ class BlocksToArray(NamedLinop):
         blocks_shape: Optional = None,
         array_shape: Optional = None,
     ):
+        """
+        Parameters
+        ----------
+        grid_size : tuple[int, ...]
+            Size of the output array spatial dimensions.
+        block_size : tuple[int, ...]
+            Size of each block.
+        stride : tuple[int, ...]
+            Stride between consecutive blocks.
+        mask : Tensor, optional
+            Boolean mask selecting a subset of blocks.
+        batch_shape : optional
+            Named shape for batch dimensions.
+        blocks_shape : optional
+            Named shape for the input block dimensions.
+        array_shape : optional
+            Named shape for the output array dimensions.
+        """
         self.grid_size = grid_size
         self.ndim = len(self.grid_size)
         self.block_size = block_size

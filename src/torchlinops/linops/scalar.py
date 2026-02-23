@@ -11,12 +11,21 @@ __all__ = ["Scalar"]
 
 
 class Scalar(Diagonal):
-    """The result of scalar multiplication
+    """Scalar multiplication operator $S(x) = \\alpha x$.
 
-    A Diagonal linop that is trivially splittable.
+    A special case of ``Diagonal`` where the weight is a scalar, making it
+    trivially splittable (the same scalar applies to every tile).
     """
 
     def __init__(self, weight, ioshape: Optional[Shape] = None):
+        """
+        Parameters
+        ----------
+        weight : float or Tensor
+            The scalar multiplier $\\alpha$.
+        ioshape : Shape, optional
+            Named dimensions (same for input and output).
+        """
         if not isinstance(weight, torch.Tensor):
             weight = torch.tensor(weight)
         ioshape = default_to(("...",), ioshape)

@@ -11,16 +11,26 @@ from .namedlinop import NamedLinop
 
 
 class Chain(NamedLinop):
-    """A sequence or composition of linops"""
+    """Composition (sequential application) of named linear operators.
+
+    If ``Chain(A, B, C)`` is created, then the forward pass applies
+    $A$ first, then $B$, then $C$: mathematically the operator is $C B A$.
+
+    Attributes
+    ----------
+    linops : nn.ModuleList
+        The constituent linops in **execution order** (inner to outer).
+    """
 
     def __init__(self, *linops, name: Optional[str] = None):
         """
         Parameters
         ----------
-        *linops : list
-            Linops in order of execution
-            i.e. if `linops = [A, B, C]`, then mathematically, the linop in question is `CBA`
-
+        *linops : NamedLinop
+            Linops in order of execution. If ``linops = (A, B, C)``, the
+            mathematical operator is $C B A$.
+        name : str, optional
+            Display name for this chain.
         """
         super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
         self.linops = nn.ModuleList(list(linops))
@@ -54,8 +64,19 @@ class Chain(NamedLinop):
     #     return chain.adj_fn(chain, chain.fn(chain, x))
 
     def split_forward(self, ibatches, obatches):
-        """ibatches, obatches specified according to the shape of the
-        forward op
+        """Split each constituent linop according to per-linop batch slices.
+
+        Parameters
+        ----------
+        ibatches : list[list[slice]]
+            Per-linop input slices, one list of slices per linop in the chain.
+        obatches : list[list[slice]]
+            Per-linop output slices.
+
+        Returns
+        -------
+        Chain
+            A new chain of the split sub-linops.
         """
         linops = [
             linop.split_forward(ibatch, obatch)
@@ -86,6 +107,23 @@ class Chain(NamedLinop):
         return type(self)(*linops, name=self._name)
 
     def normal(self, inner=None):
+        """Compute the normal operator by folding through the chain.
+
+        For a chain $C B A$, the normal is computed as
+        $A^H (B^H (C^H C (B (A \\cdot))))$ by iterating ``linop.normal(inner)``
+        in reverse order. This enables Toeplitz embedding and other per-linop
+        normal optimizations to compose correctly.
+
+        Parameters
+        ----------
+        inner : NamedLinop, optional
+            An inner operator seeded from an outer chain or ``None``.
+
+        Returns
+        -------
+        NamedLinop
+            The composed normal operator.
+        """
         for linop in reversed(self.linops):
             inner = linop.normal(inner)
         return inner

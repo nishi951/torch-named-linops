@@ -51,6 +51,18 @@ class Concat(NamedLinop):
         idim: Optional[ND | str] = None,
         odim: Optional[ND | str] = None,
     ):
+        """
+        Parameters
+        ----------
+        *linops : NamedLinop
+            The linops to concatenate.
+        idim : str or ND, optional
+            Input dimension along which to concatenate. If ``None``, the input
+            is not concatenated (all linops receive the same input).
+        odim : str or ND, optional
+            Output dimension along which to concatenate. If ``None``, the output
+            is not concatenated (outputs are summed).
+        """
         self._check_linop_compatibility(linops)
         super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = nn.ModuleList(list(linops))

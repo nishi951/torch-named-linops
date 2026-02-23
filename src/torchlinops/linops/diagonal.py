@@ -13,12 +13,40 @@ __all__ = ["Diagonal"]
 
 
 class Diagonal(NamedLinop):
+    """Elementwise diagonal linear operator $D(x) = w \\odot x$.
+
+    The forward operation is pointwise multiplication by a weight tensor *w*.
+    The adjoint is $D^H(x) = \\bar{w} \\odot x$ and the normal is
+    $D^N(x) = |w|^2 \\odot x$.
+
+    Because the input and output shapes are identical, ``Diagonal`` sets
+    ``oshape = ishape`` and keeps them synchronized.
+
+    Attributes
+    ----------
+    weight : nn.Parameter
+        The diagonal weight tensor $w$.
+    broadcast_dims : list
+        Dimensions along which the weight is broadcast (not stored explicitly).
+    """
+
     def __init__(
         self,
         weight: torch.Tensor,
         ioshape: Optional[Shape] = None,
         broadcast_dims: Optional[Shape] = None,
     ):
+        """
+        Parameters
+        ----------
+        weight : Tensor
+            The diagonal weight tensor.
+        ioshape : Shape, optional
+            Named dimensions for input and output (they are the same).
+        broadcast_dims : Shape, optional
+            Dimensions along which *weight* should be broadcast rather than
+            indexed. Useful when the weight has fewer dimensions than the input.
+        """
         if ioshape is not None and len(weight.shape) > len(ioshape):
             raise ValueError(
                 f"All dimensions must be named or broadcastable, but got weight shape {weight.shape} and ioshape {ioshape}"
@@ -47,6 +75,24 @@ class Diagonal(NamedLinop):
         ioshape: Shape,
         shape_kwargs: Optional[dict] = None,
     ):
+        """Construct a ``Diagonal`` by expanding *weight* to match *ioshape* via einops.
+
+        Parameters
+        ----------
+        weight : Tensor
+            The weight tensor in its original (possibly lower-dimensional) shape.
+        weight_shape : Shape
+            Named dimensions labeling the axes of *weight*.
+        ioshape : Shape
+            Target named dimensions for the expanded weight.
+        shape_kwargs : dict, optional
+            Extra keyword arguments forwarded to ``einops.repeat``.
+
+        Returns
+        -------
+        Diagonal
+            A new diagonal linop with the expanded weight.
+        """
         shape_kwargs = shape_kwargs if shape_kwargs is not None else {}
         if len(weight.shape) > len(ioshape):
             raise ValueError(

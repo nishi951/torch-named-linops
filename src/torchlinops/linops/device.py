@@ -14,6 +14,29 @@ __all__ = ["ToDevice"]
 
 
 class ToDevice(NamedLinop):
+    """Transfer tensors between devices as a named linear operator.
+
+    The forward operation moves a tensor from ``idevice`` to ``odevice``.
+    The adjoint reverses the direction. The normal $T^H T$ is the identity
+    (device round-trip is lossless).
+
+    For CUDA-to-CUDA transfers, streams and events are used for asynchronous
+    pipelined execution.
+
+    Attributes
+    ----------
+    idevice : torch.device
+        Source (input) device.
+    odevice : torch.device
+        Target (output) device.
+    istream : Stream or None
+        CUDA stream on the source device for initiating the transfer.
+    ostream : Stream or None
+        CUDA stream on the target device that waits for the transfer.
+    wait_event : Event or None
+        Optional event to wait on before starting the transfer.
+    """
+
     def __init__(
         self,
         idevice: torch.device | str,
@@ -23,6 +46,22 @@ class ToDevice(NamedLinop):
         ostream: Optional[Stream] = None,
         wait_event: Optional[Event] = None,
     ):
+        """
+        Parameters
+        ----------
+        idevice : torch.device or str
+            Source device.
+        odevice : torch.device or str
+            Target device.
+        ioshape : Shape, optional
+            Named dimensions (same for input and output since this is diagonal).
+        istream : Stream, optional
+            CUDA stream on the source device. Defaults to the device's default stream.
+        ostream : Stream, optional
+            CUDA stream on the target device. Defaults to the device's default stream.
+        wait_event : Event, optional
+            A CUDA event to wait on before initiating the transfer.
+        """
         super().__init__(NS(ioshape))
         self.idevice = torch.device(idevice)
         self.odevice = torch.device(odevice)
@@ -134,5 +173,6 @@ class ToDevice(NamedLinop):
 
 
 def get_stream_device(stream: torch.cuda.Stream) -> torch.device:
+    """Return the ``torch.device`` associated with a CUDA stream."""
     with torch.cuda.stream(stream):
         return torch.device(f"cuda:{torch.cuda.current_device()}")

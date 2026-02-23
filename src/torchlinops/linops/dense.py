@@ -18,16 +18,14 @@ class Dense(NamedLinop):
 
     "Dense" is used to distinguish from "sparse" linear operators. This
     operator performs a matrix-vector multiplication, potentially with batch
-    and broadcast dimensions, implemented via :func:`einops.einsum`.
+    and broadcast dimensions, implemented via ``einops.einsum``.
 
     The core operation is:
 
-    .. math::
+    $y_{o\dots} = \sum_{i\dots} W_{i\dots, o\dots} x_{i\dots}$
 
-        y_{o\dots} = \sum_{i\dots} W_{i\dots, o\dots} x_{i\dots}
-
-    where :math:`x` is the input, :math:`W` is the weight matrix, and
-    :math:`y` is the output. :math:`i\dots` and :math:`o\dots` represent
+    where $x$ is the input, $W$ is the weight matrix, and
+    $y$ is the output. $i\dots$ and $o\dots$ represent
     the input and output dimensions involved in the multiplication. Other
     dimensions are treated as batch or broadcast dimensions.
 
@@ -35,30 +33,26 @@ class Dense(NamedLinop):
     --------
     A simple batched multiplication:
 
-    - Input :math:`x` shape: :math:`(A, N_x, N_y)`
-    - Weight :math:`W` shape: :math:`(A, T)`
-    - Output :math:`y` shape: :math:`(T, N_x, N_y)`
+    - Input $x$ shape: $(A, N_x, N_y)$
+    - Weight $W$ shape: $(A, T)$
+    - Output $y$ shape: $(T, N_x, N_y)$
 
-    Here, :math:`A` is the input feature dimension, :math:`T` is the output
-    feature dimension, and :math:`(N_x, N_y)` are broadcast dimensions.
+    Here, $A$ is the input feature dimension, $T$ is the output
+    feature dimension, and $(N_x, N_y)$ are broadcast dimensions.
     The operation is:
 
-    .. math::
+    $y_{t, n_x, n_y} = \sum_{a} W_{a, t} x_{a, n_x, n_y}$
 
-        y_{t, n_x, n_y} = \sum_{a} W_{a, t} x_{a, n_x, n_y}
-
-    Another example with a batch dimension :math:`C` shared between input
+    Another example with a batch dimension $C$ shared between input
     and weights:
 
-    - Input :math:`x` shape: :math:`(C, A, N_x, N_y)`
-    - Weight :math:`W` shape: :math:`(C, A, A_1)`
-    - Output :math:`y` shape: :math:`(C, A_1, N_x, N_y)`
+    - Input $x$ shape: $(C, A, N_x, N_y)$
+    - Weight $W$ shape: $(C, A, A_1)$
+    - Output $y$ shape: $(C, A_1, N_x, N_y)$
 
     The operation is:
 
-    .. math::
-
-        y_{c, a_1, n_x, n_y} = \sum_{a} W_{c, a, a_1} x_{c, a, n_x, n_y}
+    $y_{c, a_1, n_x, n_y} = \sum_{a} W_{c, a, a_1} x_{c, a, n_x, n_y}$
 
     """
 
@@ -135,7 +129,20 @@ class Dense(NamedLinop):
         return adj
 
     def normal(self, inner=None):
-        """
+        """Compute the normal operator (adjoint times forward).
+
+        Parameters
+        ----------
+        inner : NamedLinop, optional
+            An optional inner operator to sandwich between the adjoint and
+            forward. If None, consolidates two Dense operators into a single
+            Dense.
+
+        Returns
+        -------
+        NamedLinop
+            The normal operator.
+
         Notes
         -----
         If inner is None, consolidate two Dense's into a single Dense
@@ -252,12 +259,7 @@ class Dense(NamedLinop):
 
 
 def shapes2einstr(shape1, shape2, oshape):
-    """Takes 3 tuples and produces the corresponding einsum string
-
-    Examples
-    --------
-
-    """
+    """Takes 3 tuples and produces the corresponding einsum string."""
 
     def to_str(shape):
         return " ".join(str(s) for s in shape)

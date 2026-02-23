@@ -17,7 +17,11 @@ __all__ = [
 
 
 class Rearrange(NamedLinop):
-    """Moves around dimensions."""
+    """Dimension rearrangement via ``einops.rearrange``.
+
+    Wraps ``einops.rearrange`` as a named linear operator. The adjoint
+    performs the inverse rearrangement.
+    """
 
     def __init__(
         self,
@@ -81,17 +85,20 @@ class Rearrange(NamedLinop):
 
 
 class SumReduce(NamedLinop):
-    """Wrapper for einops' reduce,
+    """Sum-reduction operator (adjoint of ``Repeat``).
 
-    Adjoint of Repeat
+    Wraps ``einops.reduce`` with ``'sum'`` reduction. Reduces (sums over)
+    specified dimensions.
     """
 
     def __init__(self, ishape, oshape):
         """
-        ipattern : string
-            Input shape spec, einops style
-        opattern : string
-            Output shape spec, einops style
+        Parameters
+        ----------
+        ishape : Shape
+            Input shape spec, einops style.
+        oshape : Shape
+            Output shape spec, einops style.
         """
         super().__init__(NS(ishape, oshape))
         assert len(self.oshape) < len(self.ishape), (
@@ -174,7 +181,10 @@ class SumReduce(NamedLinop):
 
 
 class Repeat(NamedLinop):
-    """Unsqueezes and expands a tensor along dim"""
+    """Repeat (expand) operator along specified dimensions (adjoint of ``SumReduce``).
+
+    Wraps ``einops.repeat`` as a named linear operator.
+    """
 
     def __init__(
         self,

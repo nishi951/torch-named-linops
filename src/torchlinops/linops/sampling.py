@@ -33,8 +33,6 @@ class Sampling(NamedLinop):
         batch_shape: Optional[Shape] = None,
     ):
         """
-        Sampling: (B..., N...) -> (B..., M...)
-
         Parameters
         ----------
         idx : tuple[Integer[Tensor, "..."], ...]
@@ -44,8 +42,16 @@ class Sampling(NamedLinop):
             idx is in range [0, size-1]
         input_size : tuple[int, ...]
             Actual shape of the input interpolated tensor, without the batch dimensions.
+        output_shape : Shape, optional
+            Named dimensions for the output.
+        input_shape : Shape, optional
+            Named dimensions for the input.
+        batch_shape : Shape, optional
+            Named batch dimensions.
 
-
+        Notes
+        -----
+        Sampling: (B..., N...) -> (B..., M...)
         """
         dim = len(input_size)
         if len(idx) != dim:
