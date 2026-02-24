@@ -1,5 +1,20 @@
 # Getting Started
 
+## Understanding `Dim()`
+
+Before diving in, a quick note on `Dim()`. It is a convenience function for creating named dimension tuples from a compact string:
+
+```python
+from torchlinops import Dim
+
+Dim("MN")     # -> ("M", "N")  — each uppercase letter starts a new dimension
+Dim("NxNy")   # -> ("Nx", "Ny") — uppercase + lowercase letters form one name
+Dim("M")      # -> ("M",)
+Dim("")        # -> ()          — empty string for scalar/batch dims
+```
+
+You can also pass a plain tuple `("M", "N")` anywhere `Dim("MN")` is accepted. Both forms are equivalent.
+
 ## A simple example
 Start by importing some stuff:
 ```python
@@ -72,4 +87,13 @@ print(A.N) # No longer contains Identity
 
 ## Splitting linops
 
+Linops can be split across sub-problems (e.g., for multi-GPU processing) using `split_linop`. See [Multi-GPU Splitting](../explanations/multi_gpu.md) for the full explanation.
+
+```python
+from torchlinops import split_linop
+# splits = split_linop(A, ...)  # Splits A into sub-operators
+```
+
 ## Creating a custom linop
+
+You can create your own `NamedLinop` by subclassing it and implementing `fn()` and `adj_fn()` as static methods. See the [Custom Linops How-To Guide](../howto/custom_linops.md) for the full requirements and a complete example.

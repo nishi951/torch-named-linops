@@ -31,9 +31,24 @@ class Rearrange(NamedLinop):
         oshape: Shape,
         axes_lengths: Optional[Mapping] = None,
     ):
-        # assert len(ishape) == len(
-        #     oshape
-        # ), "Rearrange currently only supports pure dimension permutations"
+        """
+        Parameters
+        ----------
+        ipattern : str
+            Input pattern string for ``einops.rearrange`` (left-hand side of
+            the ``->`` arrow).
+        opattern : str
+            Output pattern string for ``einops.rearrange`` (right-hand side
+            of the ``->`` arrow).
+        ishape : Shape
+            Named input shape specification.
+        oshape : Shape
+            Named output shape specification.
+        axes_lengths : Mapping, optional
+            Mapping from axis names to their sizes, passed as keyword
+            arguments to ``einops.rearrange`` for resolving ambiguous
+            dimensions (e.g., when splitting or merging axes).
+        """
         super().__init__(NS(ishape, oshape))
         self.ipattern = ipattern
         self.opattern = opattern
@@ -193,6 +208,21 @@ class Repeat(NamedLinop):
         oshape: Shape,
         broadcast_dims: Optional[list] = None,
     ):
+        """
+        Parameters
+        ----------
+        n_repeats : Mapping
+            Mapping from dimension names to the number of repetitions
+            along each new dimension.
+        ishape : Shape
+            Named input shape specification.
+        oshape : Shape
+            Named output shape specification. Must have more dimensions
+            than ``ishape``.
+        broadcast_dims : list, optional
+            Dimensions that are broadcast (size unknown until runtime)
+            rather than having a fixed repeat count.
+        """
         super().__init__(NS(ishape, oshape))
         assert len(self.oshape) > len(self.ishape), (
             f"Repeat must add at least one dimension: got {self.ishape} -> {self.oshape}"
