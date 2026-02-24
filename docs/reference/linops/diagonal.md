@@ -3,14 +3,20 @@
 ::: torchlinops.linops.Diagonal
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__
+            - from_weight
+            - normal
+            - __pow__
 
 ::: torchlinops.linops.Scalar
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__
 
 ::: torchlinops.linops.Zero
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__

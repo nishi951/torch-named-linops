@@ -3,9 +3,12 @@
 ::: torchlinops.linops.Batch
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__
+            - normal
 
 ::: torchlinops.linops.MPBatch
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__

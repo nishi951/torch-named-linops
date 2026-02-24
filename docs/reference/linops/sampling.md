@@ -3,9 +3,13 @@
 ::: torchlinops.linops.Sampling
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__
+            - from_mask
+            - from_stacked_idx
 
 ::: torchlinops.linops.BreakpointLinop
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__

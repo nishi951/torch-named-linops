@@ -3,4 +3,5 @@
 ::: torchlinops.linops.Add
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__
