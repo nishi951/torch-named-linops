@@ -56,13 +56,12 @@ class FFT(NamedLinop):
         self.dim = tuple(range(-self.ndim, 0))
         self.grid_shapes = grid_shapes
         if grid_shapes is None:
-            dim_shape = NS(get_nd_shape(self.dim), get_nd_shape(self.dim, kspace=True))
-        else:
-            if len(grid_shapes) != 2:
-                raise ValueError(
-                    f"grid_shapes should consist of two shape tuples but got {grid_shapes}"
-                )
-            dim_shape = NS(*grid_shapes)
+            grid_shapes = get_nd_shape(self.dim), get_nd_shape(self.dim, kspace=True)
+        elif len(grid_shapes) != 2:
+            raise ValueError(
+                f"grid_shapes should consist of two shape tuples but got {grid_shapes}"
+            )
+        dim_shape = NS(*grid_shapes)
         shape = NS(batch_shape) + dim_shape
         super().__init__(shape)
         self._shape.batch_shape = batch_shape
