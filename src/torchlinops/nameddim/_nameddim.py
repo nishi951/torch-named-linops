@@ -10,11 +10,25 @@ ANY = "()"
 
 
 def Dim(s: Optional[str] = None) -> tuple[str]:
-    """Convenience function for splitting a string into a tuple based on simple parsing rules.
+    """Convenience function for splitting a string into a tuple of dimension names.
 
-    Rules:
-    - dim begins with an uppercase letter
-    - dim cannot start with a number
+    Parses a compact dimension string into individual dimension names using
+    simple rules:
+
+    - A new dimension begins at each uppercase letter.
+    - A dimension name cannot start with a digit.
+    - The special token ``()`` (ANY) is recognised and split out.
+
+    Parameters
+    ----------
+    s : str or None, optional
+        The compact dimension string to parse. If ``None`` or empty, an
+        empty tuple is returned.
+
+    Returns
+    -------
+    tuple of str
+        A tuple of individual dimension name strings.
 
     Examples
     --------
@@ -52,11 +66,54 @@ def Dim(s: Optional[str] = None) -> tuple[str]:
 
 @dataclass(slots=True, frozen=True)
 class NamedDimension:
+    """Fundamental named dimension type used throughout the library.
+
+    Each dimension has a ``name`` and an optional integer index ``i`` for
+    creating indexed variants (e.g. ``A1``, ``A2``).  Two
+    ``NamedDimension`` instances are considered equal when their string
+    representations match; the index is folded into the representation
+    rather than compared separately.
+
+    Parameters
+    ----------
+    name : str
+        The base name of the dimension (e.g. ``'A'``, ``'Nx'``).
+    i : int, optional
+        Integer index for indexed variants.  Defaults to ``0``, which is
+        omitted from the string representation.
+
+    Examples
+    --------
+    >>> NamedDimension("A")
+    A
+    >>> NamedDimension("A", 1)
+    A1
+    >>> NamedDimension("A") == "A"
+    True
+    """
+
     name: str
     i: int = 0
 
     @classmethod
     def infer(cls, dim: Any):
+        """Create a NamedDimension by inferring the name and optional index.
+
+        If *dim* is already a ``NamedDimension`` it is returned as-is.
+        A two-character string whose second character is a digit is
+        interpreted as ``name=dim[0], i=int(dim[1])``.  Sequences are
+        inferred element-wise.
+
+        Parameters
+        ----------
+        dim : Any
+            A ``NamedDimension``, a string, or a list/tuple of those.
+
+        Returns
+        -------
+        NamedDimension or sequence thereof
+            The inferred dimension(s).
+        """
         if isinstance(dim, cls):
             return dim
         if isinstance(dim, str) and len(dim) == 2:

@@ -49,7 +49,15 @@ Input shape: torch.Size([7]), Output shape: torch.Size([3])
 ```
 
 ## Features
-TODO
+
+- **Named dimensions** -- A dedicated abstraction (`Dim`, `NamedDimension`, `NamedShape`) for naming linear operator dimensions, eliminating shape ambiguity.
+- **Automatic adjoints and normals** -- `.H` and `.N` properties to create adjoint ($A^H$) and normal ($A^H A$) operators with correct dimension handling.
+- **Operator composition** -- Compose operators with `@` (chaining) and `+` (addition). `Chain`, `Add`, `Concat`, and `Stack` handle dimension matching automatically.
+- **Core operator library** -- `Dense`, `Diagonal`, `FFT`, `NUFFT`, `Interpolate`, `ArrayToBlocks`, `Sampling`, and more, all with named dimensions.
+- **Multi-GPU splitting** -- Split a single operator across multiple GPUs with `split_linop` and `create_batched_linop`.
+- **Complex number support** -- Full support for complex tensors. Adjoint takes the conjugate transpose.
+- **Autograd integration** -- Full support for `autograd`-based automatic differentiation through all operators.
+- **Iterative solvers** -- Built-in `conjugate_gradients`, `power_method`, and `polynomial_preconditioner` that work directly with named linops.
 
 
 

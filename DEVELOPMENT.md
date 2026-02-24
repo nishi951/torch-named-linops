@@ -8,9 +8,9 @@ To install the repository and its dependencies, run the following command in you
 
 ```sh
 # With development dependencies
-uv sync --group dev
-# With everything
-uv sync --group all
+uv sync
+# With all optional dependencies (including sigpy)
+uv sync --all
 ```
 
 ## Development Workflow
@@ -31,19 +31,9 @@ uv sync --group all
 
 4. **Code formatting**: Format your code to maintain consistency:
    ```sh
-   uv run ruff format --check src/
-   uv run isort src/
+   uv run ruff format src/
+   uv run ruff check src/
    ```
-
-5. **Type checking**: (TODO) Run type checks to ensure type safety:
-   ```sh
-   uv run mypy src/
-   ```
-
-6. **Security checking**: (TODO) Run security checks:
-    ```sh
-    uv run bandit -c pyproject.toml -r src
-    ```
 
 ### Project Structure
 
@@ -76,7 +66,14 @@ Use the following conventions:
 - Document any other useful methods (e.g. alternative `@classmethod` constructors or `@staticmethod` helper functions)
 
 #### Functions
+Use the following conventions:
 
+- In the function-level docstring:
+  - Describe what the function does.
+  - Document all parameters with types.
+  - Document the return value.
+  - Add examples where helpful.
+- Use numpy-style docstrings throughout.
 
 ## Testing
 

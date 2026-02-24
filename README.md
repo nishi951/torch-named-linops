@@ -7,9 +7,35 @@
 
 A flexible linear operator abstraction implemented in PyTorch.
 
+**[Documentation](https://nishi951.github.io/torch-named-linops/)**
+
 ``` sh
 $ pip install torch-named-linops
 ```
+
+## Quick Example
+
+```python
+import torch
+from torchlinops import Dense, Diagonal, Dim
+
+# Create operators with named dimensions
+W = torch.randn(3, 7)
+A = Dense(W, Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
+
+# Apply, take adjoint, compose
+x = torch.randn(7)
+y = A(x)             # Forward: y = W @ x
+z = A.H(y)           # Adjoint: z = W^H @ y
+w = A.N(x)           # Normal:  w = W^H @ W @ x
+
+# Compose operators with @
+d = torch.randn(3)
+B = Diagonal(d, ioshape=Dim("M"))
+C = B @ A             # Chain: C(x) = diag(d) @ W @ x
+```
+
+See the [Getting Started](https://nishi951.github.io/torch-named-linops/getting_started/) guide for a full walkthrough.
 
 ## Selected Feature List
 - A dedicated abstraction for naming linear operator dimensions.

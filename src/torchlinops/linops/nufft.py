@@ -400,15 +400,28 @@ def toeplitz_psf(
 ) -> NamedLinop:
     """Compute the Toeplitz point spread function (PSF) for a NUFFT operator.
 
+    Constructs a PSF kernel that enables efficient ``A.H @ inner @ A``
+    computation via FFT-based Toeplitz embedding, avoiding explicit
+    forward/adjoint NUFFT pairs.
+
     Parameters
     ----------
     nufft : NUFFT
-        The NUFFT operator.
+        The NUFFT operator to compute the PSF for.
+    inner : NamedLinop, optional
+        An optional inner linear operator applied between the forward and
+        adjoint NUFFT (e.g., density compensation). If ``None``, defaults
+        to the identity.
+    dtype : torch.dtype, optional
+        Data type for the PSF kernel. Defaults to ``torch.complex64``.
+    oversamp : float, optional
+        Toeplitz oversampling factor. Default is 2.0.
 
     Returns
     -------
-    Tensor
-        The Toeplitz PSF kernel.
+    NamedLinop
+        A ``Dense`` named linear operator containing the Toeplitz PSF
+        kernel in the Fourier domain.
     """
     if isinstance(nufft.interp, Sampling):
         raise NotImplementedError(
