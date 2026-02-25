@@ -64,11 +64,11 @@ class Add(NamedLinop):
     def H(self):
         if config.cache_adjoint_normal:
             config._warn_if_caching_enabled()
-            if self._adj is None:
+            if self._adjoint is None:
                 linops = list(linop.adjoint() for linop in self.linops)
                 _adj = type(self)(*linops)
-                self._adj = [_adj]
-            return self._adj[0]
+                self._adjoint = [_adj]
+            return self._adjoint[0]
         return self.adjoint()
 
     @property

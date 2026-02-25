@@ -440,6 +440,10 @@ class NamedLinop(nn.Module):
         return NotImplemented
 
     def __rmatmul__(self, left) -> "NamedLinop":
+        if not isinstance(left, NamedLinop):
+            raise ValueError(
+                f"__rmatmul__ of linop {type(self)} with non-linop of type {type(left)} is undefined."
+            )
         return left.compose(self)
 
     @property
