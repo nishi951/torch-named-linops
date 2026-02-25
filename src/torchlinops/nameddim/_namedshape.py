@@ -107,7 +107,7 @@ class NamedShape(NamedDimCollection):
     def __repr__(self):
         return f"{self.ishape} -> {self.oshape}"
 
-    def __add__(self, right):
+    def __add__(self, right) -> "NamedShape":
         try:
             _ishape = self.ishape + right.ishape
         except TypeError as e:

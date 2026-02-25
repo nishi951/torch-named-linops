@@ -118,7 +118,7 @@ class NUFFT(Chain):
 
         # Initialize variables
         ndim = len(grid_size)
-        padded_size = [int(i * oversamp) for i in grid_size]
+        padded_size = tuple(int(i * oversamp) for i in grid_size)
 
         # Create Padding
         pad = PadLast(

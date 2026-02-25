@@ -318,17 +318,17 @@ class Stack(NamedLinop):
         return output
 
 
-def strict_update(d1: Mapping, d2: Mapping) -> Mapping:
+def strict_update(d1: dict, d2: dict) -> dict:
     """Strictly updates one dictionary with values from the other.
 
     Parameters
     ----------
-    d1, d2 : Mappings
-        The mappings to combine.
+    d1, d2 : dict
+        The dictionaries to combine.
 
     Returns
     -------
-    Mapping
+    dict
         The combined mapping.
 
     Raises
