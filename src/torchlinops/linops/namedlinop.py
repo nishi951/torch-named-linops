@@ -218,17 +218,27 @@ class NamedLinop(nn.Module):
 
     @property
     def H(self) -> "NamedLinop":
-        """Adjoint operator, with caching"""
-        if self._adjoint is None:
-            try:
-                _adjoint = self.adjoint()
-                _adjoint._adjoint = [self]
-                self._adjoint = [_adjoint]  # Prevent registration as a submodule
-            except AttributeError as e:
-                traceback.print_exc()
-                raise e
-            logger.debug(f"{type(self).__name__}: Making new adjoint {_adjoint._shape}")
-        return self._adjoint[0]
+        """Adjoint operator $A^H$.
+
+        By default, creates a new adjoint on each access. Set
+        ``torchlinops.config.cache_adjoint_normal = True`` to enable caching
+        (deprecated).
+        """
+        if config.cache_adjoint_normal:
+            config._warn_if_caching_enabled()
+            if self._adjoint is None:
+                try:
+                    _adjoint = self.adjoint()
+                    _adjoint._adjoint = [self]
+                    self._adjoint = [_adjoint]
+                except AttributeError as e:
+                    traceback.print_exc()
+                    raise e
+                logger.debug(
+                    f"{type(self).__name__}: Making new adjoint {_adjoint._shape}"
+                )
+            return self._adjoint[0]
+        return self.adjoint()
 
     def adjoint(self) -> "NamedLinop":
         """Create the adjoint operator $A^H$.
@@ -261,20 +271,27 @@ class NamedLinop(nn.Module):
 
     @property
     def N(self) -> "NamedLinop":
-        """Normal operator
-        Note that the naive normal operator can always be created
-        via A.H @ A. Therefore, this function is reserved
-        for custom behavior, as many functions have optimized normal
-        forms.
+        """Normal operator $A^H A$.
+
+        Note that the naive normal operator can always be created via ``A.H @ A``.
+        This function is reserved for custom behavior, as many linops have
+        optimized normal forms.
+
+        By default, creates a new normal on each access. Set
+        ``torchlinops.config.cache_adjoint_normal = True`` to enable caching
+        (deprecated).
         """
-        if self._normal is None:
-            try:
-                _normal = self.normal()
-                self._normal = [_normal]
-            except AttributeError as e:
-                traceback.print_exc()
-                raise e
-        return self._normal[0]
+        if config.cache_adjoint_normal:
+            config._warn_if_caching_enabled()
+            if self._normal is None:
+                try:
+                    _normal = self.normal()
+                    self._normal = [_normal]
+                except AttributeError as e:
+                    traceback.print_exc()
+                    raise e
+            return self._normal[0]
+        return self.normal()
 
     def normal(self, inner=None) -> "NamedLinop":
         """Create the normal operator $A^H A$, optionally with an inner operator.

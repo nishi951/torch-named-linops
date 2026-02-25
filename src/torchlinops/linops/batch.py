@@ -8,6 +8,7 @@ import torch.nn as nn
 from tqdm import tqdm
 from typing_extensions import Self
 
+import torchlinops.config as config
 from torchlinops.utils import INDENT
 
 from ..nameddim import NamedShape as NS, Shape
@@ -115,15 +116,18 @@ class Batch(NamedLinop):
 
     @property
     def H(self):
-        if self._adjoint is None:
-            try:
-                _adjoint = self.adjoint()
-                _adjoint._adjoint = [self]
-                self._adjoint = [_adjoint]
-            except AttributeError as e:
-                traceback.print_exc()
-                raise e
-        return self._adjoint[0]
+        if config.cache_adjoint_normal:
+            config._warn_if_caching_enabled()
+            if self._adjoint is None:
+                try:
+                    _adjoint = self.adjoint()
+                    _adjoint._adjoint = [self]
+                    self._adjoint = [_adjoint]
+                except AttributeError as e:
+                    traceback.print_exc()
+                    raise e
+            return self._adjoint[0]
+        return self.adjoint()
 
     def adjoint(self):
         batch_sizes = {str(k): v for k, v in self.batch_sizes.items()}
@@ -142,14 +146,17 @@ class Batch(NamedLinop):
 
     @property
     def N(self):
-        if self._normal is None:
-            try:
-                _normal = self.normal()
-                self._normal = [_normal]
-            except AttributeError as e:
-                traceback.print_exc()
-                raise e
-        return self._normal[0]
+        if config.cache_adjoint_normal:
+            config._warn_if_caching_enabled()
+            if self._normal is None:
+                try:
+                    _normal = self.normal()
+                    self._normal = [_normal]
+                except AttributeError as e:
+                    traceback.print_exc()
+                    raise e
+            return self._normal[0]
+        return self.normal()
 
     def normal(self, inner=None):
         normal_linop = self.linop.N

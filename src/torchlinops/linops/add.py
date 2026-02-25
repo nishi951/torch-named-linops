@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+import torchlinops.config as config
 from ..nameddim import NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 
@@ -61,19 +62,25 @@ class Add(NamedLinop):
 
     @property
     def H(self):
-        if self._adj is None:
-            linops = list(linop.adjoint() for linop in self.linops)
-            _adj = type(self)(*linops)
-            self._adj = [_adj]  # Prevent registration as a submodule
-        return self._adj[0]
+        if config.cache_adjoint_normal:
+            config._warn_if_caching_enabled()
+            if self._adj is None:
+                linops = list(linop.adjoint() for linop in self.linops)
+                _adj = type(self)(*linops)
+                self._adj = [_adj]
+            return self._adj[0]
+        return self.adjoint()
 
     @property
     def N(self):
-        if self._normal is None:
-            linops = list(linop.normal() for linop in self.linops)
-            _normal = type(self)(*linops)
-            self._normal = [_normal]  # Prevent registration as a submodule
-        return self._normal[0]
+        if config.cache_adjoint_normal:
+            config._warn_if_caching_enabled()
+            if self._normal is None:
+                linops = list(linop.normal() for linop in self.linops)
+                _normal = type(self)(*linops)
+                self._normal = [_normal]
+            return self._normal[0]
+        return self.normal()
 
     def flatten(self):
         return [self]
