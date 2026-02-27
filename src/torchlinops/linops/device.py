@@ -87,7 +87,7 @@ class ToDevice(NamedLinop):
         idevice: DeviceSpec | torch.device | None,
         odevice: DeviceSpec | torch.device | None,
         ioshape: Optional[Shape] = None,
-        input_ready_event: Optional[Event] = None,
+        input_ready_event: Optional[Event | RepeatedEvent] = None,
     ):
         """
         Parameters
@@ -114,15 +114,12 @@ class ToDevice(NamedLinop):
         self.ispec.p2p_setup(self.ospec.device)
         self.ospec.p2p_setup(self.ispec.device)
 
+        self.input_ready_event = input_ready_event
         if self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda":
-            # Only initialize peer-to-peer access if both devices are cuda.
-            self.input_ready_event = input_ready_event
             if self.input_ready_event is None:
                 warn(
                     "Peer-to-peer device transfer with input_ready_event = None detected. Results may not be accurate."
                 )
-        else:
-            self.input_ready_event = None
 
     @staticmethod
     def _fn(
