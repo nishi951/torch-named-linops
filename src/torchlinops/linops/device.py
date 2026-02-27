@@ -190,14 +190,14 @@ class ToDevice(NamedLinop):
             self.ispec.compute_stream is not None
             or self.ispec.transfer_stream is not None
         ):
-            irepr = f"{self.ispec.device}, compute: 0x{self.ispec.compute_stream:x}, transfer: 0x{self.ispec.transfer_stream:x}"
+            irepr = f"{self.ispec.device}, compute: 0x{self.ispec.compute_stream.cuda_stream:x}, transfer: 0x{self.ispec.transfer_stream.cuda_stream:x}"
         else:
             irepr = f"{self.ispec.device}"
         if (
             self.ospec.compute_stream is not None
             or self.ospec.transfer_stream is not None
         ):
-            orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream:x}, transfer: 0x{self.ospec.transfer_stream:x}"
+            orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}, transfer: 0x{self.ospec.transfer_stream.cuda_stream:x}"
         else:
             orepr = f"{self.ospec.device}"
         if self.input_ready_event is not None:

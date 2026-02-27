@@ -12,6 +12,7 @@ from torchlinops.utils import (
     RepeatedEvent,
     batch_iterator,
     dict_product,
+    default_to,
 )
 
 from .add import Add
@@ -46,10 +47,8 @@ class BatchSpec:
     """
 
     batch_sizes: dict[ND | str, int]
-    device_matrix: np.ndarray = field(
-        default_factory=lambda: np.array([torch.device("cpu")])
-    )
-    base_device: torch.device = torch.device("cpu")
+    device_matrix: np.ndarray | None = None
+    base_device: torch.device | None = None
 
     def __post_init__(self):
         if not isinstance(self.batch_sizes, dict):
@@ -57,7 +56,7 @@ class BatchSpec:
                 f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
             )
         # Ensure ndarray
-        if not isinstance(self.device_matrix, np.ndarray):
+        if isinstance(self.device_matrix, list | tuple):
             self.device_matrix = np.array(self.device_matrix)
 
     def broadcast_device_matrix(self, linop):
@@ -74,7 +73,12 @@ class BatchSpec:
         return device_matrix
 
 
-def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=None):
+def create_batched_linop(
+    linop,
+    batch_specs: BatchSpec | list[BatchSpec],
+    default_device: torch.device = None,
+    _mmap=None,
+):
     """Split and distribute a linop across devices according to batch specs.
 
     Recursively processes a list of ``BatchSpec`` objects: the first spec
@@ -91,7 +95,9 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
         One or more batch specifications to apply (processed in order).
     _mmap : ModuleMemoryMap, optional
         Internal memory map for efficient device transfers. Created
-        automatically on the first call.
+        automatically on the first call. Probably don't set this manually.
+    _default_device : torch.device, optional
+        The default device to use if no device info is provided in the batch spec.
 
     Returns
     -------
@@ -100,16 +106,25 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
         that is functionally equivalent to the original but distributed
         according to the batch specs.
     """
+    if default_device is None:
+        default_device = torch.device("cpu")
     if isinstance(batch_specs, BatchSpec):
         # Ensure list
         batch_specs = [batch_specs]
     if _mmap is None:
         _mmap = ModuleMemoryMap()
         _mmap.register_module(linop)
-
     if len(batch_specs) == 0:
+        # Recursive ending
         return linop
     batch_spec = batch_specs[0]
+    # Set defaults
+    batch_spec.base_device = default_to(default_device, batch_spec.base_device)
+    batch_spec.device_matrix = default_to(
+        np.array([default_device]), batch_spec.device_matrix
+    )
+
+    # Split linop into tiles and broadcast device spec to the tile array.
     linops, ibatches, obatches = split_linop(linop, batch_spec.batch_sizes)
     device_matrix = batch_spec.broadcast_device_matrix(linop)
     if device_matrix.shape != linops.shape:
@@ -129,27 +144,30 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
         is_gpu2gpu = source_device.type == "cuda" and target_device.type == "cuda"
 
         # Recursive call to batch the tile
-        tiled_linop = create_batched_linop(linop, batch_specs[1:], _mmap)
+        tiled_linop = create_batched_linop(
+            linop, batch_specs[1:], default_device=target_device, _mmap=_mmap
+        )
 
         # Move linop to device
         tiled_linop = _mmap.memory_aware_to(tiled_linop, target_device)
 
         # Wrap with device movement linops
-        tiled_linop = Chain(
-            ToDevice(
-                source_device,
-                target_device,
-                ioshape=tiled_linop.ishape,
-                input_ready_event=input_ready_event if is_gpu2gpu else None,
-            ),
-            tiled_linop,
-            ToDevice(
-                target_device,
-                source_device,
-                ioshape=tiled_linop.oshape,
-                input_ready_event=input_ready_event if is_gpu2gpu else None,
-            ),
-        )
+        if source_device != target_device:
+            tiled_linop = Chain(
+                ToDevice(
+                    source_device,
+                    target_device,
+                    ioshape=tiled_linop.ishape,
+                    input_ready_event=input_ready_event if is_gpu2gpu else None,
+                ),
+                tiled_linop,
+                ToDevice(
+                    target_device,
+                    source_device,
+                    ioshape=tiled_linop.oshape,
+                    input_ready_event=input_ready_event if is_gpu2gpu else None,
+                ),
+            )
 
         # Overwrite entry in linops
         linops[idx] = tiled_linop
