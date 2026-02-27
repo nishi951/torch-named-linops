@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import ceil
 from typing import Optional
 from warnings import warn
@@ -15,6 +15,7 @@ from torchlinops.utils import (
 )
 
 from .add import Add
+from .chain import Chain
 from .concat import Concat
 from .device import ToDevice
 from ..nameddim import NamedDimension as ND
@@ -42,40 +43,35 @@ class BatchSpec:
         tile. Broadcast to match the tile grid shape.
     base_device : torch.device, optional
         The device where input/output data resides. Default is CPU.
-    base_stream : Stream, optional
-        CUDA stream on *base_device* (auto-created for CUDA devices).
-    transfer_stream : Stream, optional
-        CUDA stream used for host-to-device transfers (auto-created for CUDA).
     """
 
     batch_sizes: dict[ND | str, int]
-    device_matrix: Optional[np.ndarray | list] = None
-    base_device: Optional[torch.device] = torch.device("cpu")
-    base_stream: Optional[Stream] = None
-    transfer_stream: Optional[Stream] = None
+    device_matrix: np.ndarray = field(
+        default_factory=lambda: np.array([torch.device("cpu")])
+    )
+    base_device: torch.device = torch.device("cpu")
 
     def __post_init__(self):
         if not isinstance(self.batch_sizes, dict):
             warn(
                 f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
             )
-        if self.base_stream is None and self.base_device.type == "cuda":
-            self.base_stream = torch.cuda.default_stream(self.base_device)
-            self.transfer_stream = Stream(self.base_device)
+        # Ensure ndarray
+        if not isinstance(self.device_matrix, np.ndarray):
+            self.device_matrix = np.array(self.device_matrix)
 
     def broadcast_device_matrix(self, linop):
-        if self.device_matrix is not None:
-            batch_dims = list(self.batch_sizes.keys())
-            sizes = {dim: linop.size(dim) for dim in linop.dims}
-            # Create and broadcast device_matrix over requested split
-            tiled_shape = tuple(
-                ceil(sizes[dim] / self.batch_sizes[dim]) for dim in batch_dims
-            )
-            if not isinstance(self.device_matrix, np.ndarray):
-                device_matrix = np.array(self.device_matrix, dtype=object)
-            device_matrix = fuzzy_broadcast_to(device_matrix, tiled_shape)
-            return device_matrix
-        return None
+        # Compute the number of tiles along each batched axis/dimension
+        batch_dims = list(self.batch_sizes.keys())
+        sizes = {dim: linop.size(dim) for dim in linop.dims}
+        tiled_shape = tuple(
+            ceil(sizes[dim] / self.batch_sizes[dim]) for dim in batch_dims
+        )
+
+        # Broadcast device_matrix over requested tiles.
+        # Each tile should receive a single device.
+        device_matrix = fuzzy_broadcast_to(self.device_matrix, tiled_shape)
+        return device_matrix
 
 
 def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=None):
@@ -116,60 +112,47 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
     batch_spec = batch_specs[0]
     linops, ibatches, obatches = split_linop(linop, batch_spec.batch_sizes)
     device_matrix = batch_spec.broadcast_device_matrix(linop)
+    if device_matrix.shape != linops.shape:
+        raise ValueError(
+            f"device_matrix and linops should have same shape after broadcasting, but got device_matrix: {device_matrix.shape} and linops: {linops.shape}"
+        )
 
-    if device_matrix is not None:
-        # Create streams
-        target_streams = {
-            device: torch.cuda.default_stream(device)
-            for device in set(batch_spec.device_matrix)
-            if device.type == "cuda"
-        }
-        if device_matrix.shape != linops.shape:
-            raise ValueError(
-                f"Broadcasted device matrix with shape {device_matrix.shape} can't be broadcasted to exact shape of linop tiles with shape {linops.shape}"
-            )
-        device_matrix = device_matrix.reshape(-1)  # Flatten
+    # Create event to trigger all tiles in the linop.
+    source_device = batch_spec.base_device
+    any_gpu2gpu = source_device.type == "cuda" and any(
+        target_device.type == "cuda" for target_device in device_matrix.flat
+    )
+    input_ready_event = RepeatedEvent() if any_gpu2gpu else None
+    # Allocate output
+    for idx in np.ndindex(linops.shape):
+        linop, target_device = linops[idx], device_matrix[idx]
+        is_gpu2gpu = source_device.type == "cuda" and target_device.type == "cuda"
 
-    # Work with flattened linop
-    linops_shape = linops.shape
-    linops = linops.reshape(-1)  # Flatten
-    wait_event = None
-    for i, linop in enumerate(linops):
+        # Recursive call to batch the tile
         tiled_linop = create_batched_linop(linop, batch_specs[1:], _mmap)
-        if device_matrix is not None:
-            device = device_matrix[i]
-            tiled_linop = _mmap.memory_aware_to(tiled_linop, device)
 
-            # Wrap with streams
-            if batch_spec.base_device.type == "cuda" and device.type == "cuda":
-                transfer_stream = batch_spec.transfer_stream
-                base_stream = batch_spec.base_stream
-                target_stream = target_streams[device]
-                tiled_linop.stream = target_stream
-                if wait_event is None:
-                    wait_event = RepeatedEvent()  # Trigger start of linops
-            else:
-                base_stream = transfer_stream = target_stream = None
-            tiled_linop = (
-                ToDevice(
-                    device,
-                    batch_spec.base_device,
-                    ioshape=tiled_linop.oshape,
-                    istream=target_stream,
-                    ostream=base_stream,
-                )
-                @ tiled_linop
-                @ ToDevice(
-                    batch_spec.base_device,
-                    device,
-                    ioshape=tiled_linop.ishape,
-                    istream=transfer_stream,
-                    ostream=target_stream,
-                    wait_event=wait_event,
-                )
-            )
-        linops[i] = tiled_linop
-    linops = linops.reshape(linops_shape)
+        # Move linop to device
+        tiled_linop = _mmap.memory_aware_to(tiled_linop, target_device)
+
+        # Wrap with device movement linops
+        tiled_linop = Chain(
+            ToDevice(
+                source_device,
+                target_device,
+                ioshape=tiled_linop.ishape,
+                input_ready_event=input_ready_event if is_gpu2gpu else None,
+            ),
+            tiled_linop,
+            ToDevice(
+                target_device,
+                source_device,
+                ioshape=tiled_linop.oshape,
+                input_ready_event=input_ready_event if is_gpu2gpu else None,
+            ),
+        )
+
+        # Overwrite entry in linops
+        linops[idx] = tiled_linop
 
     for dim in reversed(batch_spec.batch_sizes):
         # Manual axis reduction because I made Concat and Add too nice
@@ -188,9 +171,9 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
             new_linops[i] = new_linop
         linops = new_linops.reshape(linops.shape[:-1])
     linop = linops.item()
-    if wait_event is not None:
-        # Trigger transfers at start of linop
-        linop.start_event = wait_event
+    # I guess it's ok if we trigger the event with no streams waiting on it...
+    # TODO: maybe refactor to remove this slight redundancy
+    linop.start_event = input_ready_event
     return linop
 
 
