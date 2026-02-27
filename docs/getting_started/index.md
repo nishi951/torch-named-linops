@@ -15,6 +15,18 @@ Dim("")        # -> ()          — empty string for scalar/batch dims
 
 You can also pass a plain tuple `("M", "N")` anywhere `Dim("MN")` is accepted. Both forms are equivalent.
 
+!!! tip "weightshape vs ishape/oshape"
+    When creating operators like `Dense`, you'll encounter both:
+
+    - **`weightshape`** — describes the dimensions of the *matrix* itself (the storage). For a matrix with shape `(M, N)`, this is `Dim("MN")`.
+    - **`ishape` / `oshape`** — describe what the operator maps *from* and *to*. These are the dimensions of the input and output vectors.
+
+    For example, with a weight matrix `W` of shape `(3, 7)`:
+    ```python
+    A = Dense(W, weightshape=Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
+    #                   ↑ matrix dims (M=3, N=7)       ↑ input (7)  ↑ output (3)
+    ```
+
 ## A simple example
 Start by importing some stuff:
 ```python
@@ -81,9 +93,16 @@ print(A.N) # Contains Identity in the middle since FFT.H @ FFT = Id
 
 ```python
 config.reduce_identity_in_normal = True
-A.reset_adjoint_and_normal() # adjoint and normal are cached by default
 print(A.N) # No longer contains Identity
 ```
+
+!!! info "What does `reduce_identity_in_normal` do?"
+    When computing the normal operator $A^H A$, some operators have the property that $F^H F = I$ (e.g., FFT with orthonormal normalization). By default, the library simplifies these to `Identity` operators in the normal chain.
+
+    - **`True`** (default): Simplifies `FFT.H @ FFT` to `Identity` in the normal operator, producing a more compact operator graph.
+    - **`False`**: Keeps the full chain, which can be useful for debugging or when you need to inspect the exact computation.
+
+    Note that you must call `reset_adjoint_and_normal()` after changing this setting to clear the cached operators.
 
 ## Splitting linops
 

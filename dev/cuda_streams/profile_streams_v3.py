@@ -6,6 +6,7 @@ from torch.cuda import Stream
 from torch.profiler import ProfilerActivity, profile, record_function
 
 from torchlinops import BatchSpec, Dense, Dim, ToDevice, create_batched_linop
+from torchlinops.linops.device import DeviceSpec
 from torchlinops.utils import setup_console_logger
 
 logger = logging.getLogger("torchlinops-dev")
@@ -31,19 +32,19 @@ def main(todevice: bool = False):
             linop.stream = target_stream
             As[device] = (
                 ToDevice(
-                    idevice=device,
-                    odevice=base_device,
+                    DeviceSpec(device, compute_stream=target_stream),
+                    DeviceSpec(base_device, compute_stream=base_stream),
                     ioshape=Dim("BM"),
-                    istream=target_stream,
-                    ostream=base_stream,
                 )
                 @ linop
                 @ ToDevice(
-                    idevice=base_device,
-                    odevice=device,
+                    DeviceSpec(
+                        base_device,
+                        compute_stream=base_stream,
+                        transfer_stream=transfer_stream,
+                    ),
+                    DeviceSpec(device, compute_stream=target_stream),
                     ioshape=Dim("BN"),
-                    istream=transfer_stream,
-                    ostream=target_stream,
                 )
             )
         else:
@@ -109,6 +110,80 @@ def main(todevice: bool = False):
             for device in devices:
                 torch.cuda.synchronize(device)
 
+
+# Batched Linop:
+#   ToDevice(0->0) -> A -> ToDevice(0->0)
+#   ToDevice(0->1) -> B -> ToDevice(1->0)
+#   ToDevice(0->2) -> C -> ToDevice(2->0)
+#
+# Streams:
+# - d0, d1, d2 (default streams on 0, 1, 2)
+# - t (transfer stream)
+#
+# Notation:
+# - s1/s2 = s1 is waiting for s2 to finish before starting
+
+# Order of operations (CPU)
+#
+# ToDevice(0->0)
+# A
+# ToDevice(0->0)
+# ToDevice(0->1)
+# B
+# ToDevice(1->0)
+# ToDevice(0->2)
+# C
+# ToDevice(2->0)
+
+# Case 1: NO Transfer Stream
+#
+# d0: ToDevice(0->0)
+# d0: A
+# d0: ToDevice(0->0)
+
+# d0: ToDevice(0->1)
+# d1/d0: B                 # d1 waits for d0 to finish transfer
+# d1: ToDevice(1->0)
+
+# d0/d1: ToDevice(0->2)    # d2 waits for d2 to finish transfer
+# d2/d0: C
+# d2: ToDevice(2->0)    # These two events are followed by a d0.wait_stream(d2)
+#
+# d0/d2: Return
+
+# You can see that the default stream d0 is still told to wait for stuff not happening on d0
+
+# Case 2: WITH Transfer Stream, Improper Adjoint
+# t: ToDevice(0->0)
+# d0: A
+# d0: ToDevice(0->0)
+
+# t: ToDevice(0->1)
+# d1/t: B
+# d1: ToDevice(1->0)
+# d0/d1: Continue
+
+# t: ToDevice(0->2)
+# d2/t: C
+# d2: ToDevice(2->0)
+# d0/d2: Continue
+
+# Now, d1 and d2's computations are only blocked by the initial transfers on stream t.
+# However, reversing the order of things doesn't work:
+
+# t: ToDevice(0->1)
+# d1/t: B
+# d1: ToDevice(1->0)
+
+# Becomes (After adjoint)
+
+# d1: ToDevice(0->1)
+# d1/t: B.H
+# t: ToDevice(1->0)
+
+# Additionally there are some problems with the wait_event and stuff.
+
+# Solution: make transfer_stream a separate argument that doens
 
 if __name__ == "__main__":
     setup_console_logger()

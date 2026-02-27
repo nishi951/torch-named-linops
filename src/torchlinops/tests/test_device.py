@@ -49,7 +49,7 @@ def test_todevice_streams():
     assert w2.device == x.device
 
     # Verify that the streams are used
-    assert D2D2.istream is not None
-    assert D2D2.ostream is not None
+    assert D2D2.ispec.transfer_stream is not None
+    assert D2D2.ospec.compute_stream is not None
 
     print(D2D2)

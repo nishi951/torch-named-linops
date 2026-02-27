@@ -100,7 +100,10 @@ Key implementation details:
 
 ### `RepeatedEvent`
 
-`RepeatedEvent` is a lightweight wrapper around CUDA events that creates a fresh event on each `record()` call. This is used as the `start_event` on the top-level batched linop: when `forward()` is called, it records an event that all `ToDevice` input transfers wait on. This ensures that all tiles start their transfers simultaneously, enabling maximum overlap between transfer and computation.
+`RepeatedEvent` is a lightweight wrapper around CUDA events that creates a fresh event on each `record()` call. This is used as the `start_event` on the top-level batched linop: when `forward()` is called, it records an event that all `ToDevice` input transfers wait on.
+Rather than creating new events and re-registering them every time the linop needs to be run, the `RepeatedEvent` automatically refreshes itself one each call.
+
+This `start_event` is necessary to prevent computation or data transfer on other streams from occuring before the start of the linop itself, since repeated linop applications automatically queue kernels on those other streams.
 
 ### Stream workflow
 
@@ -114,6 +117,18 @@ The full execution flow for a multi-GPU forward pass:
     - Compute on `target_stream`.
     - Transfer output back to base device.
 3. Reassemble outputs on base device (via `Concat` or `Add`).
+
+
+Additionally, there is a notion of a "base" device. The base device orchestrates all
+the transfers and is the device on which the input is required and on which the final output is ultimately produced.
+
+For a multi-GPU setup with GPU0 (base) to GPU1, the default behavior is:
+
+- GPU0
+  - default_stream: computation
+  - transfer_stream: Moving tensors between GPU0 and GPU1
+- GPU1
+  - default_stream: computation
 
 ## Limitations and future work
 
