@@ -14,6 +14,9 @@ from .namedlinop import NamedLinop
 
 __all__ = ["ToDevice"]
 
+# Registry to keep track of transfer streams already created.
+_TRANSFER_STREAMS_REGISTRY = {}
+
 
 @dataclass
 class DeviceSpec:
@@ -46,7 +49,17 @@ class DeviceSpec:
 
     @staticmethod
     def get_transfer_stream(device: torch.device):
-        """Return the stream used for device transfers associated with this device."""
+        """Return the stream used for device transfers associated with this device.
+
+        TODO: For now, we limit to one transfer stream per device per runtime. In the future,
+        we may want one stream per source/target device pair.
+        """
+        if device in _TRANSFER_STREAMS_REGISTRY:
+            return _TRANSFER_STREAMS_REGISTRY[device]
+        # Create a new stream
+        new_stream = Stream(device)
+        _TRANSFER_STREAMS_REGISTRY[device] = new_stream
+        return new_stream
 
 
 class ToDevice(NamedLinop):
@@ -65,7 +78,7 @@ class ToDevice(NamedLinop):
         Source (input) device specification.
     ospec : DeviceSpec
         Target (output) device specification.
-    wait_event : Event or None
+    input_ready_event : Event or None
         Optional event to wait on before starting the transfer.
     """
 
@@ -74,7 +87,7 @@ class ToDevice(NamedLinop):
         idevice: DeviceSpec | torch.device | None,
         odevice: DeviceSpec | torch.device | None,
         ioshape: Optional[Shape] = None,
-        wait_event: Optional[Event] = None,
+        input_ready_event: Optional[Event] = None,
     ):
         """
         Parameters
@@ -85,7 +98,7 @@ class ToDevice(NamedLinop):
             Target (output) device specification.
         ioshape : Shape, optional
             Named dimensions (same for input and output since this is diagonal).
-        wait_event : Event, optional
+        input_ready_event : Event, optional
             A CUDA event to wait on before initiating the transfer.
         """
         super().__init__(NS(ioshape))
@@ -97,71 +110,66 @@ class ToDevice(NamedLinop):
         if not isinstance(odevice, DeviceSpec):
             self.ospec = DeviceSpec(odevice)
 
+        # Perform any necessary setup for data transfer between these devices.
         self.ispec.p2p_setup(self.ospec.device)
         self.ospec.p2p_setup(self.ispec.device)
 
         if self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda":
             # Only initialize peer-to-peer access if both devices are cuda.
-            self.wait_event = wait_event
+            self.input_ready_event = input_ready_event
+            if self.input_ready_event is None:
+                warn(
+                    "Peer-to-peer device transfer with input_ready_event = None detected. Results may not be accurate."
+                )
         else:
-            self.wait_event = None
+            self.input_ready_event = None
 
     @staticmethod
     def _fn(
         x,
-        idevice,
-        odevice,
-        transfer_stream=None,
-        target_stream=None,
-        wait_event=None,
+        ispec: DeviceSpec,
+        ospec: DeviceSpec,
+        input_ready_event: Optional[Event] = None,
     ):
+        idevice, odevice = ispec.device, ospec.device
         if x.device != idevice:
             raise RuntimeError(
                 f"Got input to ToDevice on {x.device} but expected {idevice}"
             )
-        if transfer_stream is not None and target_stream is not None:
-            if wait_event is not None:
-                if isinstance(wait_event, RepeatedEvent):
-                    transfer_stream.wait_event(wait_event.last_event)
-                else:
-                    transfer_stream.wait_event(wait_event)
-            else:
-                warn(
-                    "Peer-to-peer device transfer with wait_event = None detected. Results may not be accurate."
-                )
-            # Transfer should be initiated on source device
-            with torch.cuda.stream(transfer_stream):
-                out = x.to(odevice, non_blocking=True)
-            # Don't mess with x's memory until transfer is completed
-            x.record_stream(transfer_stream)
-            # Target stream should wait until transfer is complete
-            target_stream.wait_stream(transfer_stream)
-            return out
 
-        if odevice.type == "cuda":
+        # GPU -> GPU
+        if idevice.type == "cuda" and odevice.type == "cuda":
+            return _gpu2gpu_transfer(
+                x,
+                odevice,
+                ispec.transfer_stream,
+                ospec.compute_stream,
+                input_ready_event,
+            )
+
+        # CPU -> GPU
+        elif odevice.type == "cuda":
             return x.to(odevice, non_blocking=True)
+
+        # GPU -> CPU or CPU -> CPU
         return x.to(odevice)
 
     @staticmethod
     def fn(todevice, x, /):
         return todevice._fn(
             x,
-            todevice.ispec.device,
-            todevice.ospec.device,
-            todevice.ispec.transfer_stream,
-            todevice.ospec.compute_stream,
-            todevice.wait_event,
+            todevice.ispec,
+            todevice.ospec,
+            todevice.input_ready_event,
         )
 
     @staticmethod
     def adj_fn(todevice, x, /):
         return todevice._fn(
             x,
-            todevice.ospec.device,
-            todevice.ispec.device,
-            todevice.ospec.transfer_stream,
-            todevice.ispec.compute_stream,
-            todevice.wait_event,
+            todevice.ospec,
+            todevice.ispec,
+            todevice.input_ready_event,
         )
 
     def adjoint(self):
@@ -195,10 +203,47 @@ class ToDevice(NamedLinop):
             orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream:x}, transfer: 0x{self.ospec.transfer_stream:x}"
         else:
             orepr = f"{self.ospec.device}"
-        if self.wait_event is not None:
-            wait_event_repr = f"on:{repr(self.wait_event)},"
+        if self.input_ready_event is not None:
+            input_ready_event_repr = f"on:{repr(self.input_ready_event)},"
         else:
-            wait_event_repr = ""
-        out = f"({wait_event_repr}{irepr} -> {orepr})"
+            input_ready_event_repr = ""
+        out = f"({input_ready_event_repr}{irepr} -> {orepr})"
         out = INDENT.indent(out)
         return out
+
+
+def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_ready_event):
+    """Perform efficient gpu-gpu transfer with a dedicated transfer stream and event-based triggering.
+
+    Parameters
+    ----------
+    x : Tensor
+        The torch tensor to be transferred.
+    odevice : torch.device
+        The target device.
+    transfer_stream : Stream
+        The stream on the source device on which to queue the transfer.
+    target_stream : Stream
+        The stream on the target device that needs `x` for computation.
+    input_ready_event : Event
+        The CUDA event that the transfer stream should wait for before initiating transfer.
+        Allows fine-grained control of transfer timing. The event should be queued to
+        record() when x is ready to be transferred.
+
+    Returns
+    -------
+    Tensor
+        The tensor, on the target device.
+    """
+    with torch.cuda.stream(transfer_stream):
+        if input_ready_event is not None:
+            if isinstance(input_ready_event, RepeatedEvent):
+                transfer_stream.wait_event(input_ready_event.last_event)
+            else:
+                transfer_stream.wait_event(input_ready_event)
+        out = x.to(odevice, non_blocking=True)
+    # Don't mess with x's memory until transfer is completed
+    x.record_stream(transfer_stream)
+    # Target stream should wait until transfer is complete
+    target_stream.wait_stream(transfer_stream)
+    return out
