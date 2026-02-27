@@ -37,6 +37,24 @@ Subclass `NamedLinop` and implement:
 
 See the [Custom Linops](../howto/custom_linops.md) guide for the full details and conventions.
 
+## When should I use `.H` (adjoint) vs `.N` (normal)?
+
+The adjoint and normal operators serve different purposes:
+
+### When to use `.H` (adjoint)
+
+- **Gradient backpropagation**: In optimization or deep learning, the gradient through a linear operator $A$ involves $A^H$. For example, if $y = Ax$ and you're differentiating a loss $L(y)$, then $\frac{\partial L}{\partial x} = A^H \frac{\partial L}{\partial y}$.
+- **Computing inner products**: The adjoint lets you compute $\langle Ax, y \rangle$ as $\langle x, A^H y \rangle$, which is useful when one side is cheaper to compute.
+- **Solving adjoint equations**: In inverse problems, you often need to solve $A^H A x = A^H b$.
+
+### When to use `.N` (normal)
+
+- **Conjugate gradient solves**: CG solves $A x = b$ by working with $A^H A$ (the normal equations). Use `A.N` directly with `conjugate_gradients(A.N, A.H(b))`.
+- **Preconditioning**: Normal operators are always square and (semi)definite, making them suitable for building preconditioners.
+- **Eigenvalue problems**: The normal $A^H A$ has real, non-negative eigenvalues. Use with `power_method(A.N, ...)` to find the largest eigenvalue.
+
+In short: use `.H` when you need the "backward" direction of the operator, and use `.N` when you need a symmetric, positive-semidefinite operator for iterative solvers.
+
 ## What does `.H` do internally?
 
 Accessing `A.H` creates a shallow copy of `A` with:
@@ -78,3 +96,89 @@ The library can decompose a linop into tiles along its named dimensions and plac
 3. **`ToDevice`**: Handles data transfer between devices using CUDA streams.
 
 The result is a composite linop (tree of `Concat`/`Add` operators) that behaves identically to the original but executes across multiple devices. See [Multi-GPU Splitting](multi_gpu.md) for the full explanation.
+
+## Troubleshooting
+
+### Shape mismatch errors when composing linops
+
+If you get a shape mismatch error when using `@` to compose linops, the output shape of the first operator must match the input shape of the next:
+
+```python
+# Error: A has oshape (M,) but B has ishape (N,)
+# A @ B  # Shape mismatch!
+
+# Fix: Check that dimension names match
+A = Dense(W, weightshape=Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
+B = Diagonal(d, ioshape=Dim("M"))  # Same dimension name as A's oshape
+C = B @ A  # Works! (M,) -> (M,)
+```
+
+Use `print(A.ishape, A.oshape)` to inspect operator shapes and find the mismatch.
+
+### Adjoint test fails (`is_adjoint` returns False)
+
+If the adjoint test fails, common causes include:
+
+1. **Missing conjugate for complex numbers**: For complex inputs, the adjoint must include the conjugate transpose, not just the transpose.
+2. **Sign errors**: Check that your `adj_fn` is the exact mathematical adjoint, not just similar.
+3. **Normalization**: Make sure FFT and other operators use the correct normalization (orthonormal by default).
+
+```python
+# Example: verifying a custom adjoint
+from torchlinops.utils import is_adjoint
+A = MyLinop(...)
+x = torch.randn(8, dtype=torch.complex64)
+y = torch.randn(8, dtype=torch.complex64)
+print(is_adjoint(A, x, y))  # Should be True for correct adjoint
+```
+
+### CUDA out of memory when creating large linops
+
+Large linops (especially interpolation tables, FFT plans, or dense matrices) can exhaust GPU memory. Solutions:
+
+1. **Create on CPU first, then move to GPU**:
+   ```python
+   linop = Dense(weight_cpu, ...)
+   linop = linop.to("cuda")
+   ```
+
+2. **Use float32 instead of float64** if precision allows.
+
+3. **Lazy initialization**: For very large operators, consider whether you need all the data in memory at once.
+
+### Linop doesn't support gradient backpropagation
+
+Linops store weights as `nn.Parameter` with `requires_grad=False` by default (since linear operators are typically fixed in optimization problems). To make a linop trainable:
+
+```python
+# Weights are trainable if you set requires_grad=True
+weight = nn.Parameter(torch.randn(M, N), requires_grad=True)
+A = Dense(weight, weightshape=Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
+
+# Now A(x) will support autograd
+loss = (A(x) ** 2).sum()
+loss.backward()
+print(weight.grad)  # Gradient d(loss)/d(weight)
+```
+
+## Performance Tips
+
+### Chain overhead is minimal
+
+Composing linops with `@` creates a `Chain` that adds minimal overhead—the actual computation is still just the individual operator forward passes. Don't avoid composition for performance reasons; the abstraction cost is negligible compared to the actual math.
+
+### GPU memory considerations
+
+- **Interpolation tables**: The `Interpolate` operator uses Kaiser-Bessel or spline kernels stored in memory. For large grids, these tables can be large. Consider the trade-off between kernel accuracy and memory.
+- **FFT plans**: FFT operations may pre-compute plans. These are typically small but can add up with many different sizes.
+- **Dense matrices**: A dense matrix of size $10000 \times 10000$ uses ~800MB in float32. Consider whether a different operator (sparse, diagonal, FFT-based) could work.
+
+### When to use the functional interface directly
+
+The functional interface (`torchlinops.functional`) provides raw tensor operations without the linop abstraction. Use it when:
+
+1. You're in a tight inner loop where linop call overhead matters
+2. You only need the forward pass, not adjoint/normal
+3. You're building a custom linop and need full control
+
+For most users and use cases, the linop interface is preferred for its clarity and automatic adjoint/normal support.

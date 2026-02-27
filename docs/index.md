@@ -32,10 +32,10 @@ weight = torch.randn(M, N)
 
 # Create a Dense linear operator with named dimensions
 # Dense performs matrix-vector multiplication using the weight matrix
-# Dim("MN") names the weight matrix dimensions,
+# weightshape=Dim("MN") names the weight matrix dimensions (M rows, N columns),
 # ishape=Dim("N") sets the expected input shape,
 # oshape=Dim("M") sets the expected output shape.
-A = Dense(weight, Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
+A = Dense(weight, weightshape=Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
 
 # Create input data and apply the operator
 x = torch.randn(N)  # Random input vector of size N

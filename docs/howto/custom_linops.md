@@ -114,3 +114,76 @@ assert is_adjoint(A, x, y), "Adjoint test failed!"
 ```
 
 This verifies the identity $\langle Ax, y \rangle = \langle x, A^H y \rangle$ using random vectors, which should hold to numerical precision for a correct adjoint.
+
+## Choosing the Right Operator
+
+### Dense vs Diagonal vs Identity
+
+| Operator | Use When |
+|----------|----------|
+| `Dense` | You have an explicit matrix $W$ and want matrix-vector multiplication. Supports batch dimensions via broadcast. |
+| `Diagonal` | You want element-wise scaling $y = w \odot x$. The weight is a vector, not a full matrix. |
+| `Identity` | You want a no-op operator that passes input to output unchanged. Useful as a placeholder or for building up complex chains. |
+
+### Chain vs Add
+
+| Operator | Use When |
+|----------|----------|
+| `Chain` (`@`) | You want sequential composition: apply $B$, then $A$. The output of one becomes input to the next. |
+| `Add` (`+`) | You want to sum results: $y = A(x) + B(x)$. Both operators must have the same input and output shapes. |
+
+### Functional vs Linop Interface
+
+The library provides both high-level linop classes and low-level functional functions:
+
+- **Linop classes** (e.g., `Dense`, `FFT`, `NUFFT`): Full abstraction with named dimensions, automatic adjoint/normal, composition with `@`, multi-GPU support.
+- **Functional functions** (e.g., `fft`, `nufft`, `interp`): Direct tensor operations without the linop overhead. Useful for:
+
+  - Performance-critical inner loops where the abstraction cost matters
+  - When you only need forward pass (no adjoint/normal)
+  - Building custom linop implementations
+
+In general, start with the linop interface. Switch to functional only when you have a specific performance need.
+
+## Common Mistakes
+
+### Forgetting to call `super().__init__()`
+
+The shape must be set via the parent constructor:
+
+```python
+# Wrong: shape not set, will fail
+def __init__(self, ...):
+    self._shape = NS(ishape, oshape)  # Don't do this!
+
+# Correct
+def __init__(self, ...):
+    super().__init__(NS(ishape, oshape))
+```
+
+### Using instance methods instead of staticmethods
+
+`fn` and `adj_fn` must be staticmethods so they can be swapped:
+
+```python
+# Wrong: instance method
+def fn(self, x):
+    return self.weight @ x
+
+# Correct: staticmethod
+@staticmethodlinop, x
+def fn():
+    return linop.weight @ x
+```
+
+### Not handling complex numbers in the adjoint
+
+For complex inputs, the adjoint must include conjugation:
+
+```python
+@staticmethod
+def adj_fn(linop, x):
+    # Must include .conj() for complex weights!
+    return linop.weight.conj().T @ x
+```
+

@@ -59,3 +59,59 @@ The library favors `copy.copy()` (shallow copy) over `copy.deepcopy()` as the pr
 - Linop data (weights, buffers) can be very large (e.g., multi-GB interpolation tables). Duplicating this data for every adjoint or split would be prohibitively expensive.
 - A shallow copy shares the data but gets its own shape, function references, and cache state. This is exactly what's needed for an adjoint: same data, different interpretation.
 - When true data independence is needed (e.g., for multi-GPU placement), the library provides `memory_aware_deepcopy` as an explicit opt-in. See [Copying Linops](copying_linops.md).
+
+## Gotchas and Pitfalls
+
+### Shallow copy shares weight data
+
+When you access `A.H` (adjoint) or `A.N` (normal), the returned operator is a shallow copy that shares the same weight tensors as the original:
+
+```python
+A = Dense(weight, ...)
+adj = A.H
+adj.weight is A.weight  # True! They share the same data
+
+# Modifying weights in one affects the other
+adj.weight.data.fill_(0)
+print(A.weight.sum())  # 0.0
+```
+
+This is intentional—modifying the operator should update both forward and adjoint consistently. If you need an independent copy, use `torchlinops.copying.memory_aware_deepcopy(A)`.
+
+### View relationships can break with deepcopy
+
+If your linop uses views into a larger tensor (e.g., slices of a shared buffer), a naive `copy.deepcopy()` will allocate separate storage for each view, potentially doubling memory usage. Use `memory_aware_deepcopy()` to preserve view relationships:
+
+```python
+from torchlinops.copying import memory_aware_deepcopy
+
+# Preserves view relationships
+A_copy = memory_aware_deepcopy(A)
+```
+
+### Complex numbers: adjoint includes conjugate
+
+For complex-valued operators, the adjoint includes the complex conjugate:
+
+```python
+# For complex weight matrix W:
+# Forward: y = W @ x
+# Adjoint: y = W.conj().T @ x
+
+# This is automatically handled by Dense and other operators,
+# but if you're implementing a custom linop, remember to include .conj()
+```
+
+### Linops are non-trainable by default
+
+Linops use `nn.Parameter` with `requires_grad=False` by default, since linear operators in optimization problems are typically fixed. To make weights trainable:
+
+```python
+weight = nn.Parameter(torch.randn(M, N), requires_grad=True)
+A = Dense(weight, ...)
+# Now A supports autograd
+```
+
+### Pickle requirements for multiprocessing
+
+If you plan to use linops with `torch.multiprocessing`, they must be picklable. The library uses specific patterns (static methods, `NormalFunctionLookup` class) to ensure this. Avoid using lambdas or closures in custom linop implementations.
