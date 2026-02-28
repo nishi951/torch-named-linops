@@ -4,10 +4,11 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
-from torchlinops.utils import INDENT
+from torchlinops.utils import INDENT, RepeatedEvent
 
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .namedlinop import NamedLinop
+from .device import ToDevice
 
 
 class Chain(NamedLinop):
@@ -35,6 +36,7 @@ class Chain(NamedLinop):
         super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
+        self._setup_events()
 
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
@@ -44,6 +46,22 @@ class Chain(NamedLinop):
                     f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {i}"
                 )
             curr_shape = linop.oshape
+
+    def _setup_events(self):
+        # TODO Factor this out into a class mixin?
+        # TODO Specific to ToDevice for now - later may want a more general solution
+        # Trigger first ToDevice when the Chain begins.
+        first_linop = self.linops[0]
+        first_linop.start_event = (self, "start_event")
+
+        if isinstance(first_linop, ToDevice) and first_linop.is_gpu2gpu:
+            first_linop.input_ready_event = (self, "start_event")
+
+        # Trigger later transfers when data is ready from previous linop
+        if len(self.linops) > 1:
+            for before, after in zip(self.linops[:-1], self.linops[1:]):
+                if isinstance(after, ToDevice) and after.is_gpu2gpu:
+                    after.input_ready_event = (before, "end_event")
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):

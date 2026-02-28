@@ -4,6 +4,7 @@ import torch.nn as nn
 import torchlinops.config as config
 from ..nameddim import NamedShape as NS, isequal
 from .namedlinop import NamedLinop
+from .device import ToDevice
 
 __all__ = ["Add"]
 
@@ -33,6 +34,13 @@ class Add(NamedLinop):
         # TODO: specialize the ishape and oshape on most specific one
         super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
         self.linops = nn.ModuleList(linops)
+
+        self._setup_events()
+
+    def _setup_events(self):
+        """Organize ToDevice to trigger on start of linop"""
+        for linop in self.linops:
+            linop.start_event = (self, "start_event")
 
     @staticmethod
     def fn(add, x: torch.Tensor, /):

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Forwarded:
-    allow_set_upstream: bool = False
+    allow_set_upstream: bool = True
     """If true, allow setting this value to affect upstream values."""
     _value: Optional[Any] = None
     _obj: Optional[Any] = None
@@ -26,7 +26,7 @@ class Forwarded:
             # No object to forward to
             self._value = new_value
         elif self.allow_set_upstream:
-            setattr(self._obj, self._attr)
+            setattr(self._obj, self._attr, new_value)
         else:
             # Don't overwrite upstream
             self._value = new_value
@@ -94,11 +94,16 @@ def main():
     print(inst1.end_event)  # bar
 
     print("test 3 - multi-hop forwarding")
-    # inst1.end_event -> inst2.start_event -> inst3.start_event
+    # inst1.end_event -> inst2.start_event -> inst3.end_event
     inst2.start_event = (inst3, "end_event")
     print(inst1.end_event)  # None
     inst3.end_event = "baz"
     print(inst1.end_event)  # baz
+
+    print("test 4 - setting upstream via multi hop")
+    inst1.end_event = "bazzz"
+    print(inst2.start_event)  # bazzz
+    print(inst3.end_event)  # bazzz
 
 
 if __name__ == "__main__":

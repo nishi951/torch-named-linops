@@ -134,14 +134,13 @@ def create_batched_linop(
 
     # Create event to trigger all tiles in the linop.
     source_device = batch_spec.base_device
-    any_gpu2gpu = source_device.type == "cuda" and any(
-        target_device.type == "cuda" for target_device in device_matrix.flat
-    )
-    input_ready_event = RepeatedEvent() if any_gpu2gpu else None
+    # any_gpu2gpu = source_device.type == "cuda" and any(
+    #     target_device.type == "cuda" for target_device in device_matrix.flat
+    # )
     # Allocate output
     for idx in np.ndindex(linops.shape):
         linop, target_device = linops[idx], device_matrix[idx]
-        is_gpu2gpu = source_device.type == "cuda" and target_device.type == "cuda"
+        # is_gpu2gpu = source_device.type == "cuda" and target_device.type == "cuda"
 
         # Recursive call to batch the tile
         tiled_linop = create_batched_linop(
@@ -158,14 +157,14 @@ def create_batched_linop(
                     source_device,
                     target_device,
                     ioshape=tiled_linop.ishape,
-                    input_ready_event=input_ready_event if is_gpu2gpu else None,
+                    # input_ready_event=input_ready_event if is_gpu2gpu else None,
                 ),
                 tiled_linop,
                 ToDevice(
                     target_device,
                     source_device,
                     ioshape=tiled_linop.oshape,
-                    input_ready_event=input_ready_event if is_gpu2gpu else None,
+                    # input_ready_event=input_ready_event if is_gpu2gpu else None,
                 ),
             )
 
@@ -191,7 +190,7 @@ def create_batched_linop(
     linop = linops.item()
     # I guess it's ok if we trigger the event with no streams waiting on it...
     # TODO: maybe refactor to remove this slight redundancy
-    linop.start_event = input_ready_event
+    # linop.start_event = input_ready_event
     return linop
 
 

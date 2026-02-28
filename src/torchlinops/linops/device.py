@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from copy import copy
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple, Optional
@@ -10,7 +11,7 @@ from torchlinops.utils import INDENT, RepeatedEvent, default_to
 
 from ..nameddim import NamedShape as NS, Shape
 from .identity import Identity
-from .namedlinop import NamedLinop
+from .namedlinop import NamedLinop, ForwardedAttribute
 
 __all__ = ["ToDevice"]
 
@@ -78,8 +79,11 @@ class ToDevice(NamedLinop):
         Source (input) device specification.
     ospec : DeviceSpec
         Target (output) device specification.
-    input_ready_event : Event or None
-        Optional event to wait on before starting the transfer.
+    input_linop : List[NamedLinop]
+        The linop to wait for if gpu2gpu transfers are necessary.
+        It is a list with length 1 to prevent registering the linop as a submodule.
+    input_event_key : str
+        The name of the attribute on input_linop containing the triggering event.
     """
 
     def __init__(
@@ -87,7 +91,6 @@ class ToDevice(NamedLinop):
         idevice: DeviceSpec | torch.device | None,
         odevice: DeviceSpec | torch.device | None,
         ioshape: Optional[Shape] = None,
-        input_ready_event: Optional[Event | RepeatedEvent] = None,
     ):
         """
         Parameters
@@ -107,19 +110,67 @@ class ToDevice(NamedLinop):
         odevice = default_to(torch.device("cpu"), odevice)
         if not isinstance(idevice, DeviceSpec):
             self.ispec = DeviceSpec(idevice)
+        else:
+            self.ispec = idevice
         if not isinstance(odevice, DeviceSpec):
             self.ospec = DeviceSpec(odevice)
+        else:
+            self.ospec = odevice
 
         # Perform any necessary setup for data transfer between these devices.
         self.ispec.p2p_setup(self.ospec.device)
         self.ospec.p2p_setup(self.ispec.device)
 
-        self.input_ready_event = input_ready_event
         if self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda":
-            if self.input_ready_event is None:
-                warn(
-                    "Peer-to-peer device transfer with input_ready_event = None detected. Results may not be accurate."
-                )
+            self.is_gpu2gpu = True
+        else:
+            self.is_gpu2gpu = False
+
+        # Set up input event
+        self._input_ready_event = ForwardedAttribute()
+
+        # By default, link it to the start event
+        self.input_ready_event = (self, "start_event")
+
+    @property
+    def input_ready_event(self):
+        """Dynamically determine the event to wait for from a linop and attribute name.
+
+        This event is necessary for gpu-gpu transfers.
+
+        For example, in a chain like this:
+
+        ToDevice @ A
+
+        Set self.input_linop[0] = A and self.input_event_key = "end_event"
+        so that we use A.end_event as the triggering event.
+
+        However, if ToDevice occurs inside a composing linop that allows for
+        parallel execution, e.g.
+
+        C = Concat(
+            Chain(ToDevice1, A, ...),
+            Chain(ToDevice2, B, ...),
+            ...
+        )
+
+        Then we may want to set
+
+        ToDevice1.input_linop[0] = C
+        ToDevice1.input_event_key = "start_event"
+        ToDevice2.input_linop[0] = C
+        ToDevice2.input_event_key = "start_event"
+
+        So that both ToDevice linops trigger on the beginning of C.
+        """
+        return self._input_ready_event.value
+
+    @input_ready_event.setter
+    def input_ready_event(self, value):
+        if isinstance(value, tuple):
+            self._input_ready_event.forward_to(*value)
+        else:
+            self._input_ready_event = value
 
     @staticmethod
     def _fn(
@@ -136,6 +187,10 @@ class ToDevice(NamedLinop):
 
         # GPU -> GPU
         if idevice.type == "cuda" and odevice.type == "cuda":
+            if input_ready_event is None:
+                warn(
+                    "Peer-to-peer device transfer with input_ready_event = None detected. Results may not be accurate."
+                )
             return _gpu2gpu_transfer(
                 x,
                 odevice,
@@ -232,12 +287,13 @@ def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_ready_ev
     Tensor
         The tensor, on the target device.
     """
-    with torch.cuda.stream(transfer_stream):
+    # with torch.cuda.stream(transfer_stream):
+    with transfer_stream:
         if input_ready_event is not None:
-            if isinstance(input_ready_event, RepeatedEvent):
-                transfer_stream.wait_event(input_ready_event.last_event)
-            else:
-                transfer_stream.wait_event(input_ready_event)
+            # if isinstance(input_ready_event, RepeatedEvent):
+            #     transfer_stream.wait_event(input_ready_event.last_event)
+            # else:
+            transfer_stream.wait_event(input_ready_event)
         out = x.to(odevice, non_blocking=True)
     # Don't mess with x's memory until transfer is completed
     x.record_stream(transfer_stream)

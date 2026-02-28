@@ -9,9 +9,10 @@ from torch import Tensor
 from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
 
-from .add import Add
-from .identity import Zero
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
+from .add import Add
+from .device import ToDevice
+from .identity import Zero
 from .namedlinop import NamedLinop
 
 __all__ = ["Stack"]
@@ -75,6 +76,14 @@ class Stack(NamedLinop):
         # Initialize parent class
         super().__init__(NS(ishape, oshape))
         self.linops = nn.ModuleList(list(linops))
+
+        self._setup_events()
+
+    def _setup_events(self):
+        """Organize start events to trigger on start of linop"""
+        for linop in self.linops:
+            # Forward start_event to this linop
+            linop.start_event = (self, "start_event")
 
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):

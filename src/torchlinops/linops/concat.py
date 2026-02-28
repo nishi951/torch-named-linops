@@ -9,6 +9,7 @@ from torchlinops.utils import INDENT
 
 from ..nameddim import ELLIPSES, NamedDimension as ND, NamedShape as NS, isequal
 from .add import Add
+from .device import ToDevice
 from .identity import Zero
 from .namedlinop import NamedLinop
 
@@ -101,6 +102,14 @@ class Concat(NamedLinop):
 
         self.idim_idx = self._infer_dim_idx(self.idim, ishape)
         self.odim_idx = self._infer_dim_idx(self.odim, oshape)
+
+        self._setup_events()
+
+    def _setup_events(self):
+        """Organize ToDevice to trigger on start of linop"""
+        # TODO Specific to ToDevice for now - later may want a more general solution
+        for linop in self.linops:
+            linop.start_event = (self, "start_event")
 
     @staticmethod
     def fn(concat, x):

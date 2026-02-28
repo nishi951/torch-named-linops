@@ -1,5 +1,6 @@
 import torch
 import torch.profiler
+from torch.cuda import Event
 
 from torchlinops import Dense, Dim
 from torchlinops.linops.device import DeviceSpec, ToDevice
@@ -16,16 +17,21 @@ x = torch.randn(N, device=device0)
 linop1 = Dense(W, Dim("MN"), ishape=Dim("N"), oshape=Dim("M")).to(device0)
 linop2 = Dense(W, Dim("MN"), ishape=Dim("N"), oshape=Dim("M")).to(device0)
 
-todevice_to_gpu1 = ToDevice(
+y1_ready = Event()
+y2_ready = Event()
+
+y1_to_gpu1 = ToDevice(
     DeviceSpec(device0),
     DeviceSpec(device1),
     ioshape=Dim("M"),
+    input_ready_event=y1_ready,
 )
 
-todevice_to_gpu1_for_linop2 = ToDevice(
+y2_to_gpu1 = ToDevice(
     DeviceSpec(device0),
     DeviceSpec(device1),
     ioshape=Dim("M"),
+    input_ready_event=y2_ready,
 )
 
 fromdevice_to_cpu = ToDevice(
@@ -46,16 +52,12 @@ with torch.profiler.profile(
     profile_memory=False,
 ) as prof:
     y1 = linop1(x)
-
-    event1 = torch.cuda.Event()
-    event1.record()
-
+    y1_ready.record()
     y2 = linop2(x)
+    y2_ready.record()
 
-    todevice_to_gpu1_for_linop2.input_ready_event = event1
-
-    x1 = todevice_to_gpu1(y1)
-    x2 = todevice_to_gpu1_for_linop2(y2)
+    x1 = y1_to_gpu1(y1)
+    x2 = y2_to_gpu1(y2)
 
     z1 = compute_linop(x1)
     z2 = compute_linop(x2)

@@ -57,9 +57,6 @@ class Zero(NamedLinop):
     def __init__(self, ishape=("...",), oshape=None):
         super().__init__(NS(ishape, oshape))
 
-    def forward(self, x):
-        return self.fn(self, x)
-
     @staticmethod
     def fn(self, x, /):
         return x.zero_()

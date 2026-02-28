@@ -2,18 +2,25 @@ import logging
 import traceback
 from collections.abc import Mapping
 from copy import copy, deepcopy
+from dataclasses import dataclass
 from functools import partial
-from typing import Optional
+from typing import Any, Optional, final
 
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.cuda import Event, Stream
+from torch.cuda import Event, Stream, default_stream
 
 import torchlinops
 import torchlinops.config as config
 from torchlinops.nameddim import NamedDimension as ND, NamedShape, Shape
-from torchlinops.utils import INDENT, memory_aware_deepcopy, memory_aware_to
+from torchlinops.utils import (
+    INDENT,
+    RepeatedEvent,
+    default_to,
+    memory_aware_deepcopy,
+    memory_aware_to,
+)
 
 __all__ = ["NamedLinop"]
 
@@ -23,21 +30,25 @@ logger = logging.getLogger("torchlinops")
 class NamedLinop(nn.Module):
     """Base class for all named linear operators.
 
-    A ``NamedLinop`` represents a linear map $A : X \\to Y$ where the input and
-    output tensor dimensions are identified by name (e.g. ``("Nx", "Ny") -> ("Kx", "Ky")``).
+        A ``NamedLinop`` represents a linear map $A : X \\to Y$ where the input and
+        output tensor dimensions are identified by name (e.g. ``("Nx", "Ny") -> ("Kx", "Ky")``).
 
-    Subclass this to implement concrete operators. At minimum, override ``fn``
-    and ``adj_fn`` as static methods.
+        Subclass this to implement concrete operators. At minimum, override ``fn``
+        and ``adj_fn`` as static methods.
 
-    Attributes
-    ----------
-    shape : NamedShape
-        The named shape of the linop, containing ``ishape`` and ``oshape``.
-    stream : Stream, optional
-        The CUDA stream on which this linop will be run.
-    start_event : Event, optional
-        An event that signals when the linop has started. Useful for synchronizing
-        multiple linops across multiple devices.
+        Attributes
+        ----------
+        shape : NamedShape
+            The named shape of the linop, containing ``ishape`` and ``oshape``.
+        stream : torch.cuda.Stream
+            Optional cuda Stream to run this linop on.
+        start_event : Event, optional
+            An event that signals when the linop has started. Useful for synchronizing
+            multiple linops across multiple devices.
+        end_event : Event, optional
+            An event that signals when the linop has completed. Useful for synchronizing multiple
+
+    linops across multiple devices.
     """
 
     def __init__(
@@ -46,6 +57,7 @@ class NamedLinop(nn.Module):
         name: Optional[str] = None,
         stream: Optional[Stream] = None,
         start_event: Optional[Event] = None,
+        end_event: Optional[Event] = None,
     ):
         """
         Parameters
@@ -54,10 +66,13 @@ class NamedLinop(nn.Module):
             The shape of this linop, e.g. ``NamedShape(("N",), ("M",))``
         name : str, optional
             Optional name to display for this linop.
-        stream : Stream, optional
-            The CUDA stream on which to run this linop.
+        stream : torch.cuda.Stream
+            Optional cuda Stream to run this linop on.
         start_event : Event, optional
             An event that signals when the linop has started. Useful for synchronizing multiple
+            linops across multiple devices.
+        end_event : Event, optional
+            An event that signals when the linop has completed. Useful for synchronizing multiple
             linops across multiple devices.
         """
         super().__init__()
@@ -70,14 +85,18 @@ class NamedLinop(nn.Module):
         self._suffix = ""
         self._name = name
         self.stream = stream
-        self.start_event = start_event
+        self._start_event = ForwardedAttribute()
+        self._end_event = ForwardedAttribute()
 
+    @final
     def forward(self, x: Tensor) -> Tensor:
         """Apply the forward operation $y = A(x)$.
 
         If a CUDA stream is assigned, execution is dispatched to that stream.
         If a ``start_event`` is set, it is recorded before execution begins,
         allowing other operators to synchronize on it.
+
+        Do not override this method. Instead, override .fn() and .adj_fn().
 
         Parameters
         ----------
@@ -89,14 +108,18 @@ class NamedLinop(nn.Module):
         Tensor
             The result of applying this linop to *x*.
         """
-        if self.start_event is not None:
-            self.start_event.record()
-        if self.stream is not None:
-            with torch.cuda.stream(self.stream):
+        if x.is_cuda():
+            stream = default_to(default_stream(x.device), self.stream)
+            if self.start_event is None:
+                self.start_event = stream.record_event()
+            with stream:
                 y = self.fn(self, x)
-            x.record_stream(self.stream)
-            return y
-        return self.fn(self, x)
+            x.record_stream(stream)
+            if self.end_event is None:
+                self.end_event = stream.record_event()
+        else:
+            y = self.fn(self, x)
+        return y
 
     def apply(self, x: Tensor) -> Tensor:
         """Apply the linear operator to a tensor."""
@@ -210,12 +233,13 @@ class NamedLinop(nn.Module):
         """
         return None
 
-    # Probably don't override these
+    @final
     @property
     def dims(self) -> set:
         """Get the set of dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
 
+    @final
     @property
     def H(self) -> "NamedLinop":
         """Adjoint operator $A^H$.
@@ -260,6 +284,7 @@ class NamedLinop(nn.Module):
         adj._update_suffix(adjoint=True)
         return adj
 
+    @final
     def _update_suffix(self, adjoint: bool = False, normal: bool = False):
         if adjoint:
             if self._suffix.endswith(".H"):
@@ -269,6 +294,7 @@ class NamedLinop(nn.Module):
         elif normal:
             self._suffix += ".N"
 
+    @final
     @property
     def N(self) -> "NamedLinop":
         """Normal operator $A^H A$.
@@ -345,6 +371,7 @@ class NamedLinop(nn.Module):
         normal._shape_updates = getattr(inner, "_shape_updates", {})
         return normal
 
+    @final
     @staticmethod
     def split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
         """Split a linop into a sub-linop for a given tile.
@@ -368,6 +395,7 @@ class NamedLinop(nn.Module):
         obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         return linop.split_forward(ibatch, obatch)
 
+    @final
     @staticmethod
     def adj_split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
         """Split the adjoint of this linop for a given tile.
@@ -392,6 +420,7 @@ class NamedLinop(nn.Module):
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
+    @final
     def flatten(self) -> list["NamedLinop"]:
         """Get a flattened list of constituent linops for composition."""
         return [self]
@@ -526,6 +555,37 @@ class NamedLinop(nn.Module):
             return memory_aware_to(self, device)
         return super().to(device)
 
+    @property
+    def start_event(self):
+        return self._start_event.value
+
+    @start_event.setter
+    def start_event(self, event):
+        """
+        Parameters
+        ----------
+        event : Event | tuple[Any, str]
+            If a bare Event is provided, use that event on this object.
+            If a tuple, interpret it as a reference to forward. e.g. event = (other_linop, 'start_event')
+            will forward this linop's linop.start_event to other_linop.start_event
+        """
+        if isinstance(event, tuple):
+            self._start_event.forward_to(*event)
+        else:
+            self._start_event.value = event
+
+    @property
+    def end_event(self):
+        return self._end_event.value
+
+    @end_event.setter
+    def end_event(self, event):
+        if isinstance(event, tuple):
+            self._end_event.forward_to(*event)
+        else:
+            self._end_event.value = event
+
+    @final
     def __copy__(self):
         """Specialized copying for linops.
 
@@ -552,6 +612,7 @@ class NamedLinop(nn.Module):
         new._shape = deepcopy(self._shape)
         return new
 
+    @final
     def __deepcopy__(self, _):
         return memory_aware_deepcopy(self)
 
@@ -616,3 +677,71 @@ class LinopFunction(torch.autograd.Function):
         grad_input = linop.H(grad_output)
         grad_input = torch.broadcast_to(grad_input, input_shape)
         return grad_input, grad_linop
+
+
+@dataclass
+class ForwardedAttribute:
+    """Special dataclass for forwarding attribute access to other objects.
+
+    TODO: Make this a descriptor somehow?
+
+    Works best when combined with a @property.
+
+    Example:
+
+    class MyClass:
+        def __init__(self):
+            self._foo = ForwardedAttribute()
+        @property
+        def foo(self):
+            return self._foo.value
+
+        @foo.setter
+        def foo(self, new_value):
+            if isinstance(new_value, tuple):
+                self._foo.forward_to(*new_value)
+            else:
+                self._foo = new_value
+
+    """
+
+    allow_set_upstream: bool = True
+    """If true, allow setting this value to affect upstream values."""
+    _value: Optional[Any] = None
+    _obj: Optional[Any] = None
+    _attr: Optional[Any] = None
+
+    @property
+    def value(self):
+        if self._obj is None:
+            # No object to forward to
+            return self._value
+        elif self._value is not None:
+            # A preset value overrides forwarded reference
+            return self._value
+        return getattr(self._obj, self._attr)
+
+    @value.setter
+    def value(self, new_value):
+        if self._obj is None:
+            # No object to forward to
+            self._value = new_value
+        elif self.allow_set_upstream:
+            setattr(self._obj, self._attr, new_value)
+        else:
+            # Don't overwrite upstream
+            self._value = new_value
+
+            # Clear pointer
+            self._obj = None
+            self._attr = None
+
+    def forward_to(self, obj, attr):
+        """Create reference"""
+        self._obj = obj
+        self._attr = attr
+        self._value = None  # Reset value
+
+    @property
+    def is_forwarded(self) -> bool:
+        return self._obj is not None
