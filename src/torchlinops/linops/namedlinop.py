@@ -108,7 +108,7 @@ class NamedLinop(nn.Module):
         Tensor
             The result of applying this linop to *x*.
         """
-        if x.is_cuda():
+        if x.is_cuda:
             stream = default_to(default_stream(x.device), self.stream)
             if self.start_event is None:
                 self.start_event = stream.record_event()
