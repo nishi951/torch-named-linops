@@ -3,6 +3,7 @@ from itertools import product
 
 import pytest
 import torch
+from torch.testing import assert_close
 
 from torchlinops import (
     Add,
@@ -138,8 +139,10 @@ def test_multigpu_parallelism(CombineOp, base_device):
     A2 = _slow_matmul_chain(N)
 
     # True value (on cpu)
-    OffDevice = CombineOp(A1, A2)
-    y_true = OffDevice(x)
+    # OffDevice = CombineOp(A1, A2)
+    # y_true = OffDevice(x)
+    OffDevice = CombineOp(A1, A2).to(gpu0)
+    y_true = OffDevice(x.to(gpu0)).to("cpu")
 
     # Move to GPU
     x = x.to(base_device)
@@ -170,6 +173,7 @@ def test_multigpu_parallelism(CombineOp, base_device):
 
         torch.cuda.synchronize(gpu0)
         torch.cuda.synchronize(gpu1)
+    breakpoint()
 
     # Testing
     prof.export_chrome_trace(
@@ -183,4 +187,4 @@ def test_multigpu_parallelism(CombineOp, base_device):
     assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
 
     # Correctness
-    assert torch.allclose(y.cpu(), y_true)
+    assert_close(y.cpu(), y_true)
