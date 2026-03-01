@@ -4,12 +4,21 @@ from itertools import product
 import pytest
 import torch
 
-from torchlinops import Add, Chain, Concat, Dense, Dim, Stack, ToDevice
+from torchlinops import (
+    Add,
+    Chain,
+    Concat,
+    Dense,
+    Dim,
+    Stack,
+    ToDevice,
+    NamedDimension as ND,
+)
 from torchlinops.utils import assert_gpus_overlap
 
 # Linops that support parallel execution with multiple GPUs
 PARALLELIZABLE_LINOPS = [
-    Add,
+    partial(Add),
     partial(Concat, odim="M"),
     partial(Stack, odim_and_idx=("M1", 0)),
 ]
@@ -66,12 +75,39 @@ def test_todevice_streams():
     print(D2D2)
 
 
-def _slow_matmul_chain(N: int):
+def _slow_matmul_chain(N: int, chain_length: int = 5):
+    """Make arbitrary-length chains of random dense linops.
+
+    Useful for making really slow linops.
+    """
+    in_dim = ND("N")
+    out_dim = ND("M")
     weight = torch.randn(N, N)
-    A = Dense(weight, weightshape=Dim("N1N"), ishape=Dim("N"), oshape=Dim("N1"))
-    B = Dense(weight, weightshape=Dim("N2N1"), ishape=Dim("N1"), oshape=Dim("N2"))
-    C = Dense(weight, weightshape=Dim("MN2"), ishape=Dim("N2"), oshape=Dim("M"))
-    return C @ B @ A
+    if chain_length == 1:
+        return Dense(weight, Dim("MN"), Dim("N"), Dim("M"))
+    next_out_dim = in_dim + 1
+    A = Dense(
+        weight,
+        weightshape=(next_out_dim, in_dim),
+        ishape=(in_dim,),
+        oshape=(next_out_dim,),
+    )
+    in_dim = next_out_dim
+    next_out_dim = next_out_dim + 1
+    for i in range(chain_length - 1):
+        weight = torch.randn(N, N)
+        if i == chain_length - 2:
+            next_out_dim = out_dim
+        B = Dense(
+            weight,
+            weightshape=(next_out_dim, in_dim),
+            ishape=(in_dim,),
+            oshape=(next_out_dim,),
+        )
+        A = B @ A
+        in_dim = next_out_dim
+        next_out_dim = next_out_dim + 1
+    return A
 
 
 @pytest.mark.gpu
@@ -81,7 +117,12 @@ def _slow_matmul_chain(N: int):
 )
 @pytest.mark.parametrize(
     "CombineOp,base_device",
-    list(product(PARALLELIZABLE_LINOPS, [torch.device("cpu"), torch.device("cuda:0")])),
+    list(
+        pytest.param(op, dev, id=f"{op.func.__name__}-{dev.type}")
+        for op, dev in product(
+            PARALLELIZABLE_LINOPS, [torch.device("cpu"), torch.device("cuda:0")]
+        )
+    ),
 )
 def test_multigpu_parallelism(CombineOp, base_device):
     gpu0 = torch.device("cuda:0")
@@ -90,7 +131,7 @@ def test_multigpu_parallelism(CombineOp, base_device):
     N = 8192  # arbitrary
 
     # Input
-    x = torch.randn(N, device=base_device)
+    x = torch.randn(N)
 
     # Linop
     A1 = _slow_matmul_chain(N)
@@ -101,9 +142,18 @@ def test_multigpu_parallelism(CombineOp, base_device):
     y_true = OffDevice(x)
 
     # Move to GPU
+    x = x.to(base_device)
     OnDevice = CombineOp(
-        Chain(ToDevice(base_device, gpu0), A1.to(gpu0), ToDevice(gpu0, base_device)),
-        Chain(ToDevice(base_device, gpu1), A2.to(gpu1), ToDevice(gpu1, base_device)),
+        Chain(
+            ToDevice(base_device, gpu0, ioshape=A1.ishape),
+            A1.to(gpu0),
+            ToDevice(gpu0, base_device, ioshape=A1.oshape),
+        ),
+        Chain(
+            ToDevice(base_device, gpu1, ioshape=A2.ishape),
+            A2.to(gpu1),
+            ToDevice(gpu1, base_device, ioshape=A2.oshape),
+        ),
     )
 
     # Warmup
@@ -121,11 +171,16 @@ def test_multigpu_parallelism(CombineOp, base_device):
         torch.cuda.synchronize(gpu0)
         torch.cuda.synchronize(gpu1)
 
+    # Testing
+    prof.export_chrome_trace(
+        f"./{type(OnDevice).__name__}_{base_device.type}_trace.json"
+    )
+
     # Final device should be correct
     assert y.device.type == base_device.type
 
     # Parallelism
-    assert_gpus_overlap(prof)
+    assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
 
     # Correctness
     assert torch.allclose(y.cpu(), y_true)

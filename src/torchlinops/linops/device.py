@@ -198,13 +198,8 @@ class ToDevice(NamedLinop):
                 ospec.compute_stream,
                 input_ready_event,
             )
-
-        # CPU -> GPU
-        elif odevice.type == "cuda":
-            return x.to(odevice, non_blocking=True)
-
-        # GPU -> CPU or CPU -> CPU
-        return x.to(odevice)
+        # CPU -> GPU, GPU -> CPU or CPU -> CPU
+        return x.to(odevice, non_blocking=True)
 
     @staticmethod
     def fn(todevice, x, /):
