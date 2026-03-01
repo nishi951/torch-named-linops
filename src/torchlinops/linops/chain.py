@@ -231,5 +231,10 @@ class Chain(NamedLinop):
         with INDENT:
             for linop in self.linops:
                 output += repr(linop) + "\n"
+
+            if self.start_event is not None:
+                output += INDENT.indent(f"start: {self.start_event.event_id:x}\n")
+            if self.end_event is not None:
+                output += INDENT.indent(f"end: {self.end_event.event_id:x}\n")
         output += INDENT.indent(")")
         return output
