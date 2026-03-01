@@ -488,10 +488,11 @@ class NamedLinop(nn.Module):
         return self.name + self._suffix
 
     def __repr__(self):
-        event = ""
+        out = f"{self.repr_name}({self.ishape} -> {self.oshape})"
         if self.start_event is not None:
-            event = repr(self.start_event)
-        out = f"{self.repr_name}({event}{self.ishape} -> {self.oshape})"
+            out += f", start: {self.start_event.event_id:x}"
+        if self.end_event is not None:
+            out += f", end: {self.end_event.event_id:x}"
         out = INDENT.indent(out)
         return out
 

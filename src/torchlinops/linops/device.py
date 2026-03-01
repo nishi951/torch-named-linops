@@ -251,7 +251,7 @@ class ToDevice(NamedLinop):
         else:
             orepr = f"{self.ospec.device}"
         if self.input_ready_event is not None:
-            input_ready_event_repr = f"on:{repr(self.input_ready_event)},"
+            input_ready_event_repr = f"on: {self.input_ready_event.event_id:x},"
         else:
             input_ready_event_repr = ""
         out = f"({input_ready_event_repr}{irepr} -> {orepr})"

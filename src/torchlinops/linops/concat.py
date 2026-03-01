@@ -140,9 +140,8 @@ class Concat(NamedLinop):
     @staticmethod
     def _fn(x: Tensor, linops, idim_idx, odim_idx, islices, oslices):
         """Unifies forward and adjoint functionality for stacked linops"""
-        # Split inputs
+        # Part 1: Setup
         if idim_idx is not None:  # Diagonal, Horizontal
-            # if sum(sizes) != x.shape[idim_idx]:
             if islices[-1] != x.shape[idim_idx]:
                 raise ValueError(
                     f"Concat Linop expecting input of size {islices[-1]} got input of size {x.shape} with non-matching concat size {x.shape[idim_idx]}"
@@ -151,18 +150,17 @@ class Concat(NamedLinop):
         else:  # Vertical
             xs = [x] * len(oslices)
 
-        # Compute linop(x) for all xs
+        # Part 2: Compute
         if odim_idx is not None:  # Diagonal, Vertical
             ys = []
             for xi, linop in zip(xs, linops):
                 ys.append(linop(xi))
             return torch.concatenate(ys, dim=odim_idx)
 
-        # Memory savings by accumulating
         # Horizontal
         y = 0.0
-        # Combine outputs
         for xi, linop in zip(xs, linops):
+            # Memory savings by accumulating in-place
             y += linop(xi)
         return y
 
