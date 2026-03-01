@@ -100,6 +100,9 @@ class Concat(NamedLinop):
             self.osizes = None
             self.oslices = None
 
+        if self.idim is None and self.odim is None:
+            raise ValueError(f"At least one of idim and odim cannot be None.")
+
         self.idim_idx = self._infer_dim_idx(self.idim, ishape)
         self.odim_idx = self._infer_dim_idx(self.odim, oshape)
 

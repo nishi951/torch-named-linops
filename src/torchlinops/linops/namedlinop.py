@@ -110,13 +110,11 @@ class NamedLinop(nn.Module):
         """
         if x.is_cuda:
             stream = default_to(default_stream(x.device), self.stream)
-            if self.start_event is None:
-                self.start_event = stream.record_event()
+            self.start_event = stream.record_event()
             with stream:
                 y = self.fn(self, x)
             x.record_stream(stream)
-            if self.end_event is None:
-                self.end_event = stream.record_event()
+            self.end_event = stream.record_event()
         else:
             y = self.fn(self, x)
         return y
