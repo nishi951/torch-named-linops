@@ -113,7 +113,7 @@ class ToDevice(NamedLinop):
             Target (output) device specification.
         ioshape : Shape, optional
             Named dimensions (same for input and output since this is diagonal).
-        input_ready_event : Event, optional
+        input_listener : Event, optional
             A CUDA event to wait on before initiating the transfer.
         """
         super().__init__(NS(ioshape))
@@ -138,65 +138,12 @@ class ToDevice(NamedLinop):
         else:
             self.is_gpu2gpu = False
 
-        # Set up input event
-        self._input_ready_event = ForwardedAttribute()
-
-        # By default, link it to the start event
-        self.input_ready_event = (self, "start_event")
-        _log_transfer(
-            f"Setting ToDevice.input_ready_event to reference {self}.start_event"
-        )
-
-    @property
-    def input_ready_event(self):
-        """Dynamically determine the event to wait for from a linop and attribute name.
-
-        This event is necessary for gpu-gpu transfers.
-
-        For example, in a chain like this:
-
-        ToDevice @ A
-
-        Set self.input_linop[0] = A and self.input_event_key = "end_event"
-        so that we use A.end_event as the triggering event.
-
-        However, if ToDevice occurs inside a composing linop that allows for
-        parallel execution, e.g.
-
-        C = Concat(
-            Chain(ToDevice1, A, ...),
-            Chain(ToDevice2, B, ...),
-            ...
-        )
-
-        Then we may want to set
-
-        ToDevice1.input_linop[0] = C
-        ToDevice1.input_event_key = "start_event"
-        ToDevice2.input_linop[0] = C
-        ToDevice2.input_event_key = "start_event"
-
-        So that both ToDevice linops trigger on the beginning of C.
-        """
-        return self._input_ready_event.value
-
-    @input_ready_event.setter
-    def input_ready_event(self, value):
-        if isinstance(value, tuple):
-            _log_transfer(
-                f"Setting ToDevice.input_ready_event to reference {value[0]}.{value[1]}"
-            )
-            self._input_ready_event.forward_to(*value)
-        else:
-            _log_transfer(f"Setting ToDevice.input_ready_event to {value}")
-            self._input_ready_event = value
-
     @staticmethod
     def _fn(
         x,
         ispec: DeviceSpec,
         ospec: DeviceSpec,
-        input_ready_event: Optional[Event] = None,
+        input_listener: Optional[Event] = None,
     ):
         idevice, odevice = ispec.device, ospec.device
         if x.device != idevice:
@@ -206,16 +153,16 @@ class ToDevice(NamedLinop):
 
         # GPU -> GPU
         if idevice.type == "cuda" and odevice.type == "cuda":
-            if input_ready_event is None:
+            if input_listener is None:
                 warn(
-                    "Peer-to-peer device transfer with input_ready_event = None detected. Results may not be accurate."
+                    "Peer-to-peer device transfer with input_listener = None detected. Results may not be accurate."
                 )
             return _gpu2gpu_transfer(
                 x,
                 odevice,
                 ispec.transfer_stream,
                 ospec.compute_stream,
-                input_ready_event,
+                input_listener,
             )
         # CPU -> GPU, GPU -> CPU or CPU -> CPU
         return x.to(odevice, non_blocking=True)
@@ -226,7 +173,7 @@ class ToDevice(NamedLinop):
             x,
             todevice.ispec,
             todevice.ospec,
-            todevice.input_ready_event,
+            todevice.input_listener,
         )
 
     @staticmethod
@@ -235,7 +182,7 @@ class ToDevice(NamedLinop):
             x,
             todevice.ospec,
             todevice.ispec,
-            todevice.input_ready_event,
+            todevice.input_listener,
         )
 
     def adjoint(self):
@@ -269,16 +216,16 @@ class ToDevice(NamedLinop):
             orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}, transfer: 0x{self.ospec.transfer_stream.cuda_stream:x}"
         else:
             orepr = f"{self.ospec.device}"
-        if self.input_ready_event is not None:
-            input_ready_event_repr = f"on: {self.input_ready_event.event_id:x}"
+        if self.input_listener is not None:
+            input_listener_repr = f"on: {self.input_listener.event_id:x}"
         else:
-            input_ready_event_repr = ""
-        out = f"({input_ready_event_repr} | {irepr} -> {orepr})"
+            input_listener_repr = ""
+        out = f"({input_listener_repr} | {irepr} -> {orepr})"
         out = INDENT.indent(out)
         return out
 
 
-def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_ready_event):
+def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_listener):
     """Perform efficient gpu-gpu transfer with a dedicated transfer stream and event-based triggering.
 
     Parameters
@@ -291,7 +238,7 @@ def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_ready_ev
         The stream on the source device on which to queue the transfer.
     target_stream : Stream
         The stream on the target device that needs `x` for computation.
-    input_ready_event : Event
+    input_listener : Event
         The CUDA event that the transfer stream should wait for before initiating transfer.
         Allows fine-grained control of transfer timing. The event should be queued to
         record() when x is ready to be transferred.
@@ -303,14 +250,12 @@ def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_ready_ev
     """
     # with torch.cuda.stream(transfer_stream):
     with transfer_stream:
-        if input_ready_event is not None:
-            # if isinstance(input_ready_event, RepeatedEvent):
-            #     transfer_stream.wait_event(input_ready_event.last_event)
+        if input_listener is not None:
+            # if isinstance(input_listener, RepeatedEvent):
+            #     transfer_stream.wait_event(input_listener.last_event)
             # else:
-            _log_transfer(
-                f"Stream {transfer_stream} waiting on event {input_ready_event}"
-            )
-            transfer_stream.wait_event(input_ready_event)
+            _log_transfer(f"Stream {transfer_stream} waiting on event {input_listener}")
+            transfer_stream.wait_event(input_listener)
         _log_transfer(
             f"Transferring tensor from {x.device} to {odevice}, "
             f"shape={x.shape}, size_bytes={x.element_size() * x.nelement()}"
