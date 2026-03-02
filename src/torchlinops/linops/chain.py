@@ -1,14 +1,23 @@
 from collections.abc import Mapping
 from typing import Optional
+import logging
 
 import torch
 import torch.nn as nn
 
+import torchlinops.config as config
 from torchlinops.utils import INDENT, RepeatedEvent
 
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 from .device import ToDevice
+
+logger = logging.getLogger("torchlinops")
+
+
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
 
 
 class Chain(NamedLinop):
@@ -53,15 +62,24 @@ class Chain(NamedLinop):
         # Trigger first ToDevice when the Chain begins.
         first_linop = self.linops[0]
         first_linop.start_event = (self, "start_event")
+        _log_transfer(
+            f"Setting {first_linop}.start_event to reference {self}.start_event"
+        )
 
         if isinstance(first_linop, ToDevice) and first_linop.is_gpu2gpu:
             first_linop.input_ready_event = (self, "start_event")
+            _log_transfer(
+                f"Setting ToDevice.input_ready_event to reference {self}.start_event"
+            )
 
         # Trigger later transfers when data is ready from previous linop
         if len(self.linops) > 1:
             for before, after in zip(self.linops[:-1], self.linops[1:]):
                 if isinstance(after, ToDevice) and after.is_gpu2gpu:
                     after.input_ready_event = (before, "end_event")
+                    _log_transfer(
+                        f"Setting ToDevice.input_ready_event to reference {before}.end_event"
+                    )
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):
