@@ -1,10 +1,12 @@
 from copy import copy
 from typing import Optional
+import logging
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
+import torchlinops.config as config
 from torchlinops.utils import INDENT
 
 from ..nameddim import ELLIPSES, NamedDimension as ND, NamedShape as NS, isequal
@@ -14,6 +16,13 @@ from .identity import Zero
 from .namedlinop import NamedLinop
 
 __all__ = ["Concat"]
+
+logger = logging.getLogger("torchlinops")
+
+
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
 
 
 class Concat(NamedLinop):
@@ -113,6 +122,9 @@ class Concat(NamedLinop):
         # TODO Specific to ToDevice for now - later may want a more general solution
         for linop in self.linops:
             linop.start_event = (self, "start_event")
+            _log_transfer(
+                f"Setting {linop}.start_event to reference {self}.start_event"
+            )
 
     @staticmethod
     def fn(concat, x):

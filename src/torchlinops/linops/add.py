@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import logging
 
 import torchlinops.config as config
 from ..nameddim import NamedShape as NS, isequal
@@ -7,6 +8,13 @@ from .namedlinop import NamedLinop
 from .device import ToDevice
 
 __all__ = ["Add"]
+
+logger = logging.getLogger("torchlinops")
+
+
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
 
 
 class Add(NamedLinop):
@@ -41,6 +49,9 @@ class Add(NamedLinop):
         """Organize ToDevice to trigger on start of linop"""
         for linop in self.linops:
             linop.start_event = (self, "start_event")
+            _log_transfer(
+                f"Setting {linop}.start_event to reference {self}.start_event"
+            )
 
     @staticmethod
     def fn(add, x: torch.Tensor, /):
