@@ -164,7 +164,12 @@ class ToDevice(NamedLinop):
                 ospec.compute_stream,
                 input_listener,
             )
-        # CPU -> GPU, GPU -> CPU or CPU -> CPU
+        elif idevice.type == "cuda" and odevice.type == "cpu":
+            # GPU -> CPU requires additional synchronization, see:
+            # https://github.com/pytorch/pytorch/issues/127612
+            return x.to(odevice, non_blocking=False)
+
+        # CPU -> GPU or CPU -> CPU
         return x.to(odevice, non_blocking=True)
 
     @staticmethod
@@ -216,7 +221,7 @@ class ToDevice(NamedLinop):
             orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}, transfer: 0x{self.ospec.transfer_stream.cuda_stream:x}"
         else:
             orepr = f"{self.ospec.device}"
-        if self.input_listener is not None:
+        if self.input_listener is not None and self.is_gpu2gpu:
             input_listener_repr = f"on: {self.input_listener.event_id:x}"
         else:
             input_listener_repr = ""
@@ -265,7 +270,7 @@ def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_listener
     x.record_stream(transfer_stream)
     # Target stream should wait until transfer is complete
     _log_transfer(
-        f"Target stream cuda:{target_stream.device_index()}:{target_stream} waiting for transfer stream {transfer_stream}"
+        f"Target stream cuda:{target_stream.device_index}:{target_stream} waiting for transfer stream {transfer_stream}"
     )
     target_stream.wait_stream(transfer_stream)
     return out

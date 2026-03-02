@@ -1,5 +1,7 @@
 from functools import partial
 from itertools import product
+import logging
+from copy import deepcopy
 
 import pytest
 import torch
@@ -17,6 +19,7 @@ from torchlinops import (
 )
 from torchlinops.utils import assert_gpus_overlap
 
+logger = logging.getLogger("torchlinops")
 # Linops that support parallel execution with multiple GPUs
 PARALLELIZABLE_LINOPS = [
     partial(Add),
@@ -111,6 +114,13 @@ def _slow_matmul_chain(N: int, chain_length: int = 5):
     return A
 
 
+def trace_handler(prof, OnDevice, base_device):
+    prof.export_chrome_trace(
+        f"./{type(OnDevice).__name__}_{base_device.type}_trace.json"
+    )
+    assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
+
+
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not torch.cuda.is_available() or torch.cuda.device_count() < 2,
@@ -135,26 +145,28 @@ def test_multigpu_parallelism(CombineOp, base_device):
     x = torch.randn(N)
 
     # Linop
-    A1 = _slow_matmul_chain(N)
-    A2 = _slow_matmul_chain(N)
+    A1 = _slow_matmul_chain(N, 4)
+    A2 = _slow_matmul_chain(N, 4)
 
     # True value (on cpu)
     # OffDevice = CombineOp(A1, A2)
     # y_true = OffDevice(x)
+    logger.info("Building OffDevice linop")
     OffDevice = CombineOp(A1, A2)
     y_true = OffDevice(x)
 
     # Move to GPU
     x = x.to(base_device)
+    logger.info("Building OnDevice linop")
     OnDevice = CombineOp(
         Chain(
             ToDevice(base_device, gpu0, ioshape=A1.ishape),
-            A1.to(gpu0),
+            deepcopy(A1).to(gpu0),
             ToDevice(gpu0, base_device, ioshape=A1.oshape),
         ),
         Chain(
             ToDevice(base_device, gpu1, ioshape=A2.ishape),
-            A2.to(gpu1),
+            deepcopy(A2).to(gpu1),
             ToDevice(gpu1, base_device, ioshape=A2.oshape),
         ),
     )
@@ -162,28 +174,32 @@ def test_multigpu_parallelism(CombineOp, base_device):
     # Warmup
     _ = OnDevice(x)
 
+    wait, warmup, active = 2, 2, 1
     with torch.profiler.profile(
         activities=[
             torch.profiler.ProfilerActivity.CPU,
             torch.profiler.ProfilerActivity.CUDA,
         ],
         record_shapes=False,
+        schedule=torch.profiler.schedule(
+            wait=wait,  # skip first 2 steps entirely
+            warmup=warmup,  # record but discard next 2
+            active=active,  # actually capture these
+        ),
+        on_trace_ready=partial(
+            trace_handler, OnDevice=OnDevice, base_device=base_device
+        ),
     ) as prof:
-        y = OnDevice(x)
+        for _ in range(wait + warmup + active):
+            y = OnDevice(x)
 
-        torch.cuda.synchronize(gpu0)
-        torch.cuda.synchronize(gpu1)
-
-    # Testing
-    prof.export_chrome_trace(
-        f"./{type(OnDevice).__name__}_{base_device.type}_trace.json"
-    )
+            torch.cuda.synchronize(gpu0)
+            torch.cuda.synchronize(gpu1)
+            torch.cuda.synchronize()  # Synchronize all
+            prof.step()
 
     # Final device should be correct
     assert y.device.type == base_device.type
 
-    # Parallelism
-    assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
-
     # Correctness
-    assert_close(y.cpu(), y_true, atol=1e6, rtol=1e-2)
+    assert_close(y.cpu(), y_true, atol=1e0, rtol=1e-1)
