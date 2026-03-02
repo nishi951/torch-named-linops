@@ -41,7 +41,9 @@ class DeviceSpec:
             if self.compute_stream is None:
                 self.compute_stream = default_stream(self.device)
             if self.transfer_stream is None:
-                self.transfer_stream = self.get_transfer_stream(self.device)
+                self.transfer_stream = self.get_transfer_stream(
+                    self.device, other_device
+                )
 
     @property
     def type(self):
@@ -49,17 +51,17 @@ class DeviceSpec:
         return self.device.type
 
     @staticmethod
-    def get_transfer_stream(device: torch.device):
+    def get_transfer_stream(source_device: torch.device, target_device: torch.device):
         """Return the stream used for device transfers associated with this device.
 
         TODO: For now, we limit to one transfer stream per device per runtime. In the future,
         we may want one stream per source/target device pair.
         """
-        if device in _TRANSFER_STREAMS_REGISTRY:
-            return _TRANSFER_STREAMS_REGISTRY[device]
+        if (source_device, target_device) in _TRANSFER_STREAMS_REGISTRY:
+            return _TRANSFER_STREAMS_REGISTRY[(source_device, target_device)]
         # Create a new stream
-        new_stream = Stream(device)
-        _TRANSFER_STREAMS_REGISTRY[device] = new_stream
+        new_stream = Stream(source_device)
+        _TRANSFER_STREAMS_REGISTRY[(source_device, target_device)] = new_stream
         return new_stream
 
 
@@ -251,10 +253,10 @@ class ToDevice(NamedLinop):
         else:
             orepr = f"{self.ospec.device}"
         if self.input_ready_event is not None:
-            input_ready_event_repr = f"on: {self.input_ready_event.event_id:x},"
+            input_ready_event_repr = f"on: {self.input_ready_event.event_id:x}"
         else:
             input_ready_event_repr = ""
-        out = f"({input_ready_event_repr}{irepr} -> {orepr})"
+        out = f"({input_ready_event_repr} | {irepr} -> {orepr})"
         out = INDENT.indent(out)
         return out
 
