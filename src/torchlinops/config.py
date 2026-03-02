@@ -10,6 +10,10 @@ reduce_identity_in_normal = True
 # can cause stale state issues. Will be removed in a future version.
 cache_adjoint_normal = False
 
+# If True, log CUDA events creation, stream synchronization, and device transfers
+# in the ToDevice linop and related utilities.
+log_device_transfers = True
+
 
 def inner_not_relevant(inner):
     return (inner is None) or (
