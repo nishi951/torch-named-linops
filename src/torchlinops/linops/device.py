@@ -265,7 +265,7 @@ def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_listener
     x.record_stream(transfer_stream)
     # Target stream should wait until transfer is complete
     _log_transfer(
-        f"Target stream {target_stream} waiting for transfer stream {transfer_stream}"
+        f"Target stream cuda:{target_stream.device_index()}:{target_stream} waiting for transfer stream {transfer_stream}"
     )
     target_stream.wait_stream(transfer_stream)
     return out
