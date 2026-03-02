@@ -1,11 +1,13 @@
 from collections.abc import Mapping
 from copy import copy
 from typing import Optional
+import logging
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
+import torchlinops.config as config
 from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
 
@@ -16,6 +18,13 @@ from .identity import Zero
 from .namedlinop import NamedLinop
 
 __all__ = ["Stack"]
+
+logger = logging.getLogger("torchlinops")
+
+
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
 
 
 class Stack(NamedLinop):
@@ -84,6 +93,9 @@ class Stack(NamedLinop):
         for linop in self.linops:
             # Forward start_event to this linop
             linop.start_event = (self, "start_event")
+            _log_transfer(
+                f"Setting {linop}.start_event to reference {self}.start_event"
+            )
 
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):

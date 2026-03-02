@@ -3,10 +3,12 @@ from copy import copy
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple, Optional
 from warnings import warn
+import logging
 
 import torch
 from torch.cuda import Event, Stream, default_stream
 
+import torchlinops.config as config
 from torchlinops.utils import INDENT, RepeatedEvent, default_to
 
 from ..nameddim import NamedShape as NS, Shape
@@ -14,6 +16,14 @@ from .identity import Identity
 from .namedlinop import NamedLinop, ForwardedAttribute
 
 __all__ = ["ToDevice"]
+
+logger = logging.getLogger("torchlinops")
+
+
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
+
 
 # Registry to keep track of transfer streams already created.
 _TRANSFER_STREAMS_REGISTRY = {}
@@ -133,6 +143,9 @@ class ToDevice(NamedLinop):
 
         # By default, link it to the start event
         self.input_ready_event = (self, "start_event")
+        _log_transfer(
+            f"Setting ToDevice.input_ready_event to reference {self}.start_event"
+        )
 
     @property
     def input_ready_event(self):
@@ -170,8 +183,12 @@ class ToDevice(NamedLinop):
     @input_ready_event.setter
     def input_ready_event(self, value):
         if isinstance(value, tuple):
+            _log_transfer(
+                f"Setting ToDevice.input_ready_event to reference {value[0]}.{value[1]}"
+            )
             self._input_ready_event.forward_to(*value)
         else:
+            _log_transfer(f"Setting ToDevice.input_ready_event to {value}")
             self._input_ready_event = value
 
     @staticmethod
@@ -290,10 +307,20 @@ def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_ready_ev
             # if isinstance(input_ready_event, RepeatedEvent):
             #     transfer_stream.wait_event(input_ready_event.last_event)
             # else:
+            _log_transfer(
+                f"Stream {transfer_stream} waiting on event {input_ready_event}"
+            )
             transfer_stream.wait_event(input_ready_event)
+        _log_transfer(
+            f"Transferring tensor from {x.device} to {odevice}, "
+            f"shape={x.shape}, size_bytes={x.element_size() * x.nelement()}"
+        )
         out = x.to(odevice, non_blocking=True)
     # Don't mess with x's memory until transfer is completed
     x.record_stream(transfer_stream)
     # Target stream should wait until transfer is complete
+    _log_transfer(
+        f"Target stream {target_stream} waiting for transfer stream {transfer_stream}"
+    )
     target_stream.wait_stream(transfer_stream)
     return out
