@@ -61,25 +61,7 @@ class Chain(NamedLinop):
         # TODO Specific to ToDevice for now - later may want a more general solution
         # Trigger first ToDevice when the Chain begins.
         first_linop = self.linops[0]
-        first_linop.start_event = (self, "start_event")
-        _log_transfer(
-            f"Setting {first_linop}.start_event to reference {self}.start_event"
-        )
-
-        if isinstance(first_linop, ToDevice) and first_linop.is_gpu2gpu:
-            first_linop.input_ready_event = (self, "start_event")
-            _log_transfer(
-                f"Setting ToDevice.input_ready_event to reference {self}.start_event"
-            )
-
-        # Trigger later transfers when data is ready from previous linop
-        if len(self.linops) > 1:
-            for before, after in zip(self.linops[:-1], self.linops[1:]):
-                if isinstance(after, ToDevice) and after.is_gpu2gpu:
-                    after.input_ready_event = (before, "end_event")
-                    _log_transfer(
-                        f"Setting ToDevice.input_ready_event to reference {before}.end_event"
-                    )
+        first_linop.input_listener = (self, "input_listener")
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):

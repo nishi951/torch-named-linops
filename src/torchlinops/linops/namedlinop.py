@@ -27,6 +27,11 @@ __all__ = ["NamedLinop"]
 logger = logging.getLogger("torchlinops")
 
 
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
+
+
 class NamedLinop(nn.Module):
     """Base class for all named linear operators.
 
@@ -85,8 +90,11 @@ class NamedLinop(nn.Module):
         self._suffix = ""
         self._name = name
         self.stream = stream
-        self._start_event = ForwardedAttribute()
-        self._end_event = ForwardedAttribute()
+        self.start_event = start_event
+        self.end_event = end_event
+        self._input_listener = ForwardedAttribute()
+        # By default, listen for the start of this linop
+        self.input_listener = (self, "start_event")
 
     @final
     def forward(self, x: Tensor) -> Tensor:
@@ -555,34 +563,45 @@ class NamedLinop(nn.Module):
         return super().to(device)
 
     @property
-    def start_event(self):
-        return self._start_event.value
+    def input_listener(self):
+        """Pointer to another linop event attribute.
 
-    @start_event.setter
-    def start_event(self, event):
+        Useful for facilitating gpu-gpu transfers in parallel.
+
+        For example, if ToDevice occurs inside a composing linop that allows for
+        parallel execution, e.g.
+
+        C = Concat(
+            Chain(ToDevice1, A, ...),
+            Chain(ToDevice2, B, ...),
+            ...
+        )
+
+        Then we may want to set ToDevice1 and ToDevice2 to both listen for the beginning of C.
+        That way, both device movements can be triggered in parallel.
+
+        This attribute is a universal attribute so that it can be chained in cases of nesting, e.g.
+        Add(
+            Concat(
+                Chain(ToDevice, ...), ...
+                ...
+            )
+        )
+        The innermost ToDevice can listens to Chain, which listens to Concat, which listens to Add.
+        This is good because Concat and Add both can parallelize efficiently across multiple GPUs.
         """
-        Parameters
-        ----------
-        event : Event | tuple[Any, str]
-            If a bare Event is provided, use that event on this object.
-            If a tuple, interpret it as a reference to forward. e.g. event = (other_linop, 'start_event')
-            will forward this linop's linop.start_event to other_linop.start_event
-        """
-        if isinstance(event, tuple):
-            self._start_event.forward_to(*event)
-        else:
-            self._start_event.value = event
+        return self._input_listener.value
 
-    @property
-    def end_event(self):
-        return self._end_event.value
-
-    @end_event.setter
-    def end_event(self, event):
-        if isinstance(event, tuple):
-            self._end_event.forward_to(*event)
+    @input_listener.setter
+    def input_listener(self, value):
+        if isinstance(value, tuple):
+            _log_transfer(
+                f"Setting {type(self).__name__}.input_listener to reference {type(value[0]).__name__}.{value[1]}"
+            )
+            self._input_listener.forward_to(*value)
         else:
-            self._end_event.value = event
+            _log_transfer(f"Setting {type(self).__name__}.input_listener to {value}")
+            self._input_listener = value
 
     @final
     def __copy__(self):

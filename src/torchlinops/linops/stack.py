@@ -92,10 +92,7 @@ class Stack(NamedLinop):
         """Organize start events to trigger on start of linop"""
         for linop in self.linops:
             # Forward start_event to this linop
-            linop.start_event = (self, "start_event")
-            _log_transfer(
-                f"Setting {linop}.start_event to reference {self}.start_event"
-            )
+            linop.input_listener = (self, "input_listener")
 
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):

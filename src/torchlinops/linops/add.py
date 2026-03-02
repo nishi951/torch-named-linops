@@ -48,10 +48,7 @@ class Add(NamedLinop):
     def _setup_events(self):
         """Organize ToDevice to trigger on start of linop"""
         for linop in self.linops:
-            linop.start_event = (self, "start_event")
-            _log_transfer(
-                f"Setting {linop}.start_event to reference {self}.start_event"
-            )
+            linop.input_listener = (self, "input_listener")
 
     @staticmethod
     def fn(add, x: torch.Tensor, /):
