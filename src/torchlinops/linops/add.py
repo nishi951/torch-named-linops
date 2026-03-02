@@ -52,11 +52,11 @@ class Add(NamedLinop):
 
     @staticmethod
     def fn(add, x: torch.Tensor, /):
-        return sum(linop.fn(linop, x) for linop in add.linops)
+        return sum(linop(x) for linop in add.linops)
 
     @staticmethod
     def adj_fn(add, x: torch.Tensor, /):
-        return sum(linop.adj_fn(linop, x) for linop in add.linops)
+        return sum(linop.H(x) for linop in add.linops)
 
     def split_forward(self, ibatch, obatch):
         linops = [linop.split_forward(ibatch, obatch) for linop in self.linops]
