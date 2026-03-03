@@ -46,6 +46,8 @@ class Chain(NamedLinop):
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
 
+        self._setup_events()
+
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
         for i, linop in enumerate(self.linops):
@@ -56,6 +58,7 @@ class Chain(NamedLinop):
             curr_shape = linop.oshape
 
     def _setup_events(self):
+        """Point initial linop listener at Chain's input listener."""
         first_linop = self.linops[0]
         first_linop.input_listener = (self, "input_listener")
 

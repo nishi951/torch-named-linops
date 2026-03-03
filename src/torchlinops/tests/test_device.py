@@ -118,7 +118,7 @@ def trace_handler(prof, OnDevice, base_device):
     prof.export_chrome_trace(
         f"./{type(OnDevice).__name__}_{base_device.type}_trace.json"
     )
-    assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
+    assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.3)
 
 
 @pytest.mark.gpu
