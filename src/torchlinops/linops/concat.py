@@ -126,8 +126,6 @@ class Concat(Threadable, NamedLinop):
         self.idim_idx = self._infer_dim_idx(self.idim, ishape)
         self.odim_idx = self._infer_dim_idx(self.odim, oshape)
 
-        self._setup_events()
-
     @staticmethod
     def fn(concat, x):
         return concat._fn(

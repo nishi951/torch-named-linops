@@ -58,13 +58,6 @@ class Add(Threadable, NamedLinop):
         )
         self.linops = nn.ModuleList(linops)
 
-        self._setup_events()
-
-    def _setup_events(self):
-        """Organize ToDevice to trigger on start of linop"""
-        for linop in self.linops:
-            linop.input_listener = (self, "input_listener")
-
     @staticmethod
     def fn(add, x: torch.Tensor, /):
         if add.threaded:
