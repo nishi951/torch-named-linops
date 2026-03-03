@@ -223,7 +223,7 @@ def split_linop(linop: NamedLinop, batch_sizes: dict[ND | str, int]):
 
     for tile in tiles:
         idx = _tile_get_idx(tile, batch_dims)
-        linop_tile = split_linop_with_tile(linop, tile)
+        linop_tile = _split_linop_with_tile(linop, tile)
         linop_flat = linop_tile.flatten()
         first_linop, last_linop = linop_flat[0], linop_flat[-1]
         linops[idx] = linop_tile
@@ -279,8 +279,21 @@ def fuzzy_broadcast_to(arr: np.ndarray, target_shape):
     return np.broadcast_to(arr, target_shape)
 
 
-def split_linop_with_tile(linop: NamedLinop, tile: Tile):
-    """Split a linop according to batch specified in tile"""
+def _split_linop_with_tile(linop: NamedLinop, tile: Tile):
+    """Split a linop according to batch specified in tile.
+
+    Parameters
+    ----------
+    linop : NamedLinop
+        The linop to split.
+    tile : Tile
+        Dictionary mapping dimension names to (index, slice) pairs.
+
+    Returns
+    -------
+    NamedLinop
+        The split sub-linop operating on the specified tile.
+    """
     slice_map = {key: value[1] for key, value in tile.items()}
     linop_tile = linop.split(linop, slice_map)
     return linop_tile

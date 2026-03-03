@@ -20,8 +20,10 @@ The static `split(linop, tile)` method provides a higher-level interface that ac
 from torchlinops.nameddim import NamedDimension as ND
 
 tile = {ND("Nx"): slice(0, 128)}
-sub_linop = A.split(A, tile)
+sub_linop = NamedLinop.split(A, tile)
 ```
+
+For adjoint splitting, use `adj_split(linop, tile)` which constructs the adjoint, splits it according to *tile*, and returns the adjoint of the split.
 
 ### `split_linop`
 
@@ -43,6 +45,10 @@ linops, ibatches, obatches = split_linop(A, {"Nx": 128, "Ny": 64})
 
 When splitting a `Chain` (a composition of linops), each constituent linop is split independently according to the slices over its own dimensions. This means that a chain $C \circ B \circ A$ is split into tiles where each tile is a chain of the corresponding sub-linops.
 
+The `Chain.split_forward()` method receives lists of slices per constituent linop:
+- `ibatches`: list of lists, one per linop in the chain
+- `obatches`: list of lists, one per linop in the chain
+
 ## BatchSpec
 
 `BatchSpec` is a dataclass that bundles all the information needed to split and distribute a linop:
@@ -52,10 +58,10 @@ When splitting a `Chain` (a composition of linops), each constituent linop is sp
 | `batch_sizes` | `dict[dim, int]` -- how large each chunk should be |
 | `device_matrix` | Optional array of `torch.device` objects, one per tile |
 | `base_device` | The device where input/output tensors live |
-| `base_stream` | CUDA stream for the base device |
-| `transfer_stream` | CUDA stream used for data transfers |
 
 The `device_matrix` is broadcast to match the tile grid shape. For example, if splitting creates a 4-tile grid and `device_matrix = ["cuda:0", "cuda:1"]`, it is repeated to `["cuda:0", "cuda:1", "cuda:0", "cuda:1"]`. The broadcasting uses a fuzzy strategy that tiles and truncates as needed, so the device list does not need to exactly match the number of tiles.
+
+`BatchSpec` has a `broadcast_device_matrix(linop)` method that computes the number of tiles along each batched dimension and broadcasts the device matrix accordingly.
 
 ## `create_batched_linop`
 
@@ -79,9 +85,34 @@ The result is a single composite linop that behaves identically to the original 
 
 ## Data transfer and synchronization
 
+### DeviceSpec
+
+`DeviceSpec` is a lightweight dataclass that holds useful CUDA-related objects for multi-GPU computation:
+
+| Field | Description |
+|-------|-------------|
+| `device` | The `torch.device` for this specification |
+| `compute_stream` | Stream used for computation on this device |
+| `transfer_stream` | Stream used for data transfers to/from this device |
+
+`DeviceSpec` has a `p2p_setup(other_device)` method that configures compute and transfer streams for peer-to-peer transfers between devices. This is called automatically when creating `ToDevice` linops between CUDA devices.
+
+The transfer stream is obtained from a registry (`_TRANSFER_STREAMS_REGISTRY`) to enable stream reuse. Each source/target device pair gets a dedicated transfer stream.
+
 ### `ToDevice`
 
 `ToDevice` is a specialized linop that moves tensors between devices. It is the glue between the base device (where input/output data lives) and the target devices (where computation happens).
+
+**Key attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `ispec` | `DeviceSpec` | Source (input) device specification |
+| `ospec` | `DeviceSpec` | Target (output) device specification |
+| `input_listener` | `tuple(linop, str)` or `None` | Event to wait on before transferring |
+| `is_gpu2gpu` | `bool` | True if both source and target are CUDA devices |
+
+The adjoint of `ToDevice(A -> B)` is `ToDevice(B -> A)` -- it simply reverses the direction and swaps the device specs.
 
 For CUDA-to-CUDA transfers, `ToDevice` uses non-blocking operations on specific streams:
 
@@ -96,9 +127,27 @@ Key implementation details:
 
 - `x.record_stream(stream)` prevents PyTorch's caching allocator from freeing the source tensor's memory before the transfer completes.
 - `ostream.wait_stream(istream)` ensures the target stream does not start computation until the data has arrived.
-- The adjoint of `ToDevice(A -> B)` is `ToDevice(B -> A)` -- it simply reverses the direction and swaps the streams.
+- The transfer stream is obtained via `DeviceSpec.get_transfer_stream(source, target)`.
 
-### `RepeatedEvent`
+### Input Listeners
+
+The `input_listener` attribute enables coordination between parallel GPU transfers. It specifies an event (via a tuple of `(linop, attribute_name)`) that the transfer should wait on before initiating.
+
+This is particularly useful when multiple `ToDevice` operations need to be triggered in parallel:
+
+```python
+C = Concat(
+    Chain(ToDevice1, A, ...),
+    Chain(ToDevice2, B, ...),
+    ...
+)
+```
+
+By setting both `ToDevice1.input_listener` and `ToDevice2.input_listener` to reference the start of `C`, both device movements can be triggered in parallel when `C` begins execution.
+
+The `NamedLinop.input_listener` property uses `ForwardedAttribute` to enable this cross-linop attribute forwarding.
+
+### RepeatedEvent
 
 `RepeatedEvent` is a lightweight wrapper around CUDA events that creates a fresh event on each `record()` call. This is used as the `start_event` on the top-level batched linop: when `forward()` is called, it records an event that all `ToDevice` input transfers wait on.
 Rather than creating new events and re-registering them every time the linop needs to be run, the `RepeatedEvent` automatically refreshes itself one each call.
@@ -129,6 +178,17 @@ For a multi-GPU setup with GPU0 (base) to GPU1, the default behavior is:
   - transfer_stream: Moving tensors between GPU0 and GPU1
 - GPU1
   - default_stream: computation
+
+## Configuration
+
+Set `torchlinops.config.log_device_transfers = True` to enable debug logging of CUDA events, stream synchronization, and device transfers. This is useful for debugging multi-GPU workflows.
+
+```python
+import torchlinops.config as config
+
+config.log_device_transfers = True  # Enable logging
+config.log_device_transfers = False # Disable logging
+```
 
 ## Limitations and future work
 

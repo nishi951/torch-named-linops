@@ -86,9 +86,11 @@ class Chain(NamedLinop):
         Parameters
         ----------
         ibatches : list[list[slice]]
-            Per-linop input slices, one list of slices per linop in the chain.
+            Per-linop input slices. Each element is a list of slices corresponding
+            to the input dimensions of one linop in the chain.
         obatches : list[list[slice]]
-            Per-linop output slices.
+            Per-linop output slices. Each element is a list of slices corresponding
+            to the output dimensions of one linop in the chain.
 
         Returns
         -------

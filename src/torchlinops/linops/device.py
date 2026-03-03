@@ -15,7 +15,7 @@ from ..nameddim import NamedShape as NS, Shape
 from .identity import Identity
 from .namedlinop import NamedLinop, ForwardedAttribute
 
-__all__ = ["ToDevice"]
+__all__ = ["ToDevice", "DeviceSpec"]
 
 logger = logging.getLogger("torchlinops")
 
@@ -31,7 +31,25 @@ _TRANSFER_STREAMS_REGISTRY = {}
 
 @dataclass
 class DeviceSpec:
-    """Lightweight data structure for holding useful CUDA-related objects for multi-GPU computation."""
+    """Lightweight data structure for holding useful CUDA-related objects for multi-GPU computation.
+
+    Attributes
+    ----------
+    device : torch.device
+        The device for computation and transfers.
+    compute_stream : Stream, optional
+        Stream used for computation on this device. Set automatically by ``p2p_setup``.
+    transfer_stream : Stream, optional
+        Stream used for data transfers to/from this device. Obtained from a registry
+        to enable stream reuse across transfers.
+
+    Methods
+    -------
+    p2p_setup(other_device)
+        Configure compute and transfer streams for peer-to-peer transfers.
+    get_transfer_stream(source_device, target_device)
+        Get or create a transfer stream for a source/target device pair.
+    """
 
     device: Any = field(default_factory=lambda: torch.device("cpu"))
     """Device for the streams."""
@@ -46,7 +64,13 @@ class DeviceSpec:
             self.device = torch.device(self.device)
 
     def p2p_setup(self, other_device):
-        """Sets up compute and transfer streams for peer2peer transfers, if not set yet."""
+        """Sets up compute and transfer streams for peer2peer transfers, if not set yet.
+
+        Parameters
+        ----------
+        other_device : torch.device
+            The other device involved in the peer-to-peer transfer.
+        """
         if self.device.type == "cuda" and other_device.type == "cuda":
             if self.compute_stream is None:
                 self.compute_stream = default_stream(self.device)
@@ -64,8 +88,20 @@ class DeviceSpec:
     def get_transfer_stream(source_device: torch.device, target_device: torch.device):
         """Return the stream used for device transfers associated with this device.
 
-        TODO: For now, we limit to one transfer stream per device per runtime. In the future,
-        we may want one stream per source/target device pair.
+        Streams are cached in a registry to enable reuse. Each source/target device
+        pair gets a dedicated transfer stream.
+
+        Parameters
+        ----------
+        source_device : torch.device
+            The source device for transfers.
+        target_device : torch.device
+            The target device for transfers.
+
+        Returns
+        -------
+        Stream
+            A CUDA stream for performing transfers.
         """
         if (source_device, target_device) in _TRANSFER_STREAMS_REGISTRY:
             return _TRANSFER_STREAMS_REGISTRY[(source_device, target_device)]
@@ -88,14 +124,11 @@ class ToDevice(NamedLinop):
     Attributes
     ----------
     ispec : DeviceSpec
-        Source (input) device specification.
+        Source (input) device specification containing device and stream info.
     ospec : DeviceSpec
-        Target (output) device specification.
-    input_linop : List[NamedLinop]
-        The linop to wait for if gpu2gpu transfers are necessary.
-        It is a list with length 1 to prevent registering the linop as a submodule.
-    input_event_key : str
-        The name of the attribute on input_linop containing the triggering event.
+        Target (output) device specification containing device and stream info.
+    is_gpu2gpu : bool
+        True if both source and target devices are CUDA devices.
     """
 
     def __init__(
@@ -107,14 +140,12 @@ class ToDevice(NamedLinop):
         """
         Parameters
         ----------
-        idevice_spec : DeviceSpec | None
+        idevice : DeviceSpec | torch.device | None
             Source (input) device specification.
-        odevice_spec : DeviceSpec | None
+        odevice : DeviceSpec | torch.device | None
             Target (output) device specification.
         ioshape : Shape, optional
             Named dimensions (same for input and output since this is diagonal).
-        input_listener : Event, optional
-            A CUDA event to wait on before initiating the transfer.
         """
         super().__init__(NS(ioshape))
 

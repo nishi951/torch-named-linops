@@ -52,7 +52,12 @@ class NamedLinop(nn.Module):
             multiple linops across multiple devices.
         end_event : Event, optional
             An event that signals when the linop has completed. Useful for synchronizing multiple
-
+            linops across multiple devices.
+        input_listener : tuple(linop, str) or None
+            Pointer to another linop's event attribute. Used to coordinate GPU-to-GPU
+            transfers in parallel execution contexts. When set to a tuple like
+            ``(some_linop, "start_event")``, the device transfer will wait for that
+            event to be recorded before initiating the transfer.
     linops across multiple devices.
     """
 
@@ -206,7 +211,8 @@ class NamedLinop(nn.Module):
         """Split this linop into a sub-linop according to slices over its dimensions.
 
         Override this in subclasses to define how the linop decomposes when tiled
-        along its named dimensions.
+        along its named dimensions. For the companion method that handles adjoints,
+        see ``adj_split``.
 
         Parameters
         ----------
@@ -701,7 +707,11 @@ class LinopFunction(torch.autograd.Function):
 class ForwardedAttribute:
     """Special dataclass for forwarding attribute access to other objects.
 
-    TODO: Make this a descriptor somehow?
+    Enables cross-linop attribute forwarding, primarily used for coordinating
+    GPU transfers via the ``input_listener`` mechanism. When a linop's
+    ``input_listener`` is set to a tuple ``(other_linop, "attribute_name")``,
+    the ForwardedAttribute transparently forwards attribute access to the
+    referenced linop.
 
     Works best when combined with a @property.
 

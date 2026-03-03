@@ -24,4 +24,6 @@ from .alg import *
 from .linops import *
 from .nameddim import *
 
+from . import config
+
 __version__ = "0.6.0"

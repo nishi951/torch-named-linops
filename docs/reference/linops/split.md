@@ -9,3 +9,4 @@
         inherited_members: false
         members:
             - __init__
+            - broadcast_device_matrix
