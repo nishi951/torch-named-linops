@@ -14,6 +14,7 @@ from .add import Add
 from .device import ToDevice
 from .identity import Zero
 from .namedlinop import NamedLinop
+from .threadable import Threadable, _threaded_apply, _threaded_apply_sum_reduce
 
 __all__ = ["Concat"]
 
@@ -25,7 +26,7 @@ def _log_transfer(msg):
         logger.info(msg)
 
 
-class Concat(NamedLinop):
+class Concat(Threadable, NamedLinop):
     """Concatenate some linops along an existing dimension
 
     Linops need not output tensors of the same size, but they should
@@ -60,6 +61,8 @@ class Concat(NamedLinop):
         *linops,
         idim: Optional[ND | str] = None,
         odim: Optional[ND | str] = None,
+        threaded: bool = True,
+        num_workers: int | None = None,
     ):
         """
         Parameters
@@ -72,9 +75,17 @@ class Concat(NamedLinop):
         odim : str or ND, optional
             Output dimension along which to concatenate. If ``None``, the output
             is not concatenated (outputs are summed).
+        threaded : bool, optional
+            Whether to run sub-linops in parallel. Default is True.
+        num_workers : int | None, optional
+            Number of worker threads. If None, defaults to len(linops).
         """
         self._check_linop_compatibility(linops)
-        super().__init__(NS(linops[0].ishape, linops[0].oshape))
+        super().__init__(
+            NS(linops[0].ishape, linops[0].oshape),
+            threaded=threaded,
+            num_workers=num_workers,
+        )
         self.linops = nn.ModuleList(list(linops))
 
         # Handle ishape
@@ -117,12 +128,6 @@ class Concat(NamedLinop):
 
         self._setup_events()
 
-    def _setup_events(self):
-        """Organize ToDevice to trigger on start of linop"""
-        # TODO Specific to ToDevice for now - later may want a more general solution
-        for linop in self.linops:
-            linop.input_listener = (self, "input_listener")
-
     @staticmethod
     def fn(concat, x):
         return concat._fn(
@@ -132,6 +137,8 @@ class Concat(NamedLinop):
             concat.odim_idx,
             concat.islices,
             concat.oslices,
+            concat.threaded,
+            concat.num_workers,
         )
 
     @staticmethod
@@ -144,12 +151,22 @@ class Concat(NamedLinop):
             concat.idim_idx,
             concat.oslices,
             concat.islices,
+            concat.threaded,
+            concat.num_workers,
         )
 
     @staticmethod
-    def _fn(x: Tensor, linops, idim_idx, odim_idx, islices, oslices):
+    def _fn(
+        x: Tensor,
+        linops,
+        idim_idx,
+        odim_idx,
+        islices,
+        oslices,
+        threaded: bool = False,
+        num_workers: int | None = None,
+    ):
         """Unifies forward and adjoint functionality for stacked linops"""
-        # Part 1: Setup
         if idim_idx is not None:  # Diagonal, Horizontal
             if islices[-1] != x.shape[idim_idx]:
                 raise ValueError(
@@ -159,18 +176,20 @@ class Concat(NamedLinop):
         else:  # Vertical
             xs = [x] * len(oslices)
 
-        # Part 2: Compute
         if odim_idx is not None:  # Diagonal, Vertical
-            ys = []
-            for xi, linop in zip(xs, linops):
-                ys.append(linop(xi))
+            if threaded:
+                ys = _threaded_apply(list(linops), xs, num_workers)
+            else:
+                ys = [linop(xi) for xi, linop in zip(xs, linops)]
             return torch.concatenate(ys, dim=odim_idx)
 
         # Horizontal
-        y = 0.0
-        for xi, linop in zip(xs, linops):
-            # Memory savings by accumulating in-place
-            y += linop(xi)
+        if threaded:
+            y = _threaded_apply_sum_reduce(list(linops), xs, num_workers)
+        else:
+            y = 0.0
+            for xi, linop in zip(xs, linops):
+                y += linop(xi)
         return y
 
     def size(self, dim):
