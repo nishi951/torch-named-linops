@@ -19,4 +19,5 @@ from .sampling import *
 from .scalar import *
 from .split import *
 from .stack import *
+from .threadable import *
 from .trunc_pad import *

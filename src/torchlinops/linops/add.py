@@ -6,6 +6,7 @@ import torchlinops.config as config
 from ..nameddim import NamedShape as NS, isequal
 from .namedlinop import NamedLinop
 from .device import ToDevice
+from .threadable import Threadable
 
 __all__ = ["Add"]
 
@@ -17,21 +18,31 @@ def _log_transfer(msg):
         logger.info(msg)
 
 
-class Add(NamedLinop):
+class Add(Threadable, NamedLinop):
     """The sum of one or more linear operators.
 
     Attributes
     ----------
     linops : nn.ModuleList
         The list of linops being added together.
+    threaded : bool
+        Whether to run sub-linops in parallel. Default is True.
+    num_workers : int | None
+        Number of worker threads. If None, defaults to number of sub-linops.
     """
 
-    def __init__(self, *linops, **kwargs):
+    def __init__(
+        self, *linops, threaded: bool = True, num_workers: int | None = None, **kwargs
+    ):
         """
         Parameters
         ----------
         *linops : tuple[NamedLinop]
             The linear operators to be added together.
+        threaded : bool, optional
+            Whether to run sub-linops in parallel. Default is True.
+        num_workers : int | None, optional
+            Number of worker threads. If None, defaults to len(linops).
         """
         assert all(isequal(linop.ishape, linops[0].ishape) for linop in linops), (
             f"Add: All linops must share same ishape. Found {linops}"
@@ -39,8 +50,12 @@ class Add(NamedLinop):
         assert all(isequal(linop.oshape, linops[0].oshape) for linop in linops), (
             f"Add: All linops must share same oshape. Linops: {linops}"
         )
-        # TODO: specialize the ishape and oshape on most specific one
-        super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
+        super().__init__(
+            NS(linops[0].ishape, linops[0].oshape),
+            threaded=threaded,
+            num_workers=num_workers,
+            **kwargs,
+        )
         self.linops = nn.ModuleList(linops)
 
         self._setup_events()
@@ -52,10 +67,15 @@ class Add(NamedLinop):
 
     @staticmethod
     def fn(add, x: torch.Tensor, /):
+        if add.threaded:
+            return add.threaded_apply_sum_reduce([x] * len(add.linops), add.num_workers)
         return sum(linop(x) for linop in add.linops)
 
     @staticmethod
     def adj_fn(add, x: torch.Tensor, /):
+        if add.threaded:
+            adj_linops = [linop.H for linop in add.linops]
+            return add.threaded_apply_sum_reduce([x] * len(adj_linops), add.num_workers)
         return sum(linop.H(x) for linop in add.linops)
 
     def split_forward(self, ibatch, obatch):
