@@ -76,10 +76,11 @@ def _threaded_apply_sum_reduce(linops, xs, num_workers):
     Parameters
     ----------
     linops : list[NamedLinop]
-    x : Tensor
-        Input tensor.
-    apply_fn : callable
-        Function to apply to each (linop, x) pair. Should return a tensor.
+        The list of linops to apply.
+    xs : list[Tensor]
+        The list of input tensors to apply the linosp to.
+    num_workers : int
+        The number of workers to use. More workers = higher memory footprint.
 
     Returns
     -------
@@ -105,12 +106,12 @@ def _threaded_apply(linops, xs, num_workers):
 
     Parameters
     ----------
-    linop : NamedLinop
-        The linop containing sub-linops.
-    x : Tensor
-        Input tensor.
-    apply_fn : callable
-        Function to apply to each (linop, x) pair. Should return a tensor.
+    linops : list[NamedLinop]
+        The list of linops to apply.
+    xs : list[Tensor]
+        The list of input tensors to apply the linosp to.
+    num_workers : int
+        The number of workers to use. More workers = higher memory footprint.
 
     Returns
     -------
@@ -125,5 +126,4 @@ def _threaded_apply(linops, xs, num_workers):
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = [executor.submit(worker_fn, linop, x) for linop, x in zip(linops, xs)]
         results = [future.result() for future in futures]
-
     return results

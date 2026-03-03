@@ -253,12 +253,8 @@ def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_listener
     Tensor
         The tensor, on the target device.
     """
-    # with torch.cuda.stream(transfer_stream):
-    with transfer_stream:
+    with torch.cuda.stream(transfer_stream):
         if input_listener is not None:
-            # if isinstance(input_listener, RepeatedEvent):
-            #     transfer_stream.wait_event(input_listener.last_event)
-            # else:
             _log_transfer(f"Stream {transfer_stream} waiting on event {input_listener}")
             transfer_stream.wait_event(input_listener)
         _log_transfer(
