@@ -104,6 +104,27 @@ print(A.N) # No longer contains Identity
 
     Note that you must call `reset_adjoint_and_normal()` after changing this setting to clear the cached operators.
 
+### Temporarily modifying config
+
+Use `config.using()` as a context manager to temporarily modify config values:
+
+```python
+from torchlinops import config
+
+with config.using(reduce_identity_in_normal=False):
+    # reduce_identity_in_normal is False here
+    print(A.N)
+# original value restored
+```
+
+You can modify multiple values at once:
+
+```python
+with config.using(reduce_identity_in_normal=False, log_device_transfers=False):
+    # multiple values temporarily changed
+    pass
+```
+
 ## Splitting linops
 
 Linops can be split across sub-problems (e.g., for multi-GPU processing) using `split_linop`. See [Multi-GPU Splitting](../explanations/multi_gpu.md) for the full explanation.
