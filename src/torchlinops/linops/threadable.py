@@ -40,6 +40,7 @@ class Threadable:
         self.threaded = threaded
         self.num_workers = num_workers
         self.linops = []  # Placeholder
+        self._setup_events()
 
     def _setup_events(self):
         for linop in self.linops:

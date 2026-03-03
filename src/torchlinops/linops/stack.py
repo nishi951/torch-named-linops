@@ -97,14 +97,6 @@ class Stack(Threadable, NamedLinop):
         )
         self.linops = nn.ModuleList(list(linops))
 
-        self._setup_events()
-
-    def _setup_events(self):
-        """Organize start events to trigger on start of linop"""
-        for linop in self.linops:
-            # Forward start_event to this linop
-            linop.input_listener = (self, "input_listener")
-
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):
         if dim is not None:
