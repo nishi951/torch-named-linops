@@ -7,4 +7,6 @@
 ::: torchlinops.linops.BatchSpec
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__
+            - broadcast_device_matrix

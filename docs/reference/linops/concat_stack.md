@@ -3,9 +3,13 @@
 ::: torchlinops.linops.Concat
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__
+            - normal
 
 ::: torchlinops.linops.Stack
     options:
         inherited_members: false
-        filters: ["!^_[^_]", "__init__"]
+        members:
+            - __init__
+            - normal

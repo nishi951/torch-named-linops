@@ -1,30 +1,52 @@
 from collections.abc import Mapping
 from typing import Optional
+import logging
 
 import torch
 import torch.nn as nn
 
-from torchlinops.utils import INDENT
+import torchlinops.config as config
+from torchlinops.utils import INDENT, RepeatedEvent
 
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .namedlinop import NamedLinop
+from .device import ToDevice
+
+logger = logging.getLogger("torchlinops")
+
+
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
 
 
 class Chain(NamedLinop):
-    """A sequence or composition of linops"""
+    """Composition (sequential application) of named linear operators.
+
+    If ``Chain(A, B, C)`` is created, then the forward pass applies
+    $A$ first, then $B$, then $C$: mathematically the operator is $C B A$.
+
+    Attributes
+    ----------
+    linops : nn.ModuleList
+        The constituent linops in **execution order** (inner to outer).
+    """
 
     def __init__(self, *linops, name: Optional[str] = None):
         """
         Parameters
         ----------
-        *linops : list
-            Linops in order of execution
-            i.e. if `linops = [A, B, C]`, then mathematically, the linop in question is `CBA`
-
+        *linops : NamedLinop
+            Linops in order of execution. If ``linops = (A, B, C)``, the
+            mathematical operator is $C B A$.
+        name : str, optional
+            Display name for this chain.
         """
         super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
+
+        self._setup_events()
 
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
@@ -34,6 +56,11 @@ class Chain(NamedLinop):
                     f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {i}"
                 )
             curr_shape = linop.oshape
+
+    def _setup_events(self):
+        """Point initial linop listener at Chain's input listener."""
+        first_linop = self.linops[0]
+        first_linop.input_listener = (self, "input_listener")
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):
@@ -54,8 +81,21 @@ class Chain(NamedLinop):
     #     return chain.adj_fn(chain, chain.fn(chain, x))
 
     def split_forward(self, ibatches, obatches):
-        """ibatches, obatches specified according to the shape of the
-        forward op
+        """Split each constituent linop according to per-linop batch slices.
+
+        Parameters
+        ----------
+        ibatches : list[list[slice]]
+            Per-linop input slices. Each element is a list of slices corresponding
+            to the input dimensions of one linop in the chain.
+        obatches : list[list[slice]]
+            Per-linop output slices. Each element is a list of slices corresponding
+            to the output dimensions of one linop in the chain.
+
+        Returns
+        -------
+        Chain
+            A new chain of the split sub-linops.
         """
         linops = [
             linop.split_forward(ibatch, obatch)
@@ -86,6 +126,23 @@ class Chain(NamedLinop):
         return type(self)(*linops, name=self._name)
 
     def normal(self, inner=None):
+        """Compute the normal operator by folding through the chain.
+
+        For a chain $C B A$, the normal is computed as
+        $A^H (B^H (C^H C (B (A \\cdot))))$ by iterating ``linop.normal(inner)``
+        in reverse order. This enables Toeplitz embedding and other per-linop
+        normal optimizations to compose correctly.
+
+        Parameters
+        ----------
+        inner : NamedLinop, optional
+            An inner operator seeded from an outer chain or ``None``.
+
+        Returns
+        -------
+        NamedLinop
+            The composed normal operator.
+        """
         for linop in reversed(self.linops):
             inner = linop.normal(inner)
         return inner
@@ -175,5 +232,10 @@ class Chain(NamedLinop):
         with INDENT:
             for linop in self.linops:
                 output += repr(linop) + "\n"
+
+            if self.start_event is not None:
+                output += INDENT.indent(f"start: {self.start_event.event_id:x}\n")
+            if self.end_event is not None:
+                output += INDENT.indent(f"end: {self.end_event.event_id:x}\n")
         output += INDENT.indent(")")
         return output

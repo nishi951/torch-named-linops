@@ -22,6 +22,7 @@ activate
 
 # Agentic
 .aider*
+AGENTS.md
 
 # Docs
 _site/

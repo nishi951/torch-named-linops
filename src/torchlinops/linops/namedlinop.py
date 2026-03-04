@@ -2,37 +2,63 @@ import logging
 import traceback
 from collections.abc import Mapping
 from copy import copy, deepcopy
+from dataclasses import dataclass
 from functools import partial
-from typing import Optional
+from typing import Any, Optional, final
 
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.cuda import Event, Stream
+from torch.cuda import Event, Stream, default_stream
 
 import torchlinops
 import torchlinops.config as config
 from torchlinops.nameddim import NamedDimension as ND, NamedShape, Shape
-from torchlinops.utils import INDENT, memory_aware_deepcopy, memory_aware_to
+from torchlinops.utils import (
+    INDENT,
+    RepeatedEvent,
+    default_to,
+    memory_aware_deepcopy,
+    memory_aware_to,
+)
 
 __all__ = ["NamedLinop"]
 
 logger = logging.getLogger("torchlinops")
 
 
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
+
+
 class NamedLinop(nn.Module):
-    """Base class for all NamedLinops
+    """Base class for all named linear operators.
 
-    Attributes
-    ----------
-    shape : NamedShape
-        The shape of the linop.
-    stream : torch.cuda.Stream, optional
-        The stream on which this linop will be run.
-    start_event : torch.cuda.Event, optional
-        An event that signals when the linop has started. Useful for synchronizing multiple
-        linops across multiple devices.
+        A ``NamedLinop`` represents a linear map $A : X \\to Y$ where the input and
+        output tensor dimensions are identified by name (e.g. ``("Nx", "Ny") -> ("Kx", "Ky")``).
 
+        Subclass this to implement concrete operators. At minimum, override ``fn``
+        and ``adj_fn`` as static methods.
+
+        Attributes
+        ----------
+        shape : NamedShape
+            The named shape of the linop, containing ``ishape`` and ``oshape``.
+        stream : torch.cuda.Stream
+            Optional cuda Stream to run this linop on.
+        start_event : Event, optional
+            An event that signals when the linop has started. Useful for synchronizing
+            multiple linops across multiple devices.
+        end_event : Event, optional
+            An event that signals when the linop has completed. Useful for synchronizing multiple
+            linops across multiple devices.
+        input_listener : tuple(linop, str) or None
+            Pointer to another linop's event attribute. Used to coordinate GPU-to-GPU
+            transfers in parallel execution contexts. When set to a tuple like
+            ``(some_linop, "start_event")``, the device transfer will wait for that
+            event to be recorded before initiating the transfer.
+    linops across multiple devices.
     """
 
     def __init__(
@@ -41,6 +67,7 @@ class NamedLinop(nn.Module):
         name: Optional[str] = None,
         stream: Optional[Stream] = None,
         start_event: Optional[Event] = None,
+        end_event: Optional[Event] = None,
     ):
         """
         Parameters
@@ -49,10 +76,13 @@ class NamedLinop(nn.Module):
             The shape of this linop, e.g. ``NamedShape(("N",), ("M",))``
         name : str, optional
             Optional name to display for this linop.
-        stream : Stream, optional
-            The CUDA stream on which to run this linop.
+        stream : torch.cuda.Stream
+            Optional cuda Stream to run this linop on.
         start_event : Event, optional
             An event that signals when the linop has started. Useful for synchronizing multiple
+            linops across multiple devices.
+        end_event : Event, optional
+            An event that signals when the linop has completed. Useful for synchronizing multiple
             linops across multiple devices.
         """
         super().__init__()
@@ -66,16 +96,41 @@ class NamedLinop(nn.Module):
         self._name = name
         self.stream = stream
         self.start_event = start_event
+        self.end_event = end_event
+        self._input_listener = ForwardedAttribute()
+        # By default, listen for the start of this linop
+        self.input_listener = (self, "start_event")
 
+    @final
     def forward(self, x: Tensor) -> Tensor:
-        if self.start_event is not None:
-            self.start_event.record()
-        if self.stream is not None:
-            with torch.cuda.stream(self.stream):
+        """Apply the forward operation $y = A(x)$.
+
+        If a CUDA stream is assigned, execution is dispatched to that stream.
+        If a ``start_event`` is set, it is recorded before execution begins,
+        allowing other operators to synchronize on it.
+
+        Do not override this method. Instead, override .fn() and .adj_fn().
+
+        Parameters
+        ----------
+        x : Tensor
+            Input tensor.
+
+        Returns
+        -------
+        Tensor
+            The result of applying this linop to *x*.
+        """
+        if x.is_cuda:
+            stream = default_to(default_stream(x.device), self.stream)
+            self.start_event = stream.record_event()
+            with stream:
                 y = self.fn(self, x)
-            x.record_stream(self.stream)
-            return y
-        return self.fn(self, x)
+            x.record_stream(stream)
+            self.end_event = stream.record_event()
+        else:
+            y = self.fn(self, x)
+        return y
 
     def apply(self, x: Tensor) -> Tensor:
         """Apply the linear operator to a tensor."""
@@ -84,105 +139,155 @@ class NamedLinop(nn.Module):
     # Override
     @staticmethod
     def fn(linop, x: Tensor, /) -> Tensor:
-        """Apply the linop to a tensor.
+        """Compute the forward operation $y = A(x)$.
+
+        Override this in subclasses to define the linop's forward behavior.
 
         Parameters
         ----------
+        linop : NamedLinop
+            The linop instance (passed explicitly because this is a staticmethod).
         x : Tensor
-            The input to the linop.
+            Input tensor.
 
         Returns
         -------
         Tensor
-            A(x)
-            The result of applying the linop.
+            Result of applying the linop to *x*.
 
         Notes
         -----
-        - Other parameters are passed in as attributes of the linop object.
-        - Declared as a staticmethod because it needs to be unbound when swapping with adj_fn.
+        Declared as a staticmethod so that ``adjoint()`` can swap ``fn`` and
+        ``adj_fn`` on a shallow copy without bound-method complications.
         """
         return x
 
     # Override
     @staticmethod
     def adj_fn(linop, x: Tensor, /) -> Tensor:
-        """Apply the adjoint of a linop to a tensor.
+        """Compute the adjoint operation $y = A^H(x)$.
+
+        Override this in subclasses to define the linop's adjoint behavior.
 
         Parameters
         ----------
-        x : torch.Tensor
-            The input to the linop.
+        linop : NamedLinop
+            The linop instance.
+        x : Tensor
+            Input tensor.
 
         Returns
         -------
         Tensor
-            A.H(x)
-            The result of applying the linop's adjoint.
+            Result of applying the adjoint $A^H$ to *x*.
         """
         return x
 
     # Override
     @staticmethod
     def normal_fn(linop, x: Tensor, /) -> Tensor:
-        """Apply the normal of a linop to a tensor.
+        """Compute the normal operation $y = A^H A(x)$.
+
+        The default implementation composes ``adj_fn(fn(x))``. Override this
+        in subclasses that have an efficient closed-form normal (e.g.
+        ``Diagonal``, ``FFT``).
 
         Parameters
         ----------
-        x : torch.Tensor
-            The input to the linop.
+        linop : NamedLinop
+            The linop instance.
+        x : Tensor
+            Input tensor.
 
         Returns
         -------
         Tensor
-            A.H(A(x)) == A.N(x)
-            The result of applying the linop's normal function.
+            Result of applying $A^H A$ to *x*.
         """
         return linop.adj_fn(linop, linop.fn(linop, x))
 
     # Override
     def split_forward(self, ibatch, obatch) -> "NamedLinop":
-        """Split this linop into a sub-linop according to slices over its dimensions
+        """Split this linop into a sub-linop according to slices over its dimensions.
+
+        Override this in subclasses to define how the linop decomposes when tiled
+        along its named dimensions. For the companion method that handles adjoints,
+        see ``adj_split``.
 
         Parameters
         ----------
         ibatch : tuple[slice, ...]
-            The slices over the input dimensions.
+            Slices over the input dimensions, one per element of ``ishape``.
         obatch : tuple[slice, ...]
-            The slices over the output dimensions.
+            Slices over the output dimensions, one per element of ``oshape``.
+
+        Returns
+        -------
+        NamedLinop
+            A new linop that operates on the specified slice of the data.
         """
 
         return type(self)(self._shape)
 
     # Override
     def size(self, dim: str) -> int | None:
-        """Get the size of a particular dim, or return
-        None if this linop doesn't determine the size
+        """Return the concrete size of *dim*, or ``None`` if this linop does not determine it.
+
+        Parameters
+        ----------
+        dim : str
+            The named dimension to query.
+
+        Returns
+        -------
+        int or None
+            The size of the dimension, or ``None``.
         """
         return None
 
-    # Probably don't override these
+    @final
     @property
     def dims(self) -> set:
         """Get the set of dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
 
+    @final
     @property
     def H(self) -> "NamedLinop":
-        """Adjoint operator, with caching"""
-        if self._adjoint is None:
-            try:
-                _adjoint = self.adjoint()
-                _adjoint._adjoint = [self]
-                self._adjoint = [_adjoint]  # Prevent registration as a submodule
-            except AttributeError as e:
-                traceback.print_exc()
-                raise e
-            logger.debug(f"{type(self).__name__}: Making new adjoint {_adjoint._shape}")
-        return self._adjoint[0]
+        """Adjoint operator $A^H$.
+
+        By default, creates a new adjoint on each access. Set
+        ``torchlinops.config.cache_adjoint_normal = True`` to enable caching
+        (deprecated).
+        """
+        if config.cache_adjoint_normal:
+            config._warn_if_caching_enabled()
+            if self._adjoint is None:
+                try:
+                    _adjoint = self.adjoint()
+                    _adjoint._adjoint = [self]
+                    self._adjoint = [_adjoint]
+                except AttributeError as e:
+                    traceback.print_exc()
+                    raise e
+                logger.debug(
+                    f"{type(self).__name__}: Making new adjoint {_adjoint._shape}"
+                )
+            return self._adjoint[0]
+        return self.adjoint()
 
     def adjoint(self) -> "NamedLinop":
-        """Create a new adjoint linop"""
+        """Create the adjoint operator $A^H$.
+
+        The default implementation shallow-copies this linop, swaps ``fn`` and
+        ``adj_fn``, and flips the shape. Override this in subclasses that need
+        special adjoint construction (e.g. conjugating weights).
+
+        Returns
+        -------
+        NamedLinop
+            The adjoint operator, sharing the same underlying data.
+        """
         adj = copy(self)  # Retains data
         adj._shape = adj._shape.H
         # Swap functions (requires staticmethod)
@@ -191,6 +296,7 @@ class NamedLinop(nn.Module):
         adj._update_suffix(adjoint=True)
         return adj
 
+    @final
     def _update_suffix(self, adjoint: bool = False, normal: bool = False):
         if adjoint:
             if self._suffix.endswith(".H"):
@@ -200,27 +306,50 @@ class NamedLinop(nn.Module):
         elif normal:
             self._suffix += ".N"
 
+    @final
     @property
     def N(self) -> "NamedLinop":
-        """Normal operator
-        Note that the naive normal operator can always be created
-        via A.H @ A. Therefore, this function is reserved
-        for custom behavior, as many functions have optimized normal
-        forms.
+        """Normal operator $A^H A$.
+
+        Note that the naive normal operator can always be created via ``A.H @ A``.
+        This function is reserved for custom behavior, as many linops have
+        optimized normal forms.
+
+        By default, creates a new normal on each access. Set
+        ``torchlinops.config.cache_adjoint_normal = True`` to enable caching
+        (deprecated).
         """
-        if self._normal is None:
-            try:
-                _normal = self.normal()
-                self._normal = [_normal]
-            except AttributeError as e:
-                traceback.print_exc()
-                raise e
-        return self._normal[0]
+        if config.cache_adjoint_normal:
+            config._warn_if_caching_enabled()
+            if self._normal is None:
+                try:
+                    _normal = self.normal()
+                    self._normal = [_normal]
+                except AttributeError as e:
+                    traceback.print_exc()
+                    raise e
+            return self._normal[0]
+        return self.normal()
 
     def normal(self, inner=None) -> "NamedLinop":
-        """Create a new normal linop
-        inner: Optional linop for toeplitz embedding
-        TODO: Add splitting for normal ops created this way.
+        """Create the normal operator $A^H A$, optionally with an inner operator.
+
+        When *inner* is ``None`` (or ``Identity`` with the reduce-identity config
+        enabled), creates a linop whose forward pass calls ``normal_fn``.
+
+        When *inner* is provided, constructs the composition $A^H \\cdot \\text{inner} \\cdot A$,
+        which is used for Toeplitz embedding and similar optimizations.
+
+        Parameters
+        ----------
+        inner : NamedLinop, optional
+            An optional inner operator for Toeplitz embedding. If ``None``,
+            the standard normal $A^H A$ is computed.
+
+        Returns
+        -------
+        NamedLinop
+            The normal operator.
         """
         if config.inner_not_relevant(inner):
             normal = copy(self)
@@ -254,29 +383,56 @@ class NamedLinop(nn.Module):
         normal._shape_updates = getattr(inner, "_shape_updates", {})
         return normal
 
+    @final
     @staticmethod
     def split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
-        """Split a linop into sub-linops.
+        """Split a linop into a sub-linop for a given tile.
+
+        Translates a tile dictionary into per-dimension slices and delegates
+        to ``split_forward``.
 
         Parameters
         ----------
         linop : NamedLinop
             The linop to split.
         tile : Mapping[ND | str, slice]
-            Dictionary specifying how to slice the linop dimensions
+            Dictionary mapping dimension names to slices.
+
+        Returns
+        -------
+        NamedLinop
+            The sub-linop operating on the specified tile.
         """
         ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
         obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         return linop.split_forward(ibatch, obatch)
 
+    @final
     @staticmethod
     def adj_split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
-        """Split the adjoint version"""
+        """Split the adjoint of this linop for a given tile.
+
+        Constructs the adjoint, splits it according to *tile*, and returns the
+        adjoint of the split.
+
+        Parameters
+        ----------
+        linop : NamedLinop
+            The linop whose adjoint should be split.
+        tile : Mapping[ND | str, slice]
+            Dictionary mapping dimension names to slices.
+
+        Returns
+        -------
+        NamedLinop
+            The split adjoint sub-linop.
+        """
         ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
         obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
+    @final
     def flatten(self) -> list["NamedLinop"]:
         """Get a flattened list of constituent linops for composition."""
         return [self]
@@ -325,6 +481,10 @@ class NamedLinop(nn.Module):
         return NotImplemented
 
     def __rmatmul__(self, left) -> "NamedLinop":
+        if not isinstance(left, NamedLinop):
+            raise ValueError(
+                f"__rmatmul__ of linop {type(self)} with non-linop of type {type(left)} is undefined."
+            )
         return left.compose(self)
 
     @property
@@ -342,10 +502,11 @@ class NamedLinop(nn.Module):
         return self.name + self._suffix
 
     def __repr__(self):
-        event = ""
+        out = f"{self.repr_name}({self.ishape} -> {self.oshape})"
         if self.start_event is not None:
-            event = repr(self.start_event)
-        out = f"{self.repr_name}({event}{self.ishape} -> {self.oshape})"
+            out += f", start: {self.start_event.event_id:x}"
+        if self.end_event is not None:
+            out += f", end: {self.end_event.event_id:x}"
         out = INDENT.indent(out)
         return out
 
@@ -378,6 +539,24 @@ class NamedLinop(nn.Module):
         self._shape.oshape = val
 
     def to(self, device, memory_aware: bool = False, called_by_adjoint: bool = False):
+        """Move this linop (and its cached adjoint/normal) to *device*.
+
+        Parameters
+        ----------
+        device : torch.device or str
+            Target device.
+        memory_aware : bool, default False
+            If ``True``, use ``memory_aware_to`` which preserves shared-storage
+            topology when moving tensors.
+        called_by_adjoint : bool, default False
+            Internal flag to prevent infinite recursion when the adjoint
+            also calls ``.to()``.
+
+        Returns
+        -------
+        NamedLinop
+            The linop on the target device.
+        """
         if self._adjoint and not called_by_adjoint:
             # bool flag avoids infinite recursion
             self._adjoint[0] = self._adjoint[0].to(
@@ -389,6 +568,48 @@ class NamedLinop(nn.Module):
             return memory_aware_to(self, device)
         return super().to(device)
 
+    @property
+    def input_listener(self):
+        """Pointer to another linop event attribute.
+
+        Useful for facilitating gpu-gpu transfers in parallel.
+
+        For example, if ToDevice occurs inside a composing linop that allows for
+        parallel execution, e.g.
+
+        C = Concat(
+            Chain(ToDevice1, A, ...),
+            Chain(ToDevice2, B, ...),
+            ...
+        )
+
+        Then we may want to set ToDevice1 and ToDevice2 to both listen for the beginning of C.
+        That way, both device movements can be triggered in parallel.
+
+        This attribute is a universal attribute so that it can be chained in cases of nesting, e.g.
+        Add(
+            Concat(
+                Chain(ToDevice, ...), ...
+                ...
+            )
+        )
+        The innermost ToDevice can listens to Chain, which listens to Concat, which listens to Add.
+        This is good because Concat and Add both can parallelize efficiently across multiple GPUs.
+        """
+        return self._input_listener.value
+
+    @input_listener.setter
+    def input_listener(self, value):
+        if isinstance(value, tuple):
+            _log_transfer(
+                f"Setting {type(self).__name__}.input_listener to reference {type(value[0]).__name__}.{value[1]}"
+            )
+            self._input_listener.forward_to(*value)
+        else:
+            _log_transfer(f"Setting {type(self).__name__}.input_listener to {value}")
+            self._input_listener = value
+
+    @final
     def __copy__(self):
         """Specialized copying for linops.
 
@@ -415,16 +636,20 @@ class NamedLinop(nn.Module):
         new._shape = deepcopy(self._shape)
         return new
 
+    @final
     def __deepcopy__(self, _):
         return memory_aware_deepcopy(self)
 
 
 class NormalFunctionLookup:
-    """Helper class for creating new normal functions for a normal linop.
+    """Function table for the normal operator $A^N = A^H A$.
 
-    If the linop is A, and its normal is A.N, this helps with computing A.N.H and A.N.N. Note that A.N.H = A.N
+    Provides named methods that serve as ``fn``, ``adj_fn``, and ``normal_fn``
+    for a normal-operator linop. Using a class instead of lambdas keeps the
+    linop picklable (required for ``torch.multiprocessing``).
 
-    Helps with multiprocessing by avoiding lambda function definitions, thereby maintaining pickleability.
+    Since $A^N$ is self-adjoint, its forward and adjoint are the same function.
+    Its own normal is $(A^H A)^2$.
     """
 
     def __init__(self, linop):
@@ -476,3 +701,75 @@ class LinopFunction(torch.autograd.Function):
         grad_input = linop.H(grad_output)
         grad_input = torch.broadcast_to(grad_input, input_shape)
         return grad_input, grad_linop
+
+
+@dataclass
+class ForwardedAttribute:
+    """Special dataclass for forwarding attribute access to other objects.
+
+    Enables cross-linop attribute forwarding, primarily used for coordinating
+    GPU transfers via the ``input_listener`` mechanism. When a linop's
+    ``input_listener`` is set to a tuple ``(other_linop, "attribute_name")``,
+    the ForwardedAttribute transparently forwards attribute access to the
+    referenced linop.
+
+    Works best when combined with a @property.
+
+    Example:
+
+    class MyClass:
+        def __init__(self):
+            self._foo = ForwardedAttribute()
+        @property
+        def foo(self):
+            return self._foo.value
+
+        @foo.setter
+        def foo(self, new_value):
+            if isinstance(new_value, tuple):
+                self._foo.forward_to(*new_value)
+            else:
+                self._foo = new_value
+
+    """
+
+    allow_set_upstream: bool = True
+    """If true, allow setting this value to affect upstream values."""
+    _value: Optional[Any] = None
+    _obj: Optional[Any] = None
+    _attr: Optional[Any] = None
+
+    @property
+    def value(self):
+        if self._obj is None:
+            # No object to forward to
+            return self._value
+        elif self._value is not None:
+            # A preset value overrides forwarded reference
+            return self._value
+        return getattr(self._obj, self._attr)
+
+    @value.setter
+    def value(self, new_value):
+        if self._obj is None:
+            # No object to forward to
+            self._value = new_value
+        elif self.allow_set_upstream:
+            setattr(self._obj, self._attr, new_value)
+        else:
+            # Don't overwrite upstream
+            self._value = new_value
+
+            # Clear pointer
+            self._obj = None
+            self._attr = None
+
+    def forward_to(self, obj, attr):
+        """Create reference"""
+        self._obj = obj
+        self._attr = attr
+        self._value = None  # Reset value
+
+    @property
+    def is_forwarded(self) -> bool:
+        return self._obj is not None

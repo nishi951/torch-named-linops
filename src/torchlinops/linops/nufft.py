@@ -32,6 +32,21 @@ __all__ = ["NUFFT"]
 
 
 class NUFFT(Chain):
+    """Non-uniform Fast Fourier Transform (type II) as a named linear operator.
+
+    Implemented as a ``Chain`` of zero-padding, FFT, and interpolation. Supports
+    forward (image-to-kspace) and adjoint (kspace-to-image) operations.
+
+    Attributes
+    ----------
+    ndim : int
+        Number of spatial dimensions.
+    oversamp : float
+        Oversampling factor for the padded grid.
+    width : int
+        Interpolation kernel width.
+    """
+
     def __init__(
         self,
         locs: Float[Tensor, "... D"],
@@ -103,7 +118,7 @@ class NUFFT(Chain):
 
         # Initialize variables
         ndim = len(grid_size)
-        padded_size = [int(i * oversamp) for i in grid_size]
+        padded_size = tuple(int(i * oversamp) for i in grid_size)
 
         # Create Padding
         pad = PadLast(
@@ -383,8 +398,30 @@ def toeplitz_psf(
     dtype: Optional[torch.dtype] = None,
     oversamp: float = 2.0,
 ) -> NamedLinop:
-    """Compute the toeplitz PSF for this NUFFT, with
-    # TODO: maybe accommodate other oversampling factors (more complicated)
+    """Compute the Toeplitz point spread function (PSF) for a NUFFT operator.
+
+    Constructs a PSF kernel that enables efficient ``A.H @ inner @ A``
+    computation via FFT-based Toeplitz embedding, avoiding explicit
+    forward/adjoint NUFFT pairs.
+
+    Parameters
+    ----------
+    nufft : NUFFT
+        The NUFFT operator to compute the PSF for.
+    inner : NamedLinop, optional
+        An optional inner linear operator applied between the forward and
+        adjoint NUFFT (e.g., density compensation). If ``None``, defaults
+        to the identity.
+    dtype : torch.dtype, optional
+        Data type for the PSF kernel. Defaults to ``torch.complex64``.
+    oversamp : float, optional
+        Toeplitz oversampling factor. Default is 2.0.
+
+    Returns
+    -------
+    NamedLinop
+        A ``Dense`` named linear operator containing the Toeplitz PSF
+        kernel in the Fourier domain.
     """
     if isinstance(nufft.interp, Sampling):
         raise NotImplementedError(
@@ -515,6 +552,11 @@ def rescale_locs(locs, c0: tuple, w0: tuple, c1: tuple, w1: tuple, dim: int = -1
         The desired center and width parameters.
     dim : int
         The dimension of locs to unstack
+
+    Returns
+    -------
+    Tensor
+        The rescaled trajectory coordinates.
     """
     ndim = locs.shape[dim]
     out = []
