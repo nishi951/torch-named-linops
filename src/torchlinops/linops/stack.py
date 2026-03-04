@@ -94,6 +94,7 @@ class Stack(Threadable, NamedLinop):
             NS(ishape, oshape),
             threaded=threaded,
             num_workers=num_workers,
+            linops=list(linops),
         )
         self.linops = nn.ModuleList(list(linops))
 

@@ -26,7 +26,12 @@ class Threadable:
     """
 
     def __init__(
-        self, *args, threaded: bool = True, num_workers: Optional[int] = None, **kwargs
+        self,
+        *args,
+        threaded: bool = True,
+        num_workers: Optional[int] = None,
+        linops: Optional[list] = None,
+        **kwargs,
     ):
         """
         Parameters
@@ -35,12 +40,16 @@ class Threadable:
             Whether to run sub-linops in parallel. Default is True.
         num_workers : int | None, optional
             Number of worker threads. If None, defaults to len(self.linops).
+        linops : list[NamedLinop], optional
+            The list of linops to run in parallel. If provided, input listeners
+            will be set up immediately.
         """
         super().__init__(*args, **kwargs)
         self.threaded = threaded
         self.num_workers = num_workers
-        self.linops = []  # Placeholder
-        self._setup_events()
+        self.linops = linops if linops is not None else []
+        if self.linops:
+            self._setup_events()
 
     def _setup_events(self):
         for linop in self.linops:
