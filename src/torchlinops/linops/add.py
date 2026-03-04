@@ -54,6 +54,7 @@ class Add(Threadable, NamedLinop):
             NS(linops[0].ishape, linops[0].oshape),
             threaded=threaded,
             num_workers=num_workers,
+            linops=list(linops),
             **kwargs,
         )
         self.linops = nn.ModuleList(linops)

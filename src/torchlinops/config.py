@@ -17,7 +17,7 @@ reduce_identity_in_normal : bool
     call. Default is True.
 cache_adjoint_normal : bool
     If True, cache .H and .N results. Deprecated - caching adds complexity and can
-    cause stale state issues. Will be removed in a future version. Default is False.
+    cause stale state issues. Will be removed in version 0.7.0. Default is False.
 log_device_transfers : bool
     If True, log CUDA events creation, stream synchronization, and device transfers
     in the ToDevice linop and related utilities. Default is True.
@@ -32,7 +32,7 @@ import torchlinops
 reduce_identity_in_normal = True
 
 # If True, cache .H and .N results. Deprecated - caching adds complexity and
-# can cause stale state issues. Will be removed in a future version.
+# can cause stale state issues. Will be removed in version 0.7.0.
 cache_adjoint_normal = False
 
 # If True, log CUDA events creation, stream synchronization, and device transfers
@@ -49,7 +49,7 @@ def inner_not_relevant(inner):
 def _warn_if_caching_enabled():
     if cache_adjoint_normal:
         warnings.warn(
-            "cache_adjoint_normal is deprecated and will be removed in a future version. "
+            "cache_adjoint_normal is deprecated and will be removed in version 0.7.0. "
             "Caching adjoint/normal operators can lead to stale state bugs. "
             "Please set torchlinops.config.cache_adjoint_normal = False.",
             FutureWarning,

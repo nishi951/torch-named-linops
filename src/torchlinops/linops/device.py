@@ -15,7 +15,7 @@ from ..nameddim import NamedShape as NS, Shape
 from .identity import Identity
 from .namedlinop import NamedLinop, ForwardedAttribute
 
-__all__ = ["ToDevice", "DeviceSpec"]
+__all__ = ["ToDevice", "DeviceSpec", "clear_transfer_streams_registry"]
 
 logger = logging.getLogger("torchlinops")
 
@@ -23,10 +23,6 @@ logger = logging.getLogger("torchlinops")
 def _log_transfer(msg):
     if config.log_device_transfers:
         logger.info(msg)
-
-
-# Registry to keep track of transfer streams already created.
-_TRANSFER_STREAMS_REGISTRY = {}
 
 
 @dataclass
@@ -301,3 +297,16 @@ def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_listener
     )
     target_stream.wait_stream(transfer_stream)
     return out
+
+
+# Registry to keep track of transfer streams already created.
+_TRANSFER_STREAMS_REGISTRY = {}
+
+
+def clear_transfer_streams_registry() -> None:
+    """Clear the transfer streams registry.
+
+    This is useful for testing to ensure a clean state between tests.
+    The registry caches CUDA streams to enable reuse across transfers.
+    """
+    _TRANSFER_STREAMS_REGISTRY.clear()
