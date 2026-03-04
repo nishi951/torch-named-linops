@@ -36,12 +36,17 @@ def to_pytorch(array, requires_grad: bool = False):
     where tensor[..., 0] and tensor[..., 1] represent the real
     and imaginary.
 
-    Args:
-        array (numpy/cupy array): input.
-        requires_grad(bool): Set .requires_grad output tensor
-    Returns:
-        PyTorch tensor.
+    Parameters
+    ----------
+    array : numpy.ndarray or cupy.ndarray
+        Input array.
+    requires_grad : bool, optional
+        Set ``.requires_grad`` on the output tensor. Default is False.
 
+    Returns
+    -------
+    torch.Tensor
+        PyTorch tensor sharing the same data.
     """
     return torch.as_tensor(array).requires_grad_(requires_grad)
 
@@ -62,16 +67,15 @@ def to_pytorch(array, requires_grad: bool = False):
 def from_pytorch(tensor):  # pragma: no cover
     """Zero-copy conversion from pytorch tensor to numpy/cupy array.
 
-    If iscomplex, then tensor must have the last dimension as 2,
-    and the output will be viewed as a complex valued array.
+    Parameters
+    ----------
+    tensor : torch.Tensor
+        Input PyTorch tensor.
 
-    Args:
-        tensor (PyTorch tensor): input.
-        iscomplex (bool): whether input represents complex valued tensor.
-
-    Returns:
-        Numpy/cupy array.
-
+    Returns
+    -------
+    numpy.ndarray or cupy.ndarray
+        Array on the same device as the input tensor.
     """
     device = tensor.device
     if device.type == "cpu":

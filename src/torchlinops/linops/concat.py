@@ -1,21 +1,32 @@
 from copy import copy
 from typing import Optional
+import logging
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
+import torchlinops.config as config
 from torchlinops.utils import INDENT
 
 from ..nameddim import ELLIPSES, NamedDimension as ND, NamedShape as NS, isequal
 from .add import Add
+from .device import ToDevice
 from .identity import Zero
 from .namedlinop import NamedLinop
+from .threadable import Threadable, _threaded_apply, _threaded_apply_sum_reduce
 
 __all__ = ["Concat"]
 
+logger = logging.getLogger("torchlinops")
 
-class Concat(NamedLinop):
+
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
+
+
+class Concat(Threadable, NamedLinop):
     """Concatenate some linops along an existing dimension
 
     Linops need not output tensors of the same size, but they should
@@ -50,9 +61,32 @@ class Concat(NamedLinop):
         *linops,
         idim: Optional[ND | str] = None,
         odim: Optional[ND | str] = None,
+        threaded: bool = True,
+        num_workers: int | None = None,
     ):
+        """
+        Parameters
+        ----------
+        *linops : NamedLinop
+            The linops to concatenate.
+        idim : str or ND, optional
+            Input dimension along which to concatenate. If ``None``, the input
+            is not concatenated (all linops receive the same input).
+        odim : str or ND, optional
+            Output dimension along which to concatenate. If ``None``, the output
+            is not concatenated (outputs are summed).
+        threaded : bool, optional
+            Whether to run sub-linops in parallel. Default is True.
+        num_workers : int | None, optional
+            Number of worker threads. If None, defaults to len(linops).
+        """
         self._check_linop_compatibility(linops)
-        super().__init__(NS(linops[0].ishape, linops[0].oshape))
+        super().__init__(
+            NS(linops[0].ishape, linops[0].oshape),
+            threaded=threaded,
+            num_workers=num_workers,
+            linops=list(linops),
+        )
         self.linops = nn.ModuleList(list(linops))
 
         # Handle ishape
@@ -87,6 +121,9 @@ class Concat(NamedLinop):
             self.osizes = None
             self.oslices = None
 
+        if self.idim is None and self.odim is None:
+            raise ValueError(f"At least one of idim and odim cannot be None.")
+
         self.idim_idx = self._infer_dim_idx(self.idim, ishape)
         self.odim_idx = self._infer_dim_idx(self.odim, oshape)
 
@@ -99,6 +136,8 @@ class Concat(NamedLinop):
             concat.odim_idx,
             concat.islices,
             concat.oslices,
+            concat.threaded,
+            concat.num_workers,
         )
 
     @staticmethod
@@ -111,14 +150,23 @@ class Concat(NamedLinop):
             concat.idim_idx,
             concat.oslices,
             concat.islices,
+            concat.threaded,
+            concat.num_workers,
         )
 
     @staticmethod
-    def _fn(x: Tensor, linops, idim_idx, odim_idx, islices, oslices):
+    def _fn(
+        x: Tensor,
+        linops,
+        idim_idx,
+        odim_idx,
+        islices,
+        oslices,
+        threaded: bool = False,
+        num_workers: int | None = None,
+    ):
         """Unifies forward and adjoint functionality for stacked linops"""
-        # Split inputs
         if idim_idx is not None:  # Diagonal, Horizontal
-            # if sum(sizes) != x.shape[idim_idx]:
             if islices[-1] != x.shape[idim_idx]:
                 raise ValueError(
                     f"Concat Linop expecting input of size {islices[-1]} got input of size {x.shape} with non-matching concat size {x.shape[idim_idx]}"
@@ -127,19 +175,20 @@ class Concat(NamedLinop):
         else:  # Vertical
             xs = [x] * len(oslices)
 
-        # Compute linop(x) for all xs
         if odim_idx is not None:  # Diagonal, Vertical
-            ys = []
-            for xi, linop in zip(xs, linops):
-                ys.append(linop(xi))
+            if threaded:
+                ys = _threaded_apply(list(linops), xs, num_workers)
+            else:
+                ys = [linop(xi) for xi, linop in zip(xs, linops)]
             return torch.concatenate(ys, dim=odim_idx)
 
-        # Memory savings by accumulating
         # Horizontal
-        y = 0.0
-        # Combine outputs
-        for xi, linop in zip(xs, linops):
-            y += linop(xi)
+        if threaded:
+            y = _threaded_apply_sum_reduce(list(linops), xs, num_workers)
+        else:
+            y = 0.0
+            for xi, linop in zip(xs, linops):
+                y += linop(xi)
         return y
 
     def size(self, dim):

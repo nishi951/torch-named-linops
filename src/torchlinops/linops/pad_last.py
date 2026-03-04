@@ -27,6 +27,20 @@ class PadLast(NamedLinop):
         out_shape: Optional[Shape] = None,
         batch_shape: Optional[Shape] = None,
     ):
+        """
+        Parameters
+        ----------
+        pad_im_size : tuple[int, ...]
+            Target (padded) size for the last dimensions.
+        im_size : tuple[int, ...]
+            Original (unpadded) size for the last dimensions.
+        in_shape : Shape, optional
+            Named shape for the input spatial dimensions.
+        out_shape : Shape, optional
+            Named shape for the output spatial dimensions.
+        batch_shape : Shape, optional
+            Named shape for batch dimensions.
+        """
         if len(pad_im_size) != len(im_size):
             raise ValueError(
                 f"Padded and unpadded dims should be the same length. padded: {pad_im_size} unpadded: {im_size}"
@@ -115,18 +129,31 @@ def pad_to_scale(grid_size, scale_factor):
 
 
 def pad_to_size(grid_size, padded_size):
-    """Construct a padding list suitable for torch.nn.functional.pad
+    """Construct a padding list suitable for ``torch.nn.functional.pad``.
 
-    Pad will take an input with size `grid_size` and return an output with size `factor * grid_size`
+    Computes centered padding so that an input of ``grid_size`` is padded to
+    ``padded_size``. Preserves the centre of the image or k-space when it has
+    been ``fftshift``-ed.
 
     Padding rules:
-    odd/even image + even pad -> [pad // 2, pad // 2]
-    even image + odd pad -> [pad // 2, pad // 2 + 1]
-    odd image + odd pad -> [pad // 2 + 1, pad // 2]
 
-    Preserves the "center" of the image or kspace if it has been fftshifted
+    - odd/even image + even pad -> ``[pad // 2, pad // 2]``
+    - even image + odd pad -> ``[pad // 2, pad // 2 + 1]``
+    - odd image + odd pad -> ``[pad // 2 + 1, pad // 2]``
 
-    Useful for e.g. padding an image to increase resolution in fourier domain
+    Parameters
+    ----------
+    grid_size : tuple[int, ...]
+        Original spatial dimensions of the input.
+    padded_size : tuple[int, ...]
+        Desired spatial dimensions after padding.
+
+    Returns
+    -------
+    list[int]
+        Flat padding list in the format expected by
+        ``torch.nn.functional.pad`` (reversed dimension order,
+        ``[left_last, right_last, left_second_last, ...]``).
     """
     if len(grid_size) != len(padded_size):
         raise ValueError(

@@ -38,7 +38,7 @@ import warnings
 import matplotlib.pyplot as plt
 import torch
 
-from torchlinops import NUFFT, Dense, Diagonal, Dim, Identity
+from torchlinops import NUFFT, Dense, Diagonal, Dim
 from torchlinops.alg import conjugate_gradients, power_method
 
 # Set random seed for reproducibility
@@ -185,8 +185,6 @@ def analytic_radial_dcf(locs):
     ----------
     locs : torch.Tensor
         K-space locations with shape (N, 2)
-    grid_size : tuple
-        Image grid size (Nx, Ny)
 
     Returns
     -------

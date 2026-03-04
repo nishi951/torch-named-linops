@@ -18,19 +18,36 @@ def power_method(
     dim: Optional[int | Tuple] = None,
     tqdm_kwargs: Optional[dict] = None,
 ) -> tuple[Tensor, Tensor]:
-    """Finds the maximum eigenvalue (in absolute value) of square matrix A
+    """Estimate the largest eigenvalue (in magnitude) of $A$ via the power method.
+
+    Repeatedly applies $v \\leftarrow A(v) / \\|A(v)\\|$ until the eigenvalue
+    estimate converges or *max_iters* is reached.
 
     Parameters
     ----------
-    dim : Optional[int | Tuple]
-        If not None, compute eigenvalues along only that dimension
-        Enables batched power method over several stacked matrices
+    A : Callable[[Tensor], Tensor]
+        Function implementing the matrix-vector product $A(v)$.
+        $A$ should be a square (normal) operator.
+    v_init : Tensor
+        Initial vector. Should be nonzero.
+    max_iters : int, default 50
+        Maximum number of power iterations.
+    eps : float, default 0.0
+        Small constant added to norms to avoid division by zero.
+    tol : float, default 1e-5
+        Relative convergence tolerance on the eigenvalue estimate.
+    dim : int or tuple, optional
+        If not ``None``, compute eigenvalues along the specified dimension(s),
+        enabling a batched power method over several stacked matrices.
+    tqdm_kwargs : dict, optional
+        Extra keyword arguments forwarded to ``tqdm``.
 
     Returns
     -------
-    Tensor : The eigenvector
-    Tensor : its associated eigenvalue
-
+    v : Tensor
+        The estimated eigenvector (unit norm).
+    eigenvalue : Tensor
+        The estimated eigenvalue $\\|A(v)\\|$.
     """
     # Default values
     tqdm_kwargs = default_to_dict(dict(desc="Power Method"), tqdm_kwargs)

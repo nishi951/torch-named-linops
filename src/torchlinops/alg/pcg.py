@@ -20,29 +20,38 @@ def conjugate_gradients(
     disable_tracking: bool = False,
     tqdm_kwargs: Optional[dict] = None,
 ) -> Tensor | None:
-    """Solve Ax = y with conjugate gradients.
+    """Solve $Ax = y$ with the conjugate gradient method.
 
-    A is a positive semidefinite matrix.
+    $A$ must be positive semidefinite (Hermitian). The algorithm iterates at
+    most *max_num_iters* times or until both the loss-difference and
+    gradient-norm convergence criteria are met.
 
     Parameters
     ----------
-    A : Callable
-        Functional form of the (positive semidefinite) A matrix
-    y : vector
-        RHS of matrix equality
+    A : Callable[[Tensor], Tensor]
+        Function implementing the matrix-vector product $A(x)$.
+    y : Tensor
+        Right-hand side of the linear system.
     x0 : Tensor, optional
-        Initial guess at solution. If not provided, will initialize at zero
+        Initial guess. Defaults to the zero vector.
     max_num_iters : int, default 20
-        The maximum number of iterations to run the algorithm
-    tol : float, default 1e-6
-        The relative change threshold for stopping early
-    **tqdm_kwargs
-        Extra keyword arguments to pass to tqdm
+        Maximum number of CG iterations.
+    gtol : float, default 1e-3
+        Convergence tolerance on the gradient norm $\\|Ax - y\\|$.
+    ltol : float, default 1e-5
+        Convergence tolerance on the absolute change in loss between
+        successive iterations.
+    disable_tracking : bool, default False
+        If ``True``, skip loss/gradient tracking for speed (convergence
+        checking is also disabled).
+    tqdm_kwargs : dict, optional
+        Extra keyword arguments forwarded to ``tqdm``.
 
     Returns
     -------
-    Tensor
-        The result of conjugate gradient
+    Tensor or None
+        The approximate solution $x$, or ``None`` if the solver was not
+        able to produce a result.
     """
     # Default values
     if x0 is None:
@@ -81,26 +90,32 @@ def conjugate_gradients(
 
 @dataclass
 class CGRun:
-    """Track various aspects of the run
+    """Tracks convergence state during a conjugate gradient run.
 
-    Notes
-    -----
-    Assume A is positive definite.
-    Letting A^(1/2) = B and z = B^(-H)y = B^(-1)y
-    Then the solution to the least squares problem
-        1/2||Bx - z||_2^2
-    is given by the x satisfying
-    B^HBx = B^Hz
-    Ax = y <- The problem that CG solves
+    Assumes $A$ is positive definite. Monitors the quadratic loss
+    $\\ell(x) = x^H A x - x^H y - y^H x + \\text{const}$ and the gradient
+    norm $\\|Ax - y\\|$ to decide when to stop.
 
-    For purposes of convergence testing, we can compute the gradients and loss values as
-    grad = B^HBx - B^Hz
-         = Ax - y
-    loss = x^HB^HBx - x^HB^Hz - z^HBx + z^Hz
-         = x^HAx - x^Hy - y^Hx + y^A^(-1)y
-
-
-
+    Parameters
+    ----------
+    ltol : float
+        Loss-difference convergence tolerance.
+    gtol : float
+        Gradient-norm convergence tolerance.
+    A : Callable[[Tensor], Tensor]
+        The linear operator.
+    y : Tensor
+        Right-hand side vector.
+    x_out : Tensor, optional
+        The current best iterate.
+    prev_loss : float, optional
+        Loss at the previous iteration.
+    loss : float
+        Loss at the current iteration.
+    gnorm : float, optional
+        Current gradient norm.
+    disable : bool
+        If ``True``, skip all tracking for speed.
     """
 
     ltol: float
@@ -108,7 +123,6 @@ class CGRun:
     A: Callable
     y: Tensor
     x_out: Optional[Tensor] = None
-    """The final tensor to output"""
 
     # Convergence
     prev_loss: float = None
@@ -119,6 +133,13 @@ class CGRun:
     disable: bool = False
 
     def update(self, x: Tensor):
+        """Update loss and gradient norm for iterate *x*.
+
+        Parameters
+        ----------
+        x : Tensor
+            The current CG iterate.
+        """
         if self.disable:
             self.x_out = x
             return
@@ -152,6 +173,7 @@ class CGRun:
         )
 
     def is_converged(self) -> bool:
+        """Check whether both loss-difference and gradient-norm criteria are met."""
         if self.disable:
             return False
         ldiff = abs(self.loss - self.prev_loss)

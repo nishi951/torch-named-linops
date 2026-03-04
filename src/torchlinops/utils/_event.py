@@ -1,16 +1,36 @@
+import warnings
+
 import torch
 
 __all__ = ["RepeatedEvent"]
 
 
 class RepeatedEvent:
+    """Manage a FIFO queue of CUDA events for stream synchronization.
+
+    .. deprecated::
+        This class is deprecated and will be removed in version 0.7.0.
+        The functionality is no longer used internally.
+
+    Keeps only the most recent event, dropping old references to free
+    resources. The wrapper itself can be passed directly to wait_event().
+    """
+
     def __init__(self, **event_kwargs):
+        warnings.warn(
+            "RepeatedEvent is deprecated and will be removed in version 0.7.0. "
+            "This class is no longer used internally.",
+            FutureWarning,
+            stacklevel=2,
+        )
         """
         A wrapper so each record() creates a fresh CUDA event,
         but the wrapper itself can be passed directly to wait_event().
 
-        Args:
-            event_kwargs: Passed to torch.cuda.Event(...)
+        Parameters
+        ----------
+        **event_kwargs
+            Keyword arguments passed to ``torch.cuda.Event(...)``.
         """
         self._event_kwargs = event_kwargs
         self._last_event = None

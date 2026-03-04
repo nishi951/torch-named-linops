@@ -19,7 +19,31 @@ def nufft(
     oversamp: float = 1.25,
     width: float = 4.0,
 ):
-    """Functional interface for NUFFT"""
+    """Functional interface for the Non-Uniform Fast Fourier Transform.
+
+    Computes the forward NUFFT of input data at specified non-uniform
+    locations. Internally applies apodization, zero-padding, FFT, and
+    interpolation.
+
+    Parameters
+    ----------
+    x : Tensor
+        Input data on a regular grid. The last ``D`` dimensions are
+        treated as spatial dimensions, where ``D = locs.shape[-1]``.
+    locs : Float[Tensor, "... D"]
+        Non-uniform sample locations. Each entry along the last dimension
+        corresponds to a spatial axis and should lie in
+        ``[-N//2, N//2]`` where ``N`` is the grid size along that axis.
+    oversamp : float, optional
+        Oversampling factor for the padded FFT grid. Default is 1.25.
+    width : float, optional
+        Interpolation kernel width. Default is 4.0.
+
+    Returns
+    -------
+    Tensor
+        NUFFT values evaluated at the non-uniform locations.
+    """
 
     grid_size = x.shape[-locs.shape[-1] :]
     params = init_nufft(grid_size, locs, oversamp, width, x.device)
@@ -45,7 +69,32 @@ def nufft_adjoint(
     oversamp: float = 1.25,
     width: float = 4.0,
 ):
-    """Functional interface for adjoint NUFFT"""
+    """Functional interface for the adjoint NUFFT.
+
+    Grids non-uniformly sampled data back onto a regular grid. Internally
+    applies adjoint interpolation (gridding), inverse FFT, cropping, and
+    apodization correction.
+
+    Parameters
+    ----------
+    x : Tensor
+        Non-uniformly sampled data to be gridded.
+    locs : Float[Tensor, "... D"]
+        Non-uniform sample locations. Each entry along the last dimension
+        corresponds to a spatial axis and should lie in
+        ``[-N//2, N//2]`` where ``N`` is the grid size along that axis.
+    grid_size : tuple of int
+        Desired output grid size for each spatial dimension.
+    oversamp : float, optional
+        Oversampling factor for the padded FFT grid. Default is 1.25.
+    width : float, optional
+        Interpolation kernel width. Default is 4.0.
+
+    Returns
+    -------
+    Tensor
+        Gridded data on a regular grid of shape ``(..., *grid_size)``.
+    """
     params = init_nufft(grid_size, locs, oversamp, width, x.device)
 
     x = x / params.scale_factor
@@ -64,6 +113,40 @@ def nufft_adjoint(
 
 
 def init_nufft(grid_size, locs, oversamp, width, device):
+    """Initialize NUFFT parameters.
+
+    Computes the oversampled grid size, interpolation kernel beta parameter,
+    apodization weights, padding attributes, rescaled locations, and scaling
+    factor needed by the functional NUFFT forward and adjoint passes.
+
+    Parameters
+    ----------
+    grid_size : tuple of int
+        Original spatial grid dimensions.
+    locs : Float[Tensor, "... D"]
+        Non-uniform sample locations.
+    oversamp : float
+        Oversampling factor for the padded FFT grid.
+    width : float
+        Interpolation kernel width.
+    device : torch.device
+        Device on which to place computed tensors.
+
+    Returns
+    -------
+    SimpleNamespace
+        Namespace containing the following fields:
+
+        - ``ndim`` : number of spatial dimensions
+        - ``dim`` : tuple of negative axis indices for the spatial dims
+        - ``grid_size`` : original grid size
+        - ``padded_size`` : oversampled grid size
+        - ``locs`` : rescaled sample locations
+        - ``beta`` : Kaiser-Bessel beta parameter
+        - ``apodize`` : apodization correction weights
+        - ``pad_ns`` : namespace with padding attributes
+        - ``scale_factor`` : normalization scale factor
+    """
     ndim = locs.shape[-1]
     dim = tuple(range(-ndim, 0))
     padded_size = tuple(int(s * oversamp) for s in grid_size)

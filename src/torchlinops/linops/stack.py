@@ -1,23 +1,34 @@
 from collections.abc import Mapping
 from copy import copy
 from typing import Optional
+import logging
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
+import torchlinops.config as config
 from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
 
-from .add import Add
-from .identity import Zero
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
+from .add import Add
+from .device import ToDevice
+from .identity import Zero
 from .namedlinop import NamedLinop
+from .threadable import Threadable, _threaded_apply, _threaded_apply_sum_reduce
 
 __all__ = ["Stack"]
 
+logger = logging.getLogger("torchlinops")
 
-class Stack(NamedLinop):
+
+def _log_transfer(msg):
+    if config.log_device_transfers:
+        logger.info(msg)
+
+
+class Stack(Threadable, NamedLinop):
     """Concatenate some linops along a new dimension
 
     Linops need not output tensors of the same size, but they should
@@ -52,11 +63,22 @@ class Stack(NamedLinop):
         *linops: NamedLinop,
         idim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
         odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
+        threaded: bool = True,
+        num_workers: int | None = None,
     ):
         """
-        stack_input_dim / stack_output_dim : int
-            If not None, inputs will be stacked (rather than concatenated) along the requested
-            dimension. idim / odim must NOT be present if the respective stack_* flag is set.
+        Parameters
+        ----------
+        *linops : NamedLinop
+            The linops to stack.
+        idim_and_idx : tuple, optional
+            Tuple of ``(dim_name, index_tensor)`` for the input stacking dimension.
+        odim_and_idx : tuple, optional
+            Tuple of ``(dim_name, index_tensor)`` for the output stacking dimension.
+        threaded : bool, optional
+            Whether to run sub-linops in parallel. Default is True.
+        num_workers : int | None, optional
+            Number of worker threads. If None, defaults to len(linops).
         """
         self._check_linop_compatibility(linops)
 
@@ -68,7 +90,12 @@ class Stack(NamedLinop):
         )
 
         # Initialize parent class
-        super().__init__(NS(ishape, oshape))
+        super().__init__(
+            NS(ishape, oshape),
+            threaded=threaded,
+            num_workers=num_workers,
+            linops=list(linops),
+        )
         self.linops = nn.ModuleList(list(linops))
 
     @staticmethod
@@ -93,6 +120,8 @@ class Stack(NamedLinop):
             stack.linops,
             stack.idim_idx,
             stack.odim_idx,
+            stack.threaded,
+            stack.num_workers,
         )
 
     @staticmethod
@@ -103,12 +132,20 @@ class Stack(NamedLinop):
             adj_linops,
             stack.odim_idx,
             stack.idim_idx,
+            stack.threaded,
+            stack.num_workers,
         )
 
     @staticmethod
-    def _fn(x: Tensor, linops, idim_idx, odim_idx):
+    def _fn(
+        x: Tensor,
+        linops,
+        idim_idx,
+        odim_idx,
+        threaded: bool = False,
+        num_workers: int | None = None,
+    ):
         """Unifies forward and adjoint functionality for stacked linops"""
-        # Split inputs
         if idim_idx is not None:  # Diagonal, Horizontal
             if len(linops) != x.shape[idim_idx]:
                 raise ValueError(
@@ -119,17 +156,20 @@ class Stack(NamedLinop):
         else:  # Vertical
             xs = [x] * len(linops)
 
-        # Compute linop(x) for all xs
         if odim_idx is not None:  # Diagonal, Vertical
-            ys = []
-            for xi, linop in zip(xs, linops):
-                ys.append(linop(xi))
+            if threaded:
+                ys = _threaded_apply(list(linops), xs, num_workers)
+            else:
+                ys = [linop(xi) for xi, linop in zip(xs, linops)]
             return torch.stack(ys, dim=odim_idx)
 
         # Horizontal
-        y = 0
-        for xi, linop in zip(xs, linops):
-            y += linop(xi)
+        if threaded:
+            y = _threaded_apply_sum_reduce(list(linops), xs, num_workers)
+        else:
+            y = 0
+            for xi, linop in zip(xs, linops):
+                y += linop(xi)
         return y
 
     def size(self, dim) -> int | None:
@@ -313,17 +353,17 @@ class Stack(NamedLinop):
         return output
 
 
-def strict_update(d1: Mapping, d2: Mapping) -> Mapping:
+def strict_update(d1: dict, d2: dict) -> dict:
     """Strictly updates one dictionary with values from the other.
 
     Parameters
     ----------
-    d1, d2 : Mappings
-        The mappings to combine.
+    d1, d2 : dict
+        The dictionaries to combine.
 
     Returns
     -------
-    Mapping
+    dict
         The combined mapping.
 
     Raises

@@ -13,6 +13,12 @@ __all__ = ["Truncate", "PadDim"]
 
 
 class Truncate(NamedLinop):
+    """Truncation (slicing) operator along the last dimension.
+
+    Extracts a contiguous slice from the input. The adjoint zero-pads
+    back to the original size.
+    """
+
     def __init__(
         self,
         dim: int,
@@ -84,6 +90,12 @@ class Truncate(NamedLinop):
 
 
 class PadDim(NamedLinop):
+    """Zero-padding operator along a specified dimension.
+
+    Pads the input with zeros. The adjoint truncates (slices) back to
+    the original size.
+    """
+
     def __init__(self, dim, length, ishape, oshape):
         self.dim = dim
         self.length = length

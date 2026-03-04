@@ -25,7 +25,7 @@ def parallel_call(
     """
     if len(modules) != len(args):
         raise ValueError(
-            f"modules and args must be same length but got {len(modules) } != {len(args)}"
+            f"modules and args must be same length but got {len(modules)} != {len(args)}"
         )
     # Initialize input queues, output_queues, and received queues
     n_procs = len(modules)

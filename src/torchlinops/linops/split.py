@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import ceil
 from typing import Optional
 from warnings import warn
@@ -12,9 +12,11 @@ from torchlinops.utils import (
     RepeatedEvent,
     batch_iterator,
     dict_product,
+    default_to,
 )
 
 from .add import Add
+from .chain import Chain
 from .concat import Concat
 from .device import ToDevice
 from ..nameddim import NamedDimension as ND
@@ -31,111 +33,137 @@ Tile = dict[ND | str, Batch]
 
 @dataclass
 class BatchSpec:
+    """Specification for splitting and distributing a linop across devices.
+
+    Parameters
+    ----------
+    batch_sizes : dict[ND | str, int]
+        Mapping from dimension names to chunk sizes for tiling.
+    device_matrix : np.ndarray or list, optional
+        Array of ``torch.device`` objects specifying target devices for each
+        tile. Broadcast to match the tile grid shape.
+    base_device : torch.device, optional
+        The device where input/output data resides. Default is CPU.
+    """
+
     batch_sizes: dict[ND | str, int]
-    device_matrix: Optional[np.ndarray | list] = None
-    base_device: Optional[torch.device] = torch.device("cpu")
-    base_stream: Optional[Stream] = None
-    transfer_stream: Optional[Stream] = None
+    device_matrix: np.ndarray | None = None
+    base_device: torch.device | None = None
 
     def __post_init__(self):
         if not isinstance(self.batch_sizes, dict):
             warn(
                 f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
             )
-        if self.base_stream is None and self.base_device.type == "cuda":
-            self.base_stream = torch.cuda.default_stream(self.base_device)
-            self.transfer_stream = Stream(self.base_device)
+        # Ensure ndarray
+        if isinstance(self.device_matrix, list | tuple):
+            self.device_matrix = np.array(self.device_matrix)
 
     def broadcast_device_matrix(self, linop):
-        if self.device_matrix is not None:
-            batch_dims = list(self.batch_sizes.keys())
-            sizes = {dim: linop.size(dim) for dim in linop.dims}
-            # Create and broadcast device_matrix over requested split
-            tiled_shape = tuple(
-                ceil(sizes[dim] / self.batch_sizes[dim]) for dim in batch_dims
-            )
-            if not isinstance(self.device_matrix, np.ndarray):
-                device_matrix = np.array(self.device_matrix, dtype=object)
-            device_matrix = fuzzy_broadcast_to(device_matrix, tiled_shape)
-            return device_matrix
-        return None
+        # Compute the number of tiles along each batched axis/dimension
+        batch_dims = list(self.batch_sizes.keys())
+        sizes = {dim: linop.size(dim) for dim in linop.dims}
+        tiled_shape = tuple(
+            ceil(sizes[dim] / self.batch_sizes[dim]) for dim in batch_dims
+        )
+
+        # Broadcast device_matrix over requested tiles.
+        # Each tile should receive a single device.
+        device_matrix = fuzzy_broadcast_to(self.device_matrix, tiled_shape)
+        return device_matrix
 
 
-def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=None):
+def create_batched_linop(
+    linop,
+    batch_specs: BatchSpec | list[BatchSpec],
+    default_device: torch.device = None,
+    _mmap=None,
+):
+    """Split and distribute a linop across devices according to batch specs.
+
+    Recursively processes a list of ``BatchSpec`` objects: the first spec
+    splits the linop into tiles, optionally places each tile on a target
+    device, then passes remaining specs to each tile recursively. Tiles are
+    reassembled via ``Concat`` (for partitioned dimensions) or ``Add`` (for
+    reduced dimensions).
+
+    Parameters
+    ----------
+    linop : NamedLinop
+        The operator to split and distribute.
+    batch_specs : BatchSpec or list[BatchSpec]
+        One or more batch specifications to apply (processed in order).
+    _mmap : ModuleMemoryMap, optional
+        Internal memory map for efficient device transfers. Created
+        automatically on the first call. Probably don't set this manually.
+    _default_device : torch.device, optional
+        The default device to use if no device info is provided in the batch spec.
+
+    Returns
+    -------
+    NamedLinop
+        A composite linop (tree of ``Concat``/``Add``/``ToDevice`` operators)
+        that is functionally equivalent to the original but distributed
+        according to the batch specs.
     """
-    Examples
-    --------
-    >>> from torchlinops import Dense
-    >>> non_gpu_batchspec = BatchSpec({"B": 2})
-    >>> gpu_batchspec = BatchSpec({"C": 1}, device_matrix=[torch.device("cuda:0"), "cpu"])
-
-    """
+    if default_device is None:
+        default_device = torch.device("cpu")
     if isinstance(batch_specs, BatchSpec):
         # Ensure list
         batch_specs = [batch_specs]
     if _mmap is None:
         _mmap = ModuleMemoryMap()
         _mmap.register_module(linop)
-
     if len(batch_specs) == 0:
+        # Recursive ending
         return linop
     batch_spec = batch_specs[0]
+    # Set defaults
+    batch_spec.base_device = default_to(default_device, batch_spec.base_device)
+    batch_spec.device_matrix = default_to(
+        np.array([default_device]), batch_spec.device_matrix
+    )
+
+    # Split linop into tiles and broadcast device spec to the tile array.
     linops, ibatches, obatches = split_linop(linop, batch_spec.batch_sizes)
     device_matrix = batch_spec.broadcast_device_matrix(linop)
+    if device_matrix.shape != linops.shape:
+        raise ValueError(
+            f"device_matrix and linops should have same shape after broadcasting, but got device_matrix: {device_matrix.shape} and linops: {linops.shape}"
+        )
 
-    if device_matrix is not None:
-        # Create streams
-        target_streams = {
-            device: torch.cuda.default_stream(device)
-            for device in set(batch_spec.device_matrix)
-            if device.type == "cuda"
-        }
-        if device_matrix.shape != linops.shape:
-            raise ValueError(
-                f"Broadcasted device matrix with shape {device_matrix.shape} can't be broadcasted to exact shape of linop tiles with shape {linops.shape}"
-            )
-        device_matrix = device_matrix.reshape(-1)  # Flatten
+    # Create event to trigger all tiles in the linop.
+    source_device = batch_spec.base_device
+    # Allocate output
+    for idx in np.ndindex(linops.shape):
+        linop, target_device = linops[idx], device_matrix[idx]
 
-    # Work with flattened linop
-    linops_shape = linops.shape
-    linops = linops.reshape(-1)  # Flatten
-    wait_event = None
-    for i, linop in enumerate(linops):
-        tiled_linop = create_batched_linop(linop, batch_specs[1:], _mmap)
-        if device_matrix is not None:
-            device = device_matrix[i]
-            tiled_linop = _mmap.memory_aware_to(tiled_linop, device)
+        # Recursive call to batch the tile
+        tiled_linop = create_batched_linop(
+            linop, batch_specs[1:], default_device=target_device, _mmap=_mmap
+        )
 
-            # Wrap with streams
-            if batch_spec.base_device.type == "cuda" and device.type == "cuda":
-                transfer_stream = batch_spec.transfer_stream
-                base_stream = batch_spec.base_stream
-                target_stream = target_streams[device]
-                tiled_linop.stream = target_stream
-                if wait_event is None:
-                    wait_event = RepeatedEvent()  # Trigger start of linops
-            else:
-                base_stream = transfer_stream = target_stream = None
-            tiled_linop = (
+        # Move linop to device
+        tiled_linop = _mmap.memory_aware_to(tiled_linop, target_device)
+
+        # Wrap with device movement linops
+        if source_device != target_device:
+            tiled_linop = Chain(
                 ToDevice(
-                    device,
-                    batch_spec.base_device,
-                    ioshape=tiled_linop.oshape,
-                    istream=target_stream,
-                    ostream=base_stream,
-                )
-                @ tiled_linop
-                @ ToDevice(
-                    batch_spec.base_device,
-                    device,
+                    source_device,
+                    target_device,
                     ioshape=tiled_linop.ishape,
-                    istream=transfer_stream,
-                    ostream=target_stream,
-                    wait_event=wait_event,
-                )
+                ),
+                tiled_linop,
+                ToDevice(
+                    target_device,
+                    source_device,
+                    ioshape=tiled_linop.oshape,
+                ),
             )
-        linops[i] = tiled_linop
-    linops = linops.reshape(linops_shape)
+
+        # Overwrite entry in linops
+        linops[idx] = tiled_linop
 
     for dim in reversed(batch_spec.batch_sizes):
         # Manual axis reduction because I made Concat and Add too nice
@@ -154,28 +182,28 @@ def create_batched_linop(linop, batch_specs: BatchSpec | list[BatchSpec], _mmap=
             new_linops[i] = new_linop
         linops = new_linops.reshape(linops.shape[:-1])
     linop = linops.item()
-    if wait_event is not None:
-        # Trigger transfers at start of linop
-        linop.start_event = wait_event
     return linop
 
 
 def split_linop(linop: NamedLinop, batch_sizes: dict[ND | str, int]):
-    """Split a linop into smaller linops according to some batch sizes
+    """Split a linop into an nd-array of sub-linops according to batch sizes.
 
     Parameters
     ----------
     linop : NamedLinop
-        The NamedLinop to be split.
+        The linop to be split.
     batch_sizes : dict[ND | str, int]
-        Dictionary mapping dims to batch sizes for those dims.
-    device_matrix : list | np.ndarray, optional
-        Optional list of devices to broadcast the linop over. See notes for device
-        broadcasting rules.
+        Dictionary mapping dimension names to chunk sizes.
 
     Returns
     -------
-
+    linops : np.ndarray
+        Array of sub-linops with shape determined by the number of tiles
+        per dimension.
+    input_batches : np.ndarray
+        Corresponding input slices for each tile.
+    output_batches : np.ndarray
+        Corresponding output slices for each tile.
     """
     # Precompute sizes and shapes
     batch_sizes = {ND.infer(k): v for k, v in batch_sizes.items()}
@@ -195,7 +223,7 @@ def split_linop(linop: NamedLinop, batch_sizes: dict[ND | str, int]):
 
     for tile in tiles:
         idx = _tile_get_idx(tile, batch_dims)
-        linop_tile = split_linop_with_tile(linop, tile)
+        linop_tile = _split_linop_with_tile(linop, tile)
         linop_flat = linop_tile.flatten()
         first_linop, last_linop = linop_flat[0], linop_flat[-1]
         linops[idx] = linop_tile
@@ -251,8 +279,21 @@ def fuzzy_broadcast_to(arr: np.ndarray, target_shape):
     return np.broadcast_to(arr, target_shape)
 
 
-def split_linop_with_tile(linop: NamedLinop, tile: Tile):
-    """Split a linop according to batch specified in tile"""
+def _split_linop_with_tile(linop: NamedLinop, tile: Tile):
+    """Split a linop according to batch specified in tile.
+
+    Parameters
+    ----------
+    linop : NamedLinop
+        The linop to split.
+    tile : Tile
+        Dictionary mapping dimension names to (index, slice) pairs.
+
+    Returns
+    -------
+    NamedLinop
+        The split sub-linop operating on the specified tile.
+    """
     slice_map = {key: value[1] for key, value in tile.items()}
     linop_tile = linop.split(linop, slice_map)
     return linop_tile
@@ -267,24 +308,29 @@ def make_batch_iterators(
     total_sizes: dict[str, int],
     batch_sizes: dict[str, int],
 ) -> Tile:
-    """Construct dictionaries mapping batchable dims to lists of slices
-    corresponding to the actual batches
+    """Build per-dimension lists of ``(index, slice)`` pairs for tiling.
 
-    Also includes an int index at dim 0
+    Parameters
+    ----------
+    total_sizes : dict[str, int]
+        Total size of each dimension.
+    batch_sizes : dict[str, int]
+        Chunk size for dimensions that should be batched.
 
-    Explanation
-    -----------
-    If we have batch size 3 for dim D (i.e. batch_sizes = {"D": 3})
-    and the total size for dim D is 7, then
+    Returns
+    -------
+    dict
+        Maps each dimension to a list of ``(tile_index, slice)`` tuples.
 
-    batch_iterators["D"] = [(0, slice(0, 3)), (1, slice(3, 6)), (2, slice(6, 7))]
+    Notes
+    -----
+    If ``batch_sizes = {"D": 3}`` and the total size for ``D`` is 7::
 
-    If "E" is some other dimension not batched, then
+        batch_iterators["D"] = [(0, slice(0,3)), (1, slice(3,6)), (2, slice(6,7))]
 
-    batch_iterators["E"] = [(0, slice(None))]
+    Unbatched dimension ``E``::
 
-
-
+        batch_iterators["E"] = [(0, slice(None))]
     """
     batch_iterators = {}
     for dim, total in total_sizes.items():
@@ -335,17 +381,20 @@ def is_broadcastable(a, b):
 
 
 def repeat_along_axes(arr, repeats):
-    """
-    Repeat a numpy array along its axes.
+    """Repeat a numpy array along its axes.
 
-    Parameters:
-    - arr: np.ndarray
-    - repeats: list or tuple of ints, with one repeat count per axis.
-               If len(repeats) < arr.ndim, remaining axes are not repeated.
-               If len(repeats) > arr.ndim, array is reshaped to add new axes.
+    Parameters
+    ----------
+    arr : np.ndarray
+        The array to repeat.
+    repeats : list or tuple of int
+        One repeat count per axis. If shorter than ``arr.ndim``, remaining
+        axes are not repeated. If longer, singleton dimensions are added.
 
-    Returns:
-    - Repeated array.
+    Returns
+    -------
+    np.ndarray
+        The repeated array.
     """
     arr = np.asarray(arr)
     ndim = arr.ndim
@@ -362,17 +411,20 @@ def repeat_along_axes(arr, repeats):
 
 
 def tile_along_axes(arr, tile_counts):
-    """
-    Tile a numpy array along its axes.
+    """Tile a numpy array along its axes.
 
-    Parameters:
-    - arr: np.ndarray
-    - tile_counts: list or tuple of ints, with one tile count per axis.
-                   If len(tile_counts) < arr.ndim, missing axes default to 1.
-                   If len(tile_counts) > arr.ndim, singleton dimensions are added.
+    Parameters
+    ----------
+    arr : np.ndarray
+        The array to tile.
+    tile_counts : list or tuple of int
+        One tile count per axis. If shorter than ``arr.ndim``, missing axes
+        default to 1. If longer, singleton dimensions are added.
 
-    Returns:
-    - Tiled array.
+    Returns
+    -------
+    np.ndarray
+        The tiled array.
     """
     arr = np.asarray(arr)
     ndim = arr.ndim
