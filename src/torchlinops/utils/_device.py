@@ -44,7 +44,7 @@ def resolve_device(dev):
         A device object representing the resolved device.
     """
     d = torch.device(dev)
-    if d.type == "cuda" and d.index is None:
+    if d.type == "cuda" and d.index is None:  # pragma: no cover
         return torch.device(f"cuda:{torch.cuda.current_device()}")
     return d
 

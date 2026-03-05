@@ -83,7 +83,7 @@ def _ungrid(
     kernel_params,
     **kwargs,
 ):
-    if vals.is_cuda and ndim in UNGRID.keys():
+    if vals.is_cuda and ndim in UNGRID.keys():  # pragma: no cover
         # Ensure contiguity
         vals = vals.contiguous()
         locs = locs.contiguous()
