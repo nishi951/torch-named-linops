@@ -73,6 +73,20 @@ class TestNUFFT(BaseNamedLinopTests):
         }
         return spec
 
+    def test_size(self, linop_input_output):
+        A, x, y = linop_input_output
+        assert A.size("R") == 3
+        assert A.size("K") == 5
+
+    def test_normal_fn(self, linop_input_output):
+        A, x, y = linop_input_output
+        ANx = A.N(x)
+        normal_fn_result = A.normal_fn(A, x.clone())
+        assert torch.isclose(ANx, normal_fn_result, rtol=1e-2).all()
+
+    def test_split(self, linop_input_output):
+        pytest.skip("NUFFT split not fully supported")
+
     def test_nufft_sigpy(self, linop_input_output):
         A, x, y = linop_input_output
         coord = A._locs_orig.numpy()  # Not usually a param, only here for testing

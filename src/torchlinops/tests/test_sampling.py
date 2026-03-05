@@ -22,6 +22,20 @@ class TestSampling(BaseNamedLinopTests):
         linop = Sampling.from_stacked_idx(idx, (N, N), ("R", "K"))
         return linop, x, y
 
+    def test_size(self, linop_input_output):
+        A, x, y = linop_input_output
+        assert A.size("R") == 13
+        assert A.size("K") == 17
+        assert A.size("N") is None
+
+    def test_split(self, linop_input_output):
+        A, x, y = linop_input_output
+        tile = {"R": slice(2, 5), "K": slice(4, 10)}
+        A_split = A.split(A, tile)
+        Ax = A(x)
+        Ax_split = A_split(x)
+        assert (Ax[:, 2:5, 4:10] == Ax_split).all()
+
 
 def test_sampling_slc():
     N = 64
