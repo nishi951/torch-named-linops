@@ -67,7 +67,9 @@ class DeviceSpec:
         other_device : torch.device
             The other device involved in the peer-to-peer transfer.
         """
-        if self.device.type == "cuda" and other_device.type == "cuda":
+        if (
+            self.device.type == "cuda" and other_device.type == "cuda"
+        ):  # pragma: no cover
             if self.compute_stream is None:
                 self.compute_stream = default_stream(self.device)
             if self.transfer_stream is None:
@@ -160,7 +162,9 @@ class ToDevice(NamedLinop):
         self.ispec.p2p_setup(self.ospec.device)
         self.ospec.p2p_setup(self.ispec.device)
 
-        if self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda":
+        if (
+            self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda"
+        ):  # pragma: no cover
             self.is_gpu2gpu = True
         else:
             self.is_gpu2gpu = False
@@ -179,7 +183,7 @@ class ToDevice(NamedLinop):
             )
 
         # GPU -> GPU
-        if idevice.type == "cuda" and odevice.type == "cuda":
+        if idevice.type == "cuda" and odevice.type == "cuda":  # pragma: no cover
             if input_listener is None:
                 warn(
                     "Peer-to-peer device transfer with input_listener = None detected. Results may not be accurate."
@@ -191,7 +195,7 @@ class ToDevice(NamedLinop):
                 ospec.compute_stream,
                 input_listener,
             )
-        elif idevice.type == "cuda" and odevice.type == "cpu":
+        elif idevice.type == "cuda" and odevice.type == "cpu":  # pragma: no cover
             # GPU -> CPU requires additional synchronization, see:
             # https://github.com/pytorch/pytorch/issues/127612
             return x.to(odevice, non_blocking=False)

@@ -91,7 +91,7 @@ def _unfold(
         raise RuntimeError(
             f"Unfold expected input with full size {im_size} but got {x.shape}"
         )
-    if x.is_cuda and ndim in UNFOLD.keys():
+    if x.is_cuda and ndim in UNFOLD.keys():  # pragma: no cover
         x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
             if output is None:

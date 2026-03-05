@@ -8,6 +8,5 @@ from ._dispatch import *
 from ._event import *
 from ._fft import *
 from ._log import *
-from ._ndlist import *
 from ._pad import *
 from ._triton import *
