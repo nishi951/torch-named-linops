@@ -21,6 +21,9 @@ class TestSumReduce(BaseNamedLinopTests):
             linop = SumReduce(("...", "C"), ("...",))
         return linop, x, y
 
+    def test_size(self, linop_input_output):
+        pytest.skip("SumReduce does not implement size()")
+
 
 def test_reduce_repeat():
     M, N = 5, 7
