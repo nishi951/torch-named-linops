@@ -1,3 +1,4 @@
+# pragma: exclude file
 from typing import Optional
 
 from ..nameddim import NamedShape as NS, Shape

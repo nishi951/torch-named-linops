@@ -5,7 +5,7 @@ import pytest
 import sigpy as sp
 import torch
 
-from torchlinops import NUFFT, Interpolate, PadLast
+from torchlinops import NUFFT, Interpolate, Pad
 from torchlinops.functional import nufft, nufft_adjoint
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.tests.test_base import BaseNamedLinopTests
@@ -159,7 +159,7 @@ def test_apodize(nufft_params):
 def test_nufft_os_pad(nufft_params):
     grid_size = nufft_params["grid_size"]
     padded_size = nufft_params["padded_size"]
-    pad = PadLast(padded_size, grid_size)
+    pad = Pad(padded_size, grid_size)
 
     x = torch.randn(*grid_size)
     padx = pad(x).numpy()
