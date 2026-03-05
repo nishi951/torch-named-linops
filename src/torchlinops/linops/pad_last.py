@@ -7,10 +7,10 @@ from torchlinops.utils import default_to
 from ..nameddim import NamedDimension as ND, NamedShape as NS, Shape, get_nd_shape
 from .namedlinop import NamedLinop
 
-__all__ = ["PadLast"]
+__all__ = ["PadLast", "Pad", "Crop"]
 
 
-class PadLast(NamedLinop):
+class Pad(NamedLinop):
     """Zero Pad the last dimensions of the input volume
     Padding is centered:
     - TODO: support non-centered padding?
@@ -102,6 +102,11 @@ class PadLast(NamedLinop):
 
     def adjoint(self):
         adj = super().adjoint()
+        if self.name == "Pad":
+            adj.name = "Crop"
+        elif self.name == "Crop":
+            adj.name = "Pad"
+
         adj.in_im_shape, adj.out_im_shape = self.out_im_shape, self.in_im_shape
         adj.in_im_size, adj.out_im_size = self.out_im_size, self.in_im_size
         return adj
@@ -120,6 +125,15 @@ class PadLast(NamedLinop):
         elif dim in self.oshape[-self.D :]:
             return self.out_im_size[self.out_im_shape.index(dim)]
         return None
+
+
+# For backwards compatibility
+PadLast = Pad
+
+
+# Convenience function
+def Crop(crop_im_size, im_size, in_shape, out_shape, batch_shape):
+    return Pad(im_size, crop_im_size, out_shape, in_shape, batch_shape).H
 
 
 def pad_to_scale(grid_size, scale_factor):

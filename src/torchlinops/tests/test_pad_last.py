@@ -1,14 +1,14 @@
 import pytest
 import torch
 
-from torchlinops import Dim, PadLast
+from torchlinops import Dim, Pad
 from torchlinops.linops.pad_last import crop_slice_from_pad, pad_to_size
 from torchlinops.utils import is_adjoint
 
 
 @pytest.fixture
 def P():
-    P = PadLast((20, 20), (10, 10), Dim("AXY"))
+    P = Pad((20, 20), (10, 10), Dim("AXY"))
     return P
 
 
