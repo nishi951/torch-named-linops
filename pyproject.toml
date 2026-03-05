@@ -102,6 +102,12 @@ markers = [
     "plot: tests that involve plotting",
 ]
 
+[tool.coverage.report]
+exclude_also = [
+    # Exclude an entire file
+    '\A(?s:.*# pragma: exclude file.*)\Z',
+]
+
 [tool.coverage.run]
 omit = ["*/tests/*"]
 
