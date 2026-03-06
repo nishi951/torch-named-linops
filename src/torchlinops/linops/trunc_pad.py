@@ -159,7 +159,7 @@ class PadDim(NamedLinop):
     def adj_fn(padend, y, /):
         if y.shape[padend.dim] != padend.to_length:
             raise ValueError(
-                f"PadDim (adjoint) expecting size {padend.to_length} at x.shape[{padend.dim}] but got {y.shape[truncate.dim]} (y.shape: {y.shape})"
+                f"PadDim (adjoint) expecting size {padend.to_length} at x.shape[{padend.dim}] but got {y.shape[padend.dim]} (y.shape: {y.shape})"
             )
         return y[padend.slc]
 

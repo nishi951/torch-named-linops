@@ -61,3 +61,12 @@ def test_chain_dims():
     assert "M" in dims
     assert "N" in dims
     assert "K" in dims
+
+
+def test_chain_shape_mismatch_raises():
+    """Chain should raise ValueError if consecutive shapes don't match."""
+    # A: N->M, B: P->Q — B.ishape (P) != A.oshape (M)
+    A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
+    B = Dense(torch.randn(5, 4), ("Q", "P"), ("P",), ("Q",))
+    with pytest.raises(ValueError, match="Mismatched shape"):
+        Chain(A, B)

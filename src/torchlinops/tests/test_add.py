@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchlinops import Add, Dense, Diagonal, Identity
+from torchlinops import Add, Dense, Diagonal, Identity, config
 from torchlinops.tests.test_base import BaseNamedLinopTests
 from torchlinops.utils import is_adjoint
 

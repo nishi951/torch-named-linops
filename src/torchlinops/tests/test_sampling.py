@@ -3,6 +3,7 @@ import torch
 
 from torchlinops import Sampling
 from torchlinops.tests.test_base import BaseNamedLinopTests
+import torchlinops.functional as F
 
 
 class TestSampling(BaseNamedLinopTests):
@@ -51,3 +52,25 @@ def test_sampling_slc():
     Ax = linop(x)
     Ax_split = linop_split(x)
     assert (Ax[:, 2:5, 4:10] == Ax_split).all()
+
+
+def test_sampling_from_mask():
+    """from_mask should produce the same result as from_stacked_idx with the equivalent indices."""
+    N = 8
+    mask = torch.zeros(N, N, dtype=torch.bool)
+    mask[2, 3] = True
+    mask[5, 6] = True
+    linop = Sampling.from_mask(mask, input_size=(N, N))
+    x = torch.randn(N, N)
+    result = linop(x)
+    assert result.shape[0] == 2  # Two True entries in the mask
+    assert result[0].item() == pytest.approx(x[2, 3].item())
+    assert result[1].item() == pytest.approx(x[5, 6].item())
+
+
+def test_sampling_out_of_bounds_index_raises():
+    """Sampling should raise ValueError if any index exceeds the input size."""
+    N = 8
+    idx = (torch.tensor([0, N]),)  # N is out-of-range for size N (valid: 0..N-1)
+    with pytest.raises(ValueError, match="range"):
+        Sampling(idx, input_size=(N,))

@@ -2,6 +2,7 @@ import pytest
 import torch
 
 from torchlinops import Add, Concat, Dense, Dim, Stack
+from torchlinops.linops.concat import partition_slices
 from torchlinops.tests.test_base import BaseNamedLinopTests
 from torchlinops.utils import inner
 
@@ -123,3 +124,9 @@ def test_concat_getitem():
     C = Concat(A, B, odim="P")
     assert len(C) == 2
     assert repr(C)
+
+
+def test_partition_slices_step_raises():
+    """partition_slices should raise NotImplementedError for step != 1."""
+    with pytest.raises(NotImplementedError, match="step"):
+        partition_slices([0, 5, 10], slice(0, 8, 2))

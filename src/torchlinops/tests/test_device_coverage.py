@@ -52,3 +52,21 @@ def test_repeated_event_init():
         ev = RepeatedEvent()
         assert ev.last_event is None
         assert "RepeatedEvent" in repr(ev)
+
+
+def test_todevice_wrong_input_device_raises():
+    """ToDevice._fn should raise RuntimeError when input tensor is on wrong device.
+
+    We construct a DeviceSpec that claims the expected input is on cuda:0, then
+    pass a cpu tensor — this triggers the guard without needing an actual GPU.
+    """
+    import pytest
+    from torchlinops.linops.device import DeviceSpec
+
+    # ispec claims input should come from cuda:0
+    ispec = DeviceSpec(device=torch.device("cuda", 0))
+    ospec = DeviceSpec(device=torch.device("cpu"))
+
+    x = torch.randn(5)  # lives on cpu, but ispec expects cuda:0
+    with pytest.raises(RuntimeError, match="expected"):
+        ToDevice._fn(x, ispec, ospec)

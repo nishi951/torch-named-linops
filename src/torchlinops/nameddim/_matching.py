@@ -5,7 +5,7 @@ from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
 
-__all__ = ["partition", "isequal", "iscompatible", "max_shape"]
+__all__ = ["partition", "isequal", "iscompatible", "max_shape", "standardize_shapes"]
 
 
 def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
@@ -222,6 +222,13 @@ def max_shape(shapes):
                 new_max_shape.append(orig_dim if orig_dim.i >= new_dim.i else new_dim)
         max_shape = new_max_shape
     return tuple(max_shape)
+
+
+def standardize_shapes(linops, shape):
+    for linop in linops:
+        linop.ishape = shape.ishape
+        linop.oshape = shape.oshape
+    return linops
 
 
 if __name__ == "__main__":
