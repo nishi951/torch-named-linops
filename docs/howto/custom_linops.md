@@ -171,9 +171,9 @@ def fn(self, x):
     return self.weight @ x
 
 # Correct: staticmethod
-@staticmethodlinop, x
-def fn():
-    return linop.weight @ x
+@staticmethod
+def fn(x: Tensor, /, weight: Tensor) -> Tensor:
+    return weight @ x
 ```
 
 ### Not handling complex numbers in the adjoint

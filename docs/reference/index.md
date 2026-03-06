@@ -12,7 +12,7 @@ for the base class, then explore specific operators:
 - **Composition**: [Chain](linops/chain.md), [Add](linops/add.md), [Concat & Stack](linops/concat_stack.md)
 - **Transforms**: [NUFFT](linops/nufft.md), [Interpolation](linops/interp.md), [Sampling](linops/sampling.md)
 - **Structural**: [Einops](linops/einops.md), [Padding & Truncation](linops/pad.md), [ArrayToBlocks](linops/array_manipulation.md)
-- **Device & Batching**: [Device Transfer](linops/device.md), [Batching](linops/batch.md), [Splitting](linops/split.md)
+- **Device & Batching**: [Device Transfer](linops/device.md), [Splitting](linops/split.md)
 
 ## [Functional](functional/index.md)
 
