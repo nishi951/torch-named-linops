@@ -108,7 +108,6 @@ nav:
         - NamedLinop: reference/linops/namedlinop.md
         - Add: reference/linops/add.md
         - ArrayToBlocks/BlocksToArray: reference/linops/array_manipulation.md
-        - Batching: reference/linops/batch.md
         - Chain: reference/linops/chain.md
         - Concat & Stack: reference/linops/concat_stack.md
         - Dense: reference/linops/dense.md
@@ -122,6 +121,7 @@ nav:
         - Padding & Truncation: reference/linops/pad.md
         - Sampling: reference/linops/sampling.md
         - Splitting: reference/linops/split.md
+        - Threadable: reference/linops/threadable.md
       - Functional:
         - Interpolation: reference/functional/interp.md
         - Indexing: reference/functional/index.md
