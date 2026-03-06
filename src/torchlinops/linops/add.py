@@ -1,11 +1,13 @@
-import torch
-import torch.nn as nn
 import logging
 
+import torch
+import torch.nn as nn
+
 import torchlinops.config as config
-from ..nameddim import NamedShape as NS, isequal
-from .namedlinop import NamedLinop
+
+from ..nameddim import NamedShape as NS, isequal, max_shape, standardize_shapes
 from .device import ToDevice
+from .namedlinop import NamedLinop
 from .threadable import Threadable
 
 __all__ = ["Add"]
@@ -83,6 +85,26 @@ class Add(Threadable, NamedLinop):
             num_workers=self.num_workers,
         )
 
+    def normal(self, inner=None):
+        if inner is None:
+            max_ishape = max_shape([linop.N.ishape for linop in self.linops])
+            max_oshape = max_shape([linop.N.oshape for linop in self.linops])
+            new_shape = NS(max_ishape, max_oshape)
+            all_combinations = []
+            for left_linop in self.linops:
+                for right_linop in self.linops:
+                    if left_linop == right_linop:
+                        all_combinations.append(left_linop.N)
+                    else:
+                        all_combinations.append(left_linop.H @ right_linop)
+            all_combinations = standardize_shapes(all_combinations, new_shape)
+            return type(self)(
+                *all_combinations,
+                threaded=self.threaded,
+                num_workers=self.num_workers,
+            )
+        return super().normal(inner)
+
     def size(self, dim):
         for linop in self.linops:
             out = linop.size(dim)
@@ -99,9 +121,7 @@ class Add(Threadable, NamedLinop):
         if config.cache_adjoint_normal:
             config._warn_if_caching_enabled()
             if self._adjoint is None:
-                linops = list(linop.adjoint() for linop in self.linops)
-                _adj = type(self)(*linops)
-                self._adjoint = [_adj]
+                self._adjoint = [self.adjoint()]
             return self._adjoint[0]
         return self.adjoint()
 
@@ -110,9 +130,7 @@ class Add(Threadable, NamedLinop):
         if config.cache_adjoint_normal:
             config._warn_if_caching_enabled()
             if self._normal is None:
-                linops = list(linop.normal() for linop in self.linops)
-                _normal = type(self)(*linops)
-                self._normal = [_normal]
+                self._normal = [self.normal()]
             return self._normal[0]
         return self.normal()
 

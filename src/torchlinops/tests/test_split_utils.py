@@ -2,6 +2,7 @@ import numpy as np
 
 from torchlinops.linops.split import (
     flatten_recursive,
+    fuzzy_broadcast_to,
     is_broadcastable,
     repeat_along_axes,
     tile_along_axes,
@@ -39,3 +40,30 @@ def test_tile_along_axes():
     arr = np.array([[1, 2]])
     result = tile_along_axes(arr, [3])
     assert result.shape[0] == 3
+
+
+def test_fuzzy_broadcast_to_truncate_and_repeat():
+    """When source is shorter than target, values should wrap (tile then trim)."""
+    arr = np.array([1, 2, 3])
+    result = fuzzy_broadcast_to(arr, (4,))
+    assert result.shape == (4,)
+    np.testing.assert_array_equal(result, [1, 2, 3, 1])
+
+
+def test_fuzzy_broadcast_to_2d_expand():
+    """2-D target: values broadcast across both axes with tiling."""
+    arr2 = np.array([1, 2])
+    result = fuzzy_broadcast_to(arr2, (3, 5))
+    assert result.shape == (3, 5)
+    # Each row should be [1, 2, 1, 2, 1]
+    np.testing.assert_array_equal(result[0], [1, 2, 1, 2, 1])
+    np.testing.assert_array_equal(result[1], result[0])
+
+
+def test_fuzzy_broadcast_to_ndim_greater_than_arr():
+    """When target has more dims than source, source is expanded via np.expand_dims."""
+    arr = np.array([1, 2, 3])
+    result = fuzzy_broadcast_to(arr, (2, 3))
+    assert result.shape == (2, 3)
+    np.testing.assert_array_equal(result[0], [1, 2, 3])
+    np.testing.assert_array_equal(result[1], [1, 2, 3])

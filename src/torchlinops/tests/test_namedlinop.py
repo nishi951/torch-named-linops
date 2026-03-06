@@ -1,6 +1,6 @@
 import torch
 
-from torchlinops import NS, NamedLinop
+from torchlinops import NS, NamedLinop, Dense, Diagonal
 
 
 def test_namedlinop_adjoint():
@@ -38,3 +38,17 @@ def test_namedlinop_matrix_vector_mul():
     A = NamedLinop(NS(("A", "B"), ("C",)))
     x = torch.tensor(3)
     assert A(x).allclose(A @ x)
+
+
+def test_linop_function_backward_broadcast():
+    """LinopFunction.backward should produce grad matching A.H applied to ones."""
+    M, N = 4, 3
+    weight = torch.randn(M, N, dtype=torch.complex64)
+    A = Dense(weight, ("M", "N"), ("N",), ("M",))
+    x = torch.randn(N, dtype=torch.complex64).requires_grad_(True)
+    out = A.apply(x)
+    grad_out = torch.ones_like(out)
+    out.real.sum().backward()
+    # grad w.r.t. x should equal A.H applied to grad_out
+    expected = A.H.apply(grad_out)
+    assert torch.allclose(x.grad, expected, rtol=1e-4)

@@ -17,6 +17,7 @@ from ..nameddim import (
     iscompatible,
     isequal,
     max_shape,
+    standardize_shapes,
 )
 from .add import Add
 from .device import ToDevice
@@ -258,13 +259,6 @@ class Concat(Threadable, NamedLinop):
         adj_linops = [linop.H for linop in self.linops]
         return type(self)(*adj_linops, idim=self.odim, odim=self.idim)
 
-    @staticmethod
-    def _standardize_shapes(linops, shape):
-        for linop in linops:
-            linop.ishape = shape.ishape
-            linop.oshape = shape.oshape
-        return linops
-
     def normal(self, inner=None):
         if inner is None:
             # Standardize on this shape
@@ -273,7 +267,7 @@ class Concat(Threadable, NamedLinop):
             new_shape = NS(max_ishape, max_oshape)
             if self.idim is None:  # Vertical (inner product)
                 linops = [linop.N for linop in self.linops]
-                linops = self._standardize_shapes(linops, new_shape)
+                linops = standardize_shapes(linops, new_shape)
                 return Add(*linops)
             elif self.odim is None:  # Horizontal (outer product)
                 rows = []
@@ -286,7 +280,7 @@ class Concat(Threadable, NamedLinop):
                         else:
                             new_linop = linop_left.H @ linop_right
                         row.append(new_linop)
-                        row = self._standardize_shapes(row, new_shape)
+                        row = standardize_shapes(row, new_shape)
                     row = type(self)(*row, idim=new_idim, odim=None)
                     rows.append(row)
                 # rows = self._standardize_shapes(rows, new_shape)
@@ -296,7 +290,7 @@ class Concat(Threadable, NamedLinop):
                 new_idim, new_odim = self._get_new_normal_io_dims(new_shape, self.idim)
                 for linop in self.linops:
                     diag.append(linop.N)
-                diag = self._standardize_shapes(diag, new_shape)
+                diag = standardize_shapes(diag, new_shape)
                 return type(self)(*diag, idim=new_idim, odim=new_odim)
         return super().normal(inner)
 
