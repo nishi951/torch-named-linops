@@ -6,8 +6,10 @@ on:
       - main
       - develop
   push:
-    branches:
-      - develop
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+' # Triggers on semantic version tags like 1.0.0, 2.1.5, etc.
+      - '[0-9]+.[0-9]+.[0-9]+-*' # Can also include pre-release tags like 1.0.0-rc1
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}

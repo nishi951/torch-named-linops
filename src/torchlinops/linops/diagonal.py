@@ -167,7 +167,7 @@ class Diagonal(NamedLinop):
             slice(None) if dim in self.broadcast_dims else slc
             for slc, dim in zip(ibatch, self.ishape)
         ]
-        return weight[ibatch[-len(weight.shape) :]]
+        return weight[tuple(ibatch[-len(weight.shape) :])]
 
     def size(self, dim: str):
         if dim in self.ishape:

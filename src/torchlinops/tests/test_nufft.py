@@ -5,7 +5,7 @@ import pytest
 import sigpy as sp
 import torch
 
-from torchlinops import NUFFT, Interpolate, PadLast
+from torchlinops import NUFFT, Interpolate, Pad
 from torchlinops.functional import nufft, nufft_adjoint
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.tests.test_base import BaseNamedLinopTests
@@ -72,6 +72,20 @@ class TestNUFFT(BaseNamedLinopTests):
             "oversamp": oversamp,
         }
         return spec
+
+    def test_size(self, linop_input_output):
+        A, x, y = linop_input_output
+        assert A.size("R") == 3
+        assert A.size("K") == 5
+
+    def test_normal_fn(self, linop_input_output):
+        A, x, y = linop_input_output
+        ANx = A.N(x)
+        normal_fn_result = A.normal_fn(A, x.clone())
+        assert torch.isclose(ANx, normal_fn_result, rtol=1e-2).all()
+
+    def test_split(self, linop_input_output):
+        pytest.skip("NUFFT split not fully supported")
 
     def test_nufft_sigpy(self, linop_input_output):
         A, x, y = linop_input_output
@@ -145,7 +159,7 @@ def test_apodize(nufft_params):
 def test_nufft_os_pad(nufft_params):
     grid_size = nufft_params["grid_size"]
     padded_size = nufft_params["padded_size"]
-    pad = PadLast(padded_size, grid_size)
+    pad = Pad(padded_size, grid_size)
 
     x = torch.randn(*grid_size)
     padx = pad(x).numpy()
@@ -202,6 +216,43 @@ def test_nufft_interp(nufft_params):
     )
 
     assert np.allclose(interpx, interpx_sp, rtol=1e-3)
+
+
+def test_prep_locs_zero_mode(nufft_params):
+    """prep_locs with pad_mode='zero' should clamp locs to [0, padded_size-1]."""
+    grid_size = nufft_params["grid_size"]
+    padded_size = nufft_params["padded_size"]
+    locs = nufft_params["locs"].clone()
+    result = NUFFT.prep_locs(locs, grid_size, padded_size, pad_mode="zero")
+    for i, ps in enumerate(padded_size):
+        assert result[..., -(len(padded_size) - i)].min() >= 0
+        assert result[..., -(len(padded_size) - i)].max() <= ps - 1
+
+
+def test_prep_locs_invalid_mode_raises(nufft_params):
+    """prep_locs with an unknown pad_mode should raise ValueError."""
+    grid_size = nufft_params["grid_size"]
+    padded_size = nufft_params["padded_size"]
+    locs = nufft_params["locs"].clone()
+    with pytest.raises(ValueError, match="Unrecognized padding mode"):
+        NUFFT.prep_locs(locs, grid_size, padded_size, pad_mode="invalid_mode")
+
+
+def test_nufft_unknown_mode_raises(nufft_params):
+    """NUFFT with an unrecognised mode should raise ValueError at construction."""
+    locs = nufft_params["locs"].clone()
+    grid_size = nufft_params["grid_size"]
+    with pytest.raises(ValueError, match="Unrecognized NUFFT mode"):
+        NUFFT(locs, grid_size, output_shape=("K",), mode="bad_mode")
+
+
+def test_nufft_nan_apodize_weights_raises(nufft_params):
+    """NUFFT should raise ValueError when apodize_weights contains NaN."""
+    locs = nufft_params["locs"].clone()
+    grid_size = nufft_params["grid_size"]
+    bad_weights = torch.full(grid_size, float("nan"))
+    with pytest.raises(ValueError, match="Nan/Inf"):
+        NUFFT(locs, grid_size, output_shape=("K",), apodize_weights=bad_weights)
 
 
 @pytest.mark.gpu

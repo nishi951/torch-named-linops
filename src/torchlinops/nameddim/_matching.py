@@ -3,9 +3,9 @@ from copy import deepcopy
 from typing import Any, Optional, Sequence, Tuple
 from warnings import warn
 
-from ._nameddim import ANY, ELLIPSES
+from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
 
-__all__ = ["partition", "isequal", "iscompatible"]
+__all__ = ["partition", "isequal", "iscompatible", "max_shape", "standardize_shapes"]
 
 
 def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
@@ -169,6 +169,66 @@ def iscompatible(
     shape1 = [ANY if s != ELLIPSES else ELLIPSES for s in deepcopy(shape1)]
     shape2 = [ANY if s != ELLIPSES else ELLIPSES for s in deepcopy(shape2)]
     return isequal(shape1, shape2, return_assignments=return_assignments)
+
+
+def max_shape(shapes):
+    """Find the highest-valued shape according to some heuristics.
+
+    Examples
+    --------
+    >>> max_shape([("N","Q"), ("N", "Q1")])
+    (N, Q1)
+    >>> max_shape([("A","B"), ("A1", "B1")])
+    (A1, B1)
+    >>> max_shape([("...",), ("A","B")])
+    (A, B)
+    >>> max_shape([("A","..."), ("A2","...")])
+    (A2, ...)
+    """
+    # Normalize inputs
+    shapes = [tuple(ND.infer(s) for s in shape) for shape in shapes]
+    max_shape = shapes[0]
+    max_shape_names_only = [ND(d.name) for d in max_shape]
+    for shape in shapes[1:]:
+        shape_names_only = [ND(d.name) for d in shape]
+        iscompat, assignments = iscompatible(
+            max_shape_names_only, shape_names_only, return_assignments=True
+        )
+        if not iscompat:
+            raise ValueError(
+                f"Shape incompatibilty detected in concat: {max_shape} not compatible with {shape}"
+            )
+        new_max_shape = []
+        for i in range(len(max_shape)):
+            orig_dim = max_shape[i]
+            # Sort to preserve original order
+            new_dims = [shape[j] for j in sorted(assignments[i])]
+            # Heuristic
+            # 1. Ellipses and Any lose to everything
+            if orig_dim == ELLIPSES or orig_dim == ANY:
+                new_max_shape.extend(new_dims)
+            elif ELLIPSES in new_dims or ANY in new_dims:
+                new_max_shape.append(orig_dim)
+            else:
+                assert len(new_dims) == 1, (
+                    f"Expected singleton assignment dim but got {new_dims}"
+                )
+                # 2. Dim vs. dim rules
+                #   a. If the dim's "letter" is the same, pick the one with larger number
+                new_dim = new_dims[0]
+                assert new_dim.name == orig_dim.name, (
+                    f"Expected singleton assignment to have matching letter but got letters {new_dim} != {orig_dim}"
+                )
+                new_max_shape.append(orig_dim if orig_dim.i >= new_dim.i else new_dim)
+        max_shape = new_max_shape
+    return tuple(max_shape)
+
+
+def standardize_shapes(linops, shape):
+    for linop in linops:
+        linop.ishape = shape.ishape
+        linop.oshape = shape.oshape
+    return linops
 
 
 if __name__ == "__main__":

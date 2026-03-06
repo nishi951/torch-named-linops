@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from torch import Tensor
 
-from torchlinops.linops.pad_last import PadLast, crop_slice_from_pad, pad_to_size
+from torchlinops.linops.pad_last import Pad, crop_slice_from_pad, pad_to_size
 
 __all__ = ["center_pad", "center_crop"]
 
@@ -27,7 +27,7 @@ def center_pad(x: Tensor, im_size: tuple[int, ...], pad_im_size: tuple[int, ...]
 
     Notes
     -----
-    This function uses the `PadLast` operator to perform the padding operation.
+    This function uses the `Pad` operator to perform the padding operation.
     It calculates the necessary padding dimensions and applies the padding
     to ensure that the output tensor matches the `pad_im_size` while preserving
     the center of the original tensor.
@@ -42,7 +42,7 @@ def center_pad(x: Tensor, im_size: tuple[int, ...], pad_im_size: tuple[int, ...]
         pad=pad,
         crop_slice=crop_slice,
     )
-    return PadLast.fn(pad_linop, x)
+    return Pad.fn(pad_linop, x)
 
 
 def center_crop(x: Tensor, im_size: tuple[int, ...], crop_im_size: tuple[int, ...]):
@@ -65,7 +65,7 @@ def center_crop(x: Tensor, im_size: tuple[int, ...], crop_im_size: tuple[int, ..
 
     Notes
     -----
-    This function uses the `PadLast` operator to perform the cropping operation.
+    This function uses the `Pad` operator to perform the cropping operation.
     It calculates the necessary cropping dimensions and applies the cropping
     from the center of the original tensor to achieve the specified `crop_im_size`.
     """
@@ -79,4 +79,4 @@ def center_crop(x: Tensor, im_size: tuple[int, ...], crop_im_size: tuple[int, ..
         pad=pad,
         crop_slice=crop_slice,
     )
-    return PadLast.adj_fn(crop_linop, x)
+    return Pad.adj_fn(crop_linop, x)

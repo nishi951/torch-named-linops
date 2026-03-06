@@ -67,7 +67,9 @@ class DeviceSpec:
         other_device : torch.device
             The other device involved in the peer-to-peer transfer.
         """
-        if self.device.type == "cuda" and other_device.type == "cuda":
+        if (
+            self.device.type == "cuda" and other_device.type == "cuda"
+        ):  # pragma: no cover
             if self.compute_stream is None:
                 self.compute_stream = default_stream(self.device)
             if self.transfer_stream is None:
@@ -81,7 +83,9 @@ class DeviceSpec:
         return self.device.type
 
     @staticmethod
-    def get_transfer_stream(source_device: torch.device, target_device: torch.device):
+    def get_transfer_stream(
+        source_device: torch.device, target_device: torch.device
+    ):  # pragma: no cover
         """Return the stream used for device transfers associated with this device.
 
         Streams are cached in a registry to enable reuse. Each source/target device
@@ -160,7 +164,9 @@ class ToDevice(NamedLinop):
         self.ispec.p2p_setup(self.ospec.device)
         self.ospec.p2p_setup(self.ispec.device)
 
-        if self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda":
+        if (
+            self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda"
+        ):  # pragma: no cover
             self.is_gpu2gpu = True
         else:
             self.is_gpu2gpu = False
@@ -179,7 +185,7 @@ class ToDevice(NamedLinop):
             )
 
         # GPU -> GPU
-        if idevice.type == "cuda" and odevice.type == "cuda":
+        if idevice.type == "cuda" and odevice.type == "cuda":  # pragma: no cover
             if input_listener is None:
                 warn(
                     "Peer-to-peer device transfer with input_listener = None detected. Results may not be accurate."
@@ -191,7 +197,7 @@ class ToDevice(NamedLinop):
                 ospec.compute_stream,
                 input_listener,
             )
-        elif idevice.type == "cuda" and odevice.type == "cpu":
+        elif idevice.type == "cuda" and odevice.type == "cpu":  # pragma: no cover
             # GPU -> CPU requires additional synchronization, see:
             # https://github.com/pytorch/pytorch/issues/127612
             return x.to(odevice, non_blocking=False)
@@ -237,18 +243,18 @@ class ToDevice(NamedLinop):
         if (
             self.ispec.compute_stream is not None
             or self.ispec.transfer_stream is not None
-        ):
+        ):  # pragma: no cover
             irepr = f"{self.ispec.device}, compute: 0x{self.ispec.compute_stream.cuda_stream:x}, transfer: 0x{self.ispec.transfer_stream.cuda_stream:x}"
         else:
             irepr = f"{self.ispec.device}"
         if (
             self.ospec.compute_stream is not None
             or self.ospec.transfer_stream is not None
-        ):
+        ):  # pragma: no cover
             orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}, transfer: 0x{self.ospec.transfer_stream.cuda_stream:x}"
         else:
             orepr = f"{self.ospec.device}"
-        if self.input_listener is not None and self.is_gpu2gpu:
+        if self.input_listener is not None and self.is_gpu2gpu:  # pragma: no cover
             input_listener_repr = f"on: {self.input_listener.event_id:x}"
         else:
             input_listener_repr = ""
@@ -257,7 +263,9 @@ class ToDevice(NamedLinop):
         return out
 
 
-def _gpu2gpu_transfer(x, odevice, transfer_stream, target_stream, input_listener):
+def _gpu2gpu_transfer(
+    x, odevice, transfer_stream, target_stream, input_listener
+):  # pragma: no cover
     """Perform efficient gpu-gpu transfer with a dedicated transfer stream and event-based triggering.
 
     Parameters

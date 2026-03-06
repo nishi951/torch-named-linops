@@ -5,7 +5,7 @@ import torch
 from jaxtyping import Float, Inexact, Shaped
 from torch import Tensor
 
-try:
+try:  # pragma: no cover
     import triton
     import triton.language as tl
 
@@ -88,7 +88,7 @@ def _grid(
     kernel_params,
     **kwargs,
 ):
-    if vals.is_cuda and ndim in GRID.keys():
+    if vals.is_cuda and ndim in GRID.keys():  # pragma: no cover
         # Ensure contiguity
         vals = vals.contiguous()
         locs = locs.contiguous()
@@ -137,12 +137,14 @@ def _grid(
     return output
 
 
-def _get_grid():
+def _get_grid():  # pragma: no cover
     grid = lambda meta: (ceil(meta["npts"] / meta["pts_per_grid"]) * meta["nbatch"],)  # noqa: E731
     return grid
 
 
-def get_block_width(kernel_width: tuple[float, ...], ndim: int, is_complex: bool):
+def get_block_width(
+    kernel_width: tuple[float, ...], ndim: int, is_complex: bool
+):  # pragma: no cover
     """Get necessary block width based on dimension and dtype of input"""
     block_width = list(triton.next_power_of_2(ceil(w + 1)) for w in kernel_width)
     test_block_width = block_width[:]  # Shallow copy

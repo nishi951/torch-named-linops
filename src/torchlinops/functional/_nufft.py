@@ -5,7 +5,7 @@ from jaxtyping import Float
 from torch import Tensor
 
 from torchlinops.linops.nufft import NUFFT
-from torchlinops.linops.pad_last import PadLast, crop_slice_from_pad, pad_to_size
+from torchlinops.linops.pad_last import Pad, crop_slice_from_pad, pad_to_size
 from torchlinops.utils import cfftn, cifftn
 
 from ._interp.interp import interpolate, interpolate_adjoint
@@ -49,7 +49,7 @@ def nufft(
     params = init_nufft(grid_size, locs, oversamp, width, x.device)
 
     x = x * params.apodize
-    x = PadLast.fn(params.pad_ns, x)
+    x = Pad.fn(params.pad_ns, x)
     x = cfftn(x, dim=params.dim, norm="ortho")
     x = interpolate(
         x,
@@ -107,7 +107,7 @@ def nufft_adjoint(
         kernel_params=dict(beta=params.beta),
     )
     x = cifftn(x, dim=params.dim, norm="ortho")
-    x = PadLast.adj_fn(params.pad_ns, x)
+    x = Pad.adj_fn(params.pad_ns, x)
     x = x * params.apodize
     return x
 

@@ -5,7 +5,7 @@ import torch
 from jaxtyping import Float, Inexact, Shaped
 from torch import Tensor
 
-try:
+try:  # pragma: no cover
     import triton
     import triton.language as tl
 
@@ -83,7 +83,7 @@ def _ungrid(
     kernel_params,
     **kwargs,
 ):
-    if vals.is_cuda and ndim in UNGRID.keys():
+    if vals.is_cuda and ndim in UNGRID.keys():  # pragma: no cover
         # Ensure contiguity
         vals = vals.contiguous()
         locs = locs.contiguous()

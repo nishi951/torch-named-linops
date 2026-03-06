@@ -3,8 +3,10 @@ from typing import Optional
 
 import torch.fft as fft
 
-from .identity import Identity
+from torchlinops.utils import default_to
+
 from ..nameddim import NamedShape as NS, Shape, get_nd_shape
+from .identity import Identity
 from .namedlinop import NamedLinop
 
 
@@ -61,6 +63,7 @@ class FFT(NamedLinop):
             raise ValueError(
                 f"grid_shapes should consist of two shape tuples but got {grid_shapes}"
             )
+        batch_shape = default_to(("...",), batch_shape)
         dim_shape = NS(*grid_shapes)
         shape = NS(batch_shape) + dim_shape
         super().__init__(shape)

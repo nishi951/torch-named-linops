@@ -1,6 +1,6 @@
+import logging
 from copy import copy
 from typing import Optional
-import logging
 
 import torch
 import torch.nn as nn
@@ -9,7 +9,16 @@ from torch import Tensor
 import torchlinops.config as config
 from torchlinops.utils import INDENT
 
-from ..nameddim import ELLIPSES, NamedDimension as ND, NamedShape as NS, isequal
+from ..nameddim import (
+    ANY,
+    ELLIPSES,
+    NamedDimension as ND,
+    NamedShape as NS,
+    iscompatible,
+    isequal,
+    max_shape,
+    standardize_shapes,
+)
 from .add import Add
 from .device import ToDevice
 from .identity import Zero
@@ -197,7 +206,9 @@ class Concat(Threadable, NamedLinop):
         elif dim == self.odim:
             return sum(self.osizes)
         else:
-            return self.linops[0].size(dim)
+            for linop in self.linops:
+                if linop.size(dim) is not None:
+                    return linop.size(dim)
 
     def split_forward(self, ibatch, obatch):
         """Split concat linop, making a new concat linop if necessary"""
@@ -250,14 +261,17 @@ class Concat(Threadable, NamedLinop):
 
     def normal(self, inner=None):
         if inner is None:
+            # Standardize on this shape
+            max_ishape = max_shape([linop.N.ishape for linop in self.linops])
+            max_oshape = max_shape([linop.N.oshape for linop in self.linops])
+            new_shape = NS(max_ishape, max_oshape)
             if self.idim is None:  # Vertical (inner product)
-                return Add(*(linop.N for linop in self.linops))
+                linops = [linop.N for linop in self.linops]
+                linops = standardize_shapes(linops, new_shape)
+                return Add(*linops)
             elif self.odim is None:  # Horizontal (outer product)
-                new_idim, new_odim = self._get_new_normal_io_dims(
-                    self.linops[0].shape, self.idim
-                )
                 rows = []
-                new_shape = self.linops[0].shape.N
+                new_idim, new_odim = self._get_new_normal_io_dims(new_shape, self.idim)
                 for linop_left in self.linops:
                     row = []
                     for linop_right in self.linops:
@@ -265,24 +279,23 @@ class Concat(Threadable, NamedLinop):
                             new_linop = linop_right.N
                         else:
                             new_linop = linop_left.H @ linop_right
-                            new_linop.shape = new_shape
                         row.append(new_linop)
+                        row = standardize_shapes(row, new_shape)
                     row = type(self)(*row, idim=new_idim, odim=None)
                     rows.append(row)
+                # rows = self._standardize_shapes(rows, new_shape)
                 return type(self)(*rows, idim=None, odim=new_odim)
             else:  # Diagonal
                 diag = []
-                new_idim, new_odim = self._get_new_normal_io_dims(
-                    self.linops[0].shape, self.idim
-                )
+                new_idim, new_odim = self._get_new_normal_io_dims(new_shape, self.idim)
                 for linop in self.linops:
                     diag.append(linop.N)
+                diag = standardize_shapes(diag, new_shape)
                 return type(self)(*diag, idim=new_idim, odim=new_odim)
         return super().normal(inner)
 
     @staticmethod
-    def _get_new_normal_io_dims(shape, dim) -> tuple:
-        new_shape = shape.N
+    def _get_new_normal_io_dims(new_shape, dim) -> tuple:
         i = new_shape.ishape.index(dim)
         new_idim = new_shape.ishape[i]
         new_odim = new_shape.oshape[i]
