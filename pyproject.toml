@@ -106,6 +106,7 @@ markers = [
 exclude_also = [
     # Exclude an entire file
     '\A(?s:.*# pragma: exclude file.*)\Z',
+    'if __name__ == "__main__"',
 ]
 
 [tool.coverage.run]

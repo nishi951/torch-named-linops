@@ -77,7 +77,11 @@ class Add(Threadable, NamedLinop):
         return type(self)(*linops)
 
     def adjoint(self):
-        return type(self)(*(linop.adjoint() for linop in self.linops))
+        return type(self)(
+            *(linop.adjoint() for linop in self.linops),
+            threaded=self.threaded,
+            num_workers=self.num_workers,
+        )
 
     def size(self, dim):
         for linop in self.linops:
