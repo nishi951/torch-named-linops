@@ -61,6 +61,17 @@ def test_ndc_incompatible_update_raises():
         ndc["shape"] = ("C", "D", "E")  # length 3 vs 2, no ellipsis
 
 
+def test_ndc_singleton_update_non_nd_raises():
+    """Updating a singleton shape with a non-singleton value should raise ValueError."""
+    from torchlinops import ND
+
+    ndc = NamedDimCollection()
+    ndc._add("single", "A")
+    # Passing a tuple instead of a single ND should raise
+    with pytest.raises(ValueError, match="non-singleton"):
+        ndc["single"] = ("B", "C")
+
+
 # --- max_shape tests ---
 
 

@@ -11,15 +11,15 @@ from torchlinops.utils import (
     ModuleMemoryMap,
     RepeatedEvent,
     batch_iterator,
-    dict_product,
     default_to,
+    dict_product,
 )
 
+from ..nameddim import NamedDimension as ND
 from .add import Add
 from .chain import Chain
 from .concat import Concat
 from .device import ToDevice
-from ..nameddim import NamedDimension as ND
 from .namedlinop import NamedLinop
 
 __all__ = ["split_linop", "create_batched_linop", "BatchSpec"]

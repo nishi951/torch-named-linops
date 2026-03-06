@@ -115,3 +115,42 @@ def test_cgrun_is_not_converged_initially():
     run.update(x)
 
     assert not run.is_converged()
+
+
+def test_cgrun_is_converged_at_solution():
+    """CGRun.is_converged() should return True once both criteria are met."""
+    n = 5
+    A_mat = torch.eye(n) * 2.0
+    y = torch.ones(n)
+
+    def A_op(x):
+        return A_mat @ x
+
+    # Exact solution: x = y / 2
+    x_exact = y / 2.0
+    run = CGRun(ltol=1.0, gtol=1.0, A=A_op, y=y, disable=False)
+    run.update(x_exact)
+    run.update(x_exact)  # Two updates so prev_loss is set
+    assert run.is_converged()
+
+
+def test_cgrun_set_postfix_disabled_skips():
+    """CGRun.set_postfix should return early when disable=True."""
+    n = 5
+    A_mat = torch.eye(n) * 2.0
+    y = torch.ones(n)
+
+    def A_op(x):
+        return A_mat @ x
+
+    run = CGRun(ltol=1e-5, gtol=1e-3, A=A_op, y=y, disable=True)
+
+    class FakePbar:
+        called = False
+
+        def set_postfix(self, *a, **kw):
+            FakePbar.called = True
+
+    pbar = FakePbar()
+    run.set_postfix(pbar)
+    assert not pbar.called

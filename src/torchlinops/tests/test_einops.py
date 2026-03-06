@@ -71,3 +71,57 @@ class TestRepeat(BaseNamedLinopTests):
         A, x, y = linop_input_output
         s = A.size("C")
         assert s == 3
+
+    def test_split_forward_no_mutation(self, linop_input_output):
+        """split_forward must not mutate the original axes_lengths."""
+        A, x, y = linop_input_output
+        original_c = A.axes_lengths["C"]
+        A_split = A.split_forward(
+            [slice(None), slice(None)],
+            [slice(None), slice(None), slice(0, 2)],
+        )
+        assert A.axes_lengths["C"] == original_c
+        assert A_split.axes_lengths["C"] == 2
+
+
+# --- Standalone error-path tests ---
+
+
+def test_sumreduce_oshape_not_shorter_raises():
+    """SumReduce requires oshape to be strictly shorter than ishape."""
+    with pytest.raises(AssertionError):
+        SumReduce(("A", "B"), ("A", "B"))
+
+
+def test_sumreduce_same_length_raises():
+    """SumReduce oshape == ishape should also fail."""
+    with pytest.raises(AssertionError):
+        SumReduce(("A", "B", "C"), ("A", "B", "C"))
+
+
+def test_repeat_oshape_not_longer_raises():
+    """Repeat requires oshape to be strictly longer than ishape."""
+    with pytest.raises(AssertionError):
+        Repeat({"C": 3}, ishape=("A", "B", "C"), oshape=("A", "B"))
+
+
+def test_repeat_same_length_raises():
+    """Repeat oshape == ishape should also fail."""
+    with pytest.raises(AssertionError):
+        Repeat({}, ishape=("A", "B"), oshape=("A", "B"))
+
+
+def test_rearrange_split_emits_warning():
+    """split_forward on a Rearrange should emit a UserWarning."""
+    A = Rearrange(
+        "(A B) C",
+        "A B C",
+        ishape=("Ab", "C"),
+        oshape=("A", "B", "C"),
+        axes_lengths={"A": 2, "B": 3},
+    )
+    with pytest.warns(UserWarning, match="splitting"):
+        A.split_forward(
+            [slice(None), slice(None)],
+            [slice(None), slice(None), slice(None)],
+        )

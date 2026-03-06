@@ -218,6 +218,43 @@ def test_nufft_interp(nufft_params):
     assert np.allclose(interpx, interpx_sp, rtol=1e-3)
 
 
+def test_prep_locs_zero_mode(nufft_params):
+    """prep_locs with pad_mode='zero' should clamp locs to [0, padded_size-1]."""
+    grid_size = nufft_params["grid_size"]
+    padded_size = nufft_params["padded_size"]
+    locs = nufft_params["locs"].clone()
+    result = NUFFT.prep_locs(locs, grid_size, padded_size, pad_mode="zero")
+    for i, ps in enumerate(padded_size):
+        assert result[..., -(len(padded_size) - i)].min() >= 0
+        assert result[..., -(len(padded_size) - i)].max() <= ps - 1
+
+
+def test_prep_locs_invalid_mode_raises(nufft_params):
+    """prep_locs with an unknown pad_mode should raise ValueError."""
+    grid_size = nufft_params["grid_size"]
+    padded_size = nufft_params["padded_size"]
+    locs = nufft_params["locs"].clone()
+    with pytest.raises(ValueError, match="Unrecognized padding mode"):
+        NUFFT.prep_locs(locs, grid_size, padded_size, pad_mode="invalid_mode")
+
+
+def test_nufft_unknown_mode_raises(nufft_params):
+    """NUFFT with an unrecognised mode should raise ValueError at construction."""
+    locs = nufft_params["locs"].clone()
+    grid_size = nufft_params["grid_size"]
+    with pytest.raises(ValueError, match="Unrecognized NUFFT mode"):
+        NUFFT(locs, grid_size, output_shape=("K",), mode="bad_mode")
+
+
+def test_nufft_nan_apodize_weights_raises(nufft_params):
+    """NUFFT should raise ValueError when apodize_weights contains NaN."""
+    locs = nufft_params["locs"].clone()
+    grid_size = nufft_params["grid_size"]
+    bad_weights = torch.full(grid_size, float("nan"))
+    with pytest.raises(ValueError, match="Nan/Inf"):
+        NUFFT(locs, grid_size, output_shape=("K",), apodize_weights=bad_weights)
+
+
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not torch.cuda.is_available(), reason="GPU is required but not available"
