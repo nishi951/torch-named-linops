@@ -85,3 +85,56 @@ class TestPadDim(BaseNamedLinopTests):
         assert result.dim == 1
         assert result.from_length == 3
         assert result.to_length == 5
+
+
+# --- Validation error tests ---
+
+
+def test_truncate_negative_from_length():
+    with pytest.raises(ValueError):
+        Truncate(dim=0, from_length=-1, to_length=3, ishape=("N",), oshape=("N",))
+
+
+def test_truncate_invalid_to_length():
+    with pytest.raises(ValueError):
+        Truncate(dim=0, from_length=5, to_length=6, ishape=("N",), oshape=("N",))
+
+
+def test_truncate_fn_size_mismatch():
+    T = Truncate(dim=0, from_length=5, to_length=3, ishape=("N",), oshape=("N",))
+    with pytest.raises(ValueError):
+        T(torch.randn(10))
+
+
+def test_truncate_adj_fn_size_mismatch():
+    T = Truncate(dim=0, from_length=5, to_length=3, ishape=("N",), oshape=("N",))
+    with pytest.raises(ValueError):
+        T.H(torch.randn(10))
+
+
+def test_truncate_normal_fn_size_mismatch():
+    T = Truncate(dim=0, from_length=5, to_length=3, ishape=("N",), oshape=("N",))
+    with pytest.raises(ValueError):
+        T.N(torch.randn(10))
+
+
+def test_paddim_invalid_to_length():
+    with pytest.raises(ValueError):
+        PadDim(dim=0, from_length=3, to_length=-1, ishape=("N",), oshape=("N",))
+
+
+def test_paddim_invalid_from_length():
+    with pytest.raises(ValueError):
+        PadDim(dim=0, from_length=6, to_length=5, ishape=("N",), oshape=("N",))
+
+
+def test_paddim_fn_size_mismatch():
+    P = PadDim(dim=0, from_length=3, to_length=5, ishape=("N",), oshape=("N",))
+    with pytest.raises(ValueError):
+        P(torch.randn(10))
+
+
+def test_paddim_adj_fn_size_mismatch():
+    P = PadDim(dim=0, from_length=3, to_length=5, ishape=("N",), oshape=("N",))
+    with pytest.raises(ValueError):
+        P.H(torch.randn(10))

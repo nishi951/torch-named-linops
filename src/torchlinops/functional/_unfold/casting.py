@@ -1,4 +1,4 @@
-try:
+try:  # pragma: no cover
     import triton
     import triton.language as tl
 

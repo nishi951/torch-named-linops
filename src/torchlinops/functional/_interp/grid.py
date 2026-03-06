@@ -5,7 +5,7 @@ import torch
 from jaxtyping import Float, Inexact, Shaped
 from torch import Tensor
 
-try:
+try:  # pragma: no cover
     import triton
     import triton.language as tl
 

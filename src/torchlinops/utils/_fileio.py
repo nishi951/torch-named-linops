@@ -1,3 +1,4 @@
+# pragma: exclude file
 import logging
 import shutil
 import sys

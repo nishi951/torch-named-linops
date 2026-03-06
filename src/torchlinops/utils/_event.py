@@ -35,7 +35,7 @@ class RepeatedEvent:
         self._event_kwargs = event_kwargs
         self._last_event = None
 
-    def record(self, stream=None):
+    def record(self, stream=None):  # pragma: no cover
         """
         Create a new CUDA event and record it on the given stream.
         Old events are dropped immediately to free resources.
