@@ -58,3 +58,16 @@ def test_fft_split_forward():
     )
     assert isinstance(F_split, FFT)
     assert torch.allclose(F(x), F_split(x))
+
+
+def test_fft_normal_with_inner():
+    """FFT.normal(inner=D) should equal F.H @ D @ F numerically."""
+    from torchlinops import Diagonal
+
+    F = FFT(ndim=1, centered=True, norm="ortho")
+    N = 16
+    d = Diagonal(torch.randn(N, dtype=torch.complex64), ("Kx",))
+    normal = F.normal(inner=d)
+    x = torch.randn(N, dtype=torch.complex64)
+    expected = F.H(d(F(x)))
+    assert torch.allclose(normal(x), expected, rtol=1e-5)

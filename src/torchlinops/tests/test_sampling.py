@@ -74,3 +74,24 @@ def test_sampling_out_of_bounds_index_raises():
     idx = (torch.tensor([0, N]),)  # N is out-of-range for size N (valid: 0..N-1)
     with pytest.raises(ValueError, match="range"):
         Sampling(idx, input_size=(N,))
+
+
+def test_sampling_locs_property_shape():
+    """The locs property should return a tensor of shape (*output_shape, ndim)."""
+    N = 16
+    ndim = 2
+    K = 10
+    idx = tuple(torch.randint(0, N - 1, (K,)) for _ in range(ndim))
+    linop = Sampling(idx, input_size=(N, N), output_shape=("K",))
+    locs = linop.locs
+    assert locs.shape == (K, ndim)
+
+
+def test_sampling_register_shape():
+    """register_shape should add a named shape to the linop's _shape collection."""
+    N, K = 8, 5
+    idx = (torch.randint(0, N - 1, (K,)),)
+    linop = Sampling(idx, input_size=(N,), output_shape=("K",))
+    linop.register_shape("custom", ("A", "B"))
+    looked_up = linop._shape["custom"]
+    assert len(looked_up) == 2

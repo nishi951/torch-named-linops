@@ -138,3 +138,37 @@ def test_paddim_adj_fn_size_mismatch():
     P = PadDim(dim=0, from_length=3, to_length=5, ishape=("N",), oshape=("N",))
     with pytest.raises(ValueError):
         P.H(torch.randn(10))
+
+
+def test_paddim_adjoint_valid_input():
+    """PadDim.adj_fn previously had a NameError (truncate instead of padend).
+    This test ensures the adjoint executes correctly on a valid input."""
+    P = PadDim(dim=0, from_length=3, to_length=5, ishape=("N",), oshape=("N",))
+    y = torch.randn(5, dtype=torch.complex64)
+    result = P.H(y)
+    assert result.shape == (3,)
+    assert torch.allclose(result, y[:3])
+
+
+def test_truncate_normal_with_inner():
+    """Truncate.normal(inner) should compose post @ inner @ pre correctly."""
+    from torchlinops import Identity
+
+    T = Truncate(dim=0, from_length=5, to_length=3, ishape=("N",), oshape=("N",))
+    inner = Identity(("N",))
+    normal = T.normal(inner=inner)
+    x = torch.randn(5, dtype=torch.complex64)
+    expected = T.H(inner(T(x)))
+    assert torch.allclose(normal(x), expected, rtol=1e-5)
+
+
+def test_paddim_normal_with_inner():
+    """PadDim.normal(inner) should compose post @ inner @ pre correctly."""
+    from torchlinops import Identity
+
+    P = PadDim(dim=0, from_length=3, to_length=5, ishape=("N",), oshape=("N",))
+    inner = Identity(("N",))
+    normal = P.normal(inner=inner)
+    x = torch.randn(3, dtype=torch.complex64)
+    expected = P.H(inner(P(x)))
+    assert torch.allclose(normal(x), expected, rtol=1e-5)

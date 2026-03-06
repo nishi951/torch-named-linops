@@ -65,8 +65,26 @@ def test_chain_dims():
 
 def test_chain_shape_mismatch_raises():
     """Chain should raise ValueError if consecutive shapes don't match."""
-    # A: N->M, B: P->Q — B.ishape (P) != A.oshape (M)
     A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
     B = Dense(torch.randn(5, 4), ("Q", "P"), ("P",), ("Q",))
     with pytest.raises(ValueError, match="Mismatched shape"):
         Chain(A, B)
+
+
+def test_chain_size_conflicting_raises():
+    """Chain.size() should raise ValueError when sub-linops report conflicting sizes."""
+    import torch.nn as nn
+    from torchlinops.linops.chain import Chain as Ch
+    from torchlinops.nameddim import NamedShape as NS
+
+    # Build two Dense linops that both claim to know dim "M" but disagree on its size
+    A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+    B = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+    C = Chain(A, B)
+
+    # Monkey-patch size() on the sub-linops to report conflicting values
+    A.size = lambda dim: 4 if str(dim) == "M" else None
+    B.size = lambda dim: 5 if str(dim) == "M" else None
+
+    with pytest.raises(ValueError, match="Conflicting"):
+        C.size("M")

@@ -152,3 +152,37 @@ def test_split_data_empty_indices(denselinops):
 
     result = C.split_data(ibatch, obatch, data_list)
     assert result == 0.0
+
+
+def test_stack_get_dim_and_idx_dim_already_in_shape_raises():
+    """Stack._get_dim_and_idx should raise ValueError if the dim is already in the shape."""
+    P, Q = 3, 4
+    A = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
+    # "Q" is already in ishape — trying to stack on it should raise
+    with pytest.raises(ValueError, match="already contains"):
+        Stack(A, idim_and_idx=("Q", 0))
+
+
+def test_stack_fn_size_mismatch_raises():
+    """Stack._fn should raise ValueError when input size doesn't match number of sub-linops."""
+    P, Q = 3, 4
+    A = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
+    B = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
+    # Horizontal stack: expects input of size 2 along dim N
+    C = Stack(A, B, idim_and_idx=("N", 0))
+    # Pass input with 3 along N instead of 2
+    bad_x = torch.randn(3, Q)
+    with pytest.raises(ValueError, match="Stack Linop expecting"):
+        C(bad_x)
+
+
+def test_stack_getitem_slice():
+    """Stack[0:1] should return a new Stack with the sliced sub-linops."""
+    P, Q = 3, 4
+    A = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
+    B = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
+    C = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
+    S = Stack(A, B, C, odim_and_idx=("M", 1))
+    sub = S[0:2]
+    assert isinstance(sub, Stack)
+    assert len(sub) == 2
