@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from torchlinops import NUFFT, Diagonal
@@ -34,7 +35,9 @@ def test_sense_mri():
     b = A(x)
 
 
+@pytest.mark.skip(reason="not yet implemented")
 def test_subspace_mri(): ...
 
 
+@pytest.mark.skip(reason="not yet implemented")
 def test_subspace_timeseg_mri(): ...

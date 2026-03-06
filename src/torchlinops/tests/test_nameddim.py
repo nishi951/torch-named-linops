@@ -1,5 +1,7 @@
 import copy
 
+import pytest
+
 from torchlinops import ND, NamedDimension
 
 
@@ -48,3 +50,30 @@ def test_nameddim_hash_lookup():
 
     bar = {ND("Q"): 2}
     assert bar["Q"] == 2
+
+
+def test_nameddim_infer_list():
+    """ND.infer on a list should return a list of ND objects."""
+    result = ND.infer(["A", "B", "C"])
+    assert isinstance(result, list)
+    assert all(isinstance(d, ND) for d in result)
+    assert str(result[0]) == "A"
+    assert str(result[1]) == "B"
+
+
+def test_nameddim_infer_tuple():
+    """ND.infer on a tuple should return a tuple of ND objects."""
+    result = ND.infer(("Nx", "Ny"))
+    assert isinstance(result, tuple)
+    assert str(result[0]) == "Nx"
+
+
+def test_namedshape_add_incompatible_raises():
+    """NamedShape + object with no ishape/oshape should raise an error."""
+    from torchlinops.nameddim import NamedShape as NS
+
+    s = NS(("A",), ("B",))
+    # The __add__ impl catches TypeError from tuple + non-tuple and re-raises TypeError.
+    # When right has no ishape attribute at all it raises AttributeError first.
+    with pytest.raises((TypeError, AttributeError)):
+        _ = s + object()

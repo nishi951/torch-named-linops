@@ -1,3 +1,4 @@
+# pragma: exclude file
 import copy
 import gc
 import logging

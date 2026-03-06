@@ -5,7 +5,7 @@ import torch
 from jaxtyping import Bool, Float, Shaped
 from torch import Tensor
 
-try:
+try:  # pragma: no cover
     import triton
     import triton.language as tl
 
@@ -91,7 +91,7 @@ def _unfold(
         raise RuntimeError(
             f"Unfold expected input with full size {im_size} but got {x.shape}"
         )
-    if x.is_cuda and ndim in UNFOLD.keys():
+    if x.is_cuda and ndim in UNFOLD.keys():  # pragma: no cover
         x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
             if output is None:
@@ -131,7 +131,7 @@ def _unfold(
     return y
 
 
-def _get_grid(ndim: int, nbatch, nblocks: tuple[int, ...]):
+def _get_grid(ndim: int, nbatch, nblocks: tuple[int, ...]):  # pragma: no cover
     if ndim == 1:
         grid = lambda meta: (  # noqa: E731
             nbatch * triton.cdiv(nblocks[0], meta["x_blocks_per_grid"]),
@@ -522,7 +522,7 @@ def load_subblock3d(
     )
 
 
-if TRITON_ENABLED:
+if TRITON_ENABLED:  # pragma: no cover
     UNFOLD = {1: _unfold1d, 2: _unfold2d, 3: _unfold3d}
 else:
     UNFOLD = {}

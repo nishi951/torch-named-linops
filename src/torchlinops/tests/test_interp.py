@@ -64,6 +64,13 @@ class TestInterp(BaseNamedLinopTests):
         }
         return spec
 
+    def test_size(self, linop_input_output):
+        A, x, y = linop_input_output
+        for dim in A.dims:
+            if dim != "...":
+                size = A.size(dim)
+                assert size is None or isinstance(size, int)
+
 
 def test_interp_slc():
     locs = torch.rand(8, 6, 5, 3)

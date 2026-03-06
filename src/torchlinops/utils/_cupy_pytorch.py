@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-try:
+try:  # pragma: no cover
     import cupy as cp
 
     cupy_enabled = True

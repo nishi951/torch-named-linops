@@ -8,7 +8,7 @@ tmp/
 *.egg-info
 dist
 htmlcov
-.coverage
+.coverage*
 
 # Data files
 *.np[yz]

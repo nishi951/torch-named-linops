@@ -24,7 +24,7 @@ from ..nameddim import (
     get_nd_shape,
 )
 from .namedlinop import NamedLinop
-from .pad_last import PadLast
+from .pad_last import Pad
 from .sampling import Sampling
 from .scalar import Scalar
 
@@ -121,7 +121,7 @@ class NUFFT(Chain):
         padded_size = tuple(int(i * oversamp) for i in grid_size)
 
         # Create Padding
-        pad = PadLast(
+        pad = Pad(
             padded_size,
             grid_size,
             in_shape=self.input_shape,
@@ -226,7 +226,7 @@ class NUFFT(Chain):
             dtype = self.options.get("toeplitz_dtype")
             oversamp = self.options.get("toeplitz_oversamp", 2.0)
             toep_kernel = toeplitz_psf(self, inner, dtype=dtype, oversamp=oversamp)
-            pad = PadLast(
+            pad = Pad(
                 scale_int(self.grid_size, oversamp),
                 self.grid_size,
                 in_shape=self.input_shape,

@@ -65,7 +65,30 @@ class BaseNamedLinopTests(ABC):
     def test_split(self, linop_input_output):
         A, x, y = linop_input_output
         for dim in set(A.ishape + A.oshape):
-            ...
+            tile = {dim: slice(0, 2)}
+            try:
+                A_split = A.split(A, tile)
+                assert A_split is not None
+            except (KeyError, ValueError, NotImplementedError):
+                pass
+
+    def test_size(self, linop_input_output):
+        A, x, y = linop_input_output
+        for dim in A.dims:
+            size = A.size(dim)
+            assert size is None or isinstance(size, int)
+
+    def test_adj_fn(self, linop_input_output):
+        A, x, y = linop_input_output
+        AHx = A.H(y)
+        adj_fn_result = A.adj_fn(A, y)
+        assert torch.isclose(AHx, adj_fn_result, **self.isclose_kwargs).all()
+
+    def test_normal_fn(self, linop_input_output):
+        A, x, y = linop_input_output
+        ANx = A.N(x)
+        normal_fn_result = A.normal_fn(A, x.clone())
+        assert torch.isclose(ANx, normal_fn_result, **self.isclose_kwargs).all()
 
     def test_backprop(self, linop_input_output):
         A, x, y = linop_input_output

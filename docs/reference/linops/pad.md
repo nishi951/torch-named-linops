@@ -1,6 +1,6 @@
 # Padding & Truncation
 
-::: torchlinops.linops.PadLast
+::: torchlinops.linops.Pad
     options:
         inherited_members: false
         members:

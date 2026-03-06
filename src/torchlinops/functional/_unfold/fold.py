@@ -5,7 +5,7 @@ import torch
 from jaxtyping import Bool, Shaped
 from torch import Tensor
 
-try:
+try:  # pragma: no cover
     import triton
     import triton.language as tl
 
@@ -86,7 +86,7 @@ def _fold(
         raise RuntimeError(
             f"Fold expected input with full size {(*nblocks, *block_size)} but got {x.shape}"
         )
-    if x.is_cuda and ndim in FOLD.keys():
+    if x.is_cuda and ndim in FOLD.keys():  # pragma: no cover
         x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
             if output is None:
@@ -118,7 +118,7 @@ def _fold(
     return y
 
 
-def _get_grid(ndim: int, nbatch, im_size):
+def _get_grid(ndim: int, nbatch, im_size):  # pragma: no cover
     if ndim == 1:
         grid = lambda meta: (  # noqa: E731
             nbatch * triton.cdiv(im_size[0], meta["X_BLOCK_SIZE"]),
@@ -480,7 +480,7 @@ def cdiv(a, b):
     return tl.cast(tl.ceil(a / b), tl.int32)
 
 
-if TRITON_ENABLED:
+if TRITON_ENABLED:  # pragma: no cover
     FOLD = {1: _fold1d, 2: _fold2d, 3: _fold3d}
 else:
     FOLD = {}
