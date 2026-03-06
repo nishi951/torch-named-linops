@@ -49,7 +49,7 @@ def resolve_device(dev):
     return d
 
 
-def memory_aware_to(module, device):
+def memory_aware_to(module, device):  # pragma: no cover
     """Move the given module to the specified device while being memory aware.
 
     Parameters
@@ -67,7 +67,7 @@ def memory_aware_to(module, device):
     return ModuleMemoryMap().memory_aware_to(module, device)
 
 
-def memory_aware_deepcopy(module):
+def memory_aware_deepcopy(module):  # pragma: no cover
     """Create a deep copy of the given module while being memory aware.
 
     Parameters
@@ -172,7 +172,9 @@ class ModuleMemoryMap:
             self.tensor_map[get_key(t)][device] = view
         return view
 
-    def memory_aware_to(self, module: nn.Module, device: torch.device):
+    def memory_aware_to(
+        self, module: nn.Module, device: torch.device
+    ):  # pragma: no cover
         """Move a module to a device, without unnecessary memory overhead."""
         device = resolve_device(device)
         # storage_tensors = collect(module)
@@ -211,7 +213,7 @@ class ModuleMemoryMap:
 
         return module
 
-    def memory_aware_deepcopy(self, module):
+    def memory_aware_deepcopy(self, module):  # pragma: no cover
         """Deepcopy a module, without unnecessary memory overhead."""
         # storage_map = create_shared_buffer_map(module, copy=True)
         self.register_module(module)
