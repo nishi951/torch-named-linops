@@ -33,18 +33,12 @@ class Add(Threadable, NamedLinop):
         Number of worker threads. If None, defaults to number of sub-linops.
     """
 
-    def __init__(
-        self, *linops, threaded: bool = True, num_workers: int | None = None, **kwargs
-    ):
+    def __init__(self, *linops):
         """
         Parameters
         ----------
         *linops : tuple[NamedLinop]
             The linear operators to be added together.
-        threaded : bool, optional
-            Whether to run sub-linops in parallel. Default is True.
-        num_workers : int | None, optional
-            Number of worker threads. If None, defaults to len(linops).
         """
         assert all(isequal(linop.ishape, linops[0].ishape) for linop in linops), (
             f"Add: All linops must share same ishape. Found {linops}"
@@ -52,14 +46,12 @@ class Add(Threadable, NamedLinop):
         assert all(isequal(linop.oshape, linops[0].oshape) for linop in linops), (
             f"Add: All linops must share same oshape. Linops: {linops}"
         )
-        super().__init__(
-            NS(linops[0].ishape, linops[0].oshape),
-            threaded=threaded,
-            num_workers=num_workers,
-            linops=list(linops),
-            **kwargs,
-        )
+        super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = nn.ModuleList(linops)
+        self._post_init()
+
+    def _post_init(self):
+        self._setup_events()
 
     @staticmethod
     def fn(add, x: torch.Tensor, /):
@@ -138,7 +130,10 @@ class Add(Threadable, NamedLinop):
         return [self]
 
     def __getitem__(self, idx):
-        return self.linops[idx]
+        linops = self.linops[idx]
+        if isinstance(linops, NamedLinop):
+            return linops
+        return type(self)(*linops)
 
     def __len__(self):
         return len(self.linops)

@@ -63,8 +63,6 @@ class Stack(Threadable, NamedLinop):
         *linops: NamedLinop,
         idim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
         odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
-        threaded: bool = True,
-        num_workers: int | None = None,
     ):
         """
         Parameters
@@ -75,12 +73,7 @@ class Stack(Threadable, NamedLinop):
             Tuple of ``(dim_name, index_tensor)`` for the input stacking dimension.
         odim_and_idx : tuple, optional
             Tuple of ``(dim_name, index_tensor)`` for the output stacking dimension.
-        threaded : bool, optional
-            Whether to run sub-linops in parallel. Default is True.
-        num_workers : int | None, optional
-            Number of worker threads. If None, defaults to len(linops).
         """
-        self._check_linop_compatibility(linops)
 
         self.idim, self.idim_idx, ishape = self._get_dim_and_idx(
             *idim_and_idx, linops[0].ishape
@@ -90,13 +83,13 @@ class Stack(Threadable, NamedLinop):
         )
 
         # Initialize parent class
-        super().__init__(
-            NS(ishape, oshape),
-            threaded=threaded,
-            num_workers=num_workers,
-            linops=list(linops),
-        )
+        super().__init__(NS(ishape, oshape))
         self.linops = nn.ModuleList(list(linops))
+        self._post_init()
+
+    def _post_init(self):
+        self._check_linop_compatibility()
+        self._setup_events()
 
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):
@@ -316,11 +309,10 @@ class Stack(Threadable, NamedLinop):
         new_odim = new_shape.oshape[i]
         return new_idim, new_odim
 
-    @staticmethod
-    def _check_linop_compatibility(linops: tuple[NamedLinop, ...]):
+    def _check_linop_compatibility(self):
         """Ensure linops can actually be concatenated along the requested dimension"""
-        target_shape = linops[0].shape
-        for linop in linops:
+        target_shape = self.linops[0].shape
+        for linop in self.linops:
             if not (
                 isequal(target_shape.ishape, linop.ishape)
                 and isequal(target_shape.oshape, linop.oshape)
