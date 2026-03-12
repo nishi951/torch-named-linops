@@ -49,10 +49,27 @@ class Threadable:
         self.threaded = threaded
         self.num_workers = num_workers
 
+    @property
+    def linops(self):
+        return self._linops
+
+    @linops.setter
+    def linops(self, new_linops):
+        self._linops = new_linops
+        self._setup_events()
+
+    def __setattr__(self, name, value):
+        """Bypasses pytorch's setattr, just for linops"""
+        if name == "linops":
+            # Force descriptor lookup for this name
+            type(self).linops.fset(self, value)
+        else:
+            super().__setattr__(name, value)
+
     def _setup_events(self):
         # De-duplicate
-        self.linops = nn.ModuleList([copy(linop) for linop in self.linops])
-        for linop in self.linops:
+        self._linops = nn.ModuleList([copy(linop) for linop in self._linops])
+        for linop in self._linops:
             linop.input_listener = (self, "input_listener")
 
     def _apply_defaults(self, x, num_workers):
@@ -76,6 +93,15 @@ class Threadable:
         """Wrapper around _threaded_apply"""
         xs, num_workers = self._apply_defaults(x, num_workers)
         return _threaded_apply(self.linops, xs, num_workers)
+
+    @property
+    def settings(self):
+        return {"threaded": self.threaded, "num_workers": self.num_workers}
+
+    @settings.setter
+    def settings(self, new_settings):
+        self.threaded = new_settings["threaded"]
+        self.num_workers = new_settings["num_workers"]
 
 
 def _threaded_apply_sum_reduce(linops, xs, num_workers):

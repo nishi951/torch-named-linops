@@ -85,11 +85,7 @@ class Stack(Threadable, NamedLinop):
         # Initialize parent class
         super().__init__(NS(ishape, oshape))
         self.linops = nn.ModuleList(list(linops))
-        self._post_init()
-
-    def _post_init(self):
         self._check_linop_compatibility()
-        self._setup_events()
 
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):

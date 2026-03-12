@@ -1,4 +1,5 @@
 import logging
+from copy import copy
 
 import torch
 import torch.nn as nn
@@ -48,10 +49,6 @@ class Add(Threadable, NamedLinop):
         )
         super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = nn.ModuleList(linops)
-        self._post_init()
-
-    def _post_init(self):
-        self._setup_events()
 
     @staticmethod
     def fn(add, x: torch.Tensor, /):
@@ -67,15 +64,16 @@ class Add(Threadable, NamedLinop):
         return sum(linop.H(x) for linop in add.linops)
 
     def split_forward(self, ibatch, obatch):
+        split = copy(self)
         linops = [linop.split_forward(ibatch, obatch) for linop in self.linops]
-        return type(self)(*linops)
+        split._linops = nn.ModuleList(linops)
+        return split
 
     def adjoint(self):
-        return type(self)(
-            *(linop.adjoint() for linop in self.linops),
-            threaded=self.threaded,
-            num_workers=self.num_workers,
-        )
+        adj = copy(self)
+        adj._linops = nn.ModuleList([linop.adjoint() for linop in self.linops])
+        adj.shape = self.shape.adjoint()
+        return adj
 
     def normal(self, inner=None):
         if inner is None:
@@ -90,11 +88,10 @@ class Add(Threadable, NamedLinop):
                     else:
                         all_combinations.append(left_linop.H @ right_linop)
             all_combinations = standardize_shapes(all_combinations, new_shape)
-            return type(self)(
-                *all_combinations,
-                threaded=self.threaded,
-                num_workers=self.num_workers,
-            )
+            normal = copy(self)
+            normal.linops = nn.ModuleList(list(all_combinations))
+            normal.shape = normal.linops[0].shape
+            return normal
         return super().normal(inner)
 
     def size(self, dim):
@@ -110,21 +107,27 @@ class Add(Threadable, NamedLinop):
 
     @property
     def H(self):
-        if config.cache_adjoint_normal:
-            config._warn_if_caching_enabled()
-            if self._adjoint is None:
-                self._adjoint = [self.adjoint()]
-            return self._adjoint[0]
-        return self.adjoint()
+        try:
+            if config.cache_adjoint_normal:
+                config._warn_if_caching_enabled()
+                if self._adjoint is None:
+                    self._adjoint = [self.adjoint()]
+                return self._adjoint[0]
+            return self.adjoint()
+        except AttributeError as e:
+            raise RuntimeError(f"AttributeError in {type(self).__name__}.H: {e}") from e
 
     @property
     def N(self):
-        if config.cache_adjoint_normal:
-            config._warn_if_caching_enabled()
-            if self._normal is None:
-                self._normal = [self.normal()]
-            return self._normal[0]
-        return self.normal()
+        try:
+            if config.cache_adjoint_normal:
+                config._warn_if_caching_enabled()
+                if self._normal is None:
+                    self._normal = [self.normal()]
+                return self._normal[0]
+            return self.normal()
+        except AttributeError as e:
+            raise RuntimeError(f"AttributeError in {type(self).__name__}.N: {e}") from e
 
     def flatten(self):
         return [self]
@@ -133,7 +136,9 @@ class Add(Threadable, NamedLinop):
         linops = self.linops[idx]
         if isinstance(linops, NamedLinop):
             return linops
-        return type(self)(*linops)
+        new = copy(self)
+        new._linops = nn.ModuleList(linops)
+        return new
 
     def __len__(self):
         return len(self.linops)

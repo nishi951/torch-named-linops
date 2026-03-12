@@ -43,7 +43,8 @@ class TestAddThreaded:
 
     def test_add_num_workers(self, dense_linops):
         A, B, C = dense_linops
-        add = Add(A, B, C, num_workers=2)
+        add = Add(A, B, C)
+        add.num_workers = 2
         x = torch.randn(1, 3)
         y = add(x)
         assert y.shape == torch.Size([1, 4])
@@ -59,7 +60,8 @@ class TestConcatThreaded:
 
     def test_concat_non_threaded(self, dense_linops):
         A, B = dense_linops[:2]
-        concat = Concat(A, B, idim="N", threaded=False)
+        concat = Concat(A, B, idim="N")
+        concat.threaded = False
         x = torch.randn(2, 3)
         y = concat(x)
         assert y.shape == torch.Size([1, 4])
@@ -69,7 +71,8 @@ class TestConcatThreaded:
         x = torch.randn(2, 3)
 
         concat_threaded = Concat(A, B, idim="N")
-        concat_non_threaded = Concat(A, B, idim="N", threaded=False)
+        concat_non_threaded = Concat(A, B, idim="N")
+        concat_non_threaded.threaded = False
 
         y_threaded = concat_threaded(x)
         y_non_threaded = concat_non_threaded(x)
@@ -78,7 +81,8 @@ class TestConcatThreaded:
 
     def test_concat_num_workers(self, dense_linops):
         A, B = dense_linops[:2]
-        concat = Concat(A, B, idim="N", num_workers=2)
+        concat = Concat(A, B, idim="N")
+        concat.num_workers = 2
         x = torch.randn(2, 3)
         y = concat(x)
         assert y.shape == torch.Size([1, 4])
@@ -94,7 +98,8 @@ class TestStackThreaded:
 
     def test_stack_non_threaded(self, dense_linops):
         A, B, C = dense_linops
-        stack = Stack(A, B, C, odim_and_idx=("L", 0), threaded=False)
+        stack = Stack(A, B, C, odim_and_idx=("L", 0))
+        stack.threaded = False
         x = torch.randn(1, 3)
         y = stack(x)
         assert y.shape == torch.Size([3, 1, 4])
@@ -104,7 +109,8 @@ class TestStackThreaded:
         x = torch.randn(1, 3)
 
         stack_threaded = Stack(A, B, C, odim_and_idx=("L", 0))
-        stack_non_threaded = Stack(A, B, C, odim_and_idx=("L", 0), threaded=False)
+        stack_non_threaded = Stack(A, B, C, odim_and_idx=("L", 0))
+        stack_non_threaded.threaded = False
 
         y_threaded = stack_threaded(x)
         y_non_threaded = stack_non_threaded(x)
@@ -113,7 +119,8 @@ class TestStackThreaded:
 
     def test_stack_num_workers(self, dense_linops):
         A, B, C = dense_linops
-        stack = Stack(A, B, C, odim_and_idx=("L", 0), num_workers=2)
+        stack = Stack(A, B, C, odim_and_idx=("L", 0))
+        stack.num_workers = 2
         x = torch.randn(1, 3)
         y = stack(x)
         assert y.shape == torch.Size([3, 1, 4])
@@ -182,7 +189,8 @@ class TestSharedLinopCopying:
     def test_threading_preserved_after_copy(self):
         """Threading should still work after copying shared linops."""
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
-        concat = Concat(A, A, idim="K", threaded=True)
+        concat = Concat(A, A, idim="K")
+        concat.threaded = True
 
         assert concat.threaded is True
 
