@@ -69,7 +69,7 @@ def test_model_storage_duplicate_submodules():
     A = Stack(P, P, P, odim_and_idx=("B", 0))
     memory_aware_to(A, resolve_device(torch.device("cuda")))
     assert A[0].weight.is_cuda
-    assert id(A[0].weight) == id(A[1].weight)
+    assert id(A[0].weight.data) == id(A[1].weight.data)
 
 
 @pytest.mark.gpu

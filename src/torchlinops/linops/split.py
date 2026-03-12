@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass, field
 from math import ceil
 from typing import Optional
@@ -117,7 +118,7 @@ def create_batched_linop(
     if len(batch_specs) == 0:
         # Recursive ending
         return linop
-    batch_spec = batch_specs[0]
+    batch_spec = deepcopy(batch_specs[0])
     # Set defaults
     batch_spec.base_device = default_to(default_device, batch_spec.base_device)
     batch_spec.device_matrix = default_to(
