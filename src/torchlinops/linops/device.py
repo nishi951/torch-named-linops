@@ -296,7 +296,7 @@ def _gpu2gpu_transfer(
             f"Transferring tensor from {x.device} to {odevice}, "
             f"shape={x.shape}, size_bytes={x.element_size() * x.nelement()}"
         )
-        out = x.to(odevice, non_blocking=True)
+        out = x.to(odevice, non_blocking=False)
     # Don't mess with x's memory until transfer is completed
     x.record_stream(transfer_stream)
     # Target stream should wait until transfer is complete
