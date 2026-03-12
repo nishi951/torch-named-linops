@@ -86,49 +86,7 @@ class Concat(Threadable, NamedLinop):
         self._check_linop_compatibility(linops)
         super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = nn.ModuleList(list(linops))
-
-        # Handle ishape
-        ishape = linops[0].ishape
-        if idim is not None:
-            self.idim = ND.infer(idim)
-            if any(linop.size(self.idim) is None for linop in linops):
-                raise ValueError(
-                    f"Found linop with undefined size for dim {self.idim} when attempting concat."
-                )
-            self.isizes = [linop.size(self.idim) for linop in linops]
-            self.islices = torch.tensor(self.isizes).cumsum(0)  # Keep on CPU
-            # self.islices = nn.Parameter(islices, requires_grad=False)
-        else:
-            self.idim = None
-            self.isizes = None
-            self.islices = None
-
-        # Handle oshape
-        oshape = linops[0].oshape
-        if odim is not None:
-            self.odim = ND.infer(odim)
-            if any(linop.size(self.odim) is None for linop in linops):
-                raise ValueError(
-                    f"Found linop with undefined size for dim {self.odim} when attempting concat."
-                )
-            self.osizes = [linop.size(self.odim) for linop in linops]
-            self.oslices = torch.tensor(self.osizes).cumsum(0)  # Keep on CPU
-            # self.oslices = nn.Parameter(oslices, requires_grad=False)
-        else:
-            self.odim = None
-            self.osizes = None
-            self.oslices = None
-
-        if self.idim is None and self.odim is None:
-            raise ValueError(f"At least one of idim and odim cannot be None.")
-
-        self.idim_idx = self._infer_dim_idx(self.idim, ishape)
-        self.odim_idx = self._infer_dim_idx(self.odim, oshape)
-
-        self._post_init()
-
-    def _post_init(self):
-        self._setup_events()
+        self._setup_indices(idim, odim)
 
     @staticmethod
     def fn(concat, x):
@@ -227,7 +185,7 @@ class Concat(Threadable, NamedLinop):
                 linop = self.linops[i]
                 ibatch, obatch = ibatches[i], obatches[i]
                 output_linops.append(linop.split_forward(ibatch, obatch))
-            return type(self)(*output_linops, idim=self.idim, odim=self.odim)
+            return self.spinoff(output_linops, idim=self.idim, odim=self.odim)
 
     @staticmethod
     def subslice(batch: list[slice], dim_idx: Optional[int], slices, num_linops):
@@ -251,7 +209,13 @@ class Concat(Threadable, NamedLinop):
 
     def adjoint(self):
         adj_linops = [linop.H for linop in self.linops]
-        return type(self)(*adj_linops, idim=self.odim, odim=self.idim)
+        adj_shape = adj_linops[0].shape
+        return self.spinoff(
+            linops=adj_linops,
+            shape=adj_shape,
+            idim=self.odim,
+            odim=self.idim,
+        )
 
     def normal(self, inner=None):
         if inner is None:
@@ -262,7 +226,9 @@ class Concat(Threadable, NamedLinop):
             if self.idim is None:  # Vertical (inner product)
                 linops = [linop.N for linop in self.linops]
                 linops = standardize_shapes(linops, new_shape)
-                return Add(*linops)
+                new = Add(*linops)
+                new.settings = self.settings  # Copy Threadable settings
+                return new
             elif self.odim is None:  # Horizontal (outer product)
                 rows = []
                 new_idim, new_odim = self._get_new_normal_io_dims(new_shape, self.idim)
@@ -275,17 +241,20 @@ class Concat(Threadable, NamedLinop):
                             new_linop = linop_left.H @ linop_right
                         row.append(new_linop)
                         row = standardize_shapes(row, new_shape)
-                    row = type(self)(*row, idim=new_idim, odim=None)
-                    rows.append(row)
-                # rows = self._standardize_shapes(rows, new_shape)
-                return type(self)(*rows, idim=None, odim=new_odim)
+                    rows.append(
+                        self.spinoff(
+                            linops=row, shape=new_shape, idim=new_idim, odim=None
+                        )
+                    )
+                # rows = standardize_shapes(rows, new_shape)
+                return self.spinoff(rows, shape=new_shape, idim=None, odim=new_odim)
             else:  # Diagonal
                 diag = []
                 new_idim, new_odim = self._get_new_normal_io_dims(new_shape, self.idim)
                 for linop in self.linops:
                     diag.append(linop.N)
                 diag = standardize_shapes(diag, new_shape)
-                return type(self)(*diag, idim=new_idim, odim=new_odim)
+                return self.spinoff(diag, shape=new_shape, idim=new_idim, odim=new_odim)
         return super().normal(inner)
 
     @staticmethod
@@ -307,6 +276,33 @@ class Concat(Threadable, NamedLinop):
                 raise ValueError(
                     f"Incompatible linops being stacked. Target shape: {target_shape} but got linop shape: {linop.shape}"
                 )
+
+    def _setup_indices(self, idim, odim):
+        ishape = self.linops[0].ishape
+        oshape = self.linops[0].oshape
+        self.idim, self.isizes, self.islices = self._setup_dim(idim, ishape)
+        self.odim, self.osizes, self.oslices = self._setup_dim(odim, oshape)
+
+        if self.idim is None and self.odim is None:
+            raise ValueError(f"At least one of idim and odim cannot be None.")
+
+        self.idim_idx = self._infer_dim_idx(self.idim, ishape)
+        self.odim_idx = self._infer_dim_idx(self.odim, oshape)
+
+    def _setup_dim(self, dim, shape):
+        if dim is not None:
+            _dim = ND.infer(dim)
+            if any(linop.size(_dim) is None for linop in self.linops):
+                raise ValueError(
+                    f"Found linop with undefined size for dim {_dim} when attempting concat."
+                )
+            _sizes = [linop.size(_dim) for linop in self.linops]
+            _slices = torch.tensor(_sizes).cumsum(0)  # Keep on CPU
+        else:
+            _dim = None
+            _sizes = None
+            _slices = None
+        return _dim, _sizes, _slices
 
     @staticmethod
     def _infer_dim_idx(dim: ND, shape: tuple[ND, ...]) -> int:
@@ -340,7 +336,20 @@ class Concat(Threadable, NamedLinop):
         linops = self.linops[idx]
         if isinstance(linops, NamedLinop):
             return linops
-        return type(self)(*linops, idim=self.idim, odim=self.odim)
+        return self.spinoff(linops, idim=self.idim, odim=self.odim)
+
+    def spinoff(self, linops=None, shape=None, idim=None, odim=None):
+        """Helper function for creating a new linop using the provided inputs.
+
+        Preserves settings from the original linop.
+        """
+        linops = linops if linops is not None else self.linops
+        shape = shape if shape is not None else self.shape
+        new = copy(self)
+        new.shape = shape
+        new.linops = nn.ModuleList(linops)
+        new._setup_indices(idim=idim, odim=odim)
+        return new
 
     def __len__(self):
         return len(self.linops)

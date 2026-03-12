@@ -45,11 +45,24 @@ class Chain(NamedLinop):
         """
         super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
         self.linops = nn.ModuleList(list(linops))
-        self._post_init()
-
-    def _post_init(self):
         self._check_inputs_outputs()
+
+    @property
+    def linops(self):
+        return self._linops
+
+    @linops.setter
+    def linops(self, new_linops):
+        self._linops = new_linops
         self._setup_events()
+
+    def __setattr__(self, name, value):
+        """Bypasses pytorch's setattr, just for linops"""
+        if name == "linops":
+            # Force descriptor lookup for this name
+            type(self).linops.fset(self, value)
+        else:
+            super().__setattr__(name, value)
 
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
@@ -62,8 +75,8 @@ class Chain(NamedLinop):
 
     def _setup_events(self):
         """Copy every linop and point initial linop listener at Chain's input listener."""
-        self.linops = nn.ModuleList([copy(linop) for linop in self.linops])
-        self.linops[0].input_listener = (self, "input_listener")
+        self._linops = nn.ModuleList([copy(linop) for linop in self._linops])
+        self._linops[0].input_listener = (self, "input_listener")
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):
@@ -245,5 +258,5 @@ class Chain(NamedLinop):
 
     def __copy__(self):
         new = super().__copy__()
-        new._post_init()
+        new._setup_events()
         return new

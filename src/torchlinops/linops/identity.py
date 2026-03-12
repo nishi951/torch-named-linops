@@ -82,7 +82,7 @@ class ShapeSpec(Identity):
 
     def adjoint(self):
         new = copy(self)
-        new.ishape, new.oshape = self.oshape, self.ishape
+        new.shape = self.shape.adjoint()
         return new
 
     def normal(self, inner=None):

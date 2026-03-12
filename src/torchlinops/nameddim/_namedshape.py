@@ -90,7 +90,14 @@ class NamedShape(NamedDimCollection):
         NamedShape
             A new instance representing the normal operator shape.
         """
-        new_oshape = tuple(d.next_unused(self.ishape) for d in self.ishape)
+        # If a shape appears in both ishape and oshape, it is considered
+        # "diagonal".
+        new_oshape = []
+        for d in self.ishape:
+            if d in self.oshape:
+                new_oshape.append(d)
+            else:
+                new_oshape.append(d.next_unused(self.ishape))
         new = type(self)(self.ishape, new_oshape, **self.other_shapes)
         return new
 

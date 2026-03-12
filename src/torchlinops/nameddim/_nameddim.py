@@ -125,12 +125,12 @@ class NamedDimension:
             return type(dim)(cls.infer(d) for d in dim)
         return cls(dim)
 
-    def next_unused(self, tup):
+    def next_unused(self, avoid):
         """Get the next dim by index that does not occur in tup"""
         curr = copy(self)
         if self.name == ELLIPSES or self.name == ANY:
             return curr
-        while curr in tup:
+        while curr in avoid:
             curr = curr + 1
         return curr
 
