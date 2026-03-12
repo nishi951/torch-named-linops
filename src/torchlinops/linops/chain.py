@@ -1,6 +1,7 @@
-from collections.abc import Mapping
-from typing import Optional
 import logging
+from collections.abc import Mapping
+from copy import copy
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -9,8 +10,8 @@ import torchlinops.config as config
 from torchlinops.utils import INDENT, RepeatedEvent
 
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
-from .namedlinop import NamedLinop
 from .device import ToDevice
+from .namedlinop import NamedLinop
 
 logger = logging.getLogger("torchlinops")
 
@@ -44,8 +45,10 @@ class Chain(NamedLinop):
         """
         super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
         self.linops = nn.ModuleList(list(linops))
-        self._check_inputs_outputs()
+        self._post_init()
 
+    def _post_init(self):
+        self._check_inputs_outputs()
         self._setup_events()
 
     def _check_inputs_outputs(self):
@@ -58,9 +61,9 @@ class Chain(NamedLinop):
             curr_shape = linop.oshape
 
     def _setup_events(self):
-        """Point initial linop listener at Chain's input listener."""
-        first_linop = self.linops[0]
-        first_linop.input_listener = (self, "input_listener")
+        """Copy every linop and point initial linop listener at Chain's input listener."""
+        self.linops = nn.ModuleList([copy(linop) for linop in self.linops])
+        self.linops[0].input_listener = (self, "input_listener")
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):
@@ -239,3 +242,8 @@ class Chain(NamedLinop):
                 output += INDENT.indent(f"end: {self.end_event.event_id:x}\n")
         output += INDENT.indent(")")
         return output
+
+    def __copy__(self):
+        new = super().__copy__()
+        new._post_init()
+        return new

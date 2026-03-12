@@ -70,8 +70,6 @@ class Concat(Threadable, NamedLinop):
         *linops,
         idim: Optional[ND | str] = None,
         odim: Optional[ND | str] = None,
-        threaded: bool = True,
-        num_workers: int | None = None,
     ):
         """
         Parameters
@@ -84,18 +82,9 @@ class Concat(Threadable, NamedLinop):
         odim : str or ND, optional
             Output dimension along which to concatenate. If ``None``, the output
             is not concatenated (outputs are summed).
-        threaded : bool, optional
-            Whether to run sub-linops in parallel. Default is True.
-        num_workers : int | None, optional
-            Number of worker threads. If None, defaults to len(linops).
         """
         self._check_linop_compatibility(linops)
-        super().__init__(
-            NS(linops[0].ishape, linops[0].oshape),
-            threaded=threaded,
-            num_workers=num_workers,
-            linops=list(linops),
-        )
+        super().__init__(NS(linops[0].ishape, linops[0].oshape))
         self.linops = nn.ModuleList(list(linops))
 
         # Handle ishape
@@ -135,6 +124,11 @@ class Concat(Threadable, NamedLinop):
 
         self.idim_idx = self._infer_dim_idx(self.idim, ishape)
         self.odim_idx = self._infer_dim_idx(self.odim, oshape)
+
+        self._post_init()
+
+    def _post_init(self):
+        self._setup_events()
 
     @staticmethod
     def fn(concat, x):

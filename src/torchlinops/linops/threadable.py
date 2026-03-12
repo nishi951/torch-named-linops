@@ -1,8 +1,10 @@
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, Callable
+from copy import copy
+from typing import Callable, Optional
 
 import torch
+import torch.nn as nn
 from torch import Tensor
 
 __all__ = ["Threadable"]
@@ -30,7 +32,6 @@ class Threadable:
         *args,
         threaded: bool = True,
         num_workers: Optional[int] = None,
-        linops: Optional[list] = None,
         **kwargs,
     ):
         """
@@ -47,15 +48,14 @@ class Threadable:
         super().__init__(*args, **kwargs)
         self.threaded = threaded
         self.num_workers = num_workers
-        self.linops = linops if linops is not None else []
-        if self.linops:
-            self._setup_events()
 
     def _setup_events(self):
+        # De-duplicate
+        self.linops = nn.ModuleList([copy(linop) for linop in self.linops])
         for linop in self.linops:
             linop.input_listener = (self, "input_listener")
 
-    def _setup_defaults(self, x, num_workers):
+    def _apply_defaults(self, x, num_workers):
         if not hasattr(self, "linops") or len(self.linops) == 0:
             raise AttributeError("Threadable class must have `linops` attribute.")
         xs = list(x) if isinstance(x, (list, tuple)) else [x]
@@ -67,14 +67,14 @@ class Threadable:
         self, x: Tensor | list[Tensor], num_workers: Optional[int] = None
     ) -> Tensor:
         """Wrapper around _threaded_apply_sum_reduce."""
-        xs, num_workers = self._setup_defaults(x, num_workers)
+        xs, num_workers = self._apply_defaults(x, num_workers)
         return _threaded_apply_sum_reduce(self.linops, xs, num_workers)
 
     def threaded_apply(
         self, x: Tensor | list[Tensor], num_workers: Optional[int] = None
     ):
         """Wrapper around _threaded_apply"""
-        xs, num_workers = self._setup_defaults(x, num_workers)
+        xs, num_workers = self._apply_defaults(x, num_workers)
         return _threaded_apply(self.linops, xs, num_workers)
 
 

@@ -27,8 +27,6 @@ class TestAddDunder:
         B = Dense(torch.randn(4, 3), ("N", "M"), ("N",), ("N", "M"))
         add = Add(A, B)
         assert len(add) == 2
-        assert add[0] is A
-        assert add[1] is B
         assert repr(add)
 
     def test_flatten(self):

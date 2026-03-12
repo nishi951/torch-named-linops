@@ -618,7 +618,6 @@ class NamedLinop(nn.Module):
             _log_transfer(f"Setting {type(self).__name__}.input_listener to {value}")
             self._input_listener = value
 
-    @final
     def __copy__(self):
         """Specialized copying for linops.
 
