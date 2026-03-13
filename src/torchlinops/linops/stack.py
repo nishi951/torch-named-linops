@@ -29,33 +29,53 @@ def _log_transfer(msg):
 
 
 class Stack(Threadable, NamedLinop):
-    """Concatenate some linops along a new dimension
+    """Concatenate some linops along a new dimension.
 
     Linops need not output tensors of the same size, but they should
-    output tensors of the same number of dimensions
+    output tensors of the same number of dimensions.
 
-    Stacking type depends on dimensions provided
+    Stacking type depends on dimensions provided:
 
-    Horizontal stacking
-    stacking along an input dimension:
+    Horizontal stacking (stacking along an input dimension)::
 
-    A B C
+        A B C
 
-    Vertical stacking
-    stacking along an output dimension:
+    Vertical stacking (stacking along an output dimension)::
 
-    A
-    B
-    C
+        A
+        B
+        C
 
-    Diagonal stacking:
-    stacking along a separate input and output dimensions
+    Diagonal stacking (stacking along separate input and output dimensions)::
 
-    A . .
-    . B .
-    . . C
+        A . .
+        . B .
+        . . C
 
+    Inherits from ``Threadable`` to support parallel execution of sub-linops.
+    When ``threaded=True`` (default), each sub-linop is executed in parallel
+    using a ThreadPoolExecutor.
 
+    Note that shared linops (e.g., ``Stack(A, A, odim_and_idx=("L", 0))``) are
+    automatically shallow-copied to ensure independent identity for threading,
+    while still sharing tensor data. See ``Threadable`` for details.
+
+    Attributes
+    ----------
+    linops : nn.ModuleList
+        The list of linops being stacked.
+    threaded : bool
+        Whether to run sub-linops in parallel. Default is True.
+    num_workers : int | None
+        Number of worker threads. If None, defaults to the number of sub-linops.
+    idim : ND | None
+        Input stacking dimension name.
+    idim_idx : int | None
+        Index position of the input stacking dimension.
+    odim : ND | None
+        Output stacking dimension name.
+    odim_idx : int | None
+        Index position of the output stacking dimension.
     """
 
     def __init__(
