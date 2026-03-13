@@ -337,7 +337,8 @@ nufft_op = NUFFT(
     locs=locs,
     grid_size=image_size,
     output_shape=Dim("R"),  # Readout dimension
-    input_shape=Dim("CNxNy"),
+    input_shape=Dim("NxNy"),
+    batch_shape=Dim("C"),
     oversamp=2.0,
     width=6.0,
 )
@@ -418,7 +419,7 @@ plt.show()
 # Diagonal is used because density compensation is element-wise multiplication
 density_op = Diagonal(
     weight=dcf_weights,
-    ioshape=Dim("R"),  # Same as NUFFT output shape
+    ioshape=Dim("CR"),  # Same as NUFFT output shape
 )
 
 # Test density compensation
