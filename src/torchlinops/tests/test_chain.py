@@ -40,7 +40,6 @@ def test_chain_getitem():
     B = Dense(torch.randn(3, 2), ("K", "N"), ("N",), ("K",))
     C = Chain(B, A)
     assert len(C) == 2
-    assert C[0] is B
     sub = C[0:1]
     assert isinstance(sub, Chain)
 
@@ -83,8 +82,60 @@ def test_chain_size_conflicting_raises():
     C = Chain(A, B)
 
     # Monkey-patch size() on the sub-linops to report conflicting values
-    A.size = lambda dim: 4 if str(dim) == "M" else None
-    B.size = lambda dim: 5 if str(dim) == "M" else None
+    C[0].size = lambda dim: 4 if str(dim) == "M" else None
+    C[1].size = lambda dim: 5 if str(dim) == "M" else None
 
     with pytest.raises(ValueError, match="Conflicting"):
         C.size("M")
+
+
+class TestSharedLinopCopying:
+    """Tests for automatic shallow copying of shared linops in Chain."""
+
+    def test_chain_shared_linop_copies(self):
+        """Shared linop in Chain should be copied."""
+        A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+        chain = Chain(A, A)
+
+        assert chain.linops[0] is not chain.linops[1]
+
+    def test_chain_shared_linop_shallow_copy(self):
+        """Shallow copy should share tensor storage."""
+        A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+        chain = Chain(A, A)
+
+        assert chain.linops[0].weight.data_ptr() == chain.linops[1].weight.data_ptr()
+
+    def test_chain_multiple_shared_copies(self):
+        """Multiple copies of same linop should all be independent objects."""
+        A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+        chain = Chain(A, A, A)
+
+        assert chain.linops[0] is not chain.linops[1]
+        assert chain.linops[1] is not chain.linops[2]
+        assert chain.linops[0] is not chain.linops[2]
+
+        assert chain.linops[0].weight.data_ptr() == chain.linops[1].weight.data_ptr()
+        assert chain.linops[1].weight.data_ptr() == chain.linops[2].weight.data_ptr()
+
+    def test_chain_execution_after_copy(self):
+        """Chain should execute correctly after copying shared linops."""
+        A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+        chain = Chain(A, A)
+
+        x = torch.randn(4)
+        y = chain(x)
+        assert y.shape == (4,)
+
+    def test_chain_input_listener_independent(self):
+        """Copied linops in Chain should have independent input_listener references."""
+        A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+        chain = Chain(A, A)
+
+        first = chain.linops[0]
+        second = chain.linops[1]
+        assert first._input_listener._obj == chain
+        assert first._input_listener._attr == "input_listener"
+        assert id(second._input_listener._obj) != id(first._input_listener._obj)
+        assert second._input_listener._attr != first._input_listener._attr
+        assert chain.linops[0] is not chain.linops[1]

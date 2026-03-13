@@ -1,4 +1,4 @@
-from copy import deepcopy
+from copy import copy
 from typing import Optional
 
 import torch.fft as fft
@@ -63,6 +63,10 @@ class FFT(NamedLinop):
             raise ValueError(
                 f"grid_shapes should consist of two shape tuples but got {grid_shapes}"
             )
+        if len(grid_shapes[0]) != len(grid_shapes[1]):
+            raise ValueError(
+                f"Input and output shapes of FFT must have same length but got len({grid_shapes[0]} != len({grid_shapes[1]})"
+            )
         batch_shape = default_to(("...",), batch_shape)
         dim_shape = NS(*grid_shapes)
         shape = NS(batch_shape) + dim_shape
@@ -100,14 +104,9 @@ class FFT(NamedLinop):
         return x
 
     def split_forward(self, ibatch, obatch):
-        new = type(self)(
-            self.ndim,
-            self.batch_shape,
-            self.grid_shapes,
-            self.norm,
-            self.centered,
-        )
-        new._shape = deepcopy(self._shape)
+        """Splitting does nothing."""
+        # TODO: raise an error if the FFT is split along an input or output grid dim
+        new = copy(self)
         return new
 
     def normal(self, inner=None):

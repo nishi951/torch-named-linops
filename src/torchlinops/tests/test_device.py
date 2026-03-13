@@ -1,10 +1,11 @@
-from functools import partial
-from itertools import product
 import logging
 from copy import deepcopy
+from functools import partial
+from itertools import product
 
 import pytest
 import torch
+from torch.cuda import default_stream
 from torch.testing import assert_close
 
 from torchlinops import (
@@ -12,11 +13,13 @@ from torchlinops import (
     Chain,
     Concat,
     Dense,
+    DeviceSpec,
     Dim,
+    NamedDimension as ND,
     Stack,
     ToDevice,
-    NamedDimension as ND,
 )
+from torchlinops.linops.device import _gpu2gpu_transfer
 
 logger = logging.getLogger("torchlinops")
 # Linops that support parallel execution with multiple GPUs
@@ -113,6 +116,207 @@ def _slow_matmul_chain(N: int, chain_length: int = 5):
     return A
 
 
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available() or torch.cuda.device_count() < 2,
+    reason="2 GPUs are required for this test",
+)
+def test_gpu2gpu_barebones():
+    gpu0 = torch.device("cuda:0")
+    gpu1 = torch.device("cuda:1")
+    base_device = gpu0
+
+    N = 8192  # arbitrary
+
+    ### GPU1 -> GPU0
+    # Input
+    x = torch.ones(N, device=base_device)
+    # Prepare
+    # x = x.to(base_device)
+    source_stream = default_stream(x.device)
+    # transfer_stream = torch.cuda.Stream(x.device)
+    transfer_stream = torch.cuda.Stream(gpu0)
+    target_stream = default_stream(gpu1)
+
+    # transfer_stream.wait_event(input_ready_event)
+    transfer_stream.wait_stream(source_stream)
+    with torch.cuda.stream(transfer_stream):
+        y = x.to(gpu1, non_blocking=True)
+        assert y[0].cpu() == x[0].cpu()
+        x.record_stream(transfer_stream)
+        y.record_stream(transfer_stream)
+    target_stream.wait_stream(transfer_stream)
+
+    torch.cuda.synchronize(gpu0)
+    torch.cuda.synchronize(gpu1)
+
+    # Correctness
+    assert_close(y.cpu(), x.cpu())
+
+    ### GPU1 -> GPU0
+
+    # Event
+    x1 = torch.ones(N, device=gpu1)
+    source_stream = default_stream(x1.device)
+    transfer_stream = torch.cuda.Stream(x1.device)
+    target_stream = default_stream(gpu0)
+
+    # transfer_stream.wait_event(input_ready_event)
+    # Wait for stream, not events
+    transfer_stream.wait_stream(source_stream)
+    with torch.cuda.stream(transfer_stream):
+        y1 = x1.to(gpu0, non_blocking=True)
+        x1.record_stream(transfer_stream)
+        y1.record_stream(transfer_stream)
+    # y2.record_stream(target_stream)
+    target_stream.wait_stream(transfer_stream)
+
+    torch.cuda.synchronize(gpu0)
+    torch.cuda.synchronize(gpu1)
+
+    # Correctness
+    assert_close(y1.cpu(), x1.cpu())
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available() or torch.cuda.device_count() < 2,
+    reason="2 GPUs are required for this test",
+)
+def test_gpu2gpu_sanity_check():
+    gpu0 = torch.device("cuda:0")
+    gpu1 = torch.device("cuda:1")
+    base_device = gpu0
+
+    N = 8192  # arbitrary
+
+    ### GPU1 -> GPU0
+    # Input
+    x = torch.randn(N)
+    # Event
+    device_spec = DeviceSpec(gpu0)
+    device_spec.p2p_setup(gpu1)
+
+    # Prepare
+    x = x.to(base_device)
+    source_stream = default_stream(x.device)
+    transfer_stream = device_spec.transfer_stream
+    target_stream = default_stream(gpu1)
+
+    input_ready_event = source_stream.record_event()
+
+    y = _gpu2gpu_transfer(
+        x,
+        target_stream,
+        # gpu1,
+        transfer_stream,
+        # input_ready_event,
+    )
+
+    torch.cuda.synchronize(gpu0)
+    torch.cuda.synchronize(gpu1)
+
+    # Correctness
+    assert_close(y.cpu(), x.cpu())
+
+    ### GPU1 -> GPU0
+
+    # Event
+    device_spec = DeviceSpec(gpu1)
+    device_spec.p2p_setup(gpu0)
+    x = x.to(gpu1)
+    source_stream = default_stream(x.device)
+    transfer_stream = device_spec.transfer_stream
+    target_stream = default_stream(gpu0)
+    input_ready_event = source_stream.record_event()
+
+    y2 = _gpu2gpu_transfer(
+        x,
+        # gpu0,
+        target_stream,
+        transfer_stream,
+        # input_ready_event,
+    )
+    torch.cuda.synchronize(gpu0)
+    torch.cuda.synchronize(gpu1)
+
+    # Correctness
+    assert_close(y2.cpu(), x.cpu())
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available() or torch.cuda.device_count() < 2,
+    reason="2 GPUs are required for this test",
+)
+def test_gpu2gpu_oneway():
+    gpu0 = torch.device("cuda:0")
+    gpu1 = torch.device("cuda:1")
+    base_device = gpu0
+
+    N = 8192  # arbitrary
+
+    # Input
+    x = torch.randn(N)
+
+    # Move to GPU
+    x = x.to(base_device)
+    # No threading involved
+    # Include chain for simplicity
+    S = Chain(ToDevice(base_device, gpu1))
+    y = S(x)
+    torch.cuda.synchronize(gpu0)
+    torch.cuda.synchronize(gpu1)
+
+    # Correctness
+    assert_close(y.cpu(), x.cpu())
+
+    x = x.to(gpu1)
+    # No threading involved
+    # Include chain for simplicity
+    S2 = Chain(ToDevice(gpu1, base_device))
+    y2 = S2(x)
+    torch.cuda.synchronize(gpu0)
+    torch.cuda.synchronize(gpu1)
+
+    # Correctness
+    assert_close(y2.cpu(), x.cpu())
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available() or torch.cuda.device_count() < 2,
+    reason="2 GPUs are required for this test",
+)
+def test_gpu2gpu_roundtrip():
+    gpu0 = torch.device("cuda:0")
+    gpu1 = torch.device("cuda:1")
+    base_device = gpu0
+
+    N = 8192  # arbitrary
+
+    # Input
+    x = torch.ones(N)
+
+    # Move to GPU
+    x = x.to(base_device)
+    torch.cuda.synchronize(base_device)
+    # No threading involved
+    S = Chain(
+        ToDevice(base_device, gpu1),
+        ToDevice(gpu1, base_device),
+    )
+    y = S(x)
+    torch.cuda.synchronize(gpu0)
+    torch.cuda.synchronize(gpu1)
+
+    # Final device should be correct
+    assert y.device.type == base_device.type
+
+    # Correctness
+    assert_close(y.cpu(), x.cpu())
+
+
 def trace_handler(prof, OnDevice, base_device):
     prof.export_chrome_trace(
         f"./{type(OnDevice).__name__}_{base_device.type}_trace.json"
@@ -144,8 +348,9 @@ def test_multigpu_parallelism(CombineOp, base_device):
     x = torch.randn(N)
 
     # Linop
-    A1 = _slow_matmul_chain(N, 3)
-    A2 = _slow_matmul_chain(N, 3)
+    chain_length = 4
+    A1 = _slow_matmul_chain(N, chain_length)
+    A2 = _slow_matmul_chain(N, chain_length)
 
     # True value (on cpu)
     # OffDevice = CombineOp(A1, A2)
