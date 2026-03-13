@@ -43,7 +43,7 @@ class Add(Threadable, NamedLinop):
         Number of worker threads. If None, defaults to the number of sub-linops.
     """
 
-    def __init__(self, *linops):
+    def __init__(self, *linops, **kwargs):
         """
         Parameters
         ----------
@@ -56,7 +56,7 @@ class Add(Threadable, NamedLinop):
         assert all(isequal(linop.oshape, linops[0].oshape) for linop in linops), (
             f"Add: All linops must share same oshape. Linops: {linops}"
         )
-        super().__init__(NS(linops[0].ishape, linops[0].oshape))
+        super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
         self.linops = nn.ModuleList(linops)
 
     @staticmethod

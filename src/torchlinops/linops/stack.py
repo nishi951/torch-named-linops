@@ -83,6 +83,7 @@ class Stack(Threadable, NamedLinop):
         *linops: NamedLinop,
         idim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
         odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
+        **kwargs,
     ):
         """
         Parameters
@@ -103,7 +104,7 @@ class Stack(Threadable, NamedLinop):
         )
 
         # Initialize parent class
-        super().__init__(NS(ishape, oshape))
+        super().__init__(NS(ishape, oshape), **kwargs)
         self.linops = nn.ModuleList(list(linops))
         self._check_linop_compatibility()
 

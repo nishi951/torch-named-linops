@@ -86,6 +86,7 @@ class Concat(Threadable, NamedLinop):
         *linops,
         idim: Optional[ND | str] = None,
         odim: Optional[ND | str] = None,
+        **kwargs,
     ):
         """
         Parameters
@@ -100,7 +101,7 @@ class Concat(Threadable, NamedLinop):
             is not concatenated (outputs are summed).
         """
         self._check_linop_compatibility(linops)
-        super().__init__(NS(linops[0].ishape, linops[0].oshape))
+        super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
         self.linops = nn.ModuleList(list(linops))
         self._setup_indices(idim, odim)
 
