@@ -134,27 +134,27 @@ class TestSharedLinopCopying:
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         add = Add(A, A)
 
-        assert add.linops[0] is not A
-        assert add.linops[0] is not add.linops[1]
-        assert add.linops[0].weight.data_ptr() == add.linops[1].weight.data_ptr()
+        assert add[0] is not A
+        assert add[0] is not add[1]
+        assert add[0].weight.data_ptr() == add[1].weight.data_ptr()
 
     def test_concat_shared_linop_copies(self):
         """Shared linop in Concat should be copied."""
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         concat = Concat(A, A, idim="K")
 
-        assert concat.linops[0] is not A
-        assert concat.linops[0] is not concat.linops[1]
-        assert concat.linops[0].weight.data_ptr() == concat.linops[1].weight.data_ptr()
+        assert concat[0] is not A
+        assert concat[0] is not concat[1]
+        assert concat[0].weight.data_ptr() == concat[1].weight.data_ptr()
 
     def test_stack_shared_linop_copies(self):
         """Shared linop in Stack should be copied."""
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         stack = Stack(A, A, odim_and_idx=("L", 0))
 
-        assert stack.linops[0] is not A
-        assert stack.linops[0] is not stack.linops[1]
-        assert stack.linops[0].weight.data_ptr() == stack.linops[1].weight.data_ptr()
+        assert stack[0] is not A
+        assert stack[0] is not stack[1]
+        assert stack[0].weight.data_ptr() == stack[1].weight.data_ptr()
 
     def test_nested_shared_linop_copies(self):
         """Shared linop nested in Chains inside Concat should be copied."""
@@ -167,8 +167,8 @@ class TestSharedLinopCopying:
         chain2 = Chain(A, B)
         concat = Concat(chain1, chain2, idim="K")
 
-        assert concat.linops[0] is not concat.linops[1]
-        assert concat.linops[0].linops[0] is not concat.linops[1].linops[0]
+        assert concat[0] is not concat[1]
+        assert concat[0][0] is not concat[1][0]
 
     def test_nested_shared_linop_shallow_copy(self):
         """Nested shared linops should still share tensor storage."""
@@ -176,15 +176,15 @@ class TestSharedLinopCopying:
 
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         B = Dense(torch.randn(4, 4), ("N", "M"), ("M",), ("N",))
+        C = Dense(torch.randn(4, 4), ("N", "N"), ("N",), ("N",))
 
-        chain1 = Chain(A, B)
-        chain2 = Chain(A, B)
+        chain1 = Chain(A, B, C, C)
+        chain2 = Chain(A, B, C, C)
         concat = Concat(chain1, chain2, idim="K")
 
-        assert (
-            concat.linops[0].linops[0].weight.data_ptr()
-            == concat.linops[1].linops[0].weight.data_ptr()
-        )
+        assert concat[0][0].weight.data_ptr() == concat[1][0].weight.data_ptr()
+        assert concat[0][2] is not concat[0][3]
+        assert concat[0][2] is not concat[1][2]
 
     def test_threading_preserved_after_copy(self):
         """Threading should still work after copying shared linops."""
@@ -204,12 +204,12 @@ class TestSharedLinopCopying:
         add = Add(A, A)
 
         # Check that _input_listener forwards to the correct parent
-        assert add.linops[0]._input_listener._obj is add
-        assert add.linops[0]._input_listener._attr == "input_listener"
-        assert add.linops[1]._input_listener._obj is add
-        assert add.linops[1]._input_listener._attr == "input_listener"
+        assert add[0]._input_listener._obj is add
+        assert add[0]._input_listener._attr == "input_listener"
+        assert add[1]._input_listener._obj is add
+        assert add[1]._input_listener._attr == "input_listener"
         # The two linops objects should be different
-        assert add.linops[0] is not add.linops[1]
+        assert add[0] is not add[1]
 
     def test_concat_input_listener_independent(self):
         """Copied linops should have independent input_listener references."""
@@ -232,9 +232,9 @@ class TestSharedLinopCopying:
         chain2 = Chain(A, B)
         concat = Concat(chain1, chain2, idim="K")
 
-        assert concat.linops[0]._input_listener._obj is concat
-        assert concat.linops[1]._input_listener._obj is concat
+        assert concat[0]._input_listener._obj is concat
+        assert concat[1]._input_listener._obj is concat
 
-        assert concat.linops[0].linops[0] is not concat.linops[1].linops[0]
-        assert concat.linops[0].linops[0]._input_listener._obj is concat.linops[0]
-        assert concat.linops[1].linops[0]._input_listener._obj is concat.linops[1]
+        assert concat[0][0] is not concat[1].linops[0]
+        assert concat[0][0]._input_listener._obj is concat[0]
+        assert concat[1][0]._input_listener._obj is concat[1]
