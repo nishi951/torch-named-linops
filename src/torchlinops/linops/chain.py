@@ -117,7 +117,9 @@ class Chain(NamedLinop):
             linop.split_forward(ibatch, obatch)
             for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
         ]
-        return type(self)(*linops, name=self._name)
+        split = copy(self)
+        split.linops = nn.ModuleList(linops)
+        return split
 
     def size(self, dim):
         out = None
@@ -139,7 +141,9 @@ class Chain(NamedLinop):
 
     def adjoint(self):
         linops = list(linop.adjoint() for linop in reversed(self.linops))
-        return type(self)(*linops, name=self._name)
+        adj = copy(self)
+        adj.linops = nn.ModuleList(linops)
+        return adj
 
     def normal(self, inner=None):
         """Compute the normal operator by folding through the chain.

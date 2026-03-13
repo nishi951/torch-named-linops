@@ -60,14 +60,7 @@ class NamedLinop(nn.Module):
         event to be recorded before initiating the transfer.
     """
 
-    def __init__(
-        self,
-        shape: NamedShape,
-        name: Optional[str] = None,
-        stream: Optional[Stream] = None,
-        start_event: Optional[Event] = None,
-        end_event: Optional[Event] = None,
-    ):
+    def __init__(self, shape: NamedShape, name: Optional[str] = None, **kwargs):
         """
         Parameters
         ----------
@@ -75,16 +68,8 @@ class NamedLinop(nn.Module):
             The shape of this linop, e.g. ``NamedShape(("N",), ("M",))``
         name : str, optional
             Optional name to display for this linop.
-        stream : torch.cuda.Stream
-            Optional cuda Stream to run this linop on.
-        start_event : Event, optional
-            An event that signals when the linop has started. Useful for synchronizing multiple
-            linops across multiple devices.
-        end_event : Event, optional
-            An event that signals when the linop has completed. Useful for synchronizing multiple
-            linops across multiple devices.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         # Note: this attribute is private because the `.shape` attribute may be derived
         # dynamically
         self._shape = shape
@@ -440,7 +425,6 @@ class NamedLinop(nn.Module):
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
-    @final
     def flatten(self) -> list["NamedLinop"]:
         """Get a flattened list of constituent linops for composition."""
         return [self]
