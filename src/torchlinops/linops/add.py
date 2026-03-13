@@ -1,4 +1,5 @@
 import logging
+from copy import copy
 
 import torch
 import torch.nn as nn
@@ -23,6 +24,15 @@ def _log_transfer(msg):
 class Add(Threadable, NamedLinop):
     """The sum of one or more linear operators.
 
+    Inherits from ``Threadable`` to support parallel execution of sub-linops.
+    When ``threaded=True`` (default), each sub-linop is executed in parallel
+    using a ThreadPoolExecutor, which is useful for I/O-bound operations or
+    operations that release the GIL (e.g., PyTorch tensor operations).
+
+    Note that shared linops (e.g., ``Add(A, A)``) are automatically shallow-
+    copied to ensure independent identity for threading, while still sharing
+    tensor data. See ``Threadable`` for details.
+
     Attributes
     ----------
     linops : nn.ModuleList
@@ -30,21 +40,15 @@ class Add(Threadable, NamedLinop):
     threaded : bool
         Whether to run sub-linops in parallel. Default is True.
     num_workers : int | None
-        Number of worker threads. If None, defaults to number of sub-linops.
+        Number of worker threads. If None, defaults to the number of sub-linops.
     """
 
-    def __init__(
-        self, *linops, threaded: bool = True, num_workers: int | None = None, **kwargs
-    ):
+    def __init__(self, *linops, **kwargs):
         """
         Parameters
         ----------
         *linops : tuple[NamedLinop]
             The linear operators to be added together.
-        threaded : bool, optional
-            Whether to run sub-linops in parallel. Default is True.
-        num_workers : int | None, optional
-            Number of worker threads. If None, defaults to len(linops).
         """
         assert all(isequal(linop.ishape, linops[0].ishape) for linop in linops), (
             f"Add: All linops must share same ishape. Found {linops}"
@@ -52,13 +56,7 @@ class Add(Threadable, NamedLinop):
         assert all(isequal(linop.oshape, linops[0].oshape) for linop in linops), (
             f"Add: All linops must share same oshape. Linops: {linops}"
         )
-        super().__init__(
-            NS(linops[0].ishape, linops[0].oshape),
-            threaded=threaded,
-            num_workers=num_workers,
-            linops=list(linops),
-            **kwargs,
-        )
+        super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
         self.linops = nn.ModuleList(linops)
 
     @staticmethod
@@ -75,15 +73,16 @@ class Add(Threadable, NamedLinop):
         return sum(linop.H(x) for linop in add.linops)
 
     def split_forward(self, ibatch, obatch):
+        split = copy(self)
         linops = [linop.split_forward(ibatch, obatch) for linop in self.linops]
-        return type(self)(*linops)
+        split.linops = nn.ModuleList(linops)
+        return split
 
     def adjoint(self):
-        return type(self)(
-            *(linop.adjoint() for linop in self.linops),
-            threaded=self.threaded,
-            num_workers=self.num_workers,
-        )
+        adj = copy(self)
+        adj.linops = nn.ModuleList([linop.adjoint() for linop in self.linops])
+        adj.shape = self.shape.adjoint()
+        return adj
 
     def normal(self, inner=None):
         if inner is None:
@@ -98,11 +97,10 @@ class Add(Threadable, NamedLinop):
                     else:
                         all_combinations.append(left_linop.H @ right_linop)
             all_combinations = standardize_shapes(all_combinations, new_shape)
-            return type(self)(
-                *all_combinations,
-                threaded=self.threaded,
-                num_workers=self.num_workers,
-            )
+            normal = copy(self)
+            normal.linops = nn.ModuleList(list(all_combinations))
+            normal.shape = normal.linops[0].shape
+            return normal
         return super().normal(inner)
 
     def size(self, dim):
@@ -118,27 +116,38 @@ class Add(Threadable, NamedLinop):
 
     @property
     def H(self):
-        if config.cache_adjoint_normal:
-            config._warn_if_caching_enabled()
-            if self._adjoint is None:
-                self._adjoint = [self.adjoint()]
-            return self._adjoint[0]
-        return self.adjoint()
+        try:
+            if config.cache_adjoint_normal:
+                config._warn_if_caching_enabled()
+                if self._adjoint is None:
+                    self._adjoint = [self.adjoint()]
+                return self._adjoint[0]
+            return self.adjoint()
+        except AttributeError as e:
+            raise RuntimeError(f"AttributeError in {type(self).__name__}.H: {e}") from e
 
     @property
     def N(self):
-        if config.cache_adjoint_normal:
-            config._warn_if_caching_enabled()
-            if self._normal is None:
-                self._normal = [self.normal()]
-            return self._normal[0]
-        return self.normal()
+        try:
+            if config.cache_adjoint_normal:
+                config._warn_if_caching_enabled()
+                if self._normal is None:
+                    self._normal = [self.normal()]
+                return self._normal[0]
+            return self.normal()
+        except AttributeError as e:
+            raise RuntimeError(f"AttributeError in {type(self).__name__}.N: {e}") from e
 
     def flatten(self):
         return [self]
 
     def __getitem__(self, idx):
-        return self.linops[idx]
+        linops = self.linops[idx]
+        if isinstance(linops, NamedLinop):
+            return linops
+        new = copy(self)
+        new.linops = nn.ModuleList(linops)
+        return new
 
     def __len__(self):
         return len(self.linops)

@@ -29,33 +29,53 @@ def _log_transfer(msg):
 
 
 class Stack(Threadable, NamedLinop):
-    """Concatenate some linops along a new dimension
+    """Concatenate some linops along a new dimension.
 
     Linops need not output tensors of the same size, but they should
-    output tensors of the same number of dimensions
+    output tensors of the same number of dimensions.
 
-    Stacking type depends on dimensions provided
+    Stacking type depends on dimensions provided:
 
-    Horizontal stacking
-    stacking along an input dimension:
+    Horizontal stacking (stacking along an input dimension)::
 
-    A B C
+        A B C
 
-    Vertical stacking
-    stacking along an output dimension:
+    Vertical stacking (stacking along an output dimension)::
 
-    A
-    B
-    C
+        A
+        B
+        C
 
-    Diagonal stacking:
-    stacking along a separate input and output dimensions
+    Diagonal stacking (stacking along separate input and output dimensions)::
 
-    A . .
-    . B .
-    . . C
+        A . .
+        . B .
+        . . C
 
+    Inherits from ``Threadable`` to support parallel execution of sub-linops.
+    When ``threaded=True`` (default), each sub-linop is executed in parallel
+    using a ThreadPoolExecutor.
 
+    Note that shared linops (e.g., ``Stack(A, A, odim_and_idx=("L", 0))``) are
+    automatically shallow-copied to ensure independent identity for threading,
+    while still sharing tensor data. See ``Threadable`` for details.
+
+    Attributes
+    ----------
+    linops : nn.ModuleList
+        The list of linops being stacked.
+    threaded : bool
+        Whether to run sub-linops in parallel. Default is True.
+    num_workers : int | None
+        Number of worker threads. If None, defaults to the number of sub-linops.
+    idim : ND | None
+        Input stacking dimension name.
+    idim_idx : int | None
+        Index position of the input stacking dimension.
+    odim : ND | None
+        Output stacking dimension name.
+    odim_idx : int | None
+        Index position of the output stacking dimension.
     """
 
     def __init__(
@@ -63,8 +83,7 @@ class Stack(Threadable, NamedLinop):
         *linops: NamedLinop,
         idim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
         odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
-        threaded: bool = True,
-        num_workers: int | None = None,
+        **kwargs,
     ):
         """
         Parameters
@@ -75,12 +94,7 @@ class Stack(Threadable, NamedLinop):
             Tuple of ``(dim_name, index_tensor)`` for the input stacking dimension.
         odim_and_idx : tuple, optional
             Tuple of ``(dim_name, index_tensor)`` for the output stacking dimension.
-        threaded : bool, optional
-            Whether to run sub-linops in parallel. Default is True.
-        num_workers : int | None, optional
-            Number of worker threads. If None, defaults to len(linops).
         """
-        self._check_linop_compatibility(linops)
 
         self.idim, self.idim_idx, ishape = self._get_dim_and_idx(
             *idim_and_idx, linops[0].ishape
@@ -90,13 +104,9 @@ class Stack(Threadable, NamedLinop):
         )
 
         # Initialize parent class
-        super().__init__(
-            NS(ishape, oshape),
-            threaded=threaded,
-            num_workers=num_workers,
-            linops=list(linops),
-        )
+        super().__init__(NS(ishape, oshape), **kwargs)
         self.linops = nn.ModuleList(list(linops))
+        self._check_linop_compatibility()
 
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):
@@ -209,11 +219,7 @@ class Stack(Threadable, NamedLinop):
             oslices = {dim: slc for dim, slc in zip(linop.oshape, obatch)}
             slices = strict_update(islices, oslices)
             output_linops.append(linop.split(linop, slices))
-        return type(self)(
-            *output_linops,
-            idim_and_idx=(self.idim, self.idim_idx),
-            odim_and_idx=(self.odim, self.odim_idx),
-        )
+        return self.spinoff(output_linops)
 
     def split_data(self, ibatch, obatch, data_list):
         """Split stack linop, making a new stack linop if necessary
@@ -254,8 +260,8 @@ class Stack(Threadable, NamedLinop):
 
     def adjoint(self):
         adj_linops = [linop.H for linop in self.linops]
-        return type(self)(
-            *adj_linops,
+        return self.spinoff(
+            adj_linops,
             idim_and_idx=(self.odim, self.odim_idx),
             odim_and_idx=(self.idim, self.idim_idx),
         )
@@ -282,14 +288,14 @@ class Stack(Threadable, NamedLinop):
                             new_linop.ishape = new_shape.ishape
                             new_linop.oshape = new_shape.oshape
                         row.append(new_linop)
-                    row = type(self)(
-                        *row,
+                    row = self.spinoff(
+                        row,
                         idim_and_idx=(new_idim, self.idim_idx),
                         odim_and_idx=(None, None),
                     )
                     rows.append(row)
-                return type(self)(
-                    *rows,
+                return self.spinoff(
+                    rows,
                     idim_and_idx=(None, None),
                     odim_and_idx=(new_odim, self.idim_idx),
                 )
@@ -301,8 +307,8 @@ class Stack(Threadable, NamedLinop):
                 )
                 for linop in self.linops:
                     diag.append(linop.N)
-                return type(self)(
-                    *diag,
+                return self.spinoff(
+                    diag,
                     idim_and_idx=(new_idim, self.idim_idx),
                     odim_and_idx=(new_odim, self.odim_idx),
                 )
@@ -316,11 +322,10 @@ class Stack(Threadable, NamedLinop):
         new_odim = new_shape.oshape[i]
         return new_idim, new_odim
 
-    @staticmethod
-    def _check_linop_compatibility(linops: tuple[NamedLinop, ...]):
+    def _check_linop_compatibility(self):
         """Ensure linops can actually be concatenated along the requested dimension"""
-        target_shape = linops[0].shape
-        for linop in linops:
+        target_shape = self.linops[0].shape
+        for linop in self.linops:
             if not (
                 isequal(target_shape.ishape, linop.ishape)
                 and isequal(target_shape.oshape, linop.oshape)
@@ -333,11 +338,52 @@ class Stack(Threadable, NamedLinop):
         linops = self.linops[idx]
         if isinstance(linops, NamedLinop):
             return linops
-        return type(self)(
-            *linops,
-            idim_and_idx=(self.idim, self.idim_idx),
-            odim_and_idx=(self.odim, self.odim_idx),
-        )
+        return self.spinoff(linops)
+
+    def spinoff(
+        self,
+        linops=None,
+        shape=None,
+        idim_and_idx=(None, None),
+        odim_and_idx=(None, None),
+    ):
+        """Helper function for creating a new linop using the provided inputs.
+
+        Preserves settings from the original linop.
+
+        Parameters
+        ----------
+        linops : list[NamedLinop], optional
+            The linops for the new instance. Defaults to self.linops.
+        shape : NamedShape, optional
+            The shape for the new instance. If None, computed from linops
+            and idim/odim.
+        idim_and_idx : tuple[ND | None, int | None], optional
+            Tuple of (dim_name, index) for input stacking dimension.
+            Defaults to (self.idim, self.idim_idx).
+        odim_and_idx : tuple[ND | None, int | None], optional
+            Tuple of (dim_name, index) for output stacking dimension.
+            Defaults to (self.odim, self.odim_idx).
+        """
+        linops = linops if linops is not None else self.linops
+
+        idim, idim_idx = idim_and_idx
+        odim, odim_idx = odim_and_idx
+
+        # Compute shape from linops and dimensions if not provided
+        if shape is None:
+            _, _, ishape = self._get_dim_and_idx(idim, idim_idx, linops[0].ishape)
+            _, _, oshape = self._get_dim_and_idx(odim, odim_idx, linops[0].oshape)
+            shape = NS(ishape, oshape)
+
+        new = copy(self)
+        new.shape = shape
+        new.linops = nn.ModuleList(linops)
+        new.idim = idim
+        new.idim_idx = idim_idx
+        new.odim = odim
+        new.odim_idx = odim_idx
+        return new
 
     def __len__(self):
         return len(self.linops)
