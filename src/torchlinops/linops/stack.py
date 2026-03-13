@@ -218,11 +218,7 @@ class Stack(Threadable, NamedLinop):
             oslices = {dim: slc for dim, slc in zip(linop.oshape, obatch)}
             slices = strict_update(islices, oslices)
             output_linops.append(linop.split(linop, slices))
-        return type(self)(
-            *output_linops,
-            idim_and_idx=(self.idim, self.idim_idx),
-            odim_and_idx=(self.odim, self.odim_idx),
-        )
+        return self.spinoff(output_linops)
 
     def split_data(self, ibatch, obatch, data_list):
         """Split stack linop, making a new stack linop if necessary
@@ -263,8 +259,8 @@ class Stack(Threadable, NamedLinop):
 
     def adjoint(self):
         adj_linops = [linop.H for linop in self.linops]
-        return type(self)(
-            *adj_linops,
+        return self.spinoff(
+            adj_linops,
             idim_and_idx=(self.odim, self.odim_idx),
             odim_and_idx=(self.idim, self.idim_idx),
         )
@@ -291,14 +287,14 @@ class Stack(Threadable, NamedLinop):
                             new_linop.ishape = new_shape.ishape
                             new_linop.oshape = new_shape.oshape
                         row.append(new_linop)
-                    row = type(self)(
-                        *row,
+                    row = self.spinoff(
+                        row,
                         idim_and_idx=(new_idim, self.idim_idx),
                         odim_and_idx=(None, None),
                     )
                     rows.append(row)
-                return type(self)(
-                    *rows,
+                return self.spinoff(
+                    rows,
                     idim_and_idx=(None, None),
                     odim_and_idx=(new_odim, self.idim_idx),
                 )
@@ -310,8 +306,8 @@ class Stack(Threadable, NamedLinop):
                 )
                 for linop in self.linops:
                     diag.append(linop.N)
-                return type(self)(
-                    *diag,
+                return self.spinoff(
+                    diag,
                     idim_and_idx=(new_idim, self.idim_idx),
                     odim_and_idx=(new_odim, self.odim_idx),
                 )
@@ -341,11 +337,52 @@ class Stack(Threadable, NamedLinop):
         linops = self.linops[idx]
         if isinstance(linops, NamedLinop):
             return linops
-        return type(self)(
-            *linops,
-            idim_and_idx=(self.idim, self.idim_idx),
-            odim_and_idx=(self.odim, self.odim_idx),
-        )
+        return self.spinoff(linops)
+
+    def spinoff(
+        self,
+        linops=None,
+        shape=None,
+        idim_and_idx=(None, None),
+        odim_and_idx=(None, None),
+    ):
+        """Helper function for creating a new linop using the provided inputs.
+
+        Preserves settings from the original linop.
+
+        Parameters
+        ----------
+        linops : list[NamedLinop], optional
+            The linops for the new instance. Defaults to self.linops.
+        shape : NamedShape, optional
+            The shape for the new instance. If None, computed from linops
+            and idim/odim.
+        idim_and_idx : tuple[ND | None, int | None], optional
+            Tuple of (dim_name, index) for input stacking dimension.
+            Defaults to (self.idim, self.idim_idx).
+        odim_and_idx : tuple[ND | None, int | None], optional
+            Tuple of (dim_name, index) for output stacking dimension.
+            Defaults to (self.odim, self.odim_idx).
+        """
+        linops = linops if linops is not None else self.linops
+
+        idim, idim_idx = idim_and_idx
+        odim, odim_idx = odim_and_idx
+
+        # Compute shape from linops and dimensions if not provided
+        if shape is None:
+            _, _, ishape = self._get_dim_and_idx(idim, idim_idx, linops[0].ishape)
+            _, _, oshape = self._get_dim_and_idx(odim, odim_idx, linops[0].oshape)
+            shape = NS(ishape, oshape)
+
+        new = copy(self)
+        new.shape = shape
+        new.linops = nn.ModuleList(linops)
+        new.idim = idim
+        new.idim_idx = idim_idx
+        new.odim = odim
+        new.odim_idx = odim_idx
+        return new
 
     def __len__(self):
         return len(self.linops)
