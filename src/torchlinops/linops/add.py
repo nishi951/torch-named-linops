@@ -66,12 +66,12 @@ class Add(Threadable, NamedLinop):
     def split_forward(self, ibatch, obatch):
         split = copy(self)
         linops = [linop.split_forward(ibatch, obatch) for linop in self.linops]
-        split._linops = nn.ModuleList(linops)
+        split.linops = nn.ModuleList(linops)
         return split
 
     def adjoint(self):
         adj = copy(self)
-        adj._linops = nn.ModuleList([linop.adjoint() for linop in self.linops])
+        adj.linops = nn.ModuleList([linop.adjoint() for linop in self.linops])
         adj.shape = self.shape.adjoint()
         return adj
 
@@ -137,7 +137,7 @@ class Add(Threadable, NamedLinop):
         if isinstance(linops, NamedLinop):
             return linops
         new = copy(self)
-        new._linops = nn.ModuleList(linops)
+        new.linops = nn.ModuleList(linops)
         return new
 
     def __len__(self):
