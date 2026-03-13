@@ -24,6 +24,15 @@ def _log_transfer(msg):
 class Add(Threadable, NamedLinop):
     """The sum of one or more linear operators.
 
+    Inherits from ``Threadable`` to support parallel execution of sub-linops.
+    When ``threaded=True`` (default), each sub-linop is executed in parallel
+    using a ThreadPoolExecutor, which is useful for I/O-bound operations or
+    operations that release the GIL (e.g., PyTorch tensor operations).
+
+    Note that shared linops (e.g., ``Add(A, A)``) are automatically shallow-
+    copied to ensure independent identity for threading, while still sharing
+    tensor data. See ``Threadable`` for details.
+
     Attributes
     ----------
     linops : nn.ModuleList
@@ -31,7 +40,7 @@ class Add(Threadable, NamedLinop):
     threaded : bool
         Whether to run sub-linops in parallel. Default is True.
     num_workers : int | None
-        Number of worker threads. If None, defaults to number of sub-linops.
+        Number of worker threads. If None, defaults to the number of sub-linops.
     """
 
     def __init__(self, *linops):

@@ -60,6 +60,62 @@ The library favors `copy.copy()` (shallow copy) over `copy.deepcopy()` as the pr
 - A shallow copy shares the data but gets its own shape, function references, and cache state. This is exactly what's needed for an adjoint: same data, different interpretation.
 - When true data independence is needed (e.g., for multi-GPU placement), the library provides `memory_aware_deepcopy` as an explicit opt-in. See [Copying Linops](copying_linops.md).
 
+## Threadable and shared linop copying
+
+The `Add`, `Concat`, and `Stack` classes inherit from `Threadable`, which enables parallel execution of sub-linops using Python threads. When `threaded=True` (the default), each sub-linop runs in a separate thread via `ThreadPoolExecutor`, which is beneficial when sub-linops release the GIL (e.g., PyTorch tensor operations).
+
+### Why linops is a property
+
+The `Threadable` mixin manages sub-linops through a `linops` property rather than a direct attribute. This design choice is intentional:
+
+```python
+class Threadable:
+    @property
+    def linops(self):
+        return self._linops
+
+    @linops.setter
+    def linops(self, new_linops):
+        self._linops = new_linops
+        self._setup_events()
+```
+
+When `linops` is assigned (e.g., in `__init__` or via `self.linops = ...`), the setter automatically:
+
+1. **Creates shallow copies of each linop** using `copy()`. This ensures that linops shared by identity (e.g., `Add(A, A)`) have independent `nn.Module` identities while still sharing tensor data.
+2. **Sets up input listeners** on each copied linop for event coordination.
+
+This automatic housekeeping prevents a common bug: without copying, two entries in `linops` pointing to the same object would cause race conditions when accessed from multiple threads.
+
+### Why `__setattr__` bypass is needed
+
+PyTorch's `nn.Module.__setattr__` intercepts all attribute assignments. When you set `self.linops = nn.ModuleList([...])`, PyTorch would register each linop as a submodule. The `__setattr__` override in `Threadable` ensures that `linops` assignment goes through the property descriptor instead:
+
+```python
+def __setattr__(self, name, value):
+    if name == "linops":
+        type(self).linops.fset(self, value)  # Use descriptor
+    else:
+        super().__setattr__(name, value)
+```
+
+### Shallow copy preserves tensor sharing
+
+The shallow copy in `_setup_events` preserves tensor data sharing:
+
+```python
+A = Dense(weight, ...)
+add = Add(A, A)  # Shared linop by identity
+
+# linops[0] and linops[1] are different objects
+assert add.linops[0] is not add.linops[1]
+
+# But they share the same weight data
+assert add.linops[0].weight.data_ptr() == add.linops[1].weight.data_ptr()
+```
+
+This is efficient for memory and ensures that modifying weights in one place updates all references consistently.
+
 ## Gotchas and Pitfalls
 
 ### Shallow copy shares weight data
