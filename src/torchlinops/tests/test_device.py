@@ -348,8 +348,9 @@ def test_multigpu_parallelism(CombineOp, base_device):
     x = torch.randn(N)
 
     # Linop
-    A1 = _slow_matmul_chain(N, 3)
-    A2 = _slow_matmul_chain(N, 3)
+    chain_length = 4
+    A1 = _slow_matmul_chain(N, chain_length)
+    A2 = _slow_matmul_chain(N, chain_length)
 
     # True value (on cpu)
     # OffDevice = CombineOp(A1, A2)
