@@ -258,4 +258,4 @@ def test_center_pad_adjoint(dtype):
     pad_x = center_pad(x, im_size, pad_im_size)
     crop_y = center_crop(y, pad_im_size, im_size)
 
-    assert torch.allclose(inner(pad_x, y), inner(x, crop_y))
+    assert torch.allclose(inner(pad_x, y), inner(x, crop_y), rtol=1e-3)

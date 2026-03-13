@@ -35,40 +35,32 @@ def _log_transfer(msg):
 class NamedLinop(nn.Module):
     """Base class for all named linear operators.
 
-        A ``NamedLinop`` represents a linear map $A : X \\to Y$ where the input and
-        output tensor dimensions are identified by name (e.g. ``("Nx", "Ny") -> ("Kx", "Ky")``).
+    A ``NamedLinop`` represents a linear map $A : X \\to Y$ where the input and
+    output tensor dimensions are identified by name (e.g. ``("Nx", "Ny") -> ("Kx", "Ky")``).
 
-        Subclass this to implement concrete operators. At minimum, override ``fn``
-        and ``adj_fn`` as static methods.
+    Subclass this to implement concrete operators. At minimum, override ``fn``
+    and ``adj_fn`` as static methods.
 
-        Attributes
-        ----------
-        shape : NamedShape
-            The named shape of the linop, containing ``ishape`` and ``oshape``.
-        stream : torch.cuda.Stream
-            Optional cuda Stream to run this linop on.
-        start_event : Event, optional
-            An event that signals when the linop has started. Useful for synchronizing
-            multiple linops across multiple devices.
-        end_event : Event, optional
-            An event that signals when the linop has completed. Useful for synchronizing multiple
-            linops across multiple devices.
-        input_listener : tuple(linop, str) or None
-            Pointer to another linop's event attribute. Used to coordinate GPU-to-GPU
-            transfers in parallel execution contexts. When set to a tuple like
-            ``(some_linop, "start_event")``, the device transfer will wait for that
-            event to be recorded before initiating the transfer.
-    linops across multiple devices.
+    Attributes
+    ----------
+    shape : NamedShape
+        The named shape of the linop, containing ``ishape`` and ``oshape``.
+    stream : torch.cuda.Stream
+        Optional cuda Stream to run this linop on.
+    start_event : Event, optional
+        An event that signals when the linop has started. Useful for synchronizing
+        multiple linops across multiple devices.
+    end_event : Event, optional
+        An event that signals when the linop has completed. Useful for synchronizing multiple
+        linops across multiple devices.
+    input_listener : tuple(linop, str) or None
+        Pointer to another linop's event attribute. Used to coordinate GPU-to-GPU
+        transfers in parallel execution contexts. When set to a tuple like
+        ``(some_linop, "start_event")``, the device transfer will wait for that
+        event to be recorded before initiating the transfer.
     """
 
-    def __init__(
-        self,
-        shape: NamedShape,
-        name: Optional[str] = None,
-        stream: Optional[Stream] = None,
-        start_event: Optional[Event] = None,
-        end_event: Optional[Event] = None,
-    ):
+    def __init__(self, shape: NamedShape, name: Optional[str] = None, **kwargs):
         """
         Parameters
         ----------
@@ -76,27 +68,22 @@ class NamedLinop(nn.Module):
             The shape of this linop, e.g. ``NamedShape(("N",), ("M",))``
         name : str, optional
             Optional name to display for this linop.
-        stream : torch.cuda.Stream
-            Optional cuda Stream to run this linop on.
-        start_event : Event, optional
-            An event that signals when the linop has started. Useful for synchronizing multiple
-            linops across multiple devices.
-        end_event : Event, optional
-            An event that signals when the linop has completed. Useful for synchronizing multiple
-            linops across multiple devices.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         # Note: this attribute is private because the `.shape` attribute may be derived
         # dynamically
         self._shape = shape
-
-        self.reset_adjoint_and_normal()
-
         self._suffix = ""
         self._name = name
-        self.stream = stream
-        self.start_event = start_event
-        self.end_event = end_event
+        self._setup()
+
+    def _setup(self):
+        """Helper method that should be called to reset the linop's state.
+        Should be performed after any substantial changes to the linop."""
+        self.reset_adjoint_and_normal()
+        self.stream = None
+        self.start_event = None
+        self.end_event = None
         self._input_listener = ForwardedAttribute()
         # By default, listen for the start of this linop
         self.input_listener = (self, "start_event")
@@ -124,7 +111,7 @@ class NamedLinop(nn.Module):
         if x.is_cuda:  # pragma: no cover
             stream = default_to(default_stream(x.device), self.stream)
             self.start_event = stream.record_event()
-            with stream:
+            with torch.cuda.stream(stream):
                 y = self.fn(self, x)
             x.record_stream(stream)
             self.end_event = stream.record_event()
@@ -438,7 +425,6 @@ class NamedLinop(nn.Module):
         splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
         return splitH
 
-    @final
     def flatten(self) -> list["NamedLinop"]:
         """Get a flattened list of constituent linops for composition."""
         return [self]
@@ -618,7 +604,6 @@ class NamedLinop(nn.Module):
             _log_transfer(f"Setting {type(self).__name__}.input_listener to {value}")
             self._input_listener = value
 
-    @final
     def __copy__(self):
         """Specialized copying for linops.
 
@@ -638,11 +623,9 @@ class NamedLinop(nn.Module):
         new._modules = new._modules.copy()
         new._buffers = new._buffers.copy()
 
-        # Remove references to other objects
-        new.reset_adjoint_and_normal()
-
         # Create new shape
         new._shape = deepcopy(self._shape)
+        new._setup()
         return new
 
     @final
