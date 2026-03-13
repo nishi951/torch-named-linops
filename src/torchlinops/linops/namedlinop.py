@@ -126,7 +126,7 @@ class NamedLinop(nn.Module):
         if x.is_cuda:  # pragma: no cover
             stream = default_to(default_stream(x.device), self.stream)
             self.start_event = stream.record_event()
-            with stream:
+            with torch.cuda.stream(stream):
                 y = self.fn(self, x)
             x.record_stream(stream)
             self.end_event = stream.record_event()
