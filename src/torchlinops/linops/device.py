@@ -192,9 +192,8 @@ class ToDevice(NamedLinop):
                 )
             return _gpu2gpu_transfer(
                 x,
-                odevice,
-                ispec.transfer_stream,
                 ospec.compute_stream,
+                ispec.transfer_stream,
                 input_listener,
             )
         elif idevice.type == "cuda" and odevice.type == "cpu":  # pragma: no cover
@@ -264,7 +263,11 @@ class ToDevice(NamedLinop):
 
 
 def _gpu2gpu_transfer(
-    x, odevice, transfer_stream, target_stream, input_listener
+    x,
+    target_stream,
+    transfer_stream=None,
+    input_listener=None,
+    source_stream=None,
 ):  # pragma: no cover
     """Perform efficient gpu-gpu transfer with a dedicated transfer stream and event-based triggering.
 
@@ -272,38 +275,51 @@ def _gpu2gpu_transfer(
     ----------
     x : Tensor
         The torch tensor to be transferred.
-    odevice : torch.device
-        The target device.
-    transfer_stream : Stream
-        The stream on the source device on which to queue the transfer.
     target_stream : Stream
         The stream on the target device that needs `x` for computation.
+    transfer_stream : Stream
+        The stream on the source device on which to queue the transfer.
     input_listener : Event
         The CUDA event that the transfer stream should wait for before initiating transfer.
         Allows fine-grained control of transfer timing. The event should be queued to
         record() when x is ready to be transferred.
+    source_stream : Stream
+        The stream on the source device to wait for (optional).
 
     Returns
     -------
     Tensor
         The tensor, on the target device.
     """
-    with torch.cuda.stream(transfer_stream):
-        if input_listener is not None:
-            _log_transfer(f"Stream {transfer_stream} waiting on event {input_listener}")
+
+    if x.device != target_stream.device:
+        odevice = target_stream.device
+        if transfer_stream is None:
+            raise ValueError(f"Multi-GPU transfer requires transfer_stream != None")
+        if input_listener is None:
+            if source_stream is None:
+                source_stream = default_stream(x.device)
+            transfer_stream.wait_stream(source_stream)
+        else:
             transfer_stream.wait_event(input_listener)
+            _log_transfer(f"Stream {transfer_stream} waiting on event {input_listener}")
+        with torch.cuda.stream(transfer_stream):
+            _log_transfer(
+                f"Transferring tensor from {x.device} to {odevice}, "
+                f"shape={x.shape}, size_bytes={x.element_size() * x.nelement()}"
+            )
+            out = x.to(odevice, non_blocking=True)
+            # Don't mess with x's memory until transfer is completed
+            x.record_stream(transfer_stream)
+            # out.record_stream(transfer_stream) # Unnecessary
+        # Target stream should wait until transfer is complete
         _log_transfer(
-            f"Transferring tensor from {x.device} to {odevice}, "
-            f"shape={x.shape}, size_bytes={x.element_size() * x.nelement()}"
+            f"Target stream cuda:{target_stream.device_index}:{target_stream} waiting for transfer stream {transfer_stream}"
         )
-        out = x.to(odevice, non_blocking=True)
-    # Don't mess with x's memory until transfer is completed
-    x.record_stream(transfer_stream)
-    # Target stream should wait until transfer is complete
-    _log_transfer(
-        f"Target stream cuda:{target_stream.device_index}:{target_stream} waiting for transfer stream {transfer_stream}"
-    )
-    target_stream.wait_stream(transfer_stream)
+        target_stream.wait_stream(transfer_stream)
+    else:
+        # Same device - do nothing
+        out = x
     return out
 
 

@@ -45,7 +45,7 @@ class Identity(NamedLinop):
         return self
 
     def __pow__(self, _: float | Tensor):
-        return type(self)(self.ishape, self.oshape)
+        return copy(self)
 
 
 class Zero(NamedLinop):
@@ -81,7 +81,9 @@ class ShapeSpec(Identity):
     """
 
     def adjoint(self):
-        return type(self)(self.oshape, self.ishape)
+        new = copy(self)
+        new.shape = self.shape.adjoint()
+        return new
 
     def normal(self, inner=None):
         if inner is None:

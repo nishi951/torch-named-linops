@@ -41,6 +41,9 @@ class BaseNamedLinopTests(ABC):
         else:
             raise ValueError(f"Unrecognized equality_check mode: {self.equality_check}")
 
+        # test shapes
+        assert A.H.shape == A.shape.adjoint()
+
     def test_normal(self, linop_input_output):
         A, x, _ = linop_input_output
         AHAx = A.H(A(x))
@@ -51,6 +54,9 @@ class BaseNamedLinopTests(ABC):
             assert torch.isclose(AHAx, ANx, **self.isclose_kwargs).all()
         else:
             raise ValueError(f"Unrecognized equality_check mode: {self.equality_check}")
+
+        # Normal may introduce additional dims - don't test this
+        # A.N.shape == A.shape.normal()
 
     def test_adjoint_level2(self, linop_input_output):
         A, x, y = linop_input_output

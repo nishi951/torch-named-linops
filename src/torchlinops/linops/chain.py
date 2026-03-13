@@ -1,6 +1,7 @@
-from collections.abc import Mapping
-from typing import Optional
 import logging
+from collections.abc import Mapping
+from copy import copy
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -9,8 +10,8 @@ import torchlinops.config as config
 from torchlinops.utils import INDENT, RepeatedEvent
 
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
-from .namedlinop import NamedLinop
 from .device import ToDevice
+from .namedlinop import NamedLinop
 
 logger = logging.getLogger("torchlinops")
 
@@ -46,7 +47,22 @@ class Chain(NamedLinop):
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
 
+    @property
+    def linops(self):
+        return self._linops
+
+    @linops.setter
+    def linops(self, new_linops):
+        self._linops = new_linops
         self._setup_events()
+
+    def __setattr__(self, name, value):
+        """Bypasses pytorch's setattr, just for linops"""
+        if name == "linops":
+            # Force descriptor lookup for this name
+            type(self).linops.fset(self, value)
+        else:
+            super().__setattr__(name, value)
 
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
@@ -58,9 +74,9 @@ class Chain(NamedLinop):
             curr_shape = linop.oshape
 
     def _setup_events(self):
-        """Point initial linop listener at Chain's input listener."""
-        first_linop = self.linops[0]
-        first_linop.input_listener = (self, "input_listener")
+        """Copy every linop and point initial linop listener at Chain's input listener."""
+        self._linops = nn.ModuleList([copy(linop) for linop in self._linops])
+        self._linops[0].input_listener = (self, "input_listener")
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):
@@ -101,7 +117,9 @@ class Chain(NamedLinop):
             linop.split_forward(ibatch, obatch)
             for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
         ]
-        return type(self)(*linops, name=self._name)
+        split = copy(self)
+        split.linops = nn.ModuleList(linops)
+        return split
 
     def size(self, dim):
         out = None
@@ -123,7 +141,9 @@ class Chain(NamedLinop):
 
     def adjoint(self):
         linops = list(linop.adjoint() for linop in reversed(self.linops))
-        return type(self)(*linops, name=self._name)
+        adj = copy(self)
+        adj.linops = nn.ModuleList(linops)
+        return adj
 
     def normal(self, inner=None):
         """Compute the normal operator by folding through the chain.
@@ -239,3 +259,8 @@ class Chain(NamedLinop):
                 output += INDENT.indent(f"end: {self.end_event.event_id:x}\n")
         output += INDENT.indent(")")
         return output
+
+    def __copy__(self):
+        new = super().__copy__()
+        new._setup_events()
+        return new

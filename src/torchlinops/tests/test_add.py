@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchlinops import Add, Dense, Diagonal, Identity, config
+from torchlinops import Add, Dense, Diagonal, Dim, Identity, config
 from torchlinops.tests.test_base import BaseNamedLinopTests
 from torchlinops.utils import is_adjoint
 
@@ -12,10 +12,17 @@ class TestAdd(BaseNamedLinopTests):
 
     @pytest.fixture(scope="class")
     def linop_input_output(self):
-        A = Diagonal(torch.randn(5, dtype=torch.complex64), ("N",))
-        B = Diagonal(torch.randn(5, dtype=torch.complex64), ("N",))
-        C = Diagonal(torch.randn(5, dtype=torch.complex64), ("N",))
-        add = Add(A, B, C, threaded=False)
+        A = Dense(
+            torch.randn((5, 5), dtype=torch.complex64), ("M", "N"), ("N",), ("M",)
+        )
+        B = Dense(
+            torch.randn((5, 5), dtype=torch.complex64), ("M", "N"), ("N",), ("M",)
+        )
+        C = Dense(
+            torch.randn((5, 5), dtype=torch.complex64), ("M", "N"), ("N",), ("M",)
+        )
+        add = Add(A, B, C)
+        add.threaded = False
         x = torch.randn(5, dtype=torch.complex64)
         y = torch.randn(5, dtype=torch.complex64)
         return add, x, y
@@ -27,8 +34,6 @@ class TestAddDunder:
         B = Dense(torch.randn(4, 3), ("N", "M"), ("N",), ("N", "M"))
         add = Add(A, B)
         assert len(add) == 2
-        assert add[0] is A
-        assert add[1] is B
         assert repr(add)
 
     def test_flatten(self):
