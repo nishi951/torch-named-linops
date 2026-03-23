@@ -3229,7 +3229,7 @@ all = [
     { name = "mkdocs-material", specifier = ">=9.5.0" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.25.0" },
     { name = "numba", specifier = ">=0.60.0" },
-    { name = "numpy", specifier = "<=2.4.2" },
+    { name = "numpy", specifier = "<=2.4.3" },
     { name = "pre-commit", specifier = ">=4.0.1" },
     { name = "pyqt6", specifier = ">=6.10.2" },
     { name = "pytest", specifier = ">=8.3.4" },
@@ -3265,7 +3265,7 @@ sigpy = [
     { name = "easydict", specifier = ">=1.13" },
     { name = "llvmlite", specifier = ">=0.43.0" },
     { name = "numba", specifier = ">=0.60.0" },
-    { name = "numpy", specifier = "<=2.4.2" },
+    { name = "numpy", specifier = "<=2.4.3" },
     { name = "sigpy", specifier = ">=0.1.27" },
 ]
 
