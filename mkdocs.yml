@@ -9,6 +9,7 @@ theme:
   name: material
   features:
     - navigation.indexes
+    - navigation.tabs
     - navigation.sections
     - navigation.top
     - search.suggest
