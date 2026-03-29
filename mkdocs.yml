@@ -104,41 +104,42 @@ nav:
   - API Reference:
       - reference/index.md
       - Linops:
-        - reference/linops/index.md
-        - NamedLinop: reference/linops/namedlinop.md
-        - Add: reference/linops/add.md
-        - ArrayToBlocks/BlocksToArray: reference/linops/array_manipulation.md
-        - Chain: reference/linops/chain.md
-        - Concat & Stack: reference/linops/concat_stack.md
-        - Dense: reference/linops/dense.md
-        - Device Transfer: reference/linops/device.md
-        - Diagonal & Scalar: reference/linops/diagonal.md
-        - Einops: reference/linops/einops.md
-        - FFT: reference/linops/fft.md
-        - Identity: reference/linops/identity.md
-        - Interpolation: reference/linops/interp.md
-        - NUFFT: reference/linops/nufft.md
-        - Padding & Truncation: reference/linops/pad.md
-        - Sampling: reference/linops/sampling.md
-        - Splitting: reference/linops/split.md
-        - Threadable: reference/linops/threadable.md
+          - reference/linops/index.md
+          - NamedLinop: reference/linops/namedlinop.md
+          - Add: reference/linops/add.md
+          - ArrayToBlocks/BlocksToArray: reference/linops/array_manipulation.md
+          - Chain: reference/linops/chain.md
+          - Concat & Stack: reference/linops/concat_stack.md
+          - Dense: reference/linops/dense.md
+          - Device Transfer: reference/linops/device.md
+          - Diagonal & Scalar: reference/linops/diagonal.md
+          - Einops: reference/linops/einops.md
+          - FFT: reference/linops/fft.md
+          - Identity: reference/linops/identity.md
+          - Interpolation: reference/linops/interp.md
+          - NUFFT: reference/linops/nufft.md
+          - Padding & Truncation: reference/linops/pad.md
+          - Sampling: reference/linops/sampling.md
+          - Splitting: reference/linops/split.md
+          - Threadable: reference/linops/threadable.md
       - Functional:
-        - Interpolation: reference/functional/interp.md
-        - Indexing: reference/functional/index.md
-        - NUFFT: reference/functional/nufft.md
-        - Padding: reference/functional/pad.md
-        - Unfold/Fold: reference/functional/unfold.md
+          - Interpolation: reference/functional/interp.md
+          - Indexing: reference/functional/index.md
+          - NUFFT: reference/functional/nufft.md
+          - Padding: reference/functional/pad.md
+          - Unfold/Fold: reference/functional/unfold.md
       - NamedDim:
-        - NamedDimension: reference/nameddim/nameddimension.md
-        - NamedShape: reference/nameddim/namedshape.md
-        - Matching: reference/nameddim/matching.md
+          - NamedDimension: reference/nameddim/nameddimension.md
+          - NamedShape: reference/nameddim/namedshape.md
+          - Matching: reference/nameddim/matching.md
       - Algorithms:
-        - Conjugate Gradient: reference/alg/cg.md
-        - Polynomial: reference/alg/poly.md
-        - Power Method: reference/alg/powermethod.md
+          - Conjugate Gradient: reference/alg/cg.md
+          - Polynomial: reference/alg/poly.md
+          - Power Method: reference/alg/powermethod.md
+          - Singular Value Decomposition: reference/alg/svd.md
       - Utils:
-        - Math & FFT: reference/utils/math.md
-        - Memory & Device: reference/utils/memory.md
-        - Benchmarking: reference/utils/benchmark.md
+          - Math & FFT: reference/utils/math.md
+          - Memory & Device: reference/utils/memory.md
+          - Benchmarking: reference/utils/benchmark.md
 watch:
   - src/torchlinops
