@@ -454,15 +454,26 @@ class NamedLinop(nn.Module):
         return torchlinops.Add(left, self)
 
     def __mul__(self, right) -> "NamedLinop":
-        if isinstance(right, float) or isinstance(right, torch.Tensor):
+        if isinstance(right, (int, float)) or isinstance(right, torch.Tensor):
             right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
             return self.compose(right)
         return NotImplemented
 
     def __rmul__(self, left) -> "NamedLinop":
-        if isinstance(left, float) or isinstance(left, torch.Tensor):
+        if isinstance(left, (int, float)) or isinstance(left, torch.Tensor):
             left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
             return left.compose(self)
+        return NotImplemented
+
+    def __neg__(self) -> "NamedLinop":
+        return (-1) * self
+
+    def __sub__(self, right) -> "NamedLinop":
+        return torchlinops.Add(self, -right)
+
+    def __rsub__(self, left) -> "NamedLinop":
+        if isinstance(left, NamedLinop):
+            return torchlinops.Add(left, -self)
         return NotImplemented
 
     def __matmul__(self, right) -> "NamedLinop":
