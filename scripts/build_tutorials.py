@@ -1,25 +1,23 @@
 #!/usr/bin/env python
 """
-Build tutorials from Python files.
+Build tutorials from marimo notebooks.
 
-This script converts Python tutorial files (.py) to Markdown (.md) by:
-1. Parsing cells marked with `# %%`
-2. Extracting markdown from comment lines after `# %%`
-3. Executing code cells and capturing stdout output
-4. Generating .md files in docs/tutorials/
+This script converts marimo notebook files (.py) to Markdown (.md) by:
+1. Exporting session snapshot (JSON with outputs)
+2. Exporting markdown structure (code blocks)
+3. Combining them to produce final markdown with embedded outputs
 
-Similar to mkdocs-gallery but compatible with Zensical's static build model.
+Usage:
+    uv run python scripts/build_tutorials.py
 """
 
 from __future__ import annotations
 
-import io
+import json
 import re
+import subprocess
 import sys
-import warnings
-from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
-from textwrap import dedent
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -28,234 +26,307 @@ if TYPE_CHECKING:
 # Configuration
 TUTORIALS_DIR = Path("tutorials")
 OUTPUT_DIR = Path("docs/tutorials")
+MARIMO_OUTPUT_DIR = Path("tutorials/__marimo__")
 
 
-def parse_tutorial_file(filepath: Path) -> list[dict]:
-    """Parse a Python tutorial file into cells.
+def run_marimo_export_session(notebook_path: Path) -> Path:
+    """Run marimo export session to generate JSON snapshot.
 
-    The format is:
-    - Module-level docstring at the top (markdown)
-    - `# %%` markers separate cells
-    - After `# %%`, lines starting with `#` are markdown
-    - Non-comment lines after markdown are code
-
-    Returns a list of dicts with keys 'type' and 'content'.
+    Returns path to the generated JSON file.
     """
-    content = filepath.read_text()
+    cmd = [
+        "uv",
+        "run",
+        "marimo",
+        "export",
+        "session",
+        "--force-overwrite",
+        str(notebook_path),
+    ]
+    print(f"  Running: {' '.join(cmd)}")
 
-    cells = []
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  Warning: marimo export session failed: {result.stderr}")
 
-    # First, check for module-level docstring
-    docstring_match = re.match(r'^("""|\'\'\')\s*\n(.*?)\n\1', content, re.DOTALL)
+    # marimo writes to __marimo__/session/<notebook>.py.json
+    json_path = TUTORIALS_DIR / "__marimo__" / "session" / f"{notebook_path.name}.json"
+    return json_path
 
-    if docstring_match:
-        docstring = docstring_match.group(2)
-        # Dedent and clean
-        docstring = dedent(docstring).strip()
-        if docstring:
-            cells.append({"type": "markdown", "content": docstring})
-        # Remove docstring from content for further processing
-        content = content[docstring_match.end() :]
 
-    # Split by # %% markers
-    parts = re.split(r"^# %%\s*\n", content, flags=re.MULTILINE)
+def run_marimo_export_md(notebook_path: Path, output_path: Path) -> bool:
+    """Run marimo export md to generate markdown.
 
-    for part in parts:
-        part = part.strip()
-        if not part:
+    Returns True on success.
+    """
+    cmd = [
+        "uv",
+        "run",
+        "marimo",
+        "export",
+        "md",
+        str(notebook_path),
+        "-o",
+        str(output_path),
+    ]
+    print(f"  Running: {' '.join(cmd)}")
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  Warning: marimo export md failed: {result.stderr}")
+        return False
+    return True
+
+
+def load_session_json(json_path: Path) -> dict:
+    """Load the session JSON file."""
+    with open(json_path) as f:
+        return json.load(f)
+
+
+def is_markdown_cell(cell: dict) -> bool:
+    """Check if a cell is a markdown cell (mo.md output)."""
+    outputs = cell.get("outputs", [])
+    for output in outputs:
+        if output.get("type") == "data":
+            data = output.get("data", {})
+            if "text/markdown" in data:
+                return True
+    return False
+
+
+def extract_outputs(session_data: dict) -> dict[int, dict]:
+    """Extract outputs from session data, indexed by code block position.
+
+    Filters out markdown cells (mo.md calls) and maps remaining code cells
+    to their position in the markdown code block sequence.
+
+    Returns dict mapping code block index to {console, outputs}.
+    """
+    code_cell_idx = 0
+    cells_data = {}
+    for cell in session_data.get("cells", []):
+        # Skip markdown cells - they don't produce code blocks
+        if is_markdown_cell(cell):
             continue
 
-        # Parse this cell
-        cell = parse_cell(part)
-        if cell:
-            cells.extend(cell)
+        cells_data[code_cell_idx] = {
+            "console": cell.get("console", []),
+            "outputs": cell.get("outputs", []),
+        }
+        code_cell_idx += 1
+    return cells_data
 
-    return cells
 
+def format_console_output(console: list[dict]) -> str:
+    """Format console output (stdout/stderr/media) for markdown."""
+    parts = []
+    for item in console:
+        item_type = item.get("type", "stream")
 
-def parse_cell(content: str) -> list[dict]:
-    """Parse a single cell into markdown and code blocks.
+        if item_type == "streamMedia":
+            # Handle image/plot outputs from matplotlib, etc.
+            mimetype = item.get("mimetype", "")
+            data = item.get("data", "")
 
-    Lines starting with # are markdown (with # stripped).
-    Other lines are code.
-    """
-    lines = content.split("\n")
+            if mimetype == "application/vnd.marimo+mimebundle":
+                try:
+                    mime_data = json.loads(data)
+                    # Check for image types in order of preference
+                    for img_type in [
+                        "image/svg+xml",
+                        "image/png",
+                        "image/jpeg",
+                        "image/gif",
+                    ]:
+                        if img_type in mime_data:
+                            img_data = mime_data[img_type]
+                            # Embed as markdown image
+                            if img_data.startswith("data:"):
+                                parts.append(f"![output]({img_data})")
+                            else:
+                                parts.append(
+                                    f"![output](data:{img_type};base64,{img_data})"
+                                )
+                            break
+                except json.JSONDecodeError:
+                    pass
+        elif item_type == "stream":
+            name = item.get("name", "stdout")
+            text = item.get("text", "")
+            if not text.strip():
+                continue
+            text = text.rstrip()
 
-    cells = []
-    markdown_lines = []
-    code_lines = []
-
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-
-        # Check if this is a comment line (potential markdown)
-        if line.strip().startswith("#"):
-            # If we have accumulated code, emit it first
-            if code_lines:
-                cells.append({"type": "code", "content": "\n".join(code_lines).strip()})
-                code_lines = []
-
-            # Extract markdown content (strip leading # and optional space)
-            stripped = line.strip()
-            if stripped == "#":
-                # Empty comment = blank line
-                markdown_lines.append("")
+            if name == "stderr":
+                # Format stderr as warning
+                parts.append(f'!!! warning "Warnings/Errors"')
+                parts.append("```")
+                parts.append(text)
+                parts.append("```")
             else:
-                # Remove leading # and one optional space
-                md_line = re.sub(r"^#\s?", "", stripped)
-                markdown_lines.append(md_line)
-        else:
-            # If we have accumulated markdown, emit it first
-            if markdown_lines:
-                cells.append(
-                    {"type": "markdown", "content": "\n".join(markdown_lines).strip()}
-                )
-                markdown_lines = []
+                # Format stdout as output
+                parts.append("**Output:**")
+                parts.append("```")
+                parts.append(text)
+                parts.append("```")
 
-            # This is a code line
-            code_lines.append(line)
-
-        i += 1
-
-    # Emit any remaining content
-    if markdown_lines:
-        cells.append({"type": "markdown", "content": "\n".join(markdown_lines).strip()})
-    if code_lines:
-        cells.append({"type": "code", "content": "\n".join(code_lines).strip()})
-
-    return cells
+    return "\n\n".join(parts) if parts else ""
 
 
-def execute_code_cell(code: str, namespace: dict) -> tuple[str, str]:
-    """Execute a code cell and capture stdout/stderr.
-
-    Returns (stdout_output, stderr_output).
-    """
-    stdout_capture = io.StringIO()
-    stderr_capture = io.StringIO()
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-            try:
-                exec(compile(code, "<tutorial>", "exec"), namespace)
-            except Exception as e:
-                stderr_capture.write(f"Error: {type(e).__name__}: {e}\n")
-
-    return stdout_capture.getvalue(), stderr_capture.getvalue()
-
-
-def process_code_cell(code: str, namespace: dict) -> str:
-    """Execute code and return formatted markdown."""
-    stdout_output, stderr_output = execute_code_cell(code, namespace)
-
+def format_cell_output(cell_data: dict) -> str:
+    """Format a single cell's output for markdown."""
     parts = []
 
-    # Code block
-    parts.append("```python")
-    parts.append(code)
-    parts.append("```")
-    parts.append("")
+    # Add console output (stdout/stderr/media)
+    console = cell_data.get("console", [])
+    if console:
+        console_md = format_console_output(console)
+        if console_md:
+            parts.append(console_md)
 
-    # Stdout output block
-    if stdout_output.strip():
-        parts.append("**Output:**")
-        parts.append("```")
-        parts.append(stdout_output.rstrip())
-        parts.append("```")
-        parts.append("")
+    # Add data outputs (images, HTML, etc.)
+    for output in cell_data.get("outputs", []):
+        output_type = output.get("type", "")
+        data = output.get("data", {})
 
-    # Stderr/output warnings
-    if stderr_output.strip():
-        parts.append('!!! warning "Warnings/Errors"')
-        parts.append("```")
-        parts.append(stderr_output.rstrip())
-        parts.append("```")
-        parts.append("")
+        if output_type == "data":
+            # Check for image outputs
+            for img_type in ["image/svg+xml", "image/png", "image/jpeg", "image/gif"]:
+                if img_type in data:
+                    img_data = data[img_type]
+                    # Embed as markdown image
+                    if img_data.startswith("data:"):
+                        parts.append(f"![output]({img_data})")
+                    else:
+                        parts.append(f"![output](data:{img_type};base64,{img_data})")
+                    break
 
-    return "\n".join(parts)
+    return "\n\n".join(parts) if parts else ""
 
 
-def build_tutorial(tutorial_path: Path, output_path: Path) -> str:
-    """Build a single tutorial file.
+def inject_outputs_into_markdown(md_content: str, cells_data: dict[int, dict]) -> str:
+    """Inject outputs into markdown content after each code block.
 
-    Converts a .py tutorial to .md format.
-    Returns the title extracted from the first cell.
+    The markdown has code blocks with {.marimo} class.
+    We match them by position to the cells_data.
     """
-    print(f"Processing: {tutorial_path}")
+    # Find all code blocks with .marimo class
+    # Pattern: ```python {.marimo}\n...\n```
+    code_block_pattern = re.compile(r"```python\s*\{\.marimo\}\n(.*?)```", re.DOTALL)
 
-    # Parse cells
-    cells = parse_tutorial_file(tutorial_path)
+    # Split content into parts: text, code block, text, code block, etc.
+    parts = []
+    last_end = 0
 
-    if not cells:
-        print(f"  Warning: No cells found in {tutorial_path}")
-        return tutorial_path.stem
+    for idx, match in enumerate(code_block_pattern.finditer(md_content)):
+        # Add text before this code block
+        parts.append(md_content[last_end : match.start()])
 
-    # Process each cell
-    namespace: dict = {"__name__": "__main__"}
-    # Import common packages into namespace
-    try:
-        namespace["torch"] = __import__("torch")
-    except ImportError:
-        pass
+        # Add the code block itself
+        parts.append(match.group(0))
 
-    markdown_parts = []
-    title = None
+        # Add the corresponding output if available
+        if idx in cells_data:
+            output_md = format_cell_output(cells_data[idx])
+            if output_md:
+                parts.append("\n\n")
+                parts.append(output_md)
 
-    for cell in cells:
-        try:
-            if cell["type"] == "markdown":
-                md = cell["content"]
-                # Extract title from first markdown cell
-                if title is None:
-                    title_match = re.match(r"^#\s+(.+)$", md, re.MULTILINE)
-                    if title_match:
-                        title = title_match.group(1).strip()
-                markdown_parts.append(md)
-            else:
-                md = process_code_cell(cell["content"], namespace)
-                markdown_parts.append(md)
-        except Exception as e:
-            print(f"  Error processing cell: {e}")
-            # Include the cell anyway with error
-            if cell["type"] == "code":
-                markdown_parts.append(f"```python\n{cell['content']}\n```")
-                markdown_parts.append(f"!!! error\n    Error executing this cell: {e}")
+        last_end = match.end()
 
-    # Write output
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text("\n\n".join(markdown_parts))
+    # Add remaining text
+    parts.append(md_content[last_end:])
+
+    return "".join(parts)
+
+
+def process_tutorial(marimo_path: Path, output_dir: Path) -> str:
+    """Process a single marimo notebook.
+
+    Returns the title extracted from the notebook.
+    """
+    print(f"Processing: {marimo_path}")
+
+    # Step 1: Export session snapshot
+    json_path = run_marimo_export_session(marimo_path)
+
+    # Step 2: Export markdown
+    md_temp_path = output_dir / f"_{marimo_path.stem}_temp.md"
+    run_marimo_export_md(marimo_path, md_temp_path)
+
+    # Step 3: Load and process
+    session_data = load_session_json(json_path)
+    cells_data = extract_outputs(session_data)
+
+    # Read markdown
+    md_content = md_temp_path.read_text()
+
+    # Extract title from markdown
+    title_match = re.search(r"^#\s+(.+)$", md_content, re.MULTILINE)
+    title = (
+        title_match.group(1)
+        if title_match
+        else marimo_path.stem.replace("_", " ").title()
+    )
+
+    # Inject outputs
+    final_md = inject_outputs_into_markdown(md_content, cells_data)
+
+    # Clean up the {.marimo} class from code blocks
+    final_md = re.sub(r"```python\s*\{\.marimo\}", "```python", final_md)
+
+    # Remove frontmatter
+    final_md = re.sub(r"^---\n.*?\n---\n", "", final_md, flags=re.DOTALL)
+
+    # Write final markdown
+    output_path = output_dir / f"{marimo_path.stem}.md"
+    output_path.write_text(final_md)
     print(f"  Written: {output_path}")
 
-    return title or tutorial_path.stem.replace("_", " ").title()
+    # Clean up temp file
+    if md_temp_path.exists():
+        md_temp_path.unlink()
+
+    return title
 
 
-def build_all_tutorials() -> None:
-    """Build all tutorials in the tutorials directory."""
+def process_all_tutorials() -> None:
+    """Process all marimo notebooks in the tutorials directory."""
     output_dir = OUTPUT_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Find all .py files in tutorials directory
-    tutorial_files = sorted(TUTORIALS_DIR.glob("*.py"))
+    # Ensure __marimo__ output dir exists
+    (TUTORIALS_DIR / "__marimo__" / "session").mkdir(parents=True, exist_ok=True)
+
+    # Find all tutorials (excluding README and __marimo__ directory)
+    tutorial_files = []
+    for f in TUTORIALS_DIR.glob("*.py"):
+        if f.name == "README.md" or f.name.startswith("_"):
+            continue
+        # Skip files that are clearly not marimo notebooks
+        content = f.read_text()
+        if "import marimo" in content or "@app.cell" in content:
+            tutorial_files.append(f)
 
     if not tutorial_files:
-        print(f"No tutorial files found in {TUTORIALS_DIR}")
+        print(f"No marimo notebooks found in {TUTORIALS_DIR}")
+        print("Make sure tutorials have 'import marimo' and '@app.cell' decorators.")
         return
 
-    print(f"Found {len(tutorial_files)} tutorial files")
+    print(f"Found {len(tutorial_files)} marimo notebooks")
 
-    # Build each tutorial
+    # Sort for consistent order
+    tutorial_files.sort()
+
+    # Process each
     tutorials_metadata = []
     for tutorial_path in tutorial_files:
-        if tutorial_path.name.startswith("_"):
-            continue
+        title = process_tutorial(tutorial_path, output_dir)
+        base_name = tutorial_path.stem
+        tutorials_metadata.append((base_name, title))
 
-        output_path = output_dir / f"{tutorial_path.stem}.md"
-        title = build_tutorial(tutorial_path, output_path)
-        tutorials_metadata.append((tutorial_path.stem, title))
-
-    # Generate index page
+    # Generate index
     generate_index(tutorials_metadata)
 
     print("\nDone building tutorials!")
@@ -285,23 +356,25 @@ def generate_index(tutorials: list[tuple[str, str]]) -> None:
 
 
 def main() -> None:
-    """Entry point for the build script."""
+    """Entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Build tutorials from Python files")
+    parser = argparse.ArgumentParser(
+        description="Build tutorials from marimo notebooks"
+    )
     parser.add_argument(
         "--output-dir",
         "-o",
         type=Path,
         default=OUTPUT_DIR,
-        help=f"Output directory for generated markdown files (default: {OUTPUT_DIR})",
+        help=f"Output directory (default: {OUTPUT_DIR})",
     )
     parser.add_argument(
         "--tutorials-dir",
         "-t",
         type=Path,
         default=TUTORIALS_DIR,
-        help=f"Source directory containing .py tutorial files (default: {TUTORIALS_DIR})",
+        help=f"Source directory (default: {TUTORIALS_DIR})",
     )
 
     args = parser.parse_args()
@@ -309,7 +382,7 @@ def main() -> None:
     globals()["OUTPUT_DIR"] = args.output_dir
     globals()["TUTORIALS_DIR"] = args.tutorials_dir
 
-    build_all_tutorials()
+    process_all_tutorials()
 
 
 if __name__ == "__main__":
