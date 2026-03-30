@@ -1,13 +1,7 @@
-import marimo as mo
+import marimo
 
-app = mo.App()
-
-
-@app.cell
-def _():
-    import marimo as mo
-
-    return (mo,)
+__generated_with = "0.21.1"
+app = marimo.App()
 
 
 @app.cell
@@ -40,6 +34,7 @@ def _(mo):
 
 @app.cell
 def _():
+    import marimo as mo
     import torch
 
     from torchlinops import Dense, Diagonal, Dim
@@ -53,6 +48,7 @@ def _():
         Dim,
         conjugate_gradients,
         is_adjoint,
+        mo,
         power_method,
         torch,
     )
@@ -125,7 +121,7 @@ def _(mo):
     ## The Diagonal Operator
 
     `Diagonal` represents element-wise multiplication by a weight vector:
-    $D(x) = w \\odot x$. Input and output shapes are the same.
+    $D(x) = w \odot x$. Input and output shapes are the same.
     """)
     return
 
@@ -195,10 +191,10 @@ def _(Dense, Dim, W1, torch):
 
 
 @app.cell
-def _(A_2, is_adjoint, mo, torch):
+def _(mo):
     mo.md("""
     We can verify the adjoint relationship numerically using the
-    `is_adjoint` utility: $\\langle y, A x \\rangle = \\langle A^H y, x \\rangle$
+    `is_adjoint` utility: $\langle y, A x \rangle = \langle A^H y, x \rangle$
     """)
     return
 
@@ -288,7 +284,7 @@ def _(mo):
 
 
 @app.cell
-def _(A_4, b, conjugate_gradients, x_true):
+def _(A_4, b, conjugate_gradients, torch, x_true):
     rhs = A_4.H(b)
     x_cg = conjugate_gradients(A_4.N, rhs, max_num_iters=50, gtol=1e-06)
     print(f"x_true: {x_true}")

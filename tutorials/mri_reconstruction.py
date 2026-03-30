@@ -1,13 +1,7 @@
-import marimo as mo
+import marimo
 
-app = mo.App()
-
-
-@app.cell
-def _():
-    import marimo as mo
-
-    return (mo,)
+__generated_with = "0.21.1"
+app = marimo.App()
 
 
 @app.cell
@@ -38,7 +32,7 @@ def _(mo):
 
     The reconstruction solves the least-squares problem:
 
-    $$\\min_x \\|A x - y\\|_2^2$$
+    $$\min_x \|A x - y\|_2^2$$
 
     where $A = E F S$ is the combined forward operator.
     """)
@@ -47,12 +41,15 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("## Setup and Imports")
+    mo.md("""
+    ## Setup and Imports
+    """)
     return
 
 
 @app.cell
 def _():
+    import marimo as mo
     import sys
     import warnings
 
@@ -82,6 +79,7 @@ def _():
         NUFFT,
         conjugate_gradients,
         image_size,
+        mo,
         noise_level,
         num_coils,
         num_readouts,

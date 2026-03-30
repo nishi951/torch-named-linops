@@ -1,13 +1,7 @@
-import marimo as mo
+import marimo
 
-app = mo.App()
-
-
-@app.cell
-def _():
-    import marimo as mo
-
-    return (mo,)
+__generated_with = "0.21.1"
+app = marimo.App()
 
 
 @app.cell
@@ -39,12 +33,15 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("## Setup")
+    mo.md("""
+    ## Setup
+    """)
     return
 
 
 @app.cell
 def _():
+    import marimo as mo
     import torch
     from torch import Tensor
 
@@ -53,7 +50,7 @@ def _():
     from torchlinops.utils import is_adjoint
 
     torch.manual_seed(0)
-    return Dense, Dim, NS, NamedLinop, Tensor, is_adjoint, torch
+    return Dense, Dim, NS, NamedLinop, Tensor, is_adjoint, mo, torch
 
 
 @app.cell
@@ -62,7 +59,7 @@ def _(mo):
     ## Example 1: Diagonal Scaling
 
     The simplest useful operator multiplies each element by a weight vector.
-    This is mathematically $y = w \\odot x$ (elementwise product).
+    This is mathematically $y = w \odot x$ (elementwise product).
 
     We store the weight as an `nn.Parameter` so that it moves with the
     module when you call `.to(device)`. The `fn` and `adj_fn` static
@@ -105,7 +102,9 @@ def _(NS, NamedLinop, Tensor, torch):
 
 @app.cell
 def _(mo):
-    mo.md("Let's create an instance and try it out.")
+    mo.md("""
+    Let's create an instance and try it out.
+    """)
     return
 
 
@@ -128,7 +127,7 @@ def _(mo):
     ## Testing the Adjoint
 
     A correct adjoint must satisfy the identity
-    $\\langle y, A x \\rangle = \\langle A^H y, x \\rangle$ for all $x, y$.
+    $\langle y, A x \rangle = \langle A^H y, x \rangle$ for all $x, y$.
     The helper `is_adjoint` checks this numerically.
     """)
     return
@@ -191,7 +190,9 @@ def _(NS, NamedLinop, Tensor, torch):
 
 @app.cell
 def _(mo):
-    mo.md("Create a random permutation and verify it.")
+    mo.md("""
+    Create a random permutation and verify it.
+    """)
     return
 
 
