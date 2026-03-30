@@ -57,6 +57,54 @@ See the [Getting Started](https://nishi951.github.io/torch-named-linops/getting_
 [^1]: Includes a `functional` interface and [triton](https://github.com/triton-lang/triton) backend for 1D/2D/3D.
 
 
+## Documentation
+
+The documentation is built using [Zensical](https://zensical.com) with tutorials authored as [Marimo](https://marimo.io) notebooks.
+
+### Building Documentation Locally
+
+Install [just](https://github.com/casey/just) (a command runner):
+
+```bash
+# Install with uv
+uv tool install just
+
+# Or with other package managers
+# Homebrew: brew install just
+# Cargo: cargo install just
+```
+
+Build the documentation:
+
+```bash
+# Build tutorials and documentation
+just docs
+
+# Or serve locally with auto-reload
+just dev
+```
+
+Available commands:
+
+| Command | Description |
+|---------|-------------|
+| `just tutorials` | Build tutorials from marimo notebooks |
+| `just docs` | Build full documentation (includes tutorials) |
+| `just serve` | Serve documentation locally |
+| `just dev` | Build and serve documentation |
+
+### Editing Tutorials
+
+Tutorials are marimo notebooks in `tutorials/*.py`. To edit:
+
+```bash
+# Edit a tutorial interactively
+uv run marimo edit tutorials/basics.py
+
+# Rebuild markdown after edits
+just tutorials
+```
+
 ## Other Packages
 This package was heavily inspired by a few other influential packages. In no particular order:
 - [einops](https://einops.rocks): named dimensions/naming things in general.
