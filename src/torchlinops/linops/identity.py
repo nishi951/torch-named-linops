@@ -1,5 +1,6 @@
 from copy import copy
 
+from torch import zeros_like
 from torch import Tensor
 
 from ..nameddim import NamedShape as NS
@@ -59,15 +60,15 @@ class Zero(NamedLinop):
 
     @staticmethod
     def fn(self, x, /):
-        return x.zero_()
+        return zeros_like(x)
 
     @staticmethod
     def adj_fn(self, x, /):
-        return x.zero_()
+        return zeros_like(x)
 
     @staticmethod
     def normal_fn(self, x, /):
-        return x.zero_()
+        return zeros_like(x)
 
     def split_forward(self, ibatch, obatch):
         return self
