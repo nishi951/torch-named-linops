@@ -30,6 +30,20 @@ class BaseNamedLinopTests(ABC):
         """
         pass
 
+    def test_input_mutation(self, linop_input_output):
+        """Should be the first test so that later tests don't pre-mutate the input/output."""
+        A, x, y = linop_input_output
+        xclone = x.clone()
+        _ = A(x)
+        assert (xclone == x).all()
+
+        yclone = y.clone()
+        _ = A.H(y)
+        assert (yclone == y).all()
+
+        _ = A.N(x)
+        assert (xclone == x).all()
+
     def test_adjoint(self, linop_input_output):
         A, x, y = linop_input_output
         yAx = inner(y, A(x))
