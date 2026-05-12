@@ -41,9 +41,9 @@ class TestRearrange(BaseNamedLinopTests):
     def test_split(self, linop_input_output):
         A, x, y = linop_input_output
         with pytest.warns(UserWarning, match="splitting"):
-            A.split_forward(
-                [slice(None), slice(None)],
-                [slice(None), slice(None), slice(None)],
+            type(A).split(
+                A,
+                {"Ab": slice(None), "C": slice(None)},
             )
 
 
@@ -80,13 +80,13 @@ class TestRepeat(BaseNamedLinopTests):
         s = A.size("C")
         assert s == 3
 
-    def test_split_forward_no_mutation(self, linop_input_output):
-        """split_forward must not mutate the original axes_lengths."""
+    def test_split_no_mutation(self, linop_input_output):
+        """split must not mutate the original axes_lengths."""
         A, x, y = linop_input_output
         original_c = A.axes_lengths["C"]
-        A_split = A.split_forward(
-            [slice(None), slice(None)],
-            [slice(None), slice(None), slice(0, 2)],
+        A_split = type(A).split(
+            A,
+            {"A": slice(None), "B": slice(None), "C": slice(0, 2)},
         )
         assert A.axes_lengths["C"] == original_c
         assert A_split.axes_lengths["C"] == 2
@@ -120,7 +120,7 @@ def test_repeat_same_length_raises():
 
 
 def test_rearrange_split_emits_warning():
-    """split_forward on a Rearrange should emit a UserWarning."""
+    """split on a Rearrange should emit a UserWarning."""
     A = Rearrange(
         "(A B) C",
         "A B C",
@@ -129,7 +129,7 @@ def test_rearrange_split_emits_warning():
         axes_lengths={"A": 2, "B": 3},
     )
     with pytest.warns(UserWarning, match="splitting"):
-        A.split_forward(
-            [slice(None), slice(None)],
-            [slice(None), slice(None), slice(None)],
+        type(A).split(
+            A,
+            {"Ab": slice(None), "C": slice(None)},
         )

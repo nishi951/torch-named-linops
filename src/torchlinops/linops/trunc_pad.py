@@ -78,11 +78,14 @@ class Truncate(NamedLinop):
         x[truncate.end_slc] = 0.0
         return x
 
-    def split_forward(self, ibatch, obatch):
-        if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
+    @staticmethod
+    def split(truncate, tile):
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in truncate.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in truncate.oshape)
+        if ibatch[truncate.dim] != slice(None) or obatch[truncate.dim] != slice(None):
             raise ValueError("Cannot slice a Truncate linop along truncation dimension")
-        return type(self)(
-            self.dim, self.from_length, self.to_length, self.ishape, self.oshape
+        return type(truncate)(
+            truncate.dim, truncate.from_length, truncate.to_length, truncate.ishape, truncate.oshape
         )
 
     def adjoint(self):
@@ -168,9 +171,12 @@ class PadDim(NamedLinop):
         x = x.clone()
         return x
 
-    def split_forward(self, ibatch, obatch):
-        if ibatch[self.dim] != slice(None) or obatch[self.dim] != slice(None):
+    @staticmethod
+    def split(padend, tile):
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in padend.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in padend.oshape)
+        if ibatch[padend.dim] != slice(None) or obatch[padend.dim] != slice(None):
             raise ValueError("Cannot slice a PadEnd linop along truncation dimension")
-        return type(self)(
-            self.dim, self.from_length, self.to_length, self.ishape, self.oshape
+        return type(padend)(
+            padend.dim, padend.from_length, padend.to_length, padend.ishape, padend.oshape
         )

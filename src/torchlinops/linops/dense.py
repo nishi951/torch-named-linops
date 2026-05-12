@@ -234,10 +234,13 @@ class Dense(NamedLinop):
         normal._shape_updates = _shape_updates
         return normal
 
-    def split_forward(self, ibatch, obatch):
-        weight = self.split_weight(ibatch, obatch, self.weight)
-        out = copy(self)
-        out.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
+    @staticmethod
+    def split(dense, tile):
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in dense.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in dense.oshape)
+        weight = dense.split_weight(ibatch, obatch, dense.weight)
+        out = copy(dense)
+        out.weight = nn.Parameter(weight, requires_grad=dense.weight.requires_grad)
         return out
 
     def split_weight(self, ibatch, obatch, /, weight):

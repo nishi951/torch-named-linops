@@ -111,13 +111,16 @@ class Pad(NamedLinop):
         adj.in_im_size, adj.out_im_size = self.out_im_size, self.in_im_size
         return adj
 
-    def split_forward(self, ibatch, obatch):
-        for islc, oslc in zip(ibatch[-self.D :], obatch[-self.D :]):
+    @staticmethod
+    def split(pad, tile):
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in pad.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in pad.oshape)
+        for islc, oslc in zip(ibatch[-pad.D :], obatch[-pad.D :]):
             if islc != slice(None) or oslc != slice(None):
                 raise ValueError(
-                    f"{type(self).__name__} cannot be split along image dim"
+                    f"{type(pad).__name__} cannot be split along image dim"
                 )
-        return self
+        return pad
 
     def size(self, dim: str):
         if dim in self.ishape[-self.D :]:

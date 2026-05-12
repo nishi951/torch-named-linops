@@ -96,29 +96,25 @@ class Chain(NamedLinop):
     #     # If the normal hasn't been explicitly formed with`.N`, do things the naive way
     #     return chain.adj_fn(chain, chain.fn(chain, x))
 
-    def split_forward(self, ibatches, obatches):
-        """Split each constituent linop according to per-linop batch slices.
+    @staticmethod
+    def split(chain, tile: Mapping[ND | str, slice]):
+        """Split a chain linop into sub-linops.
+
+        Distributes the tile to each constituent linop based on dimension names.
 
         Parameters
         ----------
-        ibatches : list[list[slice]]
-            Per-linop input slices. Each element is a list of slices corresponding
-            to the input dimensions of one linop in the chain.
-        obatches : list[list[slice]]
-            Per-linop output slices. Each element is a list of slices corresponding
-            to the output dimensions of one linop in the chain.
-
-        Returns
-        -------
-        Chain
-            A new chain of the split sub-linops.
+        chain : Chain
+            The chain linop to split.
+        tile : Mapping[ND | str, slice]
+            Dictionary specifying how to slice the linop dimensions
         """
-        linops = [
-            linop.split_forward(ibatch, obatch)
-            for linop, ibatch, obatch in zip(self.linops, ibatches, obatches)
-        ]
-        split = copy(self)
-        split.linops = nn.ModuleList(linops)
+        split_linops = []
+        for linop in chain.linops:
+            sub_tile = {dim: tile.get(dim, slice(None)) for dim in linop.dims}
+            split_linops.append(type(linop).split(linop, sub_tile))
+        split = copy(chain)
+        split.linops = nn.ModuleList(split_linops)
         return split
 
     def size(self, dim):
@@ -166,48 +162,6 @@ class Chain(NamedLinop):
         for linop in reversed(self.linops):
             inner = linop.normal(inner)
         return inner
-
-    @staticmethod
-    def split(chain, tile: Mapping[ND | str, slice]):
-        """Split a linop into sub-linops.
-
-        Parameters
-        ----------
-        chain : Chain
-            The chain linop to split.
-        tile : Mapping[ND | str, slice]
-            Dictionary specifying how to slice the linop dimensions
-        """
-        ibatches = [
-            [tile.get(dim, slice(None)) for dim in linop.ishape]
-            for linop in chain.linops
-        ]
-        obatches = [
-            [tile.get(dim, slice(None)) for dim in linop.oshape]
-            for linop in chain.linops
-        ]
-        return chain.split_forward(ibatches, obatches)
-
-    @staticmethod
-    def adj_split(chain, tile: Mapping[ND | str, slice]):
-        """Split an adjoint linop into sub-linops.
-
-        Parameters
-        ----------
-        chain : Chain
-            The chain linop to split.
-        tile : Mapping[ND | str, slice]
-            Dictionary specifying how to slice the linop dimensions
-        """
-        ibatches = [
-            [tile.get(dim, slice(None)) for dim in linop.ishape]
-            for linop in chain.linops
-        ]
-        obatches = [
-            [tile.get(dim, slice(None)) for dim in linop.oshape]
-            for linop in chain.linops
-        ]
-        return chain.H.split_forward(obatches, ibatches).H
 
     @property
     def shape(self):

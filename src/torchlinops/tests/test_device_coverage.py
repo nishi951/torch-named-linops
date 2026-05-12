@@ -34,7 +34,7 @@ def test_todevice_normal():
 
 def test_todevice_split():
     td = ToDevice(torch.device("cpu"), torch.device("cpu"))
-    s = td.split_forward(None, None)
+    s = type(td).split(td, {})
     assert s is not None
 
 

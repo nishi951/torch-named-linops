@@ -233,9 +233,10 @@ class ToDevice(NamedLinop):
             return Identity()
         return super().normal(inner)
 
-    def split_forward(self, ibatch, obatch):
+    @staticmethod
+    def split(linop, tile):
         """Return a new instance"""
-        return copy(self)
+        return copy(linop)
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""

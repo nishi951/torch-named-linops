@@ -362,21 +362,19 @@ class NUFFT(Chain):
         apod = torch.prod(apod, dim=-1)
         return apod
 
-    def split_forward(self, ibatch, obatch):
-        ibatch_lookup = {d: slc for d, slc in zip(self.ishape, ibatch)}
-        obatch_lookup = {d: slc for d, slc in zip(self.oshape, obatch)}
+    @staticmethod
+    def split(nufft, tile):
         split_linops = []
-        for linop in self.linops:
-            sub_ibatch = [ibatch_lookup.get(dim, slice(None)) for dim in linop.ishape]
-            sub_obatch = [obatch_lookup.get(dim, slice(None)) for dim in linop.oshape]
-            split_linops.append(linop.split_forward(sub_ibatch, sub_obatch))
-        out = copy(self)
+        for linop in nufft.linops:
+            sub_tile = {dim: tile.get(dim, slice(None)) for dim in linop.dims}
+            split_linops.append(type(linop).split(linop, sub_tile))
+        out = copy(nufft)
         out.linops = nn.ModuleList(split_linops)
         return out
 
     def flatten(self):
         """Don't combine constituent linops into a chain with other linops
-        Informs how split_forward should behave
+        Informs how split should behave
         """
         return [self]
 

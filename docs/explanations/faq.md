@@ -33,7 +33,7 @@ Subclass `NamedLinop` and implement:
 1. **`__init__`**: Call `super().__init__(NS(ishape, oshape))` to set the shape.
 2. **`fn` (staticmethod)**: The forward pass, `fn(linop, x) -> y`.
 3. **`adj_fn` (staticmethod)**: The adjoint pass, `adj_fn(linop, x) -> y`.
-4. **`split_forward`** (optional): How to split along named dimensions.
+4. **`split`** (optional): How to split along named dimensions.
 
 See the [Custom Linops](../howto/custom_linops.md) guide for the full details and conventions.
 

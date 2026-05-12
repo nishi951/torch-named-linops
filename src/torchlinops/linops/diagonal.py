@@ -154,10 +154,13 @@ class Diagonal(NamedLinop):
             return normal
         return super().normal(inner)
 
-    def split_forward(self, ibatch, obatch):
-        weight = self.split_weight(ibatch, obatch, self.weight)
-        split = copy(self)
-        split.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
+    @staticmethod
+    def split(diagonal, tile):
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in diagonal.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in diagonal.oshape)
+        weight = diagonal.split_weight(ibatch, obatch, diagonal.weight)
+        split = copy(diagonal)
+        split.weight = nn.Parameter(weight, requires_grad=diagonal.weight.requires_grad)
         return split
 
     def split_weight(self, ibatch, obatch, /, weight):

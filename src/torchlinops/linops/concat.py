@@ -179,30 +179,33 @@ class Concat(Threadable, NamedLinop):
                 if linop.size(dim) is not None:
                     return linop.size(dim)
 
-    def split_forward(self, ibatch, obatch):
+    @staticmethod
+    def split(concat, tile):
         """Split concat linop, making a new concat linop if necessary"""
-        ibatches = self.subslice(ibatch, self.idim_idx, self.islices, len(self.linops))
-        obatches = self.subslice(obatch, self.odim_idx, self.oslices, len(self.linops))
+        ibatch = list(tile.get(dim, slice(None)) for dim in concat.ishape)
+        obatch = list(tile.get(dim, slice(None)) for dim in concat.oshape)
+        ibatches = concat.subslice(ibatch, concat.idim_idx, concat.islices, len(concat.linops))
+        obatches = concat.subslice(obatch, concat.odim_idx, concat.oslices, len(concat.linops))
 
         output_linop_idxs = ibatches.keys() & obatches.keys()
         output_linop_idxs = sorted(list(output_linop_idxs))
         if len(output_linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
-            return Zero(self.ishape, self.oshape)
+            return Zero(concat.ishape, concat.oshape)
         elif len(output_linop_idxs) == 1:
             # Singleton linop
             linop_idx = output_linop_idxs.pop()
-            linop = self.linops[linop_idx]
-            ibatch, obatch = ibatches[linop_idx], obatches[linop_idx]
-            return linop.split_forward(ibatch, obatch)
+            linop = concat.linops[linop_idx]
+            sub_tile = {dim: tile.get(dim, slice(None)) for dim in linop.dims}
+            return type(linop).split(linop, sub_tile)
         else:
             output_linop_idxs = sorted(list(output_linop_idxs))
             output_linops = []
             for i in output_linop_idxs:
-                linop = self.linops[i]
-                ibatch, obatch = ibatches[i], obatches[i]
-                output_linops.append(linop.split_forward(ibatch, obatch))
-            return self.spinoff(output_linops, idim=self.idim, odim=self.odim)
+                linop = concat.linops[i]
+                sub_tile = {dim: tile.get(dim, slice(None)) for dim in linop.dims}
+                output_linops.append(type(linop).split(linop, sub_tile))
+            return concat.spinoff(output_linops, idim=concat.idim, odim=concat.odim)
 
     @staticmethod
     def subslice(batch: list[slice], dim_idx: Optional[int], slices, num_linops):
