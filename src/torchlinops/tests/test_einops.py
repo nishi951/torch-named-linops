@@ -38,6 +38,14 @@ class TestRearrange(BaseNamedLinopTests):
         y = torch.randn(2, 3, 4, dtype=torch.complex64)
         return A, x, y
 
+    def test_split(self, linop_input_output):
+        A, x, y = linop_input_output
+        with pytest.warns(UserWarning, match="splitting"):
+            A.split_forward(
+                [slice(None), slice(None)],
+                [slice(None), slice(None), slice(None)],
+            )
+
 
 class TestRepeat(BaseNamedLinopTests):
     equality_check = "approx"
