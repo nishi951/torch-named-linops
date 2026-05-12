@@ -48,14 +48,11 @@ class TestFFTNotCentered(BaseNamedLinopTests):
         return F, x, y
 
 
-def test_fft_split_forward():
-    """split_forward should return an FFT with identical behaviour."""
+def test_fft_split():
+    """split should return an FFT with identical behaviour."""
     F = FFT(ndim=2, centered=True, norm="ortho")
     x = torch.randn(8, 10, dtype=torch.complex64)
-    F_split = F.split_forward(
-        [slice(None), slice(None)],
-        [slice(None), slice(None)],
-    )
+    F_split = type(F).split(F, {})
     assert isinstance(F_split, FFT)
     assert torch.allclose(F(x), F_split(x))
 

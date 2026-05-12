@@ -1,3 +1,4 @@
+from copy import copy
 from typing import Optional
 
 import torch
@@ -31,9 +32,11 @@ class Scalar(Diagonal):
         ioshape = default_to(("...",), ioshape)
         super().__init__(weight, ioshape=ioshape)
 
-    def split_weight(self, ibatch, obatch, /, weight):
-        assert ibatch == obatch, "Scalar linop must be split identically"
-        return weight
+    @staticmethod
+    def split(linop, tile):
+        # Scalar applies to all tiles - no slicing needed
+        split = copy(linop)
+        return split
 
     def size(self, dim: str):
         return None

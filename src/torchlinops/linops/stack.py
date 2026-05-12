@@ -189,37 +189,29 @@ class Stack(Threadable, NamedLinop):
             # https://github.com/pytorch/pytorch/issues/80821
             return self.linops[0].size(dim)  # type: ignore
 
-    def split_forward(self, ibatch, obatch):
+    @staticmethod
+    def split(stack, tile):
         """Split stack linop"""
-        linop_idxs = set(range(len(self.linops)))
-        for i, slc in enumerate(ibatch):
-            if i == self.idim_idx:
-                linop_idxs &= set(slice2range(slc, len(self.linops)))
-        for i, slc in enumerate(obatch):
-            if i == self.odim_idx:
-                linop_idxs &= set(slice2range(slc, len(self.linops)))
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in stack.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in stack.oshape)
+        linop_idxs = set(range(len(stack.linops)))
+        if stack.idim_idx is not None:
+            linop_idxs &= set(slice2range(ibatch[stack.idim_idx], len(stack.linops)))
+        if stack.odim_idx is not None:
+            linop_idxs &= set(slice2range(obatch[stack.odim_idx], len(stack.linops)))
 
         if len(linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
-            return Zero(self.ishape, self.oshape)
+            return Zero(stack.ishape, stack.oshape)
         linop_idxs = sorted(list(linop_idxs))
         output_linops = []
-        # Remove stack dims from slice batch
-        if self.idim_idx is not None:
-            ibatch = ibatch.copy()
-            ibatch.pop(self.idim_idx)
-        if self.odim_idx is not None:
-            obatch = obatch.copy()
-            obatch.pop(self.odim_idx)
 
         # Slice each sub-linop
         for i in linop_idxs:
-            linop = self.linops[i]
-            islices = {dim: slc for dim, slc in zip(linop.ishape, ibatch)}
-            oslices = {dim: slc for dim, slc in zip(linop.oshape, obatch)}
-            slices = strict_update(islices, oslices)
-            output_linops.append(linop.split(linop, slices))
-        return self.spinoff(output_linops)
+            linop = stack.linops[i]
+            sub_tile = {dim: tile.get(dim, slice(None)) for dim in linop.dims}
+            output_linops.append(type(linop).split(linop, sub_tile))
+        return stack.spinoff(output_linops)
 
     def split_data(self, ibatch, obatch, data_list):
         """Split stack linop, making a new stack linop if necessary

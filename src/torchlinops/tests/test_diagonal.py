@@ -95,12 +95,8 @@ def test_diagonal_split_with_broadcast_dims():
     # broadcast_dims=("M",) means M is not indexed in the weight
     A = Diagonal(weight, ioshape=("M", "N"), broadcast_dims=["M"])
     # Split along the non-broadcast dim N
-    ibatch = [slice(None), slice(0, 3)]
-    obatch = [slice(None), slice(0, 3)]
-    A_split = A.split_forward(ibatch, obatch)
+    A_split = type(A).split(A, {"M": slice(None), "N": slice(0, 3)})
     assert A_split.weight.shape == (3,)
     # Split along the broadcast dim M — weight should stay the same
-    ibatch_m = [slice(0, 4), slice(None)]
-    obatch_m = [slice(0, 4), slice(None)]
-    A_split_m = A.split_forward(ibatch_m, obatch_m)
+    A_split_m = type(A).split(A, {"M": slice(0, 4), "N": slice(None)})
     assert torch.allclose(A_split_m.weight, weight)

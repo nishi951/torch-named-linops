@@ -103,10 +103,11 @@ class FFT(NamedLinop):
     def normal_fn(linop, x):
         return x
 
-    def split_forward(self, ibatch, obatch):
+    @staticmethod
+    def split(linop, tile):
         """Splitting does nothing."""
         # TODO: raise an error if the FFT is split along an input or output grid dim
-        new = copy(self)
+        new = copy(linop)
         return new
 
     def normal(self, inner=None):

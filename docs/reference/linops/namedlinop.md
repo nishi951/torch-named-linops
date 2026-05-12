@@ -9,15 +9,14 @@
             - fn
             - adj_fn
             - normal_fn
-            - split_forward
+            - split
+            - adj_split
             - size
             - dims
             - H
             - adjoint
             - N
             - normal
-            - split
-            - adj_split
             - flatten
             - compose
             - apply
