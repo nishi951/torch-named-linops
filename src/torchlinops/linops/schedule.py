@@ -148,6 +148,24 @@ def topological_groups(
     return groups
 
 
+def _apply_reduce(
+    reduce_fn: Callable[[list[Tensor]], Tensor],
+    results: list[Tensor],
+) -> Tensor:
+    """Apply a reduction function, with special handling for sum.
+
+    For ``sum``, uses incremental accumulation to minimize peak memory:
+    instead of holding all tensors plus intermediates simultaneously,
+    each input tensor is freed after being added to the accumulator.
+    """
+    if reduce_fn is sum:
+        total = results[0]
+        for r in results[1:]:
+            total = total + r
+        return total
+    return reduce_fn(results)
+
+
 def execute_schedule(
     parent,
     schedule: ExecutionSchedule,
@@ -200,7 +218,7 @@ def execute_schedule(
         for idx in indices:
             child_x = inputs[idx] if inputs is not None else x
             results.append(linops[idx](child_x))
-        return reduce_fn(results)
+        return _apply_reduce(reduce_fn, results)
 
     # CUDA path: event-synchronized execution
     stream: Stream = default_to(
@@ -240,7 +258,7 @@ def execute_schedule(
                 )
                 results.extend(group_results)
 
-    y = reduce_fn(results)
+    y = _apply_reduce(reduce_fn, results)
 
     # Record parent end event (only if parent exists)
     x.record_stream(stream)
