@@ -5,13 +5,15 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
+from torch.cuda import default_stream
 
 import torchlinops.config as config
-from torchlinops.utils import INDENT, RepeatedEvent
+from torchlinops.utils import INDENT, default_to
 
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .device import ToDevice
 from .namedlinop import NamedLinop
+from .schedule import ExecutionSchedule
 
 logger = logging.getLogger("torchlinops")
 
@@ -54,7 +56,7 @@ class Chain(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        self._setup_events()
+        self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypasses pytorch's setattr, just for linops"""
@@ -73,15 +75,28 @@ class Chain(NamedLinop):
                 )
             curr_shape = linop.oshape
 
-    def _setup_events(self):
-        """Copy every linop and point initial linop listener at Chain's input listener."""
-        self._linops = nn.ModuleList([copy(linop) for linop in self._linops])
-        self._linops[0].input_listener = (self, "input_listener")
+    def _build_schedule(self) -> ExecutionSchedule:
+        """Build sequential schedule: each child waits for the previous one."""
+        deps = {}
+        for i in range(len(self._linops)):
+            deps[i] = [] if i == 0 else [(i - 1, "end_event")]
+        return ExecutionSchedule(deps)
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):
-        for linop in chain.linops:
-            x = linop(x)
+        # Chain is always sequential: output of each child feeds into the next.
+        # No threading needed — the schedule is built for introspection only.
+        if x.is_cuda:
+            stream = default_to(default_stream(x.device), chain.stream)
+            chain.start_event = stream.record_event()
+            with torch.cuda.stream(stream):
+                for linop in chain.linops:
+                    x = linop(x)
+                x.record_stream(stream)
+                chain.end_event = stream.record_event()
+        else:
+            for linop in chain.linops:
+                x = linop(x)
         return x
 
     @staticmethod
@@ -216,5 +231,5 @@ class Chain(NamedLinop):
 
     def __copy__(self):
         new = super().__copy__()
-        new._setup_events()
+        new._schedule = new._build_schedule()
         return new
