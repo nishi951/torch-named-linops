@@ -16,7 +16,6 @@ import torchlinops.config as config
 from torchlinops.nameddim import NamedDimension as ND, NamedShape, Shape
 from torchlinops.utils import (
     INDENT,
-    RepeatedEvent,
     default_to,
     memory_aware_deepcopy,
     memory_aware_to,
@@ -53,11 +52,6 @@ class NamedLinop(nn.Module):
     end_event : Event, optional
         An event that signals when the linop has completed. Useful for synchronizing multiple
         linops across multiple devices.
-    input_listener : tuple(linop, str) or None
-        Pointer to another linop's event attribute. Used to coordinate GPU-to-GPU
-        transfers in parallel execution contexts. When set to a tuple like
-        ``(some_linop, "start_event")``, the device transfer will wait for that
-        event to be recorded before initiating the transfer.
     """
 
     def __init__(self, shape: NamedShape, name: Optional[str] = None, **kwargs):
@@ -84,9 +78,6 @@ class NamedLinop(nn.Module):
         self.stream = None
         self.start_event = None
         self.end_event = None
-        self._input_listener = ForwardedAttribute()
-        # By default, listen for the start of this linop
-        self.input_listener = (self, "start_event")
 
     @final
     def forward(self, x: Tensor) -> Tensor:
@@ -546,47 +537,6 @@ class NamedLinop(nn.Module):
             return memory_aware_to(self, device)
         return super().to(device)
 
-    @property
-    def input_listener(self):
-        """Pointer to another linop event attribute.
-
-        Useful for facilitating gpu-gpu transfers in parallel.
-
-        For example, if ToDevice occurs inside a composing linop that allows for
-        parallel execution, e.g.
-
-        C = Concat(
-            Chain(ToDevice1, A, ...),
-            Chain(ToDevice2, B, ...),
-            ...
-        )
-
-        Then we may want to set ToDevice1 and ToDevice2 to both listen for the beginning of C.
-        That way, both device movements can be triggered in parallel.
-
-        This attribute is a universal attribute so that it can be chained in cases of nesting, e.g.
-        Add(
-            Concat(
-                Chain(ToDevice, ...), ...
-                ...
-            )
-        )
-        The innermost ToDevice can listens to Chain, which listens to Concat, which listens to Add.
-        This is good because Concat and Add both can parallelize efficiently across multiple GPUs.
-        """
-        return self._input_listener.value
-
-    @input_listener.setter
-    def input_listener(self, value):
-        if isinstance(value, tuple):
-            _log_transfer(
-                f"Setting {type(self).__name__}.input_listener to reference {type(value[0]).__name__}.{value[1]}"
-            )
-            self._input_listener.forward_to(*value)
-        else:
-            _log_transfer(f"Setting {type(self).__name__}.input_listener to {value}")
-            self._input_listener = value
-
     def __copy__(self):
         """Specialized copying for linops.
 
@@ -676,75 +626,3 @@ class LinopFunction(torch.autograd.Function):
         grad_input = linop.H(grad_output)
         grad_input = torch.broadcast_to(grad_input, input_shape)
         return grad_input, grad_linop
-
-
-@dataclass
-class ForwardedAttribute:
-    """Special dataclass for forwarding attribute access to other objects.
-
-    Enables cross-linop attribute forwarding, primarily used for coordinating
-    GPU transfers via the ``input_listener`` mechanism. When a linop's
-    ``input_listener`` is set to a tuple ``(other_linop, "attribute_name")``,
-    the ForwardedAttribute transparently forwards attribute access to the
-    referenced linop.
-
-    Works best when combined with a @property.
-
-    Example:
-
-    class MyClass:
-        def __init__(self):
-            self._foo = ForwardedAttribute()
-        @property
-        def foo(self):
-            return self._foo.value
-
-        @foo.setter
-        def foo(self, new_value):
-            if isinstance(new_value, tuple):
-                self._foo.forward_to(*new_value)
-            else:
-                self._foo = new_value
-
-    """
-
-    allow_set_upstream: bool = True
-    """If true, allow setting this value to affect upstream values."""
-    _value: Optional[Any] = None
-    _obj: Optional[Any] = None
-    _attr: Optional[Any] = None
-
-    @property
-    def value(self):
-        if self._obj is None:
-            # No object to forward to
-            return self._value
-        elif self._value is not None:
-            # A preset value overrides forwarded reference
-            return self._value
-        return getattr(self._obj, self._attr)
-
-    @value.setter
-    def value(self, new_value):
-        if self._obj is None:
-            # No object to forward to
-            self._value = new_value
-        elif self.allow_set_upstream:
-            setattr(self._obj, self._attr, new_value)
-        else:
-            # Don't overwrite upstream
-            self._value = new_value
-
-            # Clear pointer
-            self._obj = None
-            self._attr = None
-
-    def forward_to(self, obj, attr):
-        """Create reference"""
-        self._obj = obj
-        self._attr = attr
-        self._value = None  # Reset value
-
-    @property
-    def is_forwarded(self) -> bool:
-        return self._obj is not None
