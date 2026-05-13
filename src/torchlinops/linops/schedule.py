@@ -156,6 +156,7 @@ def execute_schedule(
     threaded: bool = True,
     num_workers: Optional[int] = None,
     linops_override: Optional[list] = None,
+    inputs_override: Optional[list[Tensor]] = None,
 ) -> Tensor:
     """Execute children according to the schedule.
 
@@ -166,7 +167,7 @@ def execute_schedule(
     schedule : ExecutionSchedule
         The dependency graph for this level.
     x : Tensor
-        Input tensor.
+        Input tensor (used for all children unless inputs_override is provided).
     reduce_fn : Callable[[list[Tensor]], Tensor]
         Function to combine child outputs (sum, cat, stack, etc.).
     threaded : bool
@@ -176,6 +177,9 @@ def execute_schedule(
     linops_override : list | None
         Alternative list of linops to execute instead of parent._linops.
         Used for adj_fn where adjoint linops differ from forward linops.
+    inputs_override : list[Tensor] | None
+        Per-child inputs. If provided, child i receives inputs_override[i]
+        instead of x. Used by Concat where input is split across children.
 
     Returns
     -------
@@ -185,6 +189,7 @@ def execute_schedule(
     deps = schedule.dependencies
     indices = sorted(deps.keys())
     linops = linops_override if linops_override is not None else parent._linops
+    inputs = inputs_override if inputs_override is not None else None
 
     if not indices:
         raise ValueError("Cannot execute schedule with no children")
@@ -193,7 +198,8 @@ def execute_schedule(
     if not x.is_cuda:
         results = []
         for idx in indices:
-            results.append(linops[idx](x))
+            child_x = inputs[idx] if inputs is not None else x
+            results.append(linops[idx](child_x))
         return reduce_fn(results)
 
     # CUDA path: event-synchronized execution
@@ -211,7 +217,7 @@ def execute_schedule(
     # If all children are in one parallel group and threading is enabled
     if len(groups) == 1 and threaded:
         results = _execute_parallel_group(
-            linops, groups[0], deps, events, x, stream, num_workers
+            linops, groups[0], deps, events, x, stream, num_workers, inputs
         )
     else:
         # Sequential or mixed: execute groups in order
@@ -221,11 +227,12 @@ def execute_schedule(
                 # Single child, no threading
                 idx = group[0]
                 _wait_dependencies(idx, deps, events, stream)
-                results.append(linops[idx](x))
+                child_x = inputs[idx] if inputs is not None else x
+                results.append(linops[idx](child_x))
             else:
                 # Parallel group
                 group_results = _execute_parallel_group(
-                    linops, group, deps, events, x, stream, num_workers
+                    linops, group, deps, events, x, stream, num_workers, inputs
                 )
                 results.extend(group_results)
 
@@ -258,6 +265,7 @@ def _execute_parallel_group(
     x: Tensor,
     stream: Stream,
     num_workers: Optional[int],
+    inputs: Optional[list[Tensor]] = None,
 ) -> list[Tensor]:
     """Execute a group of children, respecting intra-group dependencies."""
     if num_workers is None:
@@ -268,12 +276,13 @@ def _execute_parallel_group(
     def worker(pos_idx: int):
         idx = group[pos_idx]
         linop = linops[idx]
+        child_x = inputs[idx] if inputs is not None else x
 
         # Wait for dependencies (from previous groups)
         _wait_dependencies(idx, deps, events, stream)
 
         # Execute child
-        y = linop(x)
+        y = linop(child_x)
 
         # Record end event for this child
         end_event = stream.record_event()

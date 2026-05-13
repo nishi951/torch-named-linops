@@ -23,7 +23,7 @@ from .add import Add
 from .device import ToDevice
 from .identity import Zero
 from .namedlinop import NamedLinop
-from .threadable import Threadable, _threaded_apply, _threaded_apply_sum_reduce
+from .schedule import ExecutionSchedule, execute_schedule
 
 __all__ = ["Concat"]
 
@@ -35,7 +35,7 @@ def _log_transfer(msg):
         logger.info(msg)
 
 
-class Concat(Threadable, NamedLinop):
+class Concat(NamedLinop):
     """Concatenate some linops along an existing dimension.
 
     Linops need not output tensors of the same size, but they should
@@ -59,13 +59,12 @@ class Concat(Threadable, NamedLinop):
         . B .
         . . C
 
-    Inherits from ``Threadable`` to support parallel execution of sub-linops.
     When ``threaded=True`` (default), each sub-linop is executed in parallel
     using a ThreadPoolExecutor.
 
-    Note that shared linops (e.g., ``Concat(A, A, idim="x")``) are automatically
-    shallow-copied to ensure independent identity for threading, while still
-    sharing tensor data. See ``Threadable`` for details.
+    Shared linops (e.g., ``Concat(A, A, idim="x")``) are used directly without
+    copying — each thread receives the same linop object but independent
+    execution context.
 
     Attributes
     ----------
@@ -86,6 +85,8 @@ class Concat(Threadable, NamedLinop):
         *linops,
         idim: Optional[ND | str] = None,
         odim: Optional[ND | str] = None,
+        threaded: bool = True,
+        num_workers: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -99,11 +100,47 @@ class Concat(Threadable, NamedLinop):
         odim : str or ND, optional
             Output dimension along which to concatenate. If ``None``, the output
             is not concatenated (outputs are summed).
+        threaded : bool, optional
+            Whether to run sub-linops in parallel. Default is True.
+        num_workers : int | None, optional
+            Number of worker threads. If None, defaults to the number of sub-linops.
         """
         self._check_linop_compatibility(linops)
         super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
-        self.linops = nn.ModuleList(list(linops))
+        self.threaded = threaded
+        self.num_workers = num_workers
+        self._linops = nn.ModuleList(list(linops))
+        self._schedule = self._build_schedule()
         self._setup_indices(idim, odim)
+
+    def _build_schedule(self) -> ExecutionSchedule:
+        """Build parallel schedule: all children start immediately."""
+        return ExecutionSchedule({i: [] for i in range(len(self._linops))})
+
+    @property
+    def linops(self):
+        return self._linops
+
+    @linops.setter
+    def linops(self, new_linops):
+        self._linops = new_linops
+        self._schedule = self._build_schedule()
+
+    def __setattr__(self, name, value):
+        """Bypass PyTorch's setattr for linops."""
+        if name == "linops":
+            type(self).linops.fset(self, value)
+        else:
+            super().__setattr__(name, value)
+
+    @property
+    def settings(self):
+        return {"threaded": self.threaded, "num_workers": self.num_workers}
+
+    @settings.setter
+    def settings(self, new_settings):
+        self.threaded = new_settings["threaded"]
+        self.num_workers = new_settings["num_workers"]
 
     @staticmethod
     def fn(concat, x):
@@ -116,6 +153,7 @@ class Concat(Threadable, NamedLinop):
             concat.oslices,
             concat.threaded,
             concat.num_workers,
+            concat._schedule,
         )
 
     @staticmethod
@@ -130,6 +168,7 @@ class Concat(Threadable, NamedLinop):
             concat.islices,
             concat.threaded,
             concat.num_workers,
+            concat._schedule,
         )
 
     @staticmethod
@@ -142,6 +181,7 @@ class Concat(Threadable, NamedLinop):
         oslices,
         threaded: bool = False,
         num_workers: int | None = None,
+        schedule: Optional[ExecutionSchedule] = None,
     ):
         """Unifies forward and adjoint functionality for stacked linops"""
         if idim_idx is not None:  # Diagonal, Horizontal
@@ -154,20 +194,28 @@ class Concat(Threadable, NamedLinop):
             xs = [x] * len(oslices)
 
         if odim_idx is not None:  # Diagonal, Vertical
-            if threaded:
-                ys = _threaded_apply(list(linops), xs, num_workers)
-            else:
-                ys = [linop(xi) for xi, linop in zip(xs, linops)]
-            return torch.concatenate(ys, dim=odim_idx)
+            return execute_schedule(
+                None,  # parent not needed with linops_override
+                schedule,
+                x,
+                reduce_fn=lambda ys: torch.concatenate(ys, dim=odim_idx),
+                threaded=threaded,
+                num_workers=num_workers,
+                linops_override=linops,
+                inputs_override=xs,
+            )
 
         # Horizontal
-        if threaded:
-            y = _threaded_apply_sum_reduce(list(linops), xs, num_workers)
-        else:
-            y = 0.0
-            for xi, linop in zip(xs, linops):
-                y += linop(xi)
-        return y
+        return execute_schedule(
+            None,
+            schedule,
+            x,
+            reduce_fn=sum,
+            threaded=threaded,
+            num_workers=num_workers,
+            linops_override=linops,
+            inputs_override=xs,
+        )
 
     def size(self, dim):
         if dim == self.idim:
@@ -184,8 +232,12 @@ class Concat(Threadable, NamedLinop):
         """Split concat linop, making a new concat linop if necessary"""
         ibatch = list(tile.get(dim, slice(None)) for dim in concat.ishape)
         obatch = list(tile.get(dim, slice(None)) for dim in concat.oshape)
-        ibatches = concat.subslice(ibatch, concat.idim_idx, concat.islices, len(concat.linops))
-        obatches = concat.subslice(obatch, concat.odim_idx, concat.oslices, len(concat.linops))
+        ibatches = concat.subslice(
+            ibatch, concat.idim_idx, concat.islices, len(concat.linops)
+        )
+        obatches = concat.subslice(
+            obatch, concat.odim_idx, concat.oslices, len(concat.linops)
+        )
 
         output_linop_idxs = ibatches.keys() & obatches.keys()
         output_linop_idxs = sorted(list(output_linop_idxs))
