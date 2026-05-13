@@ -40,10 +40,9 @@ class Identity(NamedLinop):
         # A bit faster
         return x
 
-    def split_forward(self, ibatch, obatch):
-        # TODO: Allow non-diagonal splitting
-        assert ibatch == obatch, "Identity linop must be split identically"
-        return self
+    @staticmethod
+    def split(linop, tile):
+        return linop
 
     def __pow__(self, _: float | Tensor):
         return copy(self)
@@ -70,8 +69,9 @@ class Zero(NamedLinop):
     def normal_fn(self, x, /):
         return zeros_like(x)
 
-    def split_forward(self, ibatch, obatch):
-        return self
+    @staticmethod
+    def split(linop, tile):
+        return linop
 
 
 class ShapeSpec(Identity):

@@ -85,4 +85,4 @@ A_distributed = create_batched_linop(A, spec)
 # A_distributed behaves like A but runs across two GPUs
 ```
 
-The splitting, device transfer, and reassembly logic is handled by the library. Each operator only needs to implement `split_forward` to describe how it decomposes along its dimensions. See [Multi-GPU Splitting](multi_gpu.md) for the full details.
+The splitting, device transfer, and reassembly logic is handled by the library. Each operator only needs to implement `split` to describe how it decomposes along its dimensions. See [Multi-GPU Splitting](multi_gpu.md) for the full details.

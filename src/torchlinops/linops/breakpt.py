@@ -26,5 +26,6 @@ class BreakpointLinop(NamedLinop):
         breakpoint()
         return x
 
-    def split_forward(self, ibatch, obatch):
-        return self
+    @staticmethod
+    def split(linop, tile):
+        return linop

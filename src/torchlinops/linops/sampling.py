@@ -100,16 +100,19 @@ class Sampling(NamedLinop):
     def adj_fn(sampling, x, /):
         return F.index_adjoint(x, tuple(sampling.idx), sampling.input_size)
 
-    def split_forward(self, ibatch, obatch):
-        if self._shape.output_shape == ELLIPSES:
+    @staticmethod
+    def split(sampling, tile):
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in sampling.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in sampling.oshape)
+        if sampling._shape.output_shape == ELLIPSES:
             # Cannot split if idx batch shape is not split
-            return self
-        return type(self)(
-            self.split_idx(ibatch, obatch, self.idx),
-            self.input_size,
-            self._shape.output_shape,
-            self._shape.input_shape,
-            self._shape.batch_shape,
+            return sampling
+        return type(sampling)(
+            sampling.split_idx(ibatch, obatch, sampling.idx),
+            sampling.input_size,
+            sampling._shape.output_shape,
+            sampling._shape.input_shape,
+            sampling._shape.batch_shape,
         )
 
     def split_idx(self, ibatch, obatch, idx):

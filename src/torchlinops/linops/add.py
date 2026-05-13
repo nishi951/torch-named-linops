@@ -72,9 +72,10 @@ class Add(Threadable, NamedLinop):
             return add.threaded_apply_sum_reduce([x] * len(adj_linops), add.num_workers)
         return sum(linop.H(x) for linop in add.linops)
 
-    def split_forward(self, ibatch, obatch):
-        split = copy(self)
-        linops = [linop.split_forward(ibatch, obatch) for linop in self.linops]
+    @staticmethod
+    def split(add, tile):
+        split = copy(add)
+        linops = [type(linop).split(linop, tile) for linop in add.linops]
         split.linops = nn.ModuleList(linops)
         return split
 

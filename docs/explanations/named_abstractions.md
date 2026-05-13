@@ -259,7 +259,7 @@ Note that `Chain` stores linops in **execution order** (inner-to-outer), so `A @
 
 ### Splitting
 
-Every linop can implement `split_forward(ibatch, obatch)` to support decomposition into sub-linops along named dimensions. The default `split()` static method translates a tile dictionary (mapping dim names to slices) into the `ibatch`/`obatch` format and delegates to `split_forward`. See [Multi-GPU Splitting](multi_gpu.md) for how this is used to distribute computation.
+Every linop can implement `split(linop, tile)` to support decomposition into sub-linops along named dimensions. The `tile` argument is a dictionary mapping dimension names to slices. See [Multi-GPU Splitting](multi_gpu.md) for how this is used to distribute computation.
 
 ### Size reporting
 

@@ -69,23 +69,26 @@ class Rearrange(NamedLinop):
         axes_lengths = {str(k): v for k, v in linop.axes_lengths.items()}
         return rearrange(x, f"{linop.opattern} -> {linop.ipattern}", **axes_lengths)
 
-    def split_forward(self, ibatch, obatch):
+    @staticmethod
+    def split(rearrange, tile):
         """TODO: Add compound shapes so splitting through rearrange can work."""
         warn(
-            f"Splitting Rearrange linop with shape {self._shape} - splitting a rearrange may behave unusually."
+            f"Splitting Rearrange linop with shape {rearrange._shape} - splitting a rearrange may behave unusually."
         )
-        new_axes_lengths = deepcopy(self.axes_lengths)
-        for dim, slc in zip(self.ishape, ibatch):
-            if dim in self.axes_lengths:
-                n = self.axes_lengths[dim]
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in rearrange.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in rearrange.oshape)
+        new_axes_lengths = deepcopy(rearrange.axes_lengths)
+        for dim, slc in zip(rearrange.ishape, ibatch):
+            if dim in rearrange.axes_lengths:
+                n = rearrange.axes_lengths[dim]
                 new_axes_lengths[dim] = slicelen(n, slc)
-        for dim, slc in zip(self.oshape, obatch):
-            if dim in self.axes_lengths:
-                n = self.axes_lengths[dim]
+        for dim, slc in zip(rearrange.oshape, obatch):
+            if dim in rearrange.axes_lengths:
+                n = rearrange.axes_lengths[dim]
                 new_axes_lengths[dim] = slicelen(n, slc)
 
-        out = type(self)(
-            self.ipattern, self.opattern, self.ishape, self.oshape, new_axes_lengths
+        out = type(rearrange)(
+            rearrange.ipattern, rearrange.opattern, rearrange.ishape, rearrange.oshape, new_axes_lengths
         )
         return out
 
@@ -130,8 +133,9 @@ class SumReduce(NamedLinop):
         x = repeat(x, f"{sumreduce.opattern} -> {sumreduce.adj_ipattern}")
         return x
 
-    def split_forward(self, ibatch, obatch):
-        return self
+    @staticmethod
+    def split(linop, tile):
+        return linop
 
     def size(self, dim: str):
         """Reducing does not determine any dimensions"""
@@ -256,14 +260,16 @@ class Repeat(NamedLinop):
         x = reduce(x, f"{linop.opattern} -> {linop.ipattern}", "sum")
         return x
 
-    def split_forward(self, ibatch, obatch):
+    @staticmethod
+    def split(repeat, tile):
         """Repeat fewer times, depending on the size of obatch"""
-        new_axes_lengths = deepcopy(self.axes_lengths)
-        for dim, slc in zip(self.oshape, obatch):
-            if dim in self.axes_lengths and dim not in self.broadcast_dims:
-                new_axes_lengths[dim] = slicelen(self.size(dim), slc)
-        return type(self)(
-            new_axes_lengths, self.ishape, self.oshape, self.broadcast_dims
+        obatch = tuple(tile.get(dim, slice(None)) for dim in repeat.oshape)
+        new_axes_lengths = deepcopy(repeat.axes_lengths)
+        for dim, slc in zip(repeat.oshape, obatch):
+            if dim in repeat.axes_lengths and dim not in repeat.broadcast_dims:
+                new_axes_lengths[dim] = slicelen(repeat.size(dim), slc)
+        return type(repeat)(
+            new_axes_lengths, repeat.ishape, repeat.oshape, repeat.broadcast_dims
         )
 
     def size(self, dim: str):

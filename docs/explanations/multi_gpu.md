@@ -8,13 +8,11 @@ We assume CUDA devices with peer-to-peer memory access.
 
 At its core, multi-GPU distribution is built on the ability to **split** a linop into smaller sub-linops that each operate on a slice of the data.
 
-### `split_forward`
+### `split`
 
-Every `NamedLinop` can implement `split_forward(ibatch, obatch)`, where `ibatch` and `obatch` are lists of slices corresponding to the input and output dimensions. The method returns a new linop that operates only on the specified slice.
+Every `NamedLinop` can implement `split(linop, tile)`, where `tile` is a dictionary mapping dimension names to slices. The method returns a new linop that operates only on the specified slice.
 
 For example, a `Diagonal` linop with shape `(Nx, Ny) -> (Nx, Ny)` and a weight tensor of shape `(256, 256)` can be split along `Nx` into two sub-linops, each with a weight of shape `(128, 256)`.
-
-The static `split(linop, tile)` method provides a higher-level interface that accepts a dictionary mapping dimension names to slices:
 
 ```python
 from torchlinops.nameddim import NamedDimension as ND
@@ -45,9 +43,7 @@ linops, ibatches, obatches = split_linop(A, {"Nx": 128, "Ny": 64})
 
 When splitting a `Chain` (a composition of linops), each constituent linop is split independently according to the slices over its own dimensions. This means that a chain $C \circ B \circ A$ is split into tiles where each tile is a chain of the corresponding sub-linops.
 
-The `Chain.split_forward()` method receives lists of slices per constituent linop:
-- `ibatches`: list of lists, one per linop in the chain
-- `obatches`: list of lists, one per linop in the chain
+The `Chain.split()` method distributes the tile dictionary to each constituent linop based on dimension names.
 
 ## BatchSpec
 

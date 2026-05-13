@@ -193,28 +193,49 @@ class NamedLinop(nn.Module):
         """
         return linop.adj_fn(linop, linop.fn(linop, x))
 
-    # Override
-    def split_forward(self, ibatch, obatch) -> "NamedLinop":
-        """Split this linop into a sub-linop according to slices over its dimensions.
+    @staticmethod
+    def split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
+        """Split a linop into a sub-linop for a given tile.
 
         Override this in subclasses to define how the linop decomposes when tiled
-        along its named dimensions. For the companion method that handles adjoints,
-        see ``adj_split``.
+        along its named dimensions.
 
         Parameters
         ----------
-        ibatch : tuple[slice, ...]
-            Slices over the input dimensions, one per element of ``ishape``.
-        obatch : tuple[slice, ...]
-            Slices over the output dimensions, one per element of ``oshape``.
+        linop : NamedLinop
+            The linop to split.
+        tile : Mapping[ND | str, slice]
+            Dictionary mapping dimension names to slices.
 
         Returns
         -------
         NamedLinop
             A new linop that operates on the specified slice of the data.
         """
+        return type(linop)(linop._shape)
 
-        return type(self)(self._shape)
+    @final
+    @staticmethod
+    def adj_split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
+        """Split the adjoint of this linop for a given tile.
+
+        Constructs the adjoint, splits it according to *tile*, and returns the
+        adjoint of the split.
+
+        Parameters
+        ----------
+        linop : NamedLinop
+            The linop whose adjoint should be split.
+        tile : Mapping[ND | str, slice]
+            Dictionary mapping dimension names to slices.
+
+        Returns
+        -------
+        NamedLinop
+            The split adjoint sub-linop.
+        """
+        adj = linop.adjoint()
+        return type(adj).split(adj, tile).adjoint()
 
     # Override
     def size(self, dim: str) -> int | None:
@@ -375,55 +396,6 @@ class NamedLinop(nn.Module):
         normal = post @ inner @ pre
         normal._shape_updates = getattr(inner, "_shape_updates", {})
         return normal
-
-    @final
-    @staticmethod
-    def split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
-        """Split a linop into a sub-linop for a given tile.
-
-        Translates a tile dictionary into per-dimension slices and delegates
-        to ``split_forward``.
-
-        Parameters
-        ----------
-        linop : NamedLinop
-            The linop to split.
-        tile : Mapping[ND | str, slice]
-            Dictionary mapping dimension names to slices.
-
-        Returns
-        -------
-        NamedLinop
-            The sub-linop operating on the specified tile.
-        """
-        ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
-        obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
-        return linop.split_forward(ibatch, obatch)
-
-    @final
-    @staticmethod
-    def adj_split(linop, tile: Mapping[ND | str, slice]) -> "NamedLinop":
-        """Split the adjoint of this linop for a given tile.
-
-        Constructs the adjoint, splits it according to *tile*, and returns the
-        adjoint of the split.
-
-        Parameters
-        ----------
-        linop : NamedLinop
-            The linop whose adjoint should be split.
-        tile : Mapping[ND | str, slice]
-            Dictionary mapping dimension names to slices.
-
-        Returns
-        -------
-        NamedLinop
-            The split adjoint sub-linop.
-        """
-        ibatch = [tile.get(dim, slice(None)) for dim in linop.ishape]
-        obatch = [tile.get(dim, slice(None)) for dim in linop.oshape]
-        splitH = linop.adjoint().split_forward(obatch, ibatch).adjoint()
-        return splitH
 
     def flatten(self) -> list["NamedLinop"]:
         """Get a flattened list of constituent linops for composition."""
