@@ -15,7 +15,7 @@ from .nufft import *
 from .pad_last import *
 from .sampling import *
 from .scalar import *
+from .schedule import *
 from .split import *
 from .stack import *
-from .threadable import *
 from .trunc_pad import *
