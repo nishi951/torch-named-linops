@@ -203,13 +203,17 @@ def execute_schedule(
         return reduce_fn(results)
 
     # CUDA path: event-synchronized execution
-    stream: Stream = default_to(default_stream(x.device), parent.stream)
+    stream: Stream = default_to(
+        default_stream(x.device),
+        parent.stream if parent is not None else None,
+    )
 
     # Local event tracking — fresh per forward call, never stored on linops
     events: dict[int, dict[str, Event]] = {}
 
-    # Record parent start event
-    parent.start_event = stream.record_event()
+    # Record parent start event (only if parent exists)
+    if parent is not None:
+        parent.start_event = stream.record_event()
 
     # Compute execution groups
     groups = topological_groups(deps)
@@ -238,9 +242,10 @@ def execute_schedule(
 
     y = reduce_fn(results)
 
-    # Record parent end event
+    # Record parent end event (only if parent exists)
     x.record_stream(stream)
-    parent.end_event = stream.record_event()
+    if parent is not None:
+        parent.end_event = stream.record_event()
 
     return y
 
