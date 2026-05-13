@@ -16,7 +16,7 @@ from .add import Add
 from .device import ToDevice
 from .identity import Zero
 from .namedlinop import NamedLinop
-from .threadable import Threadable, _threaded_apply, _threaded_apply_sum_reduce
+from .schedule import ExecutionSchedule, execute_schedule
 
 __all__ = ["Stack"]
 
@@ -28,7 +28,7 @@ def _log_transfer(msg):
         logger.info(msg)
 
 
-class Stack(Threadable, NamedLinop):
+class Stack(NamedLinop):
     """Concatenate some linops along a new dimension.
 
     Linops need not output tensors of the same size, but they should
@@ -52,13 +52,12 @@ class Stack(Threadable, NamedLinop):
         . B .
         . . C
 
-    Inherits from ``Threadable`` to support parallel execution of sub-linops.
     When ``threaded=True`` (default), each sub-linop is executed in parallel
     using a ThreadPoolExecutor.
 
-    Note that shared linops (e.g., ``Stack(A, A, odim_and_idx=("L", 0))``) are
-    automatically shallow-copied to ensure independent identity for threading,
-    while still sharing tensor data. See ``Threadable`` for details.
+    Shared linops (e.g., ``Stack(A, A, odim_and_idx=("L", 0))``) are used
+    directly without copying — each thread receives the same linop object
+    but independent execution context.
 
     Attributes
     ----------
@@ -83,6 +82,8 @@ class Stack(Threadable, NamedLinop):
         *linops: NamedLinop,
         idim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
         odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
+        threaded: bool = True,
+        num_workers: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -94,6 +95,10 @@ class Stack(Threadable, NamedLinop):
             Tuple of ``(dim_name, index_tensor)`` for the input stacking dimension.
         odim_and_idx : tuple, optional
             Tuple of ``(dim_name, index_tensor)`` for the output stacking dimension.
+        threaded : bool, optional
+            Whether to run sub-linops in parallel. Default is True.
+        num_workers : int | None, optional
+            Number of worker threads. If None, defaults to the number of sub-linops.
         """
 
         self.idim, self.idim_idx, ishape = self._get_dim_and_idx(
@@ -105,8 +110,40 @@ class Stack(Threadable, NamedLinop):
 
         # Initialize parent class
         super().__init__(NS(ishape, oshape), **kwargs)
-        self.linops = nn.ModuleList(list(linops))
+        self.threaded = threaded
+        self.num_workers = num_workers
+        self._linops = nn.ModuleList(list(linops))
+        self._schedule = self._build_schedule()
         self._check_linop_compatibility()
+
+    def _build_schedule(self) -> ExecutionSchedule:
+        """Build parallel schedule: all children start immediately."""
+        return ExecutionSchedule({i: [] for i in range(len(self._linops))})
+
+    @property
+    def linops(self):
+        return self._linops
+
+    @linops.setter
+    def linops(self, new_linops):
+        self._linops = new_linops
+        self._schedule = self._build_schedule()
+
+    def __setattr__(self, name, value):
+        """Bypass PyTorch's setattr for linops."""
+        if name == "linops":
+            type(self).linops.fset(self, value)
+        else:
+            super().__setattr__(name, value)
+
+    @property
+    def settings(self):
+        return {"threaded": self.threaded, "num_workers": self.num_workers}
+
+    @settings.setter
+    def settings(self, new_settings):
+        self.threaded = new_settings["threaded"]
+        self.num_workers = new_settings["num_workers"]
 
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):
@@ -132,6 +169,7 @@ class Stack(Threadable, NamedLinop):
             stack.odim_idx,
             stack.threaded,
             stack.num_workers,
+            stack._schedule,
         )
 
     @staticmethod
@@ -144,6 +182,7 @@ class Stack(Threadable, NamedLinop):
             stack.idim_idx,
             stack.threaded,
             stack.num_workers,
+            stack._schedule,
         )
 
     @staticmethod
@@ -154,6 +193,7 @@ class Stack(Threadable, NamedLinop):
         odim_idx,
         threaded: bool = False,
         num_workers: int | None = None,
+        schedule: Optional[ExecutionSchedule] = None,
     ):
         """Unifies forward and adjoint functionality for stacked linops"""
         if idim_idx is not None:  # Diagonal, Horizontal
@@ -167,20 +207,28 @@ class Stack(Threadable, NamedLinop):
             xs = [x] * len(linops)
 
         if odim_idx is not None:  # Diagonal, Vertical
-            if threaded:
-                ys = _threaded_apply(list(linops), xs, num_workers)
-            else:
-                ys = [linop(xi) for xi, linop in zip(xs, linops)]
-            return torch.stack(ys, dim=odim_idx)
+            return execute_schedule(
+                None,
+                schedule,
+                x,
+                reduce_fn=lambda ys: torch.stack(ys, dim=odim_idx),
+                threaded=threaded,
+                num_workers=num_workers,
+                linops_override=linops,
+                inputs_override=xs,
+            )
 
         # Horizontal
-        if threaded:
-            y = _threaded_apply_sum_reduce(list(linops), xs, num_workers)
-        else:
-            y = 0
-            for xi, linop in zip(xs, linops):
-                y += linop(xi)
-        return y
+        return execute_schedule(
+            None,
+            schedule,
+            x,
+            reduce_fn=sum,
+            threaded=threaded,
+            num_workers=num_workers,
+            linops_override=linops,
+            inputs_override=xs,
+        )
 
     def size(self, dim) -> int | None:
         if dim == self.idim or dim == self.odim:
