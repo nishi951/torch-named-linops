@@ -155,6 +155,7 @@ def execute_schedule(
     reduce_fn: Callable[[list[Tensor]], Tensor],
     threaded: bool = True,
     num_workers: Optional[int] = None,
+    linops_override: Optional[list] = None,
 ) -> Tensor:
     """Execute children according to the schedule.
 
@@ -172,6 +173,9 @@ def execute_schedule(
         Whether to use ThreadPoolExecutor for parallel groups.
     num_workers : int | None
         Max worker threads. If None, defaults to group size.
+    linops_override : list | None
+        Alternative list of linops to execute instead of parent._linops.
+        Used for adj_fn where adjoint linops differ from forward linops.
 
     Returns
     -------
@@ -180,6 +184,7 @@ def execute_schedule(
     """
     deps = schedule.dependencies
     indices = sorted(deps.keys())
+    linops = linops_override if linops_override is not None else parent._linops
 
     if not indices:
         raise ValueError("Cannot execute schedule with no children")
@@ -188,8 +193,7 @@ def execute_schedule(
     if not x.is_cuda:
         results = []
         for idx in indices:
-            linop = parent._linops[idx]
-            results.append(linop(x))
+            results.append(linops[idx](x))
         return reduce_fn(results)
 
     # CUDA path: event-synchronized execution
@@ -207,7 +211,7 @@ def execute_schedule(
     # If all children are in one parallel group and threading is enabled
     if len(groups) == 1 and threaded:
         results = _execute_parallel_group(
-            parent, groups[0], deps, events, x, stream, num_workers
+            linops, groups[0], deps, events, x, stream, num_workers
         )
     else:
         # Sequential or mixed: execute groups in order
@@ -216,14 +220,12 @@ def execute_schedule(
             if len(group) == 1 and not threaded:
                 # Single child, no threading
                 idx = group[0]
-                linop = parent._linops[idx]
                 _wait_dependencies(idx, deps, events, stream)
-                y = linop(x)
-                results.append(y)
+                results.append(linops[idx](x))
             else:
                 # Parallel group
                 group_results = _execute_parallel_group(
-                    parent, group, deps, events, x, stream, num_workers
+                    linops, group, deps, events, x, stream, num_workers
                 )
                 results.extend(group_results)
 
@@ -249,7 +251,7 @@ def _wait_dependencies(
 
 
 def _execute_parallel_group(
-    parent,
+    linops,
     group: list[int],
     deps: dict[int, list[tuple[int, str]]],
     events: dict[int, dict[str, Event]],
@@ -265,7 +267,7 @@ def _execute_parallel_group(
 
     def worker(pos_idx: int):
         idx = group[pos_idx]
-        linop = parent._linops[idx]
+        linop = linops[idx]
 
         # Wait for dependencies (from previous groups)
         _wait_dependencies(idx, deps, events, stream)
