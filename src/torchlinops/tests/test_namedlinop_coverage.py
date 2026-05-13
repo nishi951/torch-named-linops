@@ -6,7 +6,7 @@ import torch
 
 import torchlinops.config as config
 from torchlinops import Dense, Diagonal, Identity
-from torchlinops.linops.namedlinop import ForwardedAttribute, NamedLinop
+from torchlinops.linops.namedlinop import NamedLinop
 from torchlinops.nameddim import NamedShape as NS
 
 
@@ -89,27 +89,6 @@ def test_to_memory_aware():
     A = Dense(torch.randn(3, 2), ("M", "N"), ("N",), ("M",))
     B = A.to("cpu", memory_aware=True)
     assert B is not None
-
-
-# --- ForwardedAttribute ---
-
-
-def test_forwarded_attribute_no_obj():
-    fa = ForwardedAttribute(_value=42)
-    assert fa.value == 42
-    assert not fa.is_forwarded
-    fa.value = 99
-    assert fa.value == 99
-
-
-def test_forwarded_attribute_forwarded():
-    class Holder:
-        x = 10
-
-    fa = ForwardedAttribute()
-    fa.forward_to(Holder(), "x")
-    assert fa.is_forwarded
-    assert fa.value == 10
 
 
 # --- int support for __mul__/__rmul__ ---

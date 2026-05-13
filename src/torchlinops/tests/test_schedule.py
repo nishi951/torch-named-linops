@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from torchlinops import Add, Concat, Dense, Stack
+from torchlinops import Add, Chain, Concat, Dense, Stack
+from torchlinops.linops.schedule import ExecutionSchedule, topological_groups
 
 
 @pytest.fixture
@@ -126,40 +127,38 @@ class TestStackThreaded:
         assert y.shape == torch.Size([3, 1, 4])
 
 
-class TestSharedLinopCopying:
-    """Tests for automatic shallow copying of shared linops in Threadable classes."""
+class TestSharedLinopIdentity:
+    """Tests that shared linops are NOT copied — identity is preserved."""
 
-    def test_add_shared_linop_copies(self):
-        """Shared linop in Add should be copied."""
+    def test_add_shared_linop_not_copied(self):
+        """Shared linop in Add should be the same object."""
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         add = Add(A, A)
 
-        assert add[0] is not A
-        assert add[0] is not add[1]
+        assert add[0] is A
+        assert add[0] is add[1]
         assert add[0].weight.data_ptr() == add[1].weight.data_ptr()
 
-    def test_concat_shared_linop_copies(self):
-        """Shared linop in Concat should be copied."""
+    def test_concat_shared_linop_not_copied(self):
+        """Shared linop in Concat should be the same object."""
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         concat = Concat(A, A, idim="K")
 
-        assert concat[0] is not A
-        assert concat[0] is not concat[1]
+        assert concat[0] is A
+        assert concat[0] is concat[1]
         assert concat[0].weight.data_ptr() == concat[1].weight.data_ptr()
 
-    def test_stack_shared_linop_copies(self):
-        """Shared linop in Stack should be copied."""
+    def test_stack_shared_linop_not_copied(self):
+        """Shared linop in Stack should be the same object."""
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         stack = Stack(A, A, odim_and_idx=("L", 0))
 
-        assert stack[0] is not A
-        assert stack[0] is not stack[1]
+        assert stack[0] is A
+        assert stack[0] is stack[1]
         assert stack[0].weight.data_ptr() == stack[1].weight.data_ptr()
 
-    def test_nested_shared_linop_copies(self):
-        """Shared linop nested in Chains inside Concat should be copied."""
-        from torchlinops import Chain
-
+    def test_nested_shared_linop_not_copied(self):
+        """Shared linops nested in Chains inside Concat should preserve identity."""
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         B = Dense(torch.randn(4, 4), ("N", "M"), ("M",), ("N",))
 
@@ -168,26 +167,12 @@ class TestSharedLinopCopying:
         concat = Concat(chain1, chain2, idim="K")
 
         assert concat[0] is not concat[1]
-        assert concat[0][0] is not concat[1][0]
+        # A and B are shared between the two chains
+        assert concat[0][0] is concat[1][0]
+        assert concat[0][1] is concat[1][1]
 
-    def test_nested_shared_linop_shallow_copy(self):
-        """Nested shared linops should still share tensor storage."""
-        from torchlinops import Chain
-
-        A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
-        B = Dense(torch.randn(4, 4), ("N", "M"), ("M",), ("N",))
-        C = Dense(torch.randn(4, 4), ("N", "N"), ("N",), ("N",))
-
-        chain1 = Chain(A, B, C, C)
-        chain2 = Chain(A, B, C, C)
-        concat = Concat(chain1, chain2, idim="K")
-
-        assert concat[0][0].weight.data_ptr() == concat[1][0].weight.data_ptr()
-        assert concat[0][2] is not concat[0][3]
-        assert concat[0][2] is not concat[1][2]
-
-    def test_threading_preserved_after_copy(self):
-        """Threading should still work after copying shared linops."""
+    def test_threading_works_with_shared_linops(self):
+        """Threading should still work with shared linops."""
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         concat = Concat(A, A, idim="K")
         concat.threaded = True
@@ -198,43 +183,87 @@ class TestSharedLinopCopying:
         y = concat(x)
         assert y.shape == (4,)
 
-    def test_add_input_listener_independent(self):
-        """Copied linops should have independent input_listener references."""
+
+class TestExecutionSchedule:
+    """Tests for ExecutionSchedule structure."""
+
+    def test_add_schedule_is_parallel(self):
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         add = Add(A, A)
+        assert add._schedule.is_parallel
+        assert not add._schedule.is_sequential
 
-        # Check that _input_listener forwards to the correct parent
-        assert add[0]._input_listener._obj is add
-        assert add[0]._input_listener._attr == "input_listener"
-        assert add[1]._input_listener._obj is add
-        assert add[1]._input_listener._attr == "input_listener"
-        # The two linops objects should be different
-        assert add[0] is not add[1]
+    def test_chain_schedule_is_sequential(self):
+        A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+        chain = Chain(A, A)
+        assert chain._schedule.is_sequential
+        assert not chain._schedule.is_parallel
 
-    def test_concat_input_listener_independent(self):
-        """Copied linops should have independent input_listener references."""
+    def test_concat_schedule_is_parallel(self):
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
         concat = Concat(A, A, idim="K")
+        assert concat._schedule.is_parallel
 
-        assert concat[0]._input_listener._obj is concat
-        assert concat[0]._input_listener._attr == "input_listener"
-        assert concat[1]._input_listener._obj is concat
-        assert concat[1]._input_listener._attr == "input_listener"
-
-    def test_nested_input_listener_independent(self):
-        """Nested copied linops should have independent input_listener references."""
-        from torchlinops import Chain
-
+    def test_stack_schedule_is_parallel(self):
         A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
-        B = Dense(torch.randn(4, 4), ("N", "M"), ("M",), ("N",))
+        stack = Stack(A, A, odim_and_idx=("L", 0))
+        assert stack._schedule.is_parallel
 
-        chain1 = Chain(A, B)
-        chain2 = Chain(A, B)
-        concat = Concat(chain1, chain2, idim="K")
+    def test_schedule_to_dict(self):
+        schedule = ExecutionSchedule({0: [], 1: [(0, "end_event")]})
+        d = schedule.to_dict()
+        assert d == {"0": [], "1": [(0, "end_event")]}
 
-        assert concat[0]._input_listener._obj is concat
-        assert concat[1]._input_listener._obj is concat
 
-        assert concat[0][0] is not concat[1].linops[0]
-        assert concat[0][0]._input_listener._obj is concat[0]
-        assert concat[1][0]._input_listener._obj is concat[1]
+class TestTopologicalGroups:
+    """Tests for topological_groups function."""
+
+    def test_all_parallel(self):
+        groups = topological_groups({0: [], 1: [], 2: []})
+        assert groups == [[0, 1, 2]]
+
+    def test_all_sequential(self):
+        groups = topological_groups(
+            {
+                0: [],
+                1: [(0, "end_event")],
+                2: [(1, "end_event")],
+            }
+        )
+        assert groups == [[0], [1], [2]]
+
+    def test_mixed(self):
+        groups = topological_groups(
+            {
+                0: [],
+                1: [],
+                2: [(0, "end_event")],
+            }
+        )
+        assert groups == [[0, 1], [2]]
+
+    def test_empty(self):
+        groups = topological_groups({})
+        assert groups == []
+
+
+class TestRapidSuccessiveCalls:
+    """Tests that rapid successive calls don't cause issues."""
+
+    def test_rapid_add_calls(self):
+        A = Dense(torch.randn(4, 3), ("M", "K"), ("K",), ("M",))
+        add = Add(A, A)
+        x1 = torch.randn(3)
+        x2 = torch.randn(3)
+        y1 = add(x1)
+        y2 = add(x2)
+        assert y1.shape == y2.shape == (4,)
+
+    def test_rapid_chain_calls(self):
+        A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+        chain = Chain(A, A)
+        x1 = torch.randn(4)
+        x2 = torch.randn(4)
+        y1 = chain(x1)
+        y2 = chain(x2)
+        assert y1.shape == y2.shape == (4,)

@@ -44,16 +44,6 @@ def test_todevice_repr():
     assert "cpu" in r
 
 
-def test_repeated_event_init():
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", FutureWarning)
-        from torchlinops.utils._event import RepeatedEvent
-
-        ev = RepeatedEvent()
-        assert ev.last_event is None
-        assert "RepeatedEvent" in repr(ev)
-
-
 def test_todevice_wrong_input_device_raises():
     """ToDevice._fn should raise RuntimeError when input tensor is on wrong device.
 
