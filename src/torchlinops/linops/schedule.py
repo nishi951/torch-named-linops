@@ -212,13 +212,28 @@ def execute_schedule(
     if not indices:
         raise ValueError("Cannot execute schedule with no children")
 
-    # CPU path: simple sequential execution
+    # CPU path
     if not x.is_cuda:
-        results = []
-        for idx in indices:
-            child_x = inputs[idx] if inputs is not None else x
-            results.append(linops[idx](child_x))
-        return _apply_reduce(reduce_fn, results)
+        if threaded and len(indices) > 1:
+            # Threaded CPU execution for parallel children
+            n_workers = num_workers if num_workers is not None else len(indices)
+            results: list[Optional[Tensor]] = [None] * len(indices)
+
+            def cpu_worker(pos_idx: int):
+                idx = indices[pos_idx]
+                child_x = inputs[idx] if inputs is not None else x
+                results[pos_idx] = linops[idx](child_x)
+
+            with ThreadPoolExecutor(max_workers=n_workers) as pool:
+                list(pool.map(cpu_worker, range(len(indices))))
+            return _apply_reduce(reduce_fn, results)
+        else:
+            # Sequential CPU execution
+            results = []
+            for idx in indices:
+                child_x = inputs[idx] if inputs is not None else x
+                results.append(linops[idx](child_x))
+            return _apply_reduce(reduce_fn, results)
 
     # CUDA path: event-synchronized execution
     stream: Stream = default_to(
