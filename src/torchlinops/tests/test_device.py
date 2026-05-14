@@ -317,11 +317,12 @@ def test_gpu2gpu_roundtrip():
     assert_close(y.cpu(), x.cpu())
 
 
-def trace_handler(prof, OnDevice, base_device):
+def trace_handler(prof, OnDevice, base_device, threaded):
     prof.export_chrome_trace(
-        f"./{type(OnDevice).__name__}_{base_device.type}_trace.json"
+        f"./{type(OnDevice).__name__}_{base_device.type}_{'noThreaded' if not threaded else 'threaded'}_trace.json"
     )
-    assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
+    if threaded:
+        assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
 
 
 @pytest.mark.gpu
@@ -330,15 +331,22 @@ def trace_handler(prof, OnDevice, base_device):
     reason="2 GPUs are required for this test",
 )
 @pytest.mark.parametrize(
-    "CombineOp,base_device",
+    "CombineOp,base_device,threaded",
     list(
-        pytest.param(op, dev, id=f"{op.func.__name__}-{dev.type}")
-        for op, dev in product(
-            PARALLELIZABLE_LINOPS, [torch.device("cpu"), torch.device("cuda:0")]
+        pytest.param(
+            op,
+            dev,
+            threaded,
+            id=f"{op.func.__name__}-{dev.type}-{'no-' if not threaded else ''}threaded",
+        )
+        for op, dev, threaded in product(
+            PARALLELIZABLE_LINOPS,
+            [torch.device("cpu"), torch.device("cuda:0")],
+            [True, False],
         )
     ),
 )
-def test_multigpu_parallelism(CombineOp, base_device):
+def test_multigpu_parallelism(CombineOp, base_device, threaded):
     gpu0 = torch.device("cuda:0")
     gpu1 = torch.device("cuda:1")
 
@@ -356,7 +364,7 @@ def test_multigpu_parallelism(CombineOp, base_device):
     # OffDevice = CombineOp(A1, A2)
     # y_true = OffDevice(x)
     logger.info("Building OffDevice linop")
-    OffDevice = CombineOp(A1, A2)
+    OffDevice = CombineOp(A1, A2, threaded=False)  # Purely sequential
     y_true = OffDevice(x)
 
     # Move to GPU
@@ -373,6 +381,7 @@ def test_multigpu_parallelism(CombineOp, base_device):
             deepcopy(A2).to(gpu1),
             ToDevice(gpu1, base_device, ioshape=A2.oshape),
         ),
+        threaded=threaded,
     )
 
     # Warmup
@@ -391,7 +400,7 @@ def test_multigpu_parallelism(CombineOp, base_device):
             active=active,  # actually capture these
         ),
         on_trace_ready=partial(
-            trace_handler, OnDevice=OnDevice, base_device=base_device
+            trace_handler, OnDevice=OnDevice, base_device=base_device, threaded=threaded
         ),
     ) as prof:
         for _ in range(wait + warmup + active):
