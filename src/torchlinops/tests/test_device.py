@@ -354,7 +354,6 @@ def test_multigpu_parallelism(CombineOp, base_device, threaded):
 
     # Input
     x = torch.randn(N)
-    breakpoint()
 
     # Linop
     chain_length = 4
@@ -395,14 +394,12 @@ def test_multigpu_parallelism(CombineOp, base_device, threaded):
     if isinstance(OnDevice, Stack):
         # DEBUG
         x_gpu1 = x.to(gpu1)
-        breakpoint()
         x_gpu1_orig = x_gpu1.clone()
         y_gpu1_orig = OnDevice[1][1](x_gpu1)
         for i in range(3):
             y_gpu1_new = OnDevice[1][1](x_gpu1)
             assert torch.allclose(x_gpu1, x_gpu1_orig)
             assert_close(y_gpu1_new, y_gpu1_orig, atol=1e1, rtol=1e0)
-        breakpoint()
         y_gpu1 = OnDevice[1][1](x_gpu1)
         y_gpu1 = OnDevice[1][1](x_gpu1)
 
