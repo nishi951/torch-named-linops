@@ -354,6 +354,7 @@ def test_multigpu_parallelism(CombineOp, base_device, threaded):
 
     # Input
     x = torch.randn(N)
+    breakpoint()
 
     # Linop
     chain_length = 4
@@ -384,8 +385,34 @@ def test_multigpu_parallelism(CombineOp, base_device, threaded):
         threaded=threaded,
     )
 
-    # Warmup
-    _ = OnDevice(x)
+    # DEBUG
+    x_fresh = torch.randn(N, device=gpu1)
+    for i in range(5):
+        y = OnDevice[1][1](x_fresh)
+        print(f"Iter {i} has_nan={torch.isnan(y).any().item()}")
+
+    # Special stack test for individual linops
+    if isinstance(OnDevice, Stack):
+        # DEBUG
+        x_gpu1 = x.to(gpu1)
+        breakpoint()
+        x_gpu1_orig = x_gpu1.clone()
+        y_gpu1_orig = OnDevice[1][1](x_gpu1)
+        for i in range(3):
+            y_gpu1_new = OnDevice[1][1](x_gpu1)
+            assert torch.allclose(x_gpu1, x_gpu1_orig)
+            assert_close(y_gpu1_new, y_gpu1_orig, atol=1e1, rtol=1e0)
+        breakpoint()
+        y_gpu1 = OnDevice[1][1](x_gpu1)
+        y_gpu1 = OnDevice[1][1](x_gpu1)
+
+        y_true0 = OffDevice[0](x.cpu())
+        y_true1 = OffDevice[1](x.cpu())
+        y0 = OnDevice[0](x)
+        y1 = OnDevice[1](x)
+        assert_close(y0.cpu(), y_true0, atol=1e1, rtol=1e0)
+        assert_close(y1.cpu(), y_true1, atol=1e1, rtol=1e0)
+        assert_close(y_gpu1.cpu(), y_true1, atol=1e1, rtol=1e0)
 
     wait, warmup, active = 2, 2, 1
     with torch.profiler.profile(
@@ -415,6 +442,11 @@ def test_multigpu_parallelism(CombineOp, base_device, threaded):
     assert y.device.type == base_device.type
 
     # Correctness
+    # Special stack test for individual linops
+    if isinstance(CombineOp, Stack):
+        assert_close(y[0].cpu(), y0.cpu(), atol=1e1, rtol=1e0)
+        assert_close(y[1].cpu(), y1.cpu(), atol=1e1, rtol=1e0)
+
     assert_close(y.cpu(), y_true, atol=1e1, rtol=1e0)
 
 

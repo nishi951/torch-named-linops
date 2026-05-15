@@ -86,17 +86,17 @@ class Chain(NamedLinop):
     def fn(chain, x: torch.Tensor, /):
         # Chain is always sequential: output of each child feeds into the next.
         # No threading needed — the schedule is built for introspection only.
-        if x.is_cuda:
-            stream = default_to(default_stream(x.device), chain.stream)
-            chain.start_event = stream.record_event()
-            with torch.cuda.stream(stream):
-                for linop in chain.linops:
-                    x = linop(x)
-                x.record_stream(stream)
-                chain.end_event = stream.record_event()
-        else:
-            for linop in chain.linops:
-                x = linop(x)
+        # if x.is_cuda:
+        #     stream = default_to(default_stream(x.device), chain.stream)
+        #     chain.start_event = stream.record_event()
+        #     with torch.cuda.stream(stream):
+        #         for linop in chain.linops:
+        #             x = linop(x)
+        #         x.record_stream(stream)
+        #         chain.end_event = stream.record_event()
+        # else:
+        for linop in chain.linops:
+            x = linop(x)
         return x
 
     @staticmethod
