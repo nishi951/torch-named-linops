@@ -106,6 +106,9 @@ known_first_party = ["torchlinops"]
 combine_as_imports = true
 # no_lines_before = ["LOCALFOLDER"]
 
+[project.scripts]
+tl_diagnostic = "torchlinops.scripts.diagnostic:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
