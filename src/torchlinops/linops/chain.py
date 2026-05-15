@@ -5,10 +5,9 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from torch.cuda import default_stream
 
 import torchlinops.config as config
-from torchlinops.utils import INDENT, default_to
+from torchlinops.utils import INDENT
 
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .device import ToDevice
@@ -84,17 +83,6 @@ class Chain(NamedLinop):
 
     @staticmethod
     def fn(chain, x: torch.Tensor, /):
-        # Chain is always sequential: output of each child feeds into the next.
-        # No threading needed — the schedule is built for introspection only.
-        # if x.is_cuda:
-        #     stream = default_to(default_stream(x.device), chain.stream)
-        #     chain.start_event = stream.record_event()
-        #     with torch.cuda.stream(stream):
-        #         for linop in chain.linops:
-        #             x = linop(x)
-        #         x.record_stream(stream)
-        #         chain.end_event = stream.record_event()
-        # else:
         for linop in chain.linops:
             x = linop(x)
         return x
@@ -221,11 +209,6 @@ class Chain(NamedLinop):
         with INDENT:
             for linop in self.linops:
                 output += repr(linop) + "\n"
-
-            if self.start_event is not None:
-                output += INDENT.indent(f"start: {self.start_event.event_id:x}\n")
-            if self.end_event is not None:
-                output += INDENT.indent(f"end: {self.end_event.event_id:x}\n")
         output += INDENT.indent(")")
         return output
 

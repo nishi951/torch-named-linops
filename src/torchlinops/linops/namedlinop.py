@@ -9,14 +9,12 @@ from typing import Any, Optional, final
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.cuda import Event, Stream, default_stream
 
 import torchlinops
 import torchlinops.config as config
 from torchlinops.nameddim import NamedDimension as ND, NamedShape, Shape
 from torchlinops.utils import (
     INDENT,
-    default_to,
     memory_aware_deepcopy,
     memory_aware_to,
 )
@@ -44,14 +42,6 @@ class NamedLinop(nn.Module):
     ----------
     shape : NamedShape
         The named shape of the linop, containing ``ishape`` and ``oshape``.
-    stream : torch.cuda.Stream
-        Optional cuda Stream to run this linop on.
-    start_event : Event, optional
-        An event that signals when the linop has started. Useful for synchronizing
-        multiple linops across multiple devices.
-    end_event : Event, optional
-        An event that signals when the linop has completed. Useful for synchronizing multiple
-        linops across multiple devices.
     """
 
     def __init__(self, shape: NamedShape, name: Optional[str] = None, **kwargs):
@@ -75,17 +65,10 @@ class NamedLinop(nn.Module):
         """Helper method that should be called to reset the linop's state.
         Should be performed after any substantial changes to the linop."""
         self.reset_adjoint_and_normal()
-        self.stream = None
-        self.start_event = None
-        self.end_event = None
 
     @final
     def forward(self, x: Tensor) -> Tensor:
         """Apply the forward operation $y = A(x)$.
-
-        If a CUDA stream is assigned, execution is dispatched to that stream.
-        If a ``start_event`` is set, it is recorded before execution begins,
-        allowing other operators to synchronize on it.
 
         Do not override this method. Instead, override .fn() and .adj_fn().
 
@@ -99,16 +82,7 @@ class NamedLinop(nn.Module):
         Tensor
             The result of applying this linop to *x*.
         """
-        if x.is_cuda:  # pragma: no cover
-            stream = default_to(default_stream(x.device), self.stream)
-            self.start_event = stream.record_event()
-            with torch.cuda.stream(stream):
-                y = self.fn(self, x)
-            x.record_stream(stream)
-            self.end_event = stream.record_event()
-        else:
-            y = self.fn(self, x)
-        return y
+        return self.fn(self, x)
 
     def apply(self, x: Tensor) -> Tensor:
         """Apply the linear operator to a tensor."""
@@ -469,10 +443,6 @@ class NamedLinop(nn.Module):
 
     def __repr__(self):
         out = f"{self.repr_name}({self.ishape} -> {self.oshape})"
-        if self.start_event is not None:  # pragma: no cover
-            out += f", start: {self.start_event.event_id:x}"
-        if self.end_event is not None:  # pragma: no cover
-            out += f", end: {self.end_event.event_id:x}"
         out = INDENT.indent(out)
         return out
 

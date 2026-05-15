@@ -17,8 +17,6 @@ import torch
 from torch import Tensor
 from torch.cuda import Event, Stream, default_stream
 
-from torchlinops.utils import default_to
-
 __all__ = ["ExecutionSchedule", "execute_schedule", "schedule_to_ascii_dag"]
 
 
@@ -236,17 +234,10 @@ def execute_schedule(
             return _apply_reduce(reduce_fn, results)
 
     # CUDA path: event-synchronized execution
-    stream: Stream = default_to(
-        default_stream(x.device),
-        parent.stream if parent is not None else None,
-    )
+    stream: Stream = default_stream(x.device)
 
     # Local event tracking — fresh per forward call, never stored on linops
     events: dict[int, dict[str, Event]] = {}
-
-    # Record parent start event (only if parent exists)
-    if parent is not None:
-        parent.start_event = stream.record_event()
 
     # Compute execution groups
     groups = topological_groups(deps)
@@ -274,11 +265,6 @@ def execute_schedule(
                 results.extend(group_results)
 
     y = _apply_reduce(reduce_fn, results)
-
-    # Record parent end event (only if parent exists)
-    x.record_stream(stream)
-    if parent is not None:
-        parent.end_event = stream.record_event()
 
     return y
 

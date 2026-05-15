@@ -196,15 +196,10 @@ def normal_fn(linop, x: Tensor, /) -> Tensor:
     return linop.adj_fn(linop, linop.fn(linop, x))
 ```
 
-The `forward()` method wraps `fn()` with optional CUDA stream execution:
+The `forward()` method simply delegates to `fn()`:
 
 ```python
 def forward(self, x):
-    if self.stream is not None:
-        with torch.cuda.stream(self.stream):
-            y = self.fn(self, x)
-        x.record_stream(self.stream)
-        return y
     return self.fn(self, x)
 ```
 
