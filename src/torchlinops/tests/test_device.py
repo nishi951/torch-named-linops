@@ -15,6 +15,7 @@ from torchlinops import (
     Dense,
     Dim,
     NamedDimension as ND,
+    Sleep,
     Stack,
     ToDevice,
 )
@@ -80,39 +81,15 @@ def test_todevice_streams():
     print(D2D2)
 
 
-def _slow_matmul_chain(N: int, chain_length: int = 5):
-    """Make arbitrary-length chains of random dense linops.
+def _slow_linop(N: int, sleep_duration: float = 0.1):
+    """Make a slow linop: single Dense matmul plus a Sleep.
 
-    Useful for making really slow linops.
+    Useful for making really slow linops without chaining many Dense ops.
     """
-    in_dim = ND("N")
-    out_dim = ND("M")
     weight = torch.randn(N, N)
-    if chain_length == 1:
-        return Dense(weight, Dim("MN"), Dim("N"), Dim("M"))
-    next_out_dim = in_dim + 1
-    A = Dense(
-        weight,
-        weightshape=(next_out_dim, in_dim),
-        ishape=(in_dim,),
-        oshape=(next_out_dim,),
-    )
-    in_dim = next_out_dim
-    next_out_dim = next_out_dim + 1
-    for i in range(chain_length - 1):
-        weight = torch.randn(N, N)
-        if i == chain_length - 2:
-            next_out_dim = out_dim
-        B = Dense(
-            weight,
-            weightshape=(next_out_dim, in_dim),
-            ishape=(in_dim,),
-            oshape=(next_out_dim,),
-        )
-        A = B @ A
-        in_dim = next_out_dim
-        next_out_dim = next_out_dim + 1
-    return A
+    dense = Dense(weight, Dim("MN"), Dim("N"), Dim("M"))
+    sleep = Sleep(sleep_duration, ioshape=(ND("M"),))
+    return sleep @ dense
 
 
 @pytest.mark.gpu
@@ -340,9 +317,8 @@ def test_multigpu_parallelism(CombineOp, base_device, threaded):
     x = torch.randn(N)
 
     # Linop
-    chain_length = 4
-    A1 = _slow_matmul_chain(N, chain_length)
-    A2 = _slow_matmul_chain(N, chain_length)
+    A1 = _slow_linop(N)
+    A2 = _slow_linop(N)
 
     # True value (on cpu)
     # OffDevice = CombineOp(A1, A2)
