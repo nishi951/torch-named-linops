@@ -2,11 +2,10 @@ from collections.abc import Callable
 from copy import copy
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple, Optional
-from warnings import warn
 import logging
 
 import torch
-from torch.cuda import Event, Stream, default_stream
+from torch.cuda import Stream, default_stream
 
 import torchlinops.config as config
 from torchlinops.utils import INDENT, default_to
@@ -15,7 +14,7 @@ from ..nameddim import NamedShape as NS, Shape
 from .identity import Identity
 from .namedlinop import NamedLinop
 
-__all__ = ["ToDevice", "DeviceSpec", "clear_transfer_streams_registry"]
+__all__ = ["ToDevice", "DeviceSpec"]
 
 logger = logging.getLogger("torchlinops")
 
@@ -35,24 +34,17 @@ class DeviceSpec:
         The device for computation and transfers.
     compute_stream : Stream, optional
         Stream used for computation on this device. Set automatically by ``p2p_setup``.
-    transfer_stream : Stream, optional
-        Stream used for data transfers to/from this device. Obtained from a registry
-        to enable stream reuse across transfers.
 
     Methods
     -------
     p2p_setup(other_device)
-        Configure compute and transfer streams for peer-to-peer transfers.
-    get_transfer_stream(source_device, target_device)
-        Get or create a transfer stream for a source/target device pair.
+        Configure compute stream for peer-to-peer transfers.
     """
 
     device: Any = field(default_factory=lambda: torch.device("cpu"))
     """Device for the streams."""
     compute_stream: Optional[Stream] = None
     """Stream used for computation."""
-    transfer_stream: Optional[Stream] = None
-    """Stream used for data transfer."""
 
     def __post_init__(self):
         """Ensure self.device is a proper torch.device."""
@@ -60,7 +52,7 @@ class DeviceSpec:
             self.device = torch.device(self.device)
 
     def p2p_setup(self, other_device):
-        """Sets up compute and transfer streams for peer2peer transfers, if not set yet.
+        """Sets up compute stream for peer2peer transfers, if not set yet.
 
         Parameters
         ----------
@@ -72,43 +64,11 @@ class DeviceSpec:
         ):  # pragma: no cover
             if self.compute_stream is None:
                 self.compute_stream = default_stream(self.device)
-            if self.transfer_stream is None:
-                self.transfer_stream = self.get_transfer_stream(
-                    self.device, other_device
-                )
 
     @property
     def type(self):
         """Passthrough for torch.device.type."""
         return self.device.type
-
-    @staticmethod
-    def get_transfer_stream(
-        source_device: torch.device, target_device: torch.device
-    ):  # pragma: no cover
-        """Return the stream used for device transfers associated with this device.
-
-        Streams are cached in a registry to enable reuse. Each source/target device
-        pair gets a dedicated transfer stream.
-
-        Parameters
-        ----------
-        source_device : torch.device
-            The source device for transfers.
-        target_device : torch.device
-            The target device for transfers.
-
-        Returns
-        -------
-        Stream
-            A CUDA stream for performing transfers.
-        """
-        if (source_device, target_device) in _TRANSFER_STREAMS_REGISTRY:
-            return _TRANSFER_STREAMS_REGISTRY[(source_device, target_device)]
-        # Create a new stream
-        new_stream = Stream(source_device)
-        _TRANSFER_STREAMS_REGISTRY[(source_device, target_device)] = new_stream
-        return new_stream
 
 
 class ToDevice(NamedLinop):
@@ -118,7 +78,7 @@ class ToDevice(NamedLinop):
     The adjoint reverses the direction. The normal $T^H T$ is the identity
     (device round-trip is lossless).
 
-    For CUDA-to-CUDA transfers, streams and events are used for asynchronous
+    For CUDA-to-CUDA transfers, dedicated streams are used for asynchronous
     pipelined execution.
 
     Attributes
@@ -168,14 +128,17 @@ class ToDevice(NamedLinop):
             self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda"
         ):  # pragma: no cover
             self.is_gpu2gpu = True
+            self._transfer_stream = Stream(self.ispec.device)
         else:
             self.is_gpu2gpu = False
+            self._transfer_stream = None
 
     @staticmethod
     def _fn(
         x,
         ispec: DeviceSpec,
         ospec: DeviceSpec,
+        transfer_stream=None,
     ):
         idevice, odevice = ispec.device, ospec.device
         if x.device != idevice:
@@ -188,7 +151,7 @@ class ToDevice(NamedLinop):
             return _gpu2gpu_transfer(
                 x,
                 ospec.compute_stream,
-                ispec.transfer_stream,
+                transfer_stream,
             )
         elif idevice.type == "cuda" and odevice.type == "cpu":  # pragma: no cover
             # GPU -> CPU requires additional synchronization, see:
@@ -204,6 +167,7 @@ class ToDevice(NamedLinop):
             x,
             todevice.ispec,
             todevice.ospec,
+            todevice._transfer_stream,
         )
 
     @staticmethod
@@ -212,6 +176,7 @@ class ToDevice(NamedLinop):
             x,
             todevice.ospec,
             todevice.ispec,
+            todevice._transfer_stream,
         )
 
     def adjoint(self):
@@ -232,18 +197,12 @@ class ToDevice(NamedLinop):
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        if (
-            self.ispec.compute_stream is not None
-            or self.ispec.transfer_stream is not None
-        ):  # pragma: no cover
-            irepr = f"{self.ispec.device}, compute: 0x{self.ispec.compute_stream.cuda_stream:x}, transfer: 0x{self.ispec.transfer_stream.cuda_stream:x}"
+        if self._transfer_stream is not None:  # pragma: no cover
+            irepr = f"{self.ispec.device}, transfer: 0x{self._transfer_stream.cuda_stream:x}"
         else:
             irepr = f"{self.ispec.device}"
-        if (
-            self.ospec.compute_stream is not None
-            or self.ospec.transfer_stream is not None
-        ):  # pragma: no cover
-            orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}, transfer: 0x{self.ospec.transfer_stream.cuda_stream:x}"
+        if self._transfer_stream is not None:  # pragma: no cover
+            orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}"
         else:
             orepr = f"{self.ospec.device}"
         out = f"({irepr} -> {orepr})"
@@ -255,7 +214,6 @@ def _gpu2gpu_transfer(
     x,
     target_stream,
     transfer_stream=None,
-    source_stream=None,
 ):  # pragma: no cover
     """Perform efficient gpu-gpu transfer with a dedicated transfer stream.
 
@@ -267,8 +225,6 @@ def _gpu2gpu_transfer(
         The stream on the target device that needs `x` for computation.
     transfer_stream : Stream
         The stream on the source device on which to queue the transfer.
-    source_stream : Stream
-        The stream on the source device to wait for (optional).
 
     Returns
     -------
@@ -280,9 +236,7 @@ def _gpu2gpu_transfer(
         odevice = target_stream.device
         if transfer_stream is None:
             raise ValueError(f"Multi-GPU transfer requires transfer_stream != None")
-        if source_stream is None:
-            source_stream = default_stream(x.device)
-        transfer_stream.wait_stream(source_stream)
+        transfer_stream.wait_stream(default_stream(x.device))
         with torch.cuda.stream(transfer_stream):
             _log_transfer(
                 f"Transferring tensor from {x.device} to {odevice}, "
@@ -300,16 +254,3 @@ def _gpu2gpu_transfer(
         # Same device - do nothing
         out = x
     return out
-
-
-# Registry to keep track of transfer streams already created.
-_TRANSFER_STREAMS_REGISTRY = {}
-
-
-def clear_transfer_streams_registry() -> None:
-    """Clear the transfer streams registry.
-
-    This is useful for testing to ensure a clean state between tests.
-    The registry caches CUDA streams to enable reuse across transfers.
-    """
-    _TRANSFER_STREAMS_REGISTRY.clear()

@@ -13,7 +13,6 @@ from torchlinops import (
     Chain,
     Concat,
     Dense,
-    DeviceSpec,
     Dim,
     NamedDimension as ND,
     Stack,
@@ -75,7 +74,7 @@ def test_todevice_streams():
     assert w2.device == x.device
 
     # Verify that the streams are used
-    assert D2D2.ispec.transfer_stream is not None
+    assert D2D2._transfer_stream is not None
     assert D2D2.ospec.compute_stream is not None
 
     print(D2D2)
@@ -193,24 +192,16 @@ def test_gpu2gpu_sanity_check():
     ### GPU1 -> GPU0
     # Input
     x = torch.randn(N)
-    # Event
-    device_spec = DeviceSpec(gpu0)
-    device_spec.p2p_setup(gpu1)
 
     # Prepare
     x = x.to(base_device)
-    source_stream = default_stream(x.device)
-    transfer_stream = device_spec.transfer_stream
+    transfer_stream = torch.cuda.Stream(gpu0)
     target_stream = default_stream(gpu1)
-
-    input_ready_event = source_stream.record_event()
 
     y = _gpu2gpu_transfer(
         x,
         target_stream,
-        # gpu1,
         transfer_stream,
-        # input_ready_event,
     )
 
     torch.cuda.synchronize(gpu0)
@@ -221,21 +212,14 @@ def test_gpu2gpu_sanity_check():
 
     ### GPU1 -> GPU0
 
-    # Event
-    device_spec = DeviceSpec(gpu1)
-    device_spec.p2p_setup(gpu0)
     x = x.to(gpu1)
-    source_stream = default_stream(x.device)
-    transfer_stream = device_spec.transfer_stream
+    transfer_stream = torch.cuda.Stream(gpu1)
     target_stream = default_stream(gpu0)
-    input_ready_event = source_stream.record_event()
 
     y2 = _gpu2gpu_transfer(
         x,
-        # gpu0,
         target_stream,
         transfer_stream,
-        # input_ready_event,
     )
     torch.cuda.synchronize(gpu0)
     torch.cuda.synchronize(gpu1)
