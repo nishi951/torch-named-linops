@@ -8,6 +8,7 @@ import torch
 from torch.cuda import Stream, default_stream
 
 import torchlinops.config as config
+from torchlinops.cuda_trace import cuda_logger
 from torchlinops.utils import INDENT, default_to
 
 from ..nameddim import NamedShape as NS, Shape
@@ -236,6 +237,16 @@ def _gpu2gpu_transfer(
         odevice = target_stream.device
         if transfer_stream is None:
             raise ValueError(f"Multi-GPU transfer requires transfer_stream != None")
+
+        if config.log_cuda_events:
+            src_id = cuda_logger.implicit_node(f"default_stream:{x.device}", x.device)
+            cuda_logger.wait(
+                f"ToDevice:{x.device}\u2192{odevice}:transfer",
+                x.device,
+                [src_id],
+                reason="wait_stream",
+            )
+
         transfer_stream.wait_stream(default_stream(x.device))
         with torch.cuda.stream(transfer_stream):
             _log_transfer(
@@ -245,6 +256,18 @@ def _gpu2gpu_transfer(
             out = x.to(odevice, non_blocking=True)
             # Don't mess with x's memory until transfer is completed
             x.record_stream(transfer_stream)
+
+        if config.log_cuda_events:
+            transfer_id = cuda_logger.record(
+                f"ToDevice:{x.device}\u2192{odevice}:transfer-done", x.device
+            )
+            cuda_logger.wait(
+                f"ToDevice:{x.device}\u2192{odevice}:target-wait",
+                odevice,
+                [transfer_id],
+                reason="wait_stream",
+            )
+
         # Target stream should wait until transfer is complete
         _log_transfer(
             f"Target stream cuda:{target_stream.device_index}:{target_stream} waiting for transfer stream {transfer_stream}"

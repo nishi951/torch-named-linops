@@ -17,6 +17,9 @@ import torch
 from torch import Tensor
 from torch.cuda import Event, Stream, default_stream
 
+import torchlinops.config as config
+from torchlinops.cuda_trace import cuda_logger
+
 __all__ = ["ExecutionSchedule", "execute_schedule", "schedule_to_ascii_dag"]
 
 
@@ -245,7 +248,7 @@ def execute_schedule(
     # If all children are in one parallel group and threading is enabled
     if len(groups) == 1 and threaded:
         results = _execute_parallel_group(
-            linops, groups[0], deps, events, x, stream, num_workers, inputs
+            linops, groups[0], deps, events, x, stream, num_workers, inputs, parent
         )
     else:
         # Sequential or mixed: execute groups in order
@@ -254,13 +257,13 @@ def execute_schedule(
             if len(group) == 1 and not threaded:
                 # Single child, no threading
                 idx = group[0]
-                _wait_dependencies(idx, deps, events, stream)
+                _wait_dependencies(idx, deps, events, stream, parent, x)
                 child_x = inputs[idx] if inputs is not None else x
                 results.append(linops[idx](child_x))
             else:
                 # Parallel group
                 group_results = _execute_parallel_group(
-                    linops, group, deps, events, x, stream, num_workers, inputs
+                    linops, group, deps, events, x, stream, num_workers, inputs, parent
                 )
                 results.extend(group_results)
 
@@ -274,9 +277,19 @@ def _wait_dependencies(
     deps: dict[int, list[tuple[int, str]]],
     events: dict[int, dict[str, Event]],
     stream: Stream,
+    parent=None,
+    x=None,
 ) -> None:
     """Wait for all declared dependencies of a child to complete."""
     for dep_idx, event_name in deps.get(idx, []):
+        if config.log_cuda_events:
+            target_id = events[dep_idx]["trace_id"]
+            cuda_logger.wait(
+                f"{parent.name}-child-{idx}-wait[{event_name}]",
+                x.device,
+                [target_id],
+                reason=event_name,
+            )
         dep_event = events[dep_idx][event_name]
         stream.wait_event(dep_event)
 
@@ -290,6 +303,7 @@ def _execute_parallel_group(
     stream: Stream,
     num_workers: Optional[int],
     inputs: Optional[list[Tensor]] = None,
+    parent=None,
 ) -> list[Tensor]:
     """Execute a group of children, respecting intra-group dependencies."""
     if num_workers is None:
@@ -303,14 +317,20 @@ def _execute_parallel_group(
         child_x = inputs[idx] if inputs is not None else x
 
         # Wait for dependencies (from previous groups)
-        _wait_dependencies(idx, deps, events, stream)
+        _wait_dependencies(idx, deps, events, stream, parent, child_x)
 
         # Execute child
         y = linop(child_x)
 
         # Record end event for this child
         end_event = stream.record_event()
-        events[idx] = {"end_event": end_event}
+        if config.log_cuda_events:
+            trace_id = cuda_logger.record(
+                f"{parent.name}-child-{idx}-end", child_x.device
+            )
+        else:
+            trace_id = None
+        events[idx] = {"end_event": end_event, "trace_id": trace_id}
 
         results[pos_idx] = y
 
