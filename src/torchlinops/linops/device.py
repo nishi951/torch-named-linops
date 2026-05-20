@@ -268,8 +268,10 @@ def _gpu2gpu_transfer(
 
         if wait_for_event is not None:
             # Used when this is run as the first step in a Chain
+            logger.debug(f"Waiting on parent event: {wait_for_event}")
             transfer_stream.wait_event(wait_for_event)
         else:
+            logger.debug(f"Waiting on current device's stream: {x.device}")
             # Used when this is run as a later step in a Chain
             # Sometimes this is not what we want because there might be a lot of work on the default stream
             # that we want to parallelize with this transfer.

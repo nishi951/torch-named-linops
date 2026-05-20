@@ -77,6 +77,8 @@ class Stack(NamedLinop):
         Index position of the output stacking dimension.
     """
 
+    is_container = True
+
     def __init__(
         self,
         *linops: NamedLinop,

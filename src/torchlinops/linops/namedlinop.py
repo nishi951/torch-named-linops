@@ -621,18 +621,23 @@ class SyncContext:
     Otherwise, record an event on the current stream of the input device"""
 
     def __post_init__(self):
-        start_event = None
         if self.input_device.type == "cuda":
             if (
                 self.parent is not None
                 and self.parent.linop.is_container
                 and self.parent.start_event is not None
             ):
+                logger.debug(
+                    f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} reusing event {self.parent.start_event}"
+                )
                 self.start_event = self.parent.start_event
-            if start_event is None and self.linop.is_container:
+            if self.start_event is None and self.linop.is_container:
                 self.start_event = torch.cuda.current_stream(
                     self.input_device
                 ).record_event()
+                logger.debug(
+                    f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} recorded event {self.start_event} on {self.input_device} stream {torch.cuda.current_stream(self.input_device)}"
+                )
 
 
 # class LinopFunction(torch.autograd.Function):

@@ -42,6 +42,8 @@ class Add(NamedLinop):
         Number of worker threads. If None, defaults to the number of sub-linops.
     """
 
+    is_container = True
+
     def __init__(
         self,
         *linops,
