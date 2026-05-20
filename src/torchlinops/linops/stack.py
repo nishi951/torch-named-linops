@@ -136,15 +136,6 @@ class Stack(NamedLinop):
         else:
             super().__setattr__(name, value)
 
-    @property
-    def settings(self):
-        return {"threaded": self.threaded, "num_workers": self.num_workers}
-
-    @settings.setter
-    def settings(self, new_settings):
-        self.threaded = new_settings["threaded"]
-        self.num_workers = new_settings["num_workers"]
-
     @staticmethod
     def _get_dim_and_idx(dim, idx, shape):
         if dim is not None:

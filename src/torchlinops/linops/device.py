@@ -5,7 +5,7 @@ from typing import Any, NamedTuple, Optional
 import logging
 
 import torch
-from torch.cuda import Stream, default_stream, Event
+from torch.cuda import Stream, default_stream, Event, current_stream
 
 import torchlinops.config as config
 from torchlinops.cuda_trace import cuda_logger
@@ -161,7 +161,7 @@ class ToDevice(NamedLinop):
             return _gpu2gpu_transfer(
                 x,
                 ospec.compute_stream,
-                ospec.transfer_stream,
+                ispec.transfer_stream,
                 wait_for_event,
             )
         elif idevice.type == "cuda" and odevice.type == "cpu":  # pragma: no cover
@@ -267,12 +267,13 @@ def _gpu2gpu_transfer(
             )
 
         if wait_for_event is not None:
+            # Used when this is run as the first step in a Chain
             transfer_stream.wait_event(wait_for_event)
-        # else:
-        # Wait on the default stream of input tensor
-        # Sometimes this is not what we want because there might be a lot of work on the default stream
-        # that we want to parallelize with this transfer.
-        # transfer_stream.wait_stream(default_stream(x.device))
+        else:
+            # Used when this is run as a later step in a Chain
+            # Sometimes this is not what we want because there might be a lot of work on the default stream
+            # that we want to parallelize with this transfer.
+            transfer_stream.wait_stream(current_stream(x.device))
 
         with torch.cuda.stream(transfer_stream):
             _log_transfer(
