@@ -5,7 +5,7 @@ from typing import Any, NamedTuple, Optional
 import logging
 
 import torch
-from torch.cuda import Stream, default_stream
+from torch.cuda import Stream, default_stream, Event
 
 import torchlinops.config as config
 from torchlinops.cuda_trace import cuda_logger
@@ -46,6 +46,8 @@ class DeviceSpec:
     """Device for the streams."""
     compute_stream: Optional[Stream] = None
     """Stream used for computation."""
+    transfer_stream: Optional[Stream] = None
+    """Stream used for transfers from this device."""
 
     def __post_init__(self):
         """Ensure self.device is a proper torch.device."""
@@ -65,6 +67,8 @@ class DeviceSpec:
         ):  # pragma: no cover
             if self.compute_stream is None:
                 self.compute_stream = default_stream(self.device)
+            if self.transfer_stream is None:
+                self.transfer_stream = Stream(self.device)
 
     @property
     def type(self):
@@ -129,18 +133,23 @@ class ToDevice(NamedLinop):
             self.ispec.device.type == "cuda" and self.ospec.device.type == "cuda"
         ):  # pragma: no cover
             self.is_gpu2gpu = True
-            self._transfer_stream = Stream(self.ispec.device)
         else:
             self.is_gpu2gpu = False
-            self._transfer_stream = None
 
     @staticmethod
     def _fn(
         x,
         ispec: DeviceSpec,
         ospec: DeviceSpec,
-        transfer_stream=None,
+        wait_for_event: Optional[Event] = None,
     ):
+        """
+
+        Notes
+        -----
+        Copying from CPU -> GPU or GPU -> CPU may result in strange behavror:
+            https://github.com/pytorch/pytorch/issues/127612
+        """
         idevice, odevice = ispec.device, ospec.device
         if x.device != idevice:
             raise RuntimeError(
@@ -152,32 +161,39 @@ class ToDevice(NamedLinop):
             return _gpu2gpu_transfer(
                 x,
                 ospec.compute_stream,
-                transfer_stream,
+                ospec.transfer_stream,
+                wait_for_event,
             )
         elif idevice.type == "cuda" and odevice.type == "cpu":  # pragma: no cover
-            # GPU -> CPU requires additional synchronization, see:
-            # https://github.com/pytorch/pytorch/issues/127612
+            # GPU -> CPU requires non_blocking=False for stability.
+            # This is usually ok since GPU -> CPU usually happens at the "end" of a computation,
+            # when synchronization isn't a problem.
             return x.to(odevice, non_blocking=False)
 
         # CPU -> GPU or CPU -> CPU
+        # Need to be careful not to overwrite x in-place too quickly after calling this.
+        # However, we riskily choose non_blocking=True because CPU -> GPU typically occurs
+        # at the "beginning" of a parallelized computation, where non-blocking makes a big difference.
         return x.to(odevice, non_blocking=True)
 
     @staticmethod
-    def fn(todevice, x, /):
+    def fn(todevice, x, context):
         return todevice._fn(
             x,
             todevice.ispec,
             todevice.ospec,
-            todevice._transfer_stream,
+            wait_for_event=context.start_event,
         )
 
     @staticmethod
-    def adj_fn(todevice, x, /):
+    def adj_fn(todevice, x, context):
         return todevice._fn(
             x,
             todevice.ospec,
             todevice.ispec,
-            todevice._transfer_stream,
+            wait_for_event=context.start_event,
+            # todevice._transfer_stream,
+            # wait_for_event=wait_for_event,
         )
 
     def adjoint(self):
@@ -198,11 +214,11 @@ class ToDevice(NamedLinop):
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        if self._transfer_stream is not None:  # pragma: no cover
-            irepr = f"{self.ispec.device}, transfer: 0x{self._transfer_stream.cuda_stream:x}"
+        if self.ispec.transfer_stream is not None:  # pragma: no cover
+            irepr = f"{self.ispec.device}, transfer: 0x{self.ispec.transfer_stream.cuda_stream:x}"
         else:
             irepr = f"{self.ispec.device}"
-        if self._transfer_stream is not None:  # pragma: no cover
+        if self.ospec.compute_stream is not None:  # pragma: no cover
             orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}"
         else:
             orepr = f"{self.ospec.device}"
@@ -215,6 +231,7 @@ def _gpu2gpu_transfer(
     x,
     target_stream,
     transfer_stream=None,
+    wait_for_event: Optional[Event] = None,
 ):  # pragma: no cover
     """Perform efficient gpu-gpu transfer with a dedicated transfer stream.
 
@@ -226,6 +243,8 @@ def _gpu2gpu_transfer(
         The stream on the target device that needs `x` for computation.
     transfer_stream : Stream
         The stream on the source device on which to queue the transfer.
+    wait_for_event : Event, optional
+        Optional event for transfer stream to wait on before proceeding.
 
     Returns
     -------
@@ -247,7 +266,14 @@ def _gpu2gpu_transfer(
                 reason="wait_stream",
             )
 
-        transfer_stream.wait_stream(default_stream(x.device))
+        if wait_for_event is not None:
+            transfer_stream.wait_event(wait_for_event)
+        # else:
+        # Wait on the default stream of input tensor
+        # Sometimes this is not what we want because there might be a lot of work on the default stream
+        # that we want to parallelize with this transfer.
+        # transfer_stream.wait_stream(default_stream(x.device))
+
         with torch.cuda.stream(transfer_stream):
             _log_transfer(
                 f"Transferring tensor from {x.device} to {odevice}, "

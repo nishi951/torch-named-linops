@@ -12,7 +12,7 @@ from torchlinops.utils import INDENT
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .device import ToDevice
 from .namedlinop import NamedLinop
-from .schedule import ExecutionSchedule
+# from .schedule import ExecutionSchedule
 
 logger = logging.getLogger("torchlinops")
 
@@ -34,6 +34,8 @@ class Chain(NamedLinop):
         The constituent linops in **execution order** (inner to outer).
     """
 
+    is_container = True
+
     def __init__(self, *linops, name: Optional[str] = None):
         """
         Parameters
@@ -45,6 +47,8 @@ class Chain(NamedLinop):
             Display name for this chain.
         """
         super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
+        if len(linops) == 0:
+            raise ValueError(f"Chain must contain at least one linop.")
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
 
@@ -55,7 +59,7 @@ class Chain(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        self._schedule = self._build_schedule()
+        # self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypasses pytorch's setattr, just for linops"""
@@ -74,30 +78,34 @@ class Chain(NamedLinop):
                 )
             curr_shape = linop.oshape
 
-    def _build_schedule(self) -> ExecutionSchedule:
-        """Build sequential schedule: each child waits for the previous one."""
-        deps = {}
-        for i in range(len(self._linops)):
-            deps[i] = [] if i == 0 else [(i - 1, "end_event")]
-        return ExecutionSchedule(deps)
+    # def _build_schedule(self) -> ExecutionSchedule:
+    #     """Build sequential schedule: each child waits for the previous one."""
+    #     deps = {}
+    #     for i in range(len(self._linops)):
+    #         deps[i] = [("parent", "start_event")] if i == 0 else [(i - 1, "end_event")]
+    #     return ExecutionSchedule(deps)
 
     @staticmethod
-    def fn(chain, x: torch.Tensor, /):
-        for linop in chain.linops:
+    def fn(chain, x: torch.Tensor, context=None):
+        x = chain[0](x, context)  # First linop inherits context
+        for linop in chain.linops[1:]:
             x = linop(x)
         return x
 
     @staticmethod
-    def adj_fn(chain, x: torch.Tensor, /):
-        for linop in reversed(chain.linops):
+    def adj_fn(chain, x: torch.Tensor, context=None):
+        linops = list(reversed(chain.linops))
+        x = linops[0].H(x, context)
+        for linop in linops[1:]:
             x = linop.H(x)
         return x
 
-    # @staticmethod
-    # def normal_fn(chain, x: torch.Tensor):
-    #     # fn does the reversing so it's unnecessary to do it here
-    #     # If the normal hasn't been explicitly formed with`.N`, do things the naive way
-    #     return chain.adj_fn(chain, chain.fn(chain, x))
+    @staticmethod
+    def normal_fn(chain, x: torch.Tensor, context=None):
+        # fn does the reversing so it's unnecessary to do it here
+        # If the normal hasn't been explicitly formed with`.N`, do things the naive way
+        # Only the inner chain.fn inherits context
+        return chain.adj_fn(chain, chain.fn(chain, x, context), context=None)
 
     @staticmethod
     def split(chain, tile: Mapping[ND | str, slice]):
@@ -214,5 +222,5 @@ class Chain(NamedLinop):
 
     def __copy__(self):
         new = super().__copy__()
-        new._schedule = new._build_schedule()
+        # new._schedule = new._build_schedule()
         return new

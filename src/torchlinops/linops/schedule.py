@@ -11,7 +11,7 @@ Each level manages its own synchronization independently.
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional
 
 import torch
 from torch import Tensor
@@ -20,367 +20,429 @@ from torch.cuda import Event, Stream, default_stream
 import torchlinops.config as config
 from torchlinops.cuda_trace import cuda_logger
 
-__all__ = ["ExecutionSchedule", "execute_schedule", "schedule_to_ascii_dag"]
+__all__ = ["parallel_execute"]
+
+# Type definitions
+LinopId = int | Literal["parent"]
+
+# A linop-event pair of the form (linop, [start|end]_event)
+# e.g. ("parent", "start_event"), or (1, "end_event")
+LinopEvent = tuple[LinopId, Literal['start_event", "end_event"']]
+
+# A mapping from the linop id to a list of events the linop must wait for
+# before starting.
+Dependencies = dict[LinopId, list[LinopEvent]]
 
 
-@dataclass(frozen=True)
-class ExecutionSchedule:
-    """Immutable execution plan for a composite linop's direct children.
-
-    Each composite linop owns one schedule describing the dependency
-    relationships among its immediate children. Schedules are hierarchical —
-    nested composites have their own schedules.
-
-    Parameters
-    ----------
-    dependencies : dict[int, list[tuple[int, str]]]
-        For each child index: list of (dependency_index, event_name) that
-        must complete before this child can start. Empty list means no
-        dependencies — the child starts immediately.
-
-    Examples
-    --------
-    Sequential (Chain): child 1 waits for child 0, child 2 waits for child 1::
-
-        ExecutionSchedule({
-            0: [],
-            1: [(0, "end_event")],
-            2: [(1, "end_event")],
-        })
-
-    Parallel (Add): all children start immediately::
-
-        ExecutionSchedule({
-            0: [],
-            1: [],
-            2: [],
-        })
-    """
-
-    dependencies: dict[int, list[tuple[int, str]]]
-
-    @property
-    def is_sequential(self) -> bool:
-        """True if every child (except the first) depends on the previous one."""
-        deps = self.dependencies
-        indices = sorted(deps.keys())
-        if len(indices) <= 1:
-            return True
-        for i, idx in enumerate(indices[1:], 1):
-            expected_dep = (indices[i - 1], "end_event")
-            if deps[idx] != [expected_dep]:
-                return False
-        return deps.get(indices[0], []) == []
-
-    @property
-    def is_parallel(self) -> bool:
-        """True if all children have no dependencies."""
-        return all(deps == [] for deps in self.dependencies.values())
-
-    def to_dict(self) -> dict:
-        """Serializable dict representation."""
-        return {str(k): [(d, e) for d, e in v] for k, v in self.dependencies.items()}
-
-    def __repr__(self) -> str:
-        deps_str = ", ".join(f"{k}: {v}" for k, v in sorted(self.dependencies.items()))
-        return f"ExecutionSchedule({{{deps_str}}})"
+def thread_initializer():
+    """Create a tensor to warm up the cuda context."""
+    if torch.cuda.is_available():
+        torch.zeros(1, device="cuda")
 
 
-def topological_groups(
-    dependencies: dict[int, list[tuple[int, str]]],
-) -> list[list[int]]:
-    """Return execution order as list of groups.
+def parallel_execute(
+    linops, inputs, context, reduce_fn, parent=None, threaded=False, num_workers=None
+):
+    if len(linops) != len(inputs):
+        raise ValueError(
+            f"linops and inputs must have same length but got linops: {len(linops)} != inputs: {len(inputs)}"
+        )
+    if len(linops) == 0:
+        # TODO: decide if this is correct
+        raise ValueError(f"linops must have length greater than or equal to 1.")
 
-    Each group contains indices that can run in parallel.
-    Groups are ordered so that all dependencies of group N
-    are satisfied by groups 0..N-1.
+    if not threaded:
+        return reduce_fn([linop(x, context) for linop, x in zip(linops, inputs)])
 
-    Uses Kahn's algorithm, grouping all ready nodes together.
+    num_workers = num_workers if num_workers is not None else len(linops)
+    results: list[Optional[Tensor]] = [None] * len(linops)
 
-    Parameters
-    ----------
-    dependencies : dict[int, list[tuple[int, str]]]
-        Dependency graph: index -> list of (dep_index, event_name).
+    def worker(idx: int):
+        linop = linops[idx]
+        x = inputs[idx]
+        results[idx] = linop(x, context)
 
-    Returns
-    -------
-    list[list[int]]
-        Execution order as groups of parallel indices.
-
-    Examples
-    --------
-    >>> topological_groups({0: [], 1: [], 2: [(0, "end_event")]})
-    [[0, 1], [2]]
-    """
-    if not dependencies:
-        return []
-
-    # Build in-degree count (only count deps within this schedule)
-    all_indices = set(dependencies.keys())
-    in_degree = {idx: 0 for idx in all_indices}
-    successors = {idx: [] for idx in all_indices}
-
-    for idx, deps in dependencies.items():
-        for dep_idx, _event_name in deps:
-            if dep_idx in all_indices:
-                in_degree[idx] += 1
-                successors[dep_idx].append(idx)
-
-    # Start with nodes that have no dependencies
-    queue = deque(idx for idx in all_indices if in_degree[idx] == 0)
-    groups = []
-
-    while queue:
-        # All nodes currently in queue can run in parallel
-        group = sorted(queue)
-        groups.append(group)
-
-        next_queue = deque()
-        for idx in group:
-            for succ in successors[idx]:
-                in_degree[succ] -= 1
-                if in_degree[succ] == 0:
-                    next_queue.append(succ)
-        queue = next_queue
-
-    if sum(len(g) for g in groups) != len(all_indices):
-        raise ValueError(f"Cyclic dependency detected in schedule: {dependencies}")
-
-    return groups
-
-
-def _apply_reduce(
-    reduce_fn: Callable[[list[Tensor]], Tensor],
-    results: list[Tensor],
-) -> Tensor:
-    """Apply a reduction function, with special handling for sum.
-
-    For ``sum``, uses incremental accumulation to minimize peak memory:
-    instead of holding all tensors plus intermediates simultaneously,
-    each input tensor is freed after being added to the accumulator.
-    """
-    if reduce_fn is sum:
-        total = results[0]
-        for r in results[1:]:
-            total = total + r
-        return total
+    with ThreadPoolExecutor(
+        max_workers=num_workers, initializer=thread_initializer
+    ) as pool:
+        list(pool.map(worker, range(len(linops))))
     return reduce_fn(results)
 
 
-def execute_schedule(
-    parent,
-    schedule: ExecutionSchedule,
-    x: Tensor,
-    reduce_fn: Callable[[list[Tensor]], Tensor],
-    threaded: bool = True,
-    num_workers: Optional[int] = None,
-    linops_override: Optional[list] = None,
-    inputs_override: Optional[list[Tensor]] = None,
-) -> Tensor:
-    """Execute children according to the schedule.
+# @dataclass(frozen=True)
+# class ExecutionSchedule:
+#     """Immutable execution plan for a composite linop's direct children.
 
-    Parameters
-    ----------
-    parent : NamedLinop
-        The composite linop whose children to execute.
-    schedule : ExecutionSchedule
-        The dependency graph for this level.
-    x : Tensor
-        Input tensor (used for all children unless inputs_override is provided).
-    reduce_fn : Callable[[list[Tensor]], Tensor]
-        Function to combine child outputs (sum, cat, stack, etc.).
-    threaded : bool
-        Whether to use ThreadPoolExecutor for parallel groups.
-    num_workers : int | None
-        Max worker threads. If None, defaults to group size.
-    linops_override : list | None
-        Alternative list of linops to execute instead of parent._linops.
-        Used for adj_fn where adjoint linops differ from forward linops.
-    inputs_override : list[Tensor] | None
-        Per-child inputs. If provided, child i receives inputs_override[i]
-        instead of x. Used by Concat where input is split across children.
+#     Each composite linop owns one schedule describing the dependency
+#     relationships among its immediate children. Schedules are hierarchical —
+#     nested composites have their own schedules.
 
-    Returns
-    -------
-    Tensor
-        Combined result from all children.
-    """
-    deps = schedule.dependencies
-    indices = sorted(deps.keys())
-    linops = linops_override if linops_override is not None else parent._linops
-    inputs = inputs_override if inputs_override is not None else None
+#     Parameters
+#     ----------
+#     dependencies : dict[int, list[tuple[int, str]]]
+#         For each child index: list of (dependency_index, event_name) that
+#         must complete before this child can start. Empty list means no
+#         dependencies — the child starts immediately.
 
-    if not indices:
-        raise ValueError("Cannot execute schedule with no children")
+#     Examples
+#     --------
+#     Sequential (Chain): child 0 waits for the parent to start, child 1 waits for child 0, child 2 waits for child 1::
 
-    # CPU path
-    if not x.is_cuda:
-        if threaded and len(indices) > 1:
-            # Threaded CPU execution for parallel children
-            n_workers = num_workers if num_workers is not None else len(indices)
-            results: list[Optional[Tensor]] = [None] * len(indices)
+#         ExecutionSchedule({
+#             0: [("parent", "start_event")],
+#             1: [(0, "end_event")],
+#             2: [(1, "end_event")],
+#         })
 
-            def cpu_worker(pos_idx: int):
-                idx = indices[pos_idx]
-                child_x = inputs[idx] if inputs is not None else x
-                results[pos_idx] = linops[idx](child_x)
+#     Parallel (Add): all children start when the parent starts::
 
-            with ThreadPoolExecutor(max_workers=n_workers) as pool:
-                list(pool.map(cpu_worker, range(len(indices))))
-            return _apply_reduce(reduce_fn, results)
-        else:
-            # Sequential CPU execution
-            results = []
-            for idx in indices:
-                child_x = inputs[idx] if inputs is not None else x
-                results.append(linops[idx](child_x))
-            return _apply_reduce(reduce_fn, results)
+#         ExecutionSchedule({
+#             0: [("parent", "start_event")],
+#             1: [("parent", "start_event")],
+#             2: [("parent", "start_event")],
+#         })
+#     """
 
-    # CUDA path: event-synchronized execution
-    stream: Stream = default_stream(x.device)
+#     dependencies: dict[int, list[LinopEvent]]
 
-    # Local event tracking — fresh per forward call, never stored on linops
-    events: dict[int, dict[str, Event]] = {}
+#     threaded: bool = True
+#     """Whether to use threads for parallel groups."""
+#     num_workers: Optional[int] = None
+#     """If threading is on, the maximum number of worker threads. If None, defaults to group size."""
 
-    # Compute execution groups
-    groups = topological_groups(deps)
+#     def execute(
+#         self,
+#         linops,
+#         inputs,
+#         parent,
+#         reduce_fn: Callable[[list[Tensor]], Tensor],
+#         context,
+#     ) -> Tensor:
+#         """Execute children according to the schedule.
 
-    # If all children are in one parallel group and threading is enabled
-    if len(groups) == 1 and threaded:
-        results = _execute_parallel_group(
-            linops, groups[0], deps, events, x, stream, num_workers, inputs, parent
-        )
-    else:
-        # Sequential or mixed: execute groups in order
-        results = []
-        for group in groups:
-            if len(group) == 1 and not threaded:
-                # Single child, no threading
-                idx = group[0]
-                _wait_dependencies(idx, deps, events, stream, parent, x)
-                child_x = inputs[idx] if inputs is not None else x
-                results.append(linops[idx](child_x))
-            else:
-                # Parallel group
-                group_results = _execute_parallel_group(
-                    linops, group, deps, events, x, stream, num_workers, inputs, parent
-                )
-                results.extend(group_results)
+#         Parameters
+#         ----------
+#         parent : NamedLinop
+#             The composite linop whose children to execute.
+#         schedule : ExecutionSchedule
+#             The dependency graph for this level.
+#         x : Tensor
+#             Input tensor (used for all children unless inputs_override is provided).
+#         reduce_fn : Callable[[list[Tensor]], Tensor]
+#             Function to combine child outputs (sum, cat, stack, etc.).
+#         threaded : bool
+#             Whether to use ThreadPoolExecutor for parallel groups.
+#         num_workers : int | None
+#             Max worker threads. If None, defaults to group size.
+#         linops_override : list | None
+#             Alternative list of linops to execute instead of parent._linops.
+#             Used for adj_fn where adjoint linops differ from forward linops.
+#         inputs_override : list[Tensor] | None
+#             Per-child inputs. If provided, child i receives inputs_override[i]
+#             instead of x. Used by Concat where input is split across children.
 
-    y = _apply_reduce(reduce_fn, results)
+#         Returns
+#         -------
+#         Tensor
+#             Combined result from all children.
+#         """
+#         deps = self.dependencies
+#         indices = sorted(deps.keys())
+#         # linops = linops_override if linops_override is not None else parent._linops
+#         # inputs = inputs_override if inputs_override is not None else None
 
-    return y
+#         if not indices:
+#             raise ValueError("Cannot execute schedule with no children")
+
+#         # CPU path
+#         if not any(x.is_cuda for x in inputs):
+#             if self.threaded and len(indices) > 1:
+#                 # Threaded CPU execution for parallel children
+#                 n_workers = (
+#                     self.num_workers if self.num_workers is not None else len(indices)
+#                 )
+#                 results: list[Optional[Tensor]] = [None] * len(indices)
+
+#                 def cpu_worker(pos_idx: int):
+#                     idx = indices[pos_idx]
+#                     child_x = inputs[idx] if inputs is not None else x
+#                     results[pos_idx] = linops[idx](child_x)
+
+#                 with ThreadPoolExecutor(max_workers=n_workers) as pool:
+#                     list(pool.map(cpu_worker, range(len(indices))))
+#                 return _apply_reduce(reduce_fn, results)
+#             else:
+#                 # Sequential CPU execution
+#                 results = []
+#                 for idx in indices:
+#                     child_x = inputs[idx] if inputs is not None else x
+#                     results.append(linops[idx](child_x))
+#                 return _apply_reduce(reduce_fn, results)
+
+#         # CUDA path: event-synchronized execution
+#         # stream: Stream = default_stream(x.device)
+#         # Compute execution groups
+#         groups = topological_groups(deps)
+
+#         # Local event tracking — fresh per forward call, never stored on linops
+#         events: dict[int | str, dict[str, Event | None]] = {}
+
+#         # Special parent start event
+#         events["parent"] = {"start_event": context.start_event}
+
+#         # If all children are in one parallel group and threading is enabled
+#         if len(groups) == 1 and self.threaded:
+#             results = _execute_parallel_group(
+#                 linops, groups[0], deps, events, x, stream, num_workers, inputs, parent
+#             )
+#         else:
+#             # Sequential or mixed: execute groups in order
+#             results = []
+#             for group in groups:
+#                 if len(group) == 1 and not threaded:
+#                     # Single child, no threading
+#                     idx = group[0]
+#                     _wait_dependencies(idx, deps, events, stream, parent, x)
+#                     child_x = inputs[idx] if inputs is not None else x
+#                     results.append(linops[idx](child_x))
+#                 else:
+#                     # Parallel group
+#                     group_results = _execute_parallel_group(
+#                         linops,
+#                         group,
+#                         deps,
+#                         events,
+#                         x,
+#                         stream,
+#                         num_workers,
+#                         inputs,
+#                         parent,
+#                     )
+#                     results.extend(group_results)
+
+#         y = _apply_reduce(reduce_fn, results)
+
+#         return y
+
+#     def _execute_parallel_group(
+#         self,
+#         linops,
+#         inputs,
+#         group: list[int],
+#         deps: dict[int, list[tuple[int | str, str]]],
+#         events,
+#         # events: dict[int, dict[str, Event | int]],
+#         # x: Tensor,
+#         # stream: Stream,
+#         # num_workers: Optional[int],
+#         # inputs: Optional[list[Tensor]] = None,
+#         # parent=None,
+#     ) -> list[Tensor]:
+#         """Execute a group of children, respecting intra-group dependencies."""
+#         if self.num_workers is None:
+#             num_workers = len(group)
+
+#         results: list[Optional[Tensor]] = [None] * len(group)
+
+#         def worker(pos_idx: int):
+#             idx = group[pos_idx]
+#             linop = linops[idx]
+#             x = inputs[idx]
+#             if x.is_cuda:
+#                 # Wait for dependencies (from previous groups)
+#                 # _wait_dependencies(idx, deps, events, stream, parent, child_x)
+#                 _wait_dependencies(default_stream(x.device), idx, deps, events)
+
+#             # Execute child
+#             y = linop(x)
+
+#             if y.is_cuda:
+#                 # Record end event for this child
+#                 end_event = default_stream(y.device).record_event()
+#                 events[idx] = {"end_event": end_event}
+#                 if config.log_cuda_events:
+#                     trace_id = cuda_logger.record(
+#                         f"{parent.name}-child-{idx}-end", child_x.device
+#                     )
+#                     events[idx]["trace_id"] = trace_id
+
+#             results[pos_idx] = y
+
+#         with ThreadPoolExecutor(max_workers=num_workers) as pool:
+#             list(pool.map(worker, range(len(group))))
+
+#         return [r for r in results if r is not None]
+
+#     @property
+#     def is_sequential(self) -> bool:
+#         """True if every child (except the first) depends on the previous one."""
+#         deps = self.dependencies
+#         indices = sorted(deps.keys())
+#         if len(indices) <= 1:
+#             return True
+#         for i, idx in enumerate(indices[1:], 1):
+#             expected_dep = (indices[i - 1], "end_event")
+#             if deps[idx] != [expected_dep]:
+#                 return False
+#         return deps.get(indices[0], []) == []
+
+#     @property
+#     def is_parallel(self) -> bool:
+#         """True if all children have no dependencies."""
+#         return all(deps == [] for deps in self.dependencies.values())
+
+#     def to_dict(self) -> dict:
+#         """Serializable dict representation."""
+#         return {str(k): [(d, e) for d, e in v] for k, v in self.dependencies.items()}
+
+#     def __repr__(self) -> str:
+#         deps_str = ", ".join(f"{k}: {v}" for k, v in sorted(self.dependencies.items()))
+#         return f"ExecutionSchedule({{{deps_str}}})"
 
 
-def _wait_dependencies(
-    idx: int,
-    deps: dict[int, list[tuple[int, str]]],
-    events: dict[int, dict[str, Event]],
-    stream: Stream,
-    parent=None,
-    x=None,
-) -> None:
-    """Wait for all declared dependencies of a child to complete."""
-    for dep_idx, event_name in deps.get(idx, []):
-        if config.log_cuda_events:
-            target_id = events[dep_idx]["trace_id"]
-            cuda_logger.wait(
-                f"{parent.name}-child-{idx}-wait[{event_name}]",
-                x.device,
-                [target_id],
-                reason=event_name,
-            )
-        dep_event = events[dep_idx][event_name]
-        stream.wait_event(dep_event)
+# def topological_groups(
+#     dependencies: dict[int, list[tuple[int, str]]],
+# ) -> list[list[int]]:
+#     """Return execution order as list of groups.
+
+#     Each group contains indices that can run in parallel.
+#     Groups are ordered so that all dependencies of group N
+#     are satisfied by groups 0..N-1.
+
+#     Uses Kahn's algorithm, grouping all ready nodes together.
+
+#     Parameters
+#     ----------
+#     dependencies : dict[int, list[tuple[int, str]]]
+#         Dependency graph: index -> list of (dep_index, event_name).
+
+#     Returns
+#     -------
+#     list[list[int]]
+#         Execution order as groups of parallel indices.
+
+#     Examples
+#     --------
+#     >>> topological_groups({0: [], 1: [], 2: [(0, "end_event")]})
+#     [[0, 1], [2]]
+#     """
+#     if not dependencies:
+#         return []
+
+#     # Build in-degree count (only count deps within this schedule)
+#     all_indices = set(dependencies.keys())
+#     in_degree = {idx: 0 for idx in all_indices}
+#     successors = {idx: [] for idx in all_indices}
+
+#     for idx, deps in dependencies.items():
+#         for dep_idx, _event_name in deps:
+#             if dep_idx in all_indices:
+#                 in_degree[idx] += 1
+#                 successors[dep_idx].append(idx)
+
+#     # Start with nodes that have no dependencies
+#     queue = deque(idx for idx in all_indices if in_degree[idx] == 0)
+#     groups = []
+
+#     while queue:
+#         # All nodes currently in queue can run in parallel
+#         group = sorted(queue)
+#         groups.append(group)
+
+#         next_queue = deque()
+#         for idx in group:
+#             for succ in successors[idx]:
+#                 in_degree[succ] -= 1
+#                 if in_degree[succ] == 0:
+#                     next_queue.append(succ)
+#         queue = next_queue
+
+#     if sum(len(g) for g in groups) != len(all_indices):
+#         raise ValueError(f"Cyclic dependency detected in schedule: {dependencies}")
+
+#     return groups
 
 
-def _execute_parallel_group(
-    linops,
-    group: list[int],
-    deps: dict[int, list[tuple[int, str]]],
-    events: dict[int, dict[str, Event]],
-    x: Tensor,
-    stream: Stream,
-    num_workers: Optional[int],
-    inputs: Optional[list[Tensor]] = None,
-    parent=None,
-) -> list[Tensor]:
-    """Execute a group of children, respecting intra-group dependencies."""
-    if num_workers is None:
-        num_workers = len(group)
+# def _apply_reduce(
+#     reduce_fn: Callable[[list[Tensor]], Tensor],
+#     results: list[Tensor],
+# ) -> Tensor:
+#     """Apply a reduction function, with special handling for sum.
 
-    results: list[Optional[Tensor]] = [None] * len(group)
-
-    def worker(pos_idx: int):
-        idx = group[pos_idx]
-        linop = linops[idx]
-        child_x = inputs[idx] if inputs is not None else x
-
-        # Wait for dependencies (from previous groups)
-        _wait_dependencies(idx, deps, events, stream, parent, child_x)
-
-        # Execute child
-        y = linop(child_x)
-
-        # Record end event for this child
-        end_event = stream.record_event()
-        if config.log_cuda_events:
-            trace_id = cuda_logger.record(
-                f"{parent.name}-child-{idx}-end", child_x.device
-            )
-        else:
-            trace_id = None
-        events[idx] = {"end_event": end_event, "trace_id": trace_id}
-
-        results[pos_idx] = y
-
-    with ThreadPoolExecutor(max_workers=num_workers) as pool:
-        list(pool.map(worker, range(len(group))))
-
-    return [r for r in results if r is not None]
+#     For ``sum``, uses incremental accumulation to minimize peak memory:
+#     instead of holding all tensors plus intermediates simultaneously,
+#     each input tensor is freed after being added to the accumulator.
+#     """
+#     if reduce_fn is sum:
+#         total = results[0]
+#         for r in results[1:]:
+#             total = total + r
+#         return total
+#     return reduce_fn(results)
 
 
-def schedule_to_ascii_dag(
-    schedule: ExecutionSchedule,
-    child_names: Optional[list[str]] = None,
-) -> str:
-    """Render the schedule as an ASCII DAG diagram.
+# def _wait_dependencies(
+#     stream,
+#     idx: int,
+#     deps: dict[int, list[tuple[int, str]]],
+#     events: dict[int, dict[str, Event]],
+# ) -> None:
+#     """Wait for all declared dependencies of a child to complete."""
+#     for dep_idx, event_name in deps.get(idx, []):
+#         if config.log_cuda_events:
+#             target_id = events[dep_idx]["trace_id"]
+#             cuda_logger.wait(
+#                 f"{parent.name}-child-{idx}-wait[{event_name}]",
+#                 x.device,
+#                 [target_id],
+#                 reason=event_name,
+#             )
+#         dep_event = events[dep_idx][event_name]
+#         if dep_event is not None:
+#             stream.wait_event(dep_event)
 
-    Parameters
-    ----------
-    schedule : ExecutionSchedule
-        The schedule to render.
-    child_names : list[str], optional
-        Names for each child index. If None, uses index numbers.
 
-    Returns
-    -------
-    str
-        ASCII representation of the dependency graph.
-    """
-    deps = schedule.dependencies
-    indices = sorted(deps.keys())
-    groups = topological_groups(deps)
+# def schedule_to_ascii_dag(
+#     schedule: ExecutionSchedule,
+#     child_names: Optional[list[str]] = None,
+# ) -> str:
+#     """Render the schedule as an ASCII DAG diagram.
 
-    if child_names is None:
-        child_names = [str(i) for i in indices]
+#     Parameters
+#     ----------
+#     schedule : ExecutionSchedule
+#         The schedule to render.
+#     child_names : list[str], optional
+#         Names for each child index. If None, uses index numbers.
 
-    lines = []
-    lines.append("Execution DAG:")
+#     Returns
+#     -------
+#     str
+#         ASCII representation of the dependency graph.
+#     """
+#     deps = schedule.dependencies
+#     indices = sorted(deps.keys())
+#     groups = topological_groups(deps)
 
-    for g_idx, group in enumerate(groups):
-        prefix = f"  Group {g_idx} (parallel):"
-        lines.append(prefix)
-        for idx in group:
-            name = child_names[idx] if idx < len(child_names) else str(idx)
-            dep_list = deps.get(idx, [])
-            if dep_list:
-                dep_strs = [
-                    f"{child_names[d] if d < len(child_names) else d}[{e}]"
-                    for d, e in dep_list
-                ]
-                lines.append(f"    {name} <- {', '.join(dep_strs)}")
-            else:
-                lines.append(f"    {name} (no deps)")
+#     if child_names is None:
+#         child_names = [str(i) for i in indices]
 
-    return "\n".join(lines)
+#     lines = []
+#     lines.append("Execution DAG:")
+
+#     for g_idx, group in enumerate(groups):
+#         prefix = f"  Group {g_idx} (parallel):"
+#         lines.append(prefix)
+#         for idx in group:
+#             name = child_names[idx] if idx < len(child_names) else str(idx)
+#             dep_list = deps.get(idx, [])
+#             if dep_list:
+#                 dep_strs = [
+#                     f"{child_names[d] if d < len(child_names) else d}[{e}]"
+#                     for d, e in dep_list
+#                 ]
+#                 lines.append(f"    {name} <- {', '.join(dep_strs)}")
+#             else:
+#                 lines.append(f"    {name} (no deps)")
+
+#     return "\n".join(lines)

@@ -16,7 +16,7 @@ from .add import Add
 from .device import ToDevice
 from .identity import Zero
 from .namedlinop import NamedLinop
-from .schedule import ExecutionSchedule, execute_schedule
+from .schedule import parallel_execute
 
 __all__ = ["Stack"]
 
@@ -113,12 +113,12 @@ class Stack(NamedLinop):
         self.threaded = threaded
         self.num_workers = num_workers
         self._linops = nn.ModuleList(list(linops))
-        self._schedule = self._build_schedule()
+        # self._schedule = self._build_schedule()
         self._check_linop_compatibility()
 
-    def _build_schedule(self) -> ExecutionSchedule:
-        """Build parallel schedule: all children start immediately."""
-        return ExecutionSchedule({i: [] for i in range(len(self._linops))})
+    # def _build_schedule(self) -> ExecutionSchedule:
+    #     """Build parallel schedule: all children start immediately."""
+    #     return ExecutionSchedule({i: [] for i in range(len(self._linops))})
 
     @property
     def linops(self):
@@ -127,7 +127,7 @@ class Stack(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        self._schedule = self._build_schedule()
+        # self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypass PyTorch's setattr for linops."""
@@ -161,39 +161,36 @@ class Stack(NamedLinop):
         return dim, idx, shape
 
     @staticmethod
-    def fn(stack, x, /):
+    def fn(stack, x, /, context=None):
         return stack._fn(
+            stack,
             x,
             stack.linops,
             stack.idim_idx,
             stack.odim_idx,
-            stack.threaded,
-            stack.num_workers,
-            stack._schedule,
+            context,
         )
 
     @staticmethod
-    def adj_fn(stack, x, /):
+    def adj_fn(stack, x, /, context=None):
         adj_linops = [linop.H for linop in stack.linops]
         return stack._fn(
+            stack,
             x,
             adj_linops,
             stack.odim_idx,
             stack.idim_idx,
-            stack.threaded,
-            stack.num_workers,
-            stack._schedule,
+            context,
         )
 
     @staticmethod
     def _fn(
+        stack,
         x: Tensor,
         linops,
         idim_idx,
         odim_idx,
-        threaded: bool = False,
-        num_workers: int | None = None,
-        schedule: Optional[ExecutionSchedule] = None,
+        context,
     ):
         """Unifies forward and adjoint functionality for stacked linops"""
         if idim_idx is not None:  # Diagonal, Horizontal
@@ -207,27 +204,35 @@ class Stack(NamedLinop):
             xs = [x] * len(linops)
 
         if odim_idx is not None:  # Diagonal, Vertical
-            return execute_schedule(
-                None,
-                schedule,
-                x,
+            return parallel_execute(
+                linops,
+                xs,
+                context,
+                parent=stack,
                 reduce_fn=lambda ys: torch.stack(ys, dim=odim_idx),
-                threaded=threaded,
-                num_workers=num_workers,
-                linops_override=linops,
-                inputs_override=xs,
+                threaded=stack.threaded,
+                num_workers=stack.num_workers,
             )
+            # return execute_schedule(
+            #     None,
+            #     schedule,
+            #     x,
+            #     reduce_fn=lambda ys: torch.stack(ys, dim=odim_idx),
+            #     threaded=threaded,
+            #     num_workers=num_workers,
+            #     linops_override=linops,
+            #     inputs_override=xs,
+            # )
 
         # Horizontal
-        return execute_schedule(
-            None,
-            schedule,
-            x,
+        return parallel_execute(
+            linops,
+            xs,
+            context,
+            parent=stack,
             reduce_fn=sum,
-            threaded=threaded,
-            num_workers=num_workers,
-            linops_override=linops,
-            inputs_override=xs,
+            threaded=stack.threaded,
+            num_workers=stack.num_workers,
         )
 
     def size(self, dim) -> int | None:

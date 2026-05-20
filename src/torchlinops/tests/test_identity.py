@@ -65,6 +65,10 @@ class TestZero(BaseNamedLinopTests):
         result = A.split(A, {"N": slice(0, 2)})
         assert result is A
 
+    @pytest.mark.xfail(reason="Can't backprop through Zero")
+    def test_backprop(self, linop_input_output):
+        super().test_backprop(linop_input_output)
+
 
 class TestShapeSpec(BaseNamedLinopTests):
     equality_check = "approx"

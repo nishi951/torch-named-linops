@@ -22,8 +22,8 @@ from ..nameddim import (
 from .add import Add
 from .device import ToDevice
 from .identity import Zero
-from .namedlinop import NamedLinop
-from .schedule import ExecutionSchedule, execute_schedule
+from .namedlinop import NamedLinop, SyncContext
+from .schedule import parallel_execute
 
 __all__ = ["Concat"]
 
@@ -80,6 +80,8 @@ class Concat(NamedLinop):
         Output dimension along which to concatenate.
     """
 
+    is_container = True
+
     def __init__(
         self,
         *linops,
@@ -110,12 +112,16 @@ class Concat(NamedLinop):
         self.threaded = threaded
         self.num_workers = num_workers
         self._linops = nn.ModuleList(list(linops))
-        self._schedule = self._build_schedule()
+        # self._schedule = self._build_schedule()
         self._setup_indices(idim, odim)
 
-    def _build_schedule(self) -> ExecutionSchedule:
-        """Build parallel schedule: all children start immediately."""
-        return ExecutionSchedule({i: [] for i in range(len(self._linops))})
+    # def _build_schedule(self) -> ExecutionSchedule:
+    #     """Build parallel schedule: all children start immediately."""
+    #     return ExecutionSchedule(
+    #         {i: [] for i in range(len(self._linops))},
+    #         threaded=self.threaded,
+    #         num_workers=self.num_workers,
+    #     )
 
     @property
     def linops(self):
@@ -124,7 +130,7 @@ class Concat(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        self._schedule = self._build_schedule()
+        # self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypass PyTorch's setattr for linops."""
@@ -133,55 +139,49 @@ class Concat(NamedLinop):
         else:
             super().__setattr__(name, value)
 
-    @property
-    def settings(self):
-        return {"threaded": self.threaded, "num_workers": self.num_workers}
-
-    @settings.setter
-    def settings(self, new_settings):
-        self.threaded = new_settings["threaded"]
-        self.num_workers = new_settings["num_workers"]
-
     @staticmethod
-    def fn(concat, x):
+    def fn(concat, x, context=None):
         return concat._fn(
+            concat,
             x,
             concat.linops,
             concat.idim_idx,
             concat.odim_idx,
             concat.islices,
             concat.oslices,
-            concat.threaded,
-            concat.num_workers,
-            concat._schedule,
+            # concat.threaded,
+            # concat.num_workers,
+            # concat._schedule,
+            context,
         )
 
     @staticmethod
-    def adj_fn(concat, x):
+    def adj_fn(concat, x, context=None):
         adj_linops = [linop.H for linop in concat.linops]
         return concat._fn(
+            concat,
             x,
             adj_linops,
             concat.odim_idx,
             concat.idim_idx,
             concat.oslices,
             concat.islices,
-            concat.threaded,
-            concat.num_workers,
-            concat._schedule,
+            # concat.threaded,
+            # concat.num_workers,
+            # concat._schedule,
+            context,
         )
 
     @staticmethod
     def _fn(
+        concat,
         x: Tensor,
         linops,
         idim_idx,
         odim_idx,
         islices,
         oslices,
-        threaded: bool = False,
-        num_workers: int | None = None,
-        schedule: Optional[ExecutionSchedule] = None,
+        context,
     ):
         """Unifies forward and adjoint functionality for stacked linops"""
         if idim_idx is not None:  # Diagonal, Horizontal
@@ -194,28 +194,47 @@ class Concat(NamedLinop):
             xs = [x] * len(oslices)
 
         if odim_idx is not None:  # Diagonal, Vertical
-            return execute_schedule(
-                None,  # parent not needed with linops_override
-                schedule,
-                x,
+            return parallel_execute(
+                linops,
+                xs,
+                context,
+                parent=concat,
                 reduce_fn=lambda ys: torch.concatenate(ys, dim=odim_idx),
-                threaded=threaded,
-                num_workers=num_workers,
-                linops_override=linops,
-                inputs_override=xs,
+                threaded=concat.threaded,
+                num_workers=concat.num_workers,
             )
+            # return execute_schedule(
+            #     concat,  # parent not needed with linops_override
+            #     linops,
+            #     xs,
+            #     concat.schedule,
+            #     reduce_fn=lambda ys: torch.concatenate(ys, dim=odim_idx),
+            #     threaded=concat.threaded,
+            #     num_workers=concat.num_workers,
+            #     # linops_override=linops,
+            #     # inputs_override=xs,
+            # )
 
         # Horizontal
-        return execute_schedule(
-            None,
-            schedule,
-            x,
+        return parallel_execute(
+            linops,
+            xs,
+            concat,
+            parent=concat,
             reduce_fn=sum,
-            threaded=threaded,
-            num_workers=num_workers,
-            linops_override=linops,
-            inputs_override=xs,
+            threaded=concat.threaded,
+            num_workers=concat.num_workers,
         )
+        # return execute_schedule(
+        #     None,
+        #     schedule,
+        #     x,
+        #     reduce_fn=sum,
+        #     threaded=threaded,
+        #     num_workers=num_workers,
+        #     linops_override=linops,
+        #     inputs_override=xs,
+        # )
 
     def size(self, dim):
         if dim == self.idim:
@@ -298,8 +317,8 @@ class Concat(NamedLinop):
             if self.idim is None:  # Vertical (inner product)
                 linops = [linop.N for linop in self.linops]
                 linops = standardize_shapes(linops, new_shape)
-                new = Add(*linops)
-                new.settings = self.settings  # Copy Threadable settings
+                new = Add(*linops, threaded=self.threaded, num_workers=self.num_workers)
+                # new.settings = self.settings  # Copy Threadable settings
                 return new
             elif self.odim is None:  # Horizontal (outer product)
                 rows = []

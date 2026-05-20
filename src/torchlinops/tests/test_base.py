@@ -114,10 +114,10 @@ class BaseNamedLinopTests(ABC):
         A, x, y = linop_input_output
 
         x = x.clone().requires_grad_(True)
-        out = A.apply(x)
+        out = A(x)
         if torch.is_complex(out):
             out.real.sum().backward()
         else:
             out.sum().backward()
         grad_out = torch.ones_like(out)
-        assert x.grad.allclose(A.H.apply(grad_out), rtol=1e-3)
+        assert x.grad.allclose(A.H(grad_out), rtol=1e-3)

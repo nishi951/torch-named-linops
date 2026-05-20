@@ -10,7 +10,7 @@ import torchlinops.config as config
 from ..nameddim import NamedShape as NS, isequal, max_shape, standardize_shapes
 from .device import ToDevice
 from .namedlinop import NamedLinop
-from .schedule import ExecutionSchedule, execute_schedule
+from .schedule import parallel_execute
 
 __all__ = ["Add"]
 
@@ -69,7 +69,7 @@ class Add(NamedLinop):
         self.threaded = threaded
         self.num_workers = num_workers
         self._linops = nn.ModuleList(linops)
-        self._schedule = self._build_schedule()
+        # self._schedule = self._build_schedule()
 
     @property
     def linops(self):
@@ -78,7 +78,7 @@ class Add(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        self._schedule = self._build_schedule()
+        # self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypass PyTorch's setattr for linops."""
@@ -87,33 +87,45 @@ class Add(NamedLinop):
         else:
             super().__setattr__(name, value)
 
-    def _build_schedule(self) -> ExecutionSchedule:
-        """Build parallel schedule: all children start immediately."""
-        return ExecutionSchedule({i: [] for i in range(len(self._linops))})
+    # def _build_schedule(self) -> ExecutionSchedule:
+    #     """Build parallel schedule: all children start immediately."""
+    #     return ExecutionSchedule(
+    #         {i: [("parent", "start_event")] for i in range(len(self._linops))}
+    #     )
 
     @staticmethod
-    def fn(add, x: torch.Tensor, /):
-        return execute_schedule(
-            add,
-            add._schedule,
-            x,
+    def fn(add, x: torch.Tensor, /, context=None):
+        return parallel_execute(
+            add.linops,
+            [x] * len(add),
+            context,
             reduce_fn=sum,
+            parent=add,
             threaded=add.threaded,
             num_workers=add.num_workers,
         )
 
     @staticmethod
-    def adj_fn(add, x: torch.Tensor, /):
-        adj_linops = [linop.H for linop in add.linops]
-        return execute_schedule(
-            add,
-            add._schedule,
-            x,
+    def adj_fn(add, x: torch.Tensor, /, context=None):
+        return parallel_execute(
+            [linop.H for linop in add.linops],
+            [x] * len(add),
+            context,
+            parent=add,
             reduce_fn=sum,
             threaded=add.threaded,
             num_workers=add.num_workers,
-            linops_override=adj_linops,
         )
+        # adj_linops = [linop.H for linop in add.linops]
+        # return execute_schedule(
+        #     add,
+        #     add._schedule,
+        #     x,
+        #     reduce_fn=sum,
+        #     threaded=add.threaded,
+        #     num_workers=add.num_workers,
+        #     linops_override=adj_linops,
+        # )
 
     @staticmethod
     def split(add, tile):
