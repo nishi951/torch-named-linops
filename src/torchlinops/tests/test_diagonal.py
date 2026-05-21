@@ -24,7 +24,7 @@ class TestDiagonal(BaseNamedLinopTests):
         return A, x, y
 
 
-@pytest.mark.xfail  # Deprecated behavior: changing a non-() dim to ()
+@pytest.mark.xfail(reason="Deprecated behavior: changing a non-() dim to ()")
 def test_diagonal_shape_renaming():
     M = 10
     weight = torch.randn(M, 1, 1, dtype=torch.complex64)

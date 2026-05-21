@@ -10,7 +10,6 @@ from torch.cuda import Stream
 
 from torchlinops.utils import (
     ModuleMemoryMap,
-    RepeatedEvent,
     batch_iterator,
     default_to,
     dict_product,

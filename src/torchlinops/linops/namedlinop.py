@@ -1,3 +1,4 @@
+import inspect
 import logging
 import traceback
 from collections.abc import Mapping
@@ -9,15 +10,13 @@ from typing import Any, Optional, final
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.cuda import Event, Stream, default_stream
+from torch.cuda import Stream
 
 import torchlinops
 import torchlinops.config as config
 from torchlinops.nameddim import NamedDimension as ND, NamedShape, Shape
 from torchlinops.utils import (
     INDENT,
-    RepeatedEvent,
-    default_to,
     memory_aware_deepcopy,
     memory_aware_to,
 )
@@ -45,22 +44,22 @@ class NamedLinop(nn.Module):
     ----------
     shape : NamedShape
         The named shape of the linop, containing ``ishape`` and ``oshape``.
-    stream : torch.cuda.Stream
-        Optional cuda Stream to run this linop on.
-    start_event : Event, optional
-        An event that signals when the linop has started. Useful for synchronizing
-        multiple linops across multiple devices.
-    end_event : Event, optional
-        An event that signals when the linop has completed. Useful for synchronizing multiple
-        linops across multiple devices.
-    input_listener : tuple(linop, str) or None
-        Pointer to another linop's event attribute. Used to coordinate GPU-to-GPU
-        transfers in parallel execution contexts. When set to a tuple like
-        ``(some_linop, "start_event")``, the device transfer will wait for that
-        event to be recorded before initiating the transfer.
+    stream : torch.cuda.Stream, optional
+        CUDA stream to run the linop on. Ignored if the input is not CUDA.
+    is_container : bool
+        Set to ``True`` for linops whose primary function is to hold other linops.
     """
 
-    def __init__(self, shape: NamedShape, name: Optional[str] = None, **kwargs):
+    is_container: bool = False
+    """Set to True for linops whose primary function is to hold other linops."""
+
+    def __init__(
+        self,
+        shape: NamedShape,
+        name: Optional[str] = None,
+        stream: Optional[Stream] = None,
+        **kwargs,
+    ):
         """
         Parameters
         ----------
@@ -68,6 +67,8 @@ class NamedLinop(nn.Module):
             The shape of this linop, e.g. ``NamedShape(("N",), ("M",))``
         name : str, optional
             Optional name to display for this linop.
+        stream : torch.cuda.Stream, optional
+            Stream to run the linop on. If the input is not CUDA, this is ignored.
         """
         super().__init__(**kwargs)
         # Note: this attribute is private because the `.shape` attribute may be derived
@@ -75,26 +76,17 @@ class NamedLinop(nn.Module):
         self._shape = shape
         self._suffix = ""
         self._name = name
+        self.stream = stream
         self._setup()
 
     def _setup(self):
         """Helper method that should be called to reset the linop's state.
         Should be performed after any substantial changes to the linop."""
         self.reset_adjoint_and_normal()
-        self.stream = None
-        self.start_event = None
-        self.end_event = None
-        self._input_listener = ForwardedAttribute()
-        # By default, listen for the start of this linop
-        self.input_listener = (self, "start_event")
 
     @final
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, context: Optional["SyncContext"] = None) -> Tensor:
         """Apply the forward operation $y = A(x)$.
-
-        If a CUDA stream is assigned, execution is dispatched to that stream.
-        If a ``start_event`` is set, it is recorded before execution begins,
-        allowing other operators to synchronize on it.
 
         Do not override this method. Instead, override .fn() and .adj_fn().
 
@@ -102,30 +94,34 @@ class NamedLinop(nn.Module):
         ----------
         x : Tensor
             Input tensor.
+        context: SyncContext, optional
+            Additional context for this linop's execution.
+            Used for multi-gpu synchronization.
 
         Returns
         -------
         Tensor
             The result of applying this linop to *x*.
         """
-        if x.is_cuda:  # pragma: no cover
-            stream = default_to(default_stream(x.device), self.stream)
-            self.start_event = stream.record_event()
-            with torch.cuda.stream(stream):
-                y = self.fn(self, x)
-            x.record_stream(stream)
-            self.end_event = stream.record_event()
-        else:
-            y = self.fn(self, x)
-        return y
 
-    def apply(self, x: Tensor) -> Tensor:
-        """Apply the linear operator to a tensor."""
-        return LinopFunction.apply(x, self)
+        if "context" in inspect.signature(self.fn).parameters:
+            context = SyncContext(
+                linop=type(self),
+                input_device=x.device,
+                parent=context,
+            )
+            return self._run(x, context)
+        return self._run(x)
+
+    def _run(self, x, *args, **kwargs):
+        if self.stream is not None:
+            with torch.cuda.stream(self.stream):
+                return self.fn(self, x, *args, **kwargs)
+        return self.fn(self, x, *args, **kwargs)
 
     # Override
     @staticmethod
-    def fn(linop, x: Tensor, /) -> Tensor:
+    def fn(linop, x: Tensor, /, context=None) -> Tensor:
         """Compute the forward operation $y = A(x)$.
 
         Override this in subclasses to define the linop's forward behavior.
@@ -136,6 +132,9 @@ class NamedLinop(nn.Module):
             The linop instance (passed explicitly because this is a staticmethod).
         x : Tensor
             Input tensor.
+        context : SyncContext, optional
+            Execution context containing synchronization events for multi-GPU
+            coordination. Only relevant for CUDA inputs.
 
         Returns
         -------
@@ -151,7 +150,7 @@ class NamedLinop(nn.Module):
 
     # Override
     @staticmethod
-    def adj_fn(linop, x: Tensor, /) -> Tensor:
+    def adj_fn(linop, x: Tensor, /, context: Optional["SyncContext"] = None) -> Tensor:
         """Compute the adjoint operation $y = A^H(x)$.
 
         Override this in subclasses to define the linop's adjoint behavior.
@@ -162,6 +161,9 @@ class NamedLinop(nn.Module):
             The linop instance.
         x : Tensor
             Input tensor.
+        context : SyncContext, optional
+            Execution context containing synchronization events for multi-GPU
+            coordination. Only relevant for CUDA inputs.
 
         Returns
         -------
@@ -172,7 +174,9 @@ class NamedLinop(nn.Module):
 
     # Override
     @staticmethod
-    def normal_fn(linop, x: Tensor, /) -> Tensor:
+    def normal_fn(
+        linop, x: Tensor, /, context: Optional["SyncContext"] = None
+    ) -> Tensor:
         """Compute the normal operation $y = A^H A(x)$.
 
         The default implementation composes ``adj_fn(fn(x))``. Override this
@@ -185,12 +189,22 @@ class NamedLinop(nn.Module):
             The linop instance.
         x : Tensor
             Input tensor.
+        context : SyncContext, optional
+            Execution context containing synchronization events for multi-GPU
+            coordination. Only relevant for CUDA inputs.
 
         Returns
         -------
         Tensor
             Result of applying $A^H A$ to *x*.
         """
+        if "context" in inspect.signature(linop.fn).parameters:
+            return linop.adj_fn(
+                linop,
+                linop.fn(linop, x, context=context),
+                context=context,
+            )
+
         return linop.adj_fn(linop, linop.fn(linop, x))
 
     @staticmethod
@@ -478,10 +492,6 @@ class NamedLinop(nn.Module):
 
     def __repr__(self):
         out = f"{self.repr_name}({self.ishape} -> {self.oshape})"
-        if self.start_event is not None:  # pragma: no cover
-            out += f", start: {self.start_event.event_id:x}"
-        if self.end_event is not None:  # pragma: no cover
-            out += f", end: {self.end_event.event_id:x}"
         out = INDENT.indent(out)
         return out
 
@@ -546,47 +556,6 @@ class NamedLinop(nn.Module):
             return memory_aware_to(self, device)
         return super().to(device)
 
-    @property
-    def input_listener(self):
-        """Pointer to another linop event attribute.
-
-        Useful for facilitating gpu-gpu transfers in parallel.
-
-        For example, if ToDevice occurs inside a composing linop that allows for
-        parallel execution, e.g.
-
-        C = Concat(
-            Chain(ToDevice1, A, ...),
-            Chain(ToDevice2, B, ...),
-            ...
-        )
-
-        Then we may want to set ToDevice1 and ToDevice2 to both listen for the beginning of C.
-        That way, both device movements can be triggered in parallel.
-
-        This attribute is a universal attribute so that it can be chained in cases of nesting, e.g.
-        Add(
-            Concat(
-                Chain(ToDevice, ...), ...
-                ...
-            )
-        )
-        The innermost ToDevice can listens to Chain, which listens to Concat, which listens to Add.
-        This is good because Concat and Add both can parallelize efficiently across multiple GPUs.
-        """
-        return self._input_listener.value
-
-    @input_listener.setter
-    def input_listener(self, value):
-        if isinstance(value, tuple):
-            _log_transfer(
-                f"Setting {type(self).__name__}.input_listener to reference {type(value[0]).__name__}.{value[1]}"
-            )
-            self._input_listener.forward_to(*value)
-        else:
-            _log_transfer(f"Setting {type(self).__name__}.input_listener to {value}")
-            self._input_listener = value
-
     def __copy__(self):
         """Specialized copying for linops.
 
@@ -650,101 +619,59 @@ def new_normal_adjoint(self):
     return adj
 
 
-class LinopFunction(torch.autograd.Function):
-    """Wrap a linop in an autograd function.
-
-    At one point, this may have helped with memory usage in some cases.
-
-    Experimental.
-    """
-
-    @staticmethod
-    def forward(input_, linop):
-        return linop(input_)
-
-    @staticmethod
-    def setup_context(ctx, inputs, output):
-        input_, linop = inputs
-        ctx.linop = linop
-        ctx.input_shape = input_.shape
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        grad_input = grad_linop = None
-        linop = ctx.linop
-        input_shape = ctx.input_shape
-        grad_input = linop.H(grad_output)
-        grad_input = torch.broadcast_to(grad_input, input_shape)
-        return grad_input, grad_linop
-
-
 @dataclass
-class ForwardedAttribute:
-    """Special dataclass for forwarding attribute access to other objects.
+class SyncContext:
+    """Holds execution metadata for linop calls, propagated hierarchically through the call stack.
 
-    Enables cross-linop attribute forwarding, primarily used for coordinating
-    GPU transfers via the ``input_listener`` mechanism. When a linop's
-    ``input_listener`` is set to a tuple ``(other_linop, "attribute_name")``,
-    the ForwardedAttribute transparently forwards attribute access to the
-    referenced linop.
+    Created fresh on each ``forward()`` call. Carries a ``start_event`` that
+    marks "everything before this point is done" for CUDA synchronization.
 
-    Works best when combined with a @property.
+    Container linops (``is_container = True``) record a CUDA event on the input
+    device's current stream. Their child linops reuse this event rather than
+    recording new ones, ensuring all children of a parallel container start from
+    the same synchronization point.
 
-    Example:
+    Non-container linops that are children of non-containers record their own
+    fresh event.
 
-    class MyClass:
-        def __init__(self):
-            self._foo = ForwardedAttribute()
-        @property
-        def foo(self):
-            return self._foo.value
-
-        @foo.setter
-        def foo(self, new_value):
-            if isinstance(new_value, tuple):
-                self._foo.forward_to(*new_value)
-            else:
-                self._foo = new_value
-
+    Attributes
+    ----------
+    linop : type[NamedLinop]
+        Class of the linop that owns this context.
+    input_device : torch.device
+        Device of the input tensor to this linop.
+    parent : SyncContext, optional
+        Calling context from the parent linop. ``None`` at the top level.
+    start_event : torch.cuda.Event, optional
+        Synchronization event. Reused from parent if parent is a container;
+        otherwise recorded fresh on the current stream of the input device.
     """
 
-    allow_set_upstream: bool = True
-    """If true, allow setting this value to affect upstream values."""
-    _value: Optional[Any] = None
-    _obj: Optional[Any] = None
-    _attr: Optional[Any] = None
+    linop: type[NamedLinop]
+    """Class of linop that owns this context"""
+    input_device: torch.device
+    """Device of input to this linop"""
+    parent: Optional["SyncContext"] = None
+    """Calling context."""
+    start_event: torch.cuda.Event | None = None
+    """Automatically propagate from parent if parent is parallelizable.
+    Otherwise, record an event on the current stream of the input device"""
 
-    @property
-    def value(self):
-        if self._obj is None:
-            # No object to forward to
-            return self._value
-        elif self._value is not None:
-            # A preset value overrides forwarded reference
-            return self._value
-        return getattr(self._obj, self._attr)
-
-    @value.setter
-    def value(self, new_value):
-        if self._obj is None:
-            # No object to forward to
-            self._value = new_value
-        elif self.allow_set_upstream:
-            setattr(self._obj, self._attr, new_value)
-        else:
-            # Don't overwrite upstream
-            self._value = new_value
-
-            # Clear pointer
-            self._obj = None
-            self._attr = None
-
-    def forward_to(self, obj, attr):
-        """Create reference"""
-        self._obj = obj
-        self._attr = attr
-        self._value = None  # Reset value
-
-    @property
-    def is_forwarded(self) -> bool:
-        return self._obj is not None
+    def __post_init__(self):
+        if self.input_device.type == "cuda":
+            if (
+                self.parent is not None
+                and self.parent.linop.is_container
+                and self.parent.start_event is not None
+            ):
+                logger.debug(
+                    f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} reusing event {self.parent.start_event}"
+                )
+                self.start_event = self.parent.start_event
+            if self.start_event is None and self.linop.is_container:
+                self.start_event = torch.cuda.current_stream(
+                    self.input_device
+                ).record_event()
+                logger.debug(
+                    f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} recorded event {self.start_event} on {self.input_device} stream {torch.cuda.current_stream(self.input_device)}"
+                )

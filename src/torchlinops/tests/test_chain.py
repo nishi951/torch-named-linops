@@ -89,37 +89,38 @@ def test_chain_size_conflicting_raises():
         C.size("M")
 
 
-class TestSharedLinopCopying:
-    """Tests for automatic shallow copying of shared linops in Chain."""
+class TestSharedLinopIdentity:
+    """Tests that shared linops in Chain preserve identity (no copying)."""
 
-    def test_chain_shared_linop_copies(self):
-        """Shared linop in Chain should be copied."""
+    def test_chain_shared_linop_not_copied(self):
+        """Shared linop in Chain should be the same object."""
         A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
         chain = Chain(A, A)
 
-        assert chain.linops[0] is not chain.linops[1]
+        assert chain.linops[0] is A
+        assert chain.linops[0] is chain.linops[1]
 
-    def test_chain_shared_linop_shallow_copy(self):
-        """Shallow copy should share tensor storage."""
+    def test_chain_shared_linop_shallow_storage(self):
+        """Same linop shares tensor storage (trivially, since it's the same object)."""
         A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
         chain = Chain(A, A)
 
         assert chain.linops[0].weight.data_ptr() == chain.linops[1].weight.data_ptr()
 
-    def test_chain_multiple_shared_copies(self):
-        """Multiple copies of same linop should all be independent objects."""
+    def test_chain_multiple_shared_not_copied(self):
+        """Multiple references to same linop should all be the same object."""
         A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
         chain = Chain(A, A, A)
 
-        assert chain.linops[0] is not chain.linops[1]
-        assert chain.linops[1] is not chain.linops[2]
-        assert chain.linops[0] is not chain.linops[2]
+        assert chain.linops[0] is chain.linops[1]
+        assert chain.linops[1] is chain.linops[2]
+        assert chain.linops[0] is chain.linops[2]
 
         assert chain.linops[0].weight.data_ptr() == chain.linops[1].weight.data_ptr()
         assert chain.linops[1].weight.data_ptr() == chain.linops[2].weight.data_ptr()
 
-    def test_chain_execution_after_copy(self):
-        """Chain should execute correctly after copying shared linops."""
+    def test_chain_execution_with_shared_linops(self):
+        """Chain should execute correctly with shared linops."""
         A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
         chain = Chain(A, A)
 
@@ -127,15 +128,10 @@ class TestSharedLinopCopying:
         y = chain(x)
         assert y.shape == (4,)
 
-    def test_chain_input_listener_independent(self):
-        """Copied linops in Chain should have independent input_listener references."""
-        A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
-        chain = Chain(A, A)
+    # def test_chain_schedule_is_sequential(self):
+    #     """Chain should have a sequential schedule."""
+    #     A = Dense(torch.randn(4, 4), ("M", "M"), ("M",), ("M",))
+    #     chain = Chain(A, A)
 
-        first = chain.linops[0]
-        second = chain.linops[1]
-        assert first._input_listener._obj == chain
-        assert first._input_listener._attr == "input_listener"
-        assert id(second._input_listener._obj) != id(first._input_listener._obj)
-        assert second._input_listener._attr != first._input_listener._attr
-        assert chain.linops[0] is not chain.linops[1]
+    #     assert chain._schedule.is_sequential
+    #     assert not chain._schedule.is_parallel

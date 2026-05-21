@@ -58,7 +58,6 @@ class NamedDimCollection:
     @property
     def shapes(self) -> dict:
         """The shapes in this collection."""
-        # return list(self.idx.keys())
         return {shape_name: self._lookup(shape_name) for shape_name in self.idx.keys()}
 
     def __getattr__(self, key):

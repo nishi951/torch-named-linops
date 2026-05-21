@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 import torchlinops.config as config
-from torchlinops.utils import INDENT, RepeatedEvent
+from torchlinops.utils import INDENT
 
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .device import ToDevice
@@ -33,6 +33,8 @@ class Chain(NamedLinop):
         The constituent linops in **execution order** (inner to outer).
     """
 
+    is_container = True
+
     def __init__(self, *linops, name: Optional[str] = None):
         """
         Parameters
@@ -44,6 +46,8 @@ class Chain(NamedLinop):
             Display name for this chain.
         """
         super().__init__(NS(linops[0].ishape, linops[-1].oshape), name=name)
+        if len(linops) == 0:
+            raise ValueError(f"Chain must contain at least one linop.")
         self.linops = nn.ModuleList(list(linops))
         self._check_inputs_outputs()
 
@@ -54,7 +58,6 @@ class Chain(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        self._setup_events()
 
     def __setattr__(self, name, value):
         """Bypasses pytorch's setattr, just for linops"""
@@ -73,28 +76,27 @@ class Chain(NamedLinop):
                 )
             curr_shape = linop.oshape
 
-    def _setup_events(self):
-        """Copy every linop and point initial linop listener at Chain's input listener."""
-        self._linops = nn.ModuleList([copy(linop) for linop in self._linops])
-        self._linops[0].input_listener = (self, "input_listener")
-
     @staticmethod
-    def fn(chain, x: torch.Tensor, /):
-        for linop in chain.linops:
+    def fn(chain, x: torch.Tensor, context=None):
+        x = chain[0](x, context)  # First linop inherits context
+        for linop in chain.linops[1:]:
             x = linop(x)
         return x
 
     @staticmethod
-    def adj_fn(chain, x: torch.Tensor, /):
-        for linop in reversed(chain.linops):
+    def adj_fn(chain, x: torch.Tensor, context=None):
+        linops = list(reversed(chain.linops))
+        x = linops[0].H(x, context)
+        for linop in linops[1:]:
             x = linop.H(x)
         return x
 
-    # @staticmethod
-    # def normal_fn(chain, x: torch.Tensor):
-    #     # fn does the reversing so it's unnecessary to do it here
-    #     # If the normal hasn't been explicitly formed with`.N`, do things the naive way
-    #     return chain.adj_fn(chain, chain.fn(chain, x))
+    @staticmethod
+    def normal_fn(chain, x: torch.Tensor, context=None):
+        # fn does the reversing so it's unnecessary to do it here
+        # If the normal hasn't been explicitly formed with`.N`, do things the naive way
+        # Only the inner chain.fn inherits context
+        return chain.adj_fn(chain, chain.fn(chain, x, context), context=None)
 
     @staticmethod
     def split(chain, tile: Mapping[ND | str, slice]):
@@ -206,15 +208,8 @@ class Chain(NamedLinop):
         with INDENT:
             for linop in self.linops:
                 output += repr(linop) + "\n"
-
-            if self.start_event is not None:
-                output += INDENT.indent(f"start: {self.start_event.event_id:x}\n")
-            if self.end_event is not None:
-                output += INDENT.indent(f"end: {self.end_event.event_id:x}\n")
         output += INDENT.indent(")")
         return output
 
     def __copy__(self):
-        new = super().__copy__()
-        new._setup_events()
-        return new
+        return super().__copy__()

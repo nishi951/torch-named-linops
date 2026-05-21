@@ -88,7 +88,11 @@ class Rearrange(NamedLinop):
                 new_axes_lengths[dim] = slicelen(n, slc)
 
         out = type(rearrange)(
-            rearrange.ipattern, rearrange.opattern, rearrange.ishape, rearrange.oshape, new_axes_lengths
+            rearrange.ipattern,
+            rearrange.opattern,
+            rearrange.ishape,
+            rearrange.oshape,
+            new_axes_lengths,
         )
         return out
 
@@ -242,9 +246,6 @@ class Repeat(NamedLinop):
     @property
     def broadcast_dims(self):
         return self._shape.broadcast_dims
-
-    def forward(self, x):
-        return self.fn(self, x)
 
     @staticmethod
     def fn(linop, x, /):

@@ -50,19 +50,6 @@ def to_pytorch(array, requires_grad: bool = False):
     """
     return torch.as_tensor(array).requires_grad_(requires_grad)
 
-    # import torch
-    # from torch.utils.dlpack import from_dlpack
-
-    # device = get_device(array)
-
-    # if device.type == "cpu":
-    #     tensor = torch.from_numpy(array)
-    # else:
-    #     tensor = from_dlpack(array.toDlpack())
-
-    # tensor.requires_grad = requires_grad
-    # return tensor.contiguous()
-
 
 def from_pytorch(tensor):  # pragma: no cover
     """Zero-copy conversion from pytorch tensor to numpy/cupy array.
