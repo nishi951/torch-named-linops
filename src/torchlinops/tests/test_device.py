@@ -8,14 +8,16 @@ import torch
 from torch.cuda import default_stream
 from torch.testing import assert_close
 
+import torchlinops.config as config
+from torchlinops.cuda_trace import cuda_logger
 from torchlinops import (
     Add,
     Chain,
     Concat,
     Dense,
-    DeviceSpec,
     Dim,
     NamedDimension as ND,
+    Sleep,
     Stack,
     ToDevice,
 )
@@ -81,39 +83,15 @@ def test_todevice_streams():
     print(D2D2)
 
 
-def _slow_matmul_chain(N: int, chain_length: int = 5):
-    """Make arbitrary-length chains of random dense linops.
+def _slow_linop(N: int, sleep_duration: float = 0.1):
+    """Make a slow linop: single Dense matmul plus a Sleep.
 
-    Useful for making really slow linops.
+    Useful for making really slow linops without chaining many Dense ops.
     """
-    in_dim = ND("N")
-    out_dim = ND("M")
     weight = torch.randn(N, N)
-    if chain_length == 1:
-        return Dense(weight, Dim("MN"), Dim("N"), Dim("M"))
-    next_out_dim = in_dim + 1
-    A = Dense(
-        weight,
-        weightshape=(next_out_dim, in_dim),
-        ishape=(in_dim,),
-        oshape=(next_out_dim,),
-    )
-    in_dim = next_out_dim
-    next_out_dim = next_out_dim + 1
-    for i in range(chain_length - 1):
-        weight = torch.randn(N, N)
-        if i == chain_length - 2:
-            next_out_dim = out_dim
-        B = Dense(
-            weight,
-            weightshape=(next_out_dim, in_dim),
-            ishape=(in_dim,),
-            oshape=(next_out_dim,),
-        )
-        A = B @ A
-        in_dim = next_out_dim
-        next_out_dim = next_out_dim + 1
-    return A
+    dense = Dense(weight, Dim("MN"), Dim("N"), Dim("M"))
+    sleep = Sleep(sleep_duration, ioshape=(ND("M"),))
+    return sleep @ dense
 
 
 @pytest.mark.gpu
@@ -193,24 +171,16 @@ def test_gpu2gpu_sanity_check():
     ### GPU1 -> GPU0
     # Input
     x = torch.randn(N)
-    # Event
-    device_spec = DeviceSpec(gpu0)
-    device_spec.p2p_setup(gpu1)
 
     # Prepare
     x = x.to(base_device)
-    source_stream = default_stream(x.device)
-    transfer_stream = device_spec.transfer_stream
+    transfer_stream = torch.cuda.Stream(gpu0)
     target_stream = default_stream(gpu1)
-
-    input_ready_event = source_stream.record_event()
 
     y = _gpu2gpu_transfer(
         x,
         target_stream,
-        # gpu1,
         transfer_stream,
-        # input_ready_event,
     )
 
     torch.cuda.synchronize(gpu0)
@@ -221,21 +191,14 @@ def test_gpu2gpu_sanity_check():
 
     ### GPU1 -> GPU0
 
-    # Event
-    device_spec = DeviceSpec(gpu1)
-    device_spec.p2p_setup(gpu0)
     x = x.to(gpu1)
-    source_stream = default_stream(x.device)
-    transfer_stream = device_spec.transfer_stream
+    transfer_stream = torch.cuda.Stream(gpu1)
     target_stream = default_stream(gpu0)
-    input_ready_event = source_stream.record_event()
 
     y2 = _gpu2gpu_transfer(
         x,
-        # gpu0,
         target_stream,
         transfer_stream,
-        # input_ready_event,
     )
     torch.cuda.synchronize(gpu0)
     torch.cuda.synchronize(gpu1)
@@ -317,11 +280,12 @@ def test_gpu2gpu_roundtrip():
     assert_close(y.cpu(), x.cpu())
 
 
-def trace_handler(prof, OnDevice, base_device):
+def trace_handler(prof, OnDevice, base_device, threaded):
     prof.export_chrome_trace(
-        f"./{type(OnDevice).__name__}_{base_device.type}_trace.json"
+        f"./{type(OnDevice).__name__}_{base_device.type}_{'noThreaded' if not threaded else 'threaded'}_trace.json"
     )
-    assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
+    if threaded:
+        assert_gpus_overlap(prof, min_overlap_ms=0.0, min_overlap_ratio=0.1)
 
 
 @pytest.mark.gpu
@@ -330,15 +294,22 @@ def trace_handler(prof, OnDevice, base_device):
     reason="2 GPUs are required for this test",
 )
 @pytest.mark.parametrize(
-    "CombineOp,base_device",
+    "CombineOp,base_device,threaded",
     list(
-        pytest.param(op, dev, id=f"{op.func.__name__}-{dev.type}")
-        for op, dev in product(
-            PARALLELIZABLE_LINOPS, [torch.device("cpu"), torch.device("cuda:0")]
+        pytest.param(
+            op,
+            dev,
+            threaded,
+            id=f"{op.func.__name__}-{dev.type}-{'no-' if not threaded else ''}threaded",
+        )
+        for op, dev, threaded in product(
+            PARALLELIZABLE_LINOPS,
+            [torch.device("cpu"), torch.device("cuda:0")],
+            [True, False],
         )
     ),
 )
-def test_multigpu_parallelism(CombineOp, base_device):
+def test_multigpu_parallelism(CombineOp, base_device, threaded):
     gpu0 = torch.device("cuda:0")
     gpu1 = torch.device("cuda:1")
 
@@ -348,15 +319,14 @@ def test_multigpu_parallelism(CombineOp, base_device):
     x = torch.randn(N)
 
     # Linop
-    chain_length = 4
-    A1 = _slow_matmul_chain(N, chain_length)
-    A2 = _slow_matmul_chain(N, chain_length)
+    A1 = _slow_linop(N)
+    A2 = _slow_linop(N)
 
     # True value (on cpu)
     # OffDevice = CombineOp(A1, A2)
     # y_true = OffDevice(x)
     logger.info("Building OffDevice linop")
-    OffDevice = CombineOp(A1, A2)
+    OffDevice = CombineOp(A1, A2, threaded=False)  # Purely sequential
     y_true = OffDevice(x)
 
     # Move to GPU
@@ -373,10 +343,40 @@ def test_multigpu_parallelism(CombineOp, base_device):
             deepcopy(A2).to(gpu1),
             ToDevice(gpu1, base_device, ioshape=A2.oshape),
         ),
+        threaded=threaded,
     )
 
-    # Warmup
-    _ = OnDevice(x)
+    # DEBUG
+    x_fresh = torch.randn(N, device=gpu1)
+    for i in range(5):
+        y = OnDevice[1][1](x_fresh)
+        print(f"Iter {i} has_nan={torch.isnan(y).any().item()}")
+
+    # Special stack test for individual linops
+    if isinstance(OnDevice, Stack):
+        # DEBUG
+        x_gpu1 = x.to(gpu1)
+        x_gpu1_orig = x_gpu1.clone()
+        y_gpu1_orig = OnDevice[1][1](x_gpu1)
+        for i in range(3):
+            y_gpu1_new = OnDevice[1][1](x_gpu1)
+            assert torch.allclose(x_gpu1, x_gpu1_orig)
+            assert_close(y_gpu1_new, y_gpu1_orig, atol=1e1, rtol=1e0)
+        y_gpu1 = OnDevice[1][1](x_gpu1)
+        y_gpu1 = OnDevice[1][1](x_gpu1)
+
+        y_true0 = OffDevice[0](x.cpu())
+        y_true1 = OffDevice[1](x.cpu())
+        y0 = OnDevice[0](x)
+        y1 = OnDevice[1](x)
+        assert_close(y0.cpu(), y_true0, atol=1e1, rtol=1e0)
+        assert_close(y1.cpu(), y_true1, atol=1e1, rtol=1e0)
+        assert_close(y_gpu1.cpu(), y_true1, atol=1e1, rtol=1e0)
+
+    # Show dependency graph
+    with config.using(log_cuda_events=True, log_device_transfers=True):
+        _ = OnDevice(x)
+        print(cuda_logger.display(reset=True))
 
     wait, warmup, active = 2, 2, 1
     with torch.profiler.profile(
@@ -391,7 +391,7 @@ def test_multigpu_parallelism(CombineOp, base_device):
             active=active,  # actually capture these
         ),
         on_trace_ready=partial(
-            trace_handler, OnDevice=OnDevice, base_device=base_device
+            trace_handler, OnDevice=OnDevice, base_device=base_device, threaded=threaded
         ),
     ) as prof:
         for _ in range(wait + warmup + active):
@@ -406,6 +406,11 @@ def test_multigpu_parallelism(CombineOp, base_device):
     assert y.device.type == base_device.type
 
     # Correctness
+    # Special stack test for individual linops
+    if isinstance(CombineOp, Stack):
+        assert_close(y[0].cpu(), y0.cpu(), atol=1e1, rtol=1e0)
+        assert_close(y[1].cpu(), y1.cpu(), atol=1e1, rtol=1e0)
+
     assert_close(y.cpu(), y_true, atol=1e1, rtol=1e0)
 
 

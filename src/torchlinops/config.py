@@ -21,6 +21,9 @@ cache_adjoint_normal : bool
 log_device_transfers : bool
     If True, log CUDA events creation, stream synchronization, and device transfers
     in the ToDevice linop and related utilities. Default is True.
+log_cuda_events : bool
+    If True, record CUDA synchronization (record_event, wait_event, wait_stream)
+    as a labeled dependency graph. View with ``cuda_logger.display()``. Default is False.
 """
 
 import warnings
@@ -29,15 +32,19 @@ import torchlinops
 
 # Global config variables
 # If True, completely eliminate any inner Identity linops inside a normal(inner) call
-reduce_identity_in_normal = True
+reduce_identity_in_normal: bool = True
 
 # If True, cache .H and .N results. Deprecated - caching adds complexity and
 # can cause stale state issues. Will be removed in version 0.7.0.
-cache_adjoint_normal = False
+cache_adjoint_normal: bool = False
 
 # If True, log CUDA events creation, stream synchronization, and device transfers
 # in the ToDevice linop and related utilities.
-log_device_transfers = True
+log_device_transfers: bool = True
+
+# If True, log CUDA record_event/wait_event/wait_stream calls as a dependency
+# graph for visualization. Use cuda_logger.display() to view the trace.
+log_cuda_events: bool = False
 
 
 def inner_not_relevant(inner):
@@ -73,6 +80,7 @@ class ConfigContext:
         "reduce_identity_in_normal",
         "cache_adjoint_normal",
         "log_device_transfers",
+        "log_cuda_events",
     }
 
     def __init__(self, **kwargs: bool) -> None:
@@ -108,11 +116,12 @@ def using(**kwargs: bool) -> ConfigContext:
 
     Parameters
     ----------
-    **kwargs : bool
-        Config values to temporarily set. Valid keys are:
-        - reduce_identity_in_normal
-        - cache_adjoint_normal
-        - log_device_transfers
+        **kwargs : bool
+            Config values to temporarily set. Valid keys are:
+            - reduce_identity_in_normal
+            - cache_adjoint_normal
+            - log_device_transfers
+            - log_cuda_events
 
     Returns
     -------

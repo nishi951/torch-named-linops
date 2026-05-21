@@ -27,7 +27,7 @@ def test_new_dict():
     assert shape.axes_lengths[ND.infer("E")] == 2
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(reason="Deprecated behavior")
 def test_random_attribute():
     shape = NS(("A", "B", ("C",)))
     # This should be ok

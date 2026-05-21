@@ -131,19 +131,6 @@ def isequal(
     return bool(ptrs[-1][-1])
 
 
-# def get_assignments(ptrs):
-#     """Assign indices from first to second sequence."""
-#     len_shape1 = len(ptrs[0]) - 1
-#     len_shape2 = len(ptrs) - 1
-#     assignment = defaultdict(list)
-#     row = 1
-#     for col in range(1, len_shape1 + 1):
-#         while row < len_shape2 + 1 and ptrs[row][col]:
-#             assignment[col - 1].append(row - 1)
-#             row += 1
-#     return assignment
-
-
 def iscompatible(
     shape1: Sequence,
     shape2: Sequence,

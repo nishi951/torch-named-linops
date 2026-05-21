@@ -65,15 +65,6 @@ class Pad(NamedLinop):
         self.pad_im_size = tuple(pad_im_size)
         self.in_im_size = tuple(im_size)
         self.out_im_size = tuple(pad_im_size)
-        # for psz in pad_im_size:
-        #     assert not (psz % 2), "Pad sizes must be even"
-
-        # sizes = [
-        #     [(psz - isz) // 2] * 2
-        #     for psz, isz in zip(self.out_im_size, self.in_im_size)
-        # ]
-        # self.pad = sum(sizes, start=[])
-        # self.pad.reverse()
 
         self.pad = pad_to_size(self.im_size, self.pad_im_size)
 
