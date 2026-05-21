@@ -112,16 +112,7 @@ class Concat(NamedLinop):
         self.threaded = threaded
         self.num_workers = num_workers
         self._linops = nn.ModuleList(list(linops))
-        # self._schedule = self._build_schedule()
         self._setup_indices(idim, odim)
-
-    # def _build_schedule(self) -> ExecutionSchedule:
-    #     """Build parallel schedule: all children start immediately."""
-    #     return ExecutionSchedule(
-    #         {i: [] for i in range(len(self._linops))},
-    #         threaded=self.threaded,
-    #         num_workers=self.num_workers,
-    #     )
 
     @property
     def linops(self):
@@ -130,7 +121,6 @@ class Concat(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        # self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypass PyTorch's setattr for linops."""
@@ -149,9 +139,6 @@ class Concat(NamedLinop):
             concat.odim_idx,
             concat.islices,
             concat.oslices,
-            # concat.threaded,
-            # concat.num_workers,
-            # concat._schedule,
             context,
         )
 
@@ -166,9 +153,6 @@ class Concat(NamedLinop):
             concat.idim_idx,
             concat.oslices,
             concat.islices,
-            # concat.threaded,
-            # concat.num_workers,
-            # concat._schedule,
             context,
         )
 
@@ -203,17 +187,6 @@ class Concat(NamedLinop):
                 threaded=concat.threaded,
                 num_workers=concat.num_workers,
             )
-            # return execute_schedule(
-            #     concat,  # parent not needed with linops_override
-            #     linops,
-            #     xs,
-            #     concat.schedule,
-            #     reduce_fn=lambda ys: torch.concatenate(ys, dim=odim_idx),
-            #     threaded=concat.threaded,
-            #     num_workers=concat.num_workers,
-            #     # linops_override=linops,
-            #     # inputs_override=xs,
-            # )
 
         # Horizontal
         return parallel_execute(
@@ -225,16 +198,6 @@ class Concat(NamedLinop):
             threaded=concat.threaded,
             num_workers=concat.num_workers,
         )
-        # return execute_schedule(
-        #     None,
-        #     schedule,
-        #     x,
-        #     reduce_fn=sum,
-        #     threaded=threaded,
-        #     num_workers=num_workers,
-        #     linops_override=linops,
-        #     inputs_override=xs,
-        # )
 
     def size(self, dim):
         if dim == self.idim:
@@ -318,7 +281,6 @@ class Concat(NamedLinop):
                 linops = [linop.N for linop in self.linops]
                 linops = standardize_shapes(linops, new_shape)
                 new = Add(*linops, threaded=self.threaded, num_workers=self.num_workers)
-                # new.settings = self.settings  # Copy Threadable settings
                 return new
             elif self.odim is None:  # Horizontal (outer product)
                 rows = []
@@ -337,7 +299,6 @@ class Concat(NamedLinop):
                             linops=row, shape=new_shape, idim=new_idim, odim=None
                         )
                     )
-                # rows = standardize_shapes(rows, new_shape)
                 return self.spinoff(rows, shape=new_shape, idim=None, odim=new_odim)
             else:  # Diagonal
                 diag = []

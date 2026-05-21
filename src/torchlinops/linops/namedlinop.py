@@ -44,6 +44,10 @@ class NamedLinop(nn.Module):
     ----------
     shape : NamedShape
         The named shape of the linop, containing ``ishape`` and ``oshape``.
+    stream : torch.cuda.Stream, optional
+        CUDA stream to run the linop on. Ignored if the input is not CUDA.
+    is_container : bool
+        Set to ``True`` for linops whose primary function is to hold other linops.
     """
 
     is_container: bool = False
@@ -128,6 +132,9 @@ class NamedLinop(nn.Module):
             The linop instance (passed explicitly because this is a staticmethod).
         x : Tensor
             Input tensor.
+        context : SyncContext, optional
+            Execution context containing synchronization events for multi-GPU
+            coordination. Only relevant for CUDA inputs.
 
         Returns
         -------
@@ -154,6 +161,9 @@ class NamedLinop(nn.Module):
             The linop instance.
         x : Tensor
             Input tensor.
+        context : SyncContext, optional
+            Execution context containing synchronization events for multi-GPU
+            coordination. Only relevant for CUDA inputs.
 
         Returns
         -------
@@ -179,6 +189,9 @@ class NamedLinop(nn.Module):
             The linop instance.
         x : Tensor
             Input tensor.
+        context : SyncContext, optional
+            Execution context containing synchronization events for multi-GPU
+            coordination. Only relevant for CUDA inputs.
 
         Returns
         -------
@@ -608,7 +621,31 @@ def new_normal_adjoint(self):
 
 @dataclass
 class SyncContext:
-    """Holds additional parameters for linop execution, hierarchically in order of the call stack."""
+    """Holds execution metadata for linop calls, propagated hierarchically through the call stack.
+
+    Created fresh on each ``forward()`` call. Carries a ``start_event`` that
+    marks "everything before this point is done" for CUDA synchronization.
+
+    Container linops (``is_container = True``) record a CUDA event on the input
+    device's current stream. Their child linops reuse this event rather than
+    recording new ones, ensuring all children of a parallel container start from
+    the same synchronization point.
+
+    Non-container linops that are children of non-containers record their own
+    fresh event.
+
+    Attributes
+    ----------
+    linop : type[NamedLinop]
+        Class of the linop that owns this context.
+    input_device : torch.device
+        Device of the input tensor to this linop.
+    parent : SyncContext, optional
+        Calling context from the parent linop. ``None`` at the top level.
+    start_event : torch.cuda.Event, optional
+        Synchronization event. Reused from parent if parent is a container;
+        otherwise recorded fresh on the current stream of the input device.
+    """
 
     linop: type[NamedLinop]
     """Class of linop that owns this context"""
@@ -638,31 +675,3 @@ class SyncContext:
                 logger.debug(
                     f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} recorded event {self.start_event} on {self.input_device} stream {torch.cuda.current_stream(self.input_device)}"
                 )
-
-
-# class LinopFunction(torch.autograd.Function):
-#     """Wrap a linop in an autograd function.
-
-#     At one point, this may have helped with memory usage in some cases.
-
-#     Experimental.
-#     """
-
-#     @staticmethod
-#     def forward(input_, linop):
-#         return linop(input_)
-
-#     @staticmethod
-#     def setup_context(ctx, inputs, output):
-#         input_, linop = inputs
-#         ctx.linop = linop
-#         ctx.input_shape = input_.shape
-
-#     @staticmethod
-#     def backward(ctx, grad_output):
-#         grad_input = grad_linop = None
-#         linop = ctx.linop
-#         input_shape = ctx.input_shape
-#         grad_input = linop.H(grad_output)
-#         grad_input = torch.broadcast_to(grad_input, input_shape)
-#         return grad_input, grad_linop

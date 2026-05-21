@@ -71,7 +71,6 @@ class Add(NamedLinop):
         self.threaded = threaded
         self.num_workers = num_workers
         self._linops = nn.ModuleList(linops)
-        # self._schedule = self._build_schedule()
 
     @property
     def linops(self):
@@ -80,7 +79,6 @@ class Add(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        # self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypass PyTorch's setattr for linops."""
@@ -88,12 +86,6 @@ class Add(NamedLinop):
             type(self).linops.fset(self, value)
         else:
             super().__setattr__(name, value)
-
-    # def _build_schedule(self) -> ExecutionSchedule:
-    #     """Build parallel schedule: all children start immediately."""
-    #     return ExecutionSchedule(
-    #         {i: [("parent", "start_event")] for i in range(len(self._linops))}
-    #     )
 
     @staticmethod
     def fn(add, x: torch.Tensor, /, context=None):
@@ -118,16 +110,6 @@ class Add(NamedLinop):
             threaded=add.threaded,
             num_workers=add.num_workers,
         )
-        # adj_linops = [linop.H for linop in add.linops]
-        # return execute_schedule(
-        #     add,
-        #     add._schedule,
-        #     x,
-        #     reduce_fn=sum,
-        #     threaded=add.threaded,
-        #     num_workers=add.num_workers,
-        #     linops_override=adj_linops,
-        # )
 
     @staticmethod
     def split(add, tile):

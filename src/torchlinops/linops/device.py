@@ -35,11 +35,13 @@ class DeviceSpec:
         The device for computation and transfers.
     compute_stream : Stream, optional
         Stream used for computation on this device. Set automatically by ``p2p_setup``.
+    transfer_stream : Stream, optional
+        Stream used for transfers from this device to another GPU. Set automatically by ``p2p_setup``.
 
     Methods
     -------
     p2p_setup(other_device)
-        Configure compute stream for peer-to-peer transfers.
+        Configure compute and transfer streams for peer-to-peer transfers.
     """
 
     device: Any = field(default_factory=lambda: torch.device("cpu"))
@@ -143,11 +145,30 @@ class ToDevice(NamedLinop):
         ospec: DeviceSpec,
         wait_for_event: Optional[Event] = None,
     ):
-        """
+        """Transfer a tensor between devices.
+
+        Handles CPU↔GPU and GPU↔GPU transfers. For GPU→GPU, uses dedicated
+        transfer and compute streams for asynchronous pipelined execution.
+
+        Parameters
+        ----------
+        x : Tensor
+            The tensor to transfer. Must be on ``ispec.device``.
+        ispec : DeviceSpec
+            Source device specification.
+        ospec : DeviceSpec
+            Target device specification.
+        wait_for_event : Event, optional
+            CUDA event to wait on before starting the transfer.
+
+        Returns
+        -------
+        Tensor
+            The tensor on ``ospec.device``.
 
         Notes
         -----
-        Copying from CPU -> GPU or GPU -> CPU may result in strange behavror:
+        Copying from CPU → GPU or GPU → CPU may result in strange behavior:
             https://github.com/pytorch/pytorch/issues/127612
         """
         idevice, odevice = ispec.device, ospec.device
@@ -192,8 +213,6 @@ class ToDevice(NamedLinop):
             todevice.ospec,
             todevice.ispec,
             wait_for_event=context.start_event,
-            # todevice._transfer_stream,
-            # wait_for_event=wait_for_event,
         )
 
     def adjoint(self):

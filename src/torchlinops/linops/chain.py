@@ -12,7 +12,6 @@ from torchlinops.utils import INDENT
 from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
 from .device import ToDevice
 from .namedlinop import NamedLinop
-# from .schedule import ExecutionSchedule
 
 logger = logging.getLogger("torchlinops")
 
@@ -59,7 +58,6 @@ class Chain(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        # self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypasses pytorch's setattr, just for linops"""
@@ -77,13 +75,6 @@ class Chain(NamedLinop):
                     f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {i}"
                 )
             curr_shape = linop.oshape
-
-    # def _build_schedule(self) -> ExecutionSchedule:
-    #     """Build sequential schedule: each child waits for the previous one."""
-    #     deps = {}
-    #     for i in range(len(self._linops)):
-    #         deps[i] = [("parent", "start_event")] if i == 0 else [(i - 1, "end_event")]
-    #     return ExecutionSchedule(deps)
 
     @staticmethod
     def fn(chain, x: torch.Tensor, context=None):
@@ -221,6 +212,4 @@ class Chain(NamedLinop):
         return output
 
     def __copy__(self):
-        new = super().__copy__()
-        # new._schedule = new._build_schedule()
-        return new
+        return super().__copy__()

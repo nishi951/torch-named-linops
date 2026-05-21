@@ -115,12 +115,7 @@ class Stack(NamedLinop):
         self.threaded = threaded
         self.num_workers = num_workers
         self._linops = nn.ModuleList(list(linops))
-        # self._schedule = self._build_schedule()
         self._check_linop_compatibility()
-
-    # def _build_schedule(self) -> ExecutionSchedule:
-    #     """Build parallel schedule: all children start immediately."""
-    #     return ExecutionSchedule({i: [] for i in range(len(self._linops))})
 
     @property
     def linops(self):
@@ -129,7 +124,6 @@ class Stack(NamedLinop):
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        # self._schedule = self._build_schedule()
 
     def __setattr__(self, name, value):
         """Bypass PyTorch's setattr for linops."""
@@ -206,16 +200,6 @@ class Stack(NamedLinop):
                 threaded=stack.threaded,
                 num_workers=stack.num_workers,
             )
-            # return execute_schedule(
-            #     None,
-            #     schedule,
-            #     x,
-            #     reduce_fn=lambda ys: torch.stack(ys, dim=odim_idx),
-            #     threaded=threaded,
-            #     num_workers=num_workers,
-            #     linops_override=linops,
-            #     inputs_override=xs,
-            # )
 
         # Horizontal
         return parallel_execute(

@@ -51,17 +51,8 @@ class Diagonal(NamedLinop):
             raise ValueError(
                 f"All dimensions must be named or broadcastable, but got weight shape {weight.shape} and ioshape {ioshape}"
             )
-        # if broadcast_dims is not None:
-        #     warn(
-        #         f"broadcast_dims argument is deprecated for torchlinops Diagonal but got {broadcast_dims}",
-        #         DeprecationWarning,
-        #         stacklevel=2,
-        #     )
         super().__init__(NS(ioshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
-        # assert (
-        #     len(self.ishape) >= len(self.weight.shape)
-        # ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         if ANY in self.ishape:
             broadcast_dims.append(ANY)

@@ -219,8 +219,6 @@ class CUDALogger:
                 if deps:
                     dep_parts = []
                     for t, _ in deps:
-                        # t_node = node_map.get(t)
-                        # t_label = t_node["label"] if t_node else "?"
                         dep_parts.append(f"[{t}]")
                     dep_str = f" ← blocks on {', '.join(dep_parts)}"
                 lines.append(f"    [{nid}] {n['device']}  {n['label']}{dep_str}")
