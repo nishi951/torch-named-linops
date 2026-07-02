@@ -94,7 +94,6 @@ class Add(NamedLinop):
             [x] * len(add),
             context,
             reduce_fn=sum,
-            parent=add,
             threaded=add.threaded,
             num_workers=add.num_workers,
         )
@@ -105,7 +104,6 @@ class Add(NamedLinop):
             [linop.H for linop in add.linops],
             [x] * len(add),
             context,
-            parent=add,
             reduce_fn=sum,
             threaded=add.threaded,
             num_workers=add.num_workers,

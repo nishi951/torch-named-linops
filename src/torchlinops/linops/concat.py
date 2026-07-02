@@ -182,7 +182,6 @@ class Concat(NamedLinop):
                 linops,
                 xs,
                 context,
-                parent=concat,
                 reduce_fn=lambda ys: torch.concatenate(ys, dim=odim_idx),
                 threaded=concat.threaded,
                 num_workers=concat.num_workers,
@@ -192,8 +191,7 @@ class Concat(NamedLinop):
         return parallel_execute(
             linops,
             xs,
-            concat,
-            parent=concat,
+            context,
             reduce_fn=sum,
             threaded=concat.threaded,
             num_workers=concat.num_workers,
