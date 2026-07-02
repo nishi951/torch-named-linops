@@ -5,8 +5,8 @@
 tutorials:
     uv run python scripts/build_tutorials.py
 
-# Build documentation (runs tutorials first)
-docs: tutorials
+# Build documentation (runs tutorials and benchmark report first)
+docs: tutorials bench-report
     uv run zensical build
 
 # Serve documentation locally
@@ -16,9 +16,21 @@ serve:
 # Build and serve documentation
 dev: docs serve
 
-# Run all tests
+# Run all tests (excludes benchmarks by default)
 test:
     uv run pytest
+
+# Run benchmarks (CPU only)
+bench:
+    uv run pytest benchmarks/ -m benchmark
+
+# Run benchmarks including GPU
+bench-gpu:
+    uv run pytest benchmarks/ -m "benchmark and gpu"
+
+# Generate benchmark report for docs
+bench-report:
+    uv run python benchmarks/_report.py
 
 # Run linting
 lint:
