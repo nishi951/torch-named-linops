@@ -347,15 +347,16 @@ Here is the event trace for the CUDA synchronization:
 Events propagate correctly through nested containers. Consider:
 
 ```python
-Chain(
+Concat(
     Add(A, B),   # inner Add
-    C
+    C,
+    idim=('M',),
 )(x)
 ```
 
-1. `Chain` records event `E0`.
-2. The inner `Add` receives `Chain`'s context, reuses `E0`, and passes `E0` to `A` and `B`.
-3. `C` receives `Chain`'s context and reuses `E0`.
+1. `Concat` records event `E0`.
+2. The inner `Add` receives `Concat`'s context, reuses `E0`, and passes `E0` to `A` and `B`.
+3. `C` receives `Concat`'s context and reuses `E0`.
 
 One barrier synchronizes the entire tree.
 
