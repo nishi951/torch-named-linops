@@ -38,6 +38,7 @@ Iterative solvers and related tools:
 - [Conjugate Gradient](alg/cg.md)
 - [Power Method](alg/powermethod.md)
 - [Polynomial Preconditioner](alg/poly.md)
+- [Singular Value Decomposition](alg/svd.md)
 
 ## [Utilities](utils/math.md)
 
