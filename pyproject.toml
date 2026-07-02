@@ -75,7 +75,7 @@ exclude = [
 minversion = "6.0"
 addopts = """
 -ra -q \
--m 'not slow'
+-m 'not slow and not benchmark'
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [
@@ -89,6 +89,7 @@ markers = [
     "big: tests that require large memory (cpu or gpu)",
     "gpu: tests that require a gpu",
     "plot: tests that involve plotting",
+    "benchmark: performance benchmarks",
 ]
 
 [tool.coverage.report]
@@ -123,7 +124,7 @@ packages = ["src/torchlinops"]
 path = "src/torchlinops/__init__.py"
 
 [tool.bandit]
-exclude = ["**/tests/*"]
+exclude = ["**/tests/*", "**/benchmarks/*"]
 skips = [
     "B101" # Asserts
 ]
