@@ -96,7 +96,7 @@ def create_batched_linop(
     _mmap : ModuleMemoryMap, optional
         Internal memory map for efficient device transfers. Created
         automatically on the first call. Probably don't set this manually.
-    _default_device : torch.device, optional
+    default_device : torch.device, optional
         The default device to use if no device info is provided in the batch spec.
 
     Returns

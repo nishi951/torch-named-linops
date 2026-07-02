@@ -95,7 +95,7 @@ The library can decompose a linop into tiles along its named dimensions and plac
 2. **`create_batched_linop`**: Orchestrates the split, placement, and reassembly.
 3. **`ToDevice`**: Handles data transfer between devices using CUDA streams.
 
-The result is a composite linop (tree of `Concat`/`Add` operators) that behaves identically to the original but executes across multiple devices. See [Multi-GPU Splitting](multi_gpu.md) for the full explanation.
+The result is a composite linop (tree of `Concat`/`Add` operators) that behaves identically to the original but executes across multiple devices. See [Multi-GPU Execution](multi_gpu.md) for the full explanation.
 
 ## Troubleshooting
 

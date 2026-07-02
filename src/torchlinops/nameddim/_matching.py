@@ -46,8 +46,9 @@ def isequal(
     ----------
     shape1, shape2 : Sequence
         The sequences of tokens to compare.
-    ELLIPSES : str, default = "..."
-        The wildcard that can match any number of tokens.
+    return_assignments : bool, default = False
+        If True, also return a mapping from ``shape1`` indices to matching
+        ``shape2`` indices.
 
     Returns
     -------

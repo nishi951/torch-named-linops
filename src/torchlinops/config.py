@@ -116,12 +116,12 @@ def using(**kwargs: bool) -> ConfigContext:
 
     Parameters
     ----------
-        **kwargs : bool
-            Config values to temporarily set. Valid keys are:
-            - reduce_identity_in_normal
-            - cache_adjoint_normal
-            - log_device_transfers
-            - log_cuda_events
+    **kwargs : bool
+        Config values to temporarily set. Valid keys are:
+        - reduce_identity_in_normal
+        - cache_adjoint_normal
+        - log_device_transfers
+        - log_cuda_events
 
     Returns
     -------
