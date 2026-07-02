@@ -43,6 +43,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "ruff>=0.8.4",
     "ty>=0.0.18",
+    "griffe>=2.1.0",
 ]
 sigpy = [
     "numba>=0.60.0",
