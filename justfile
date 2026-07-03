@@ -6,8 +6,9 @@ tutorials:
     uv run python scripts/build_tutorials.py
 
 # Build documentation (runs tutorials and benchmark report first)
-docs: tutorials bench-report
-    uv run zensical build
+# Pass --clean to clear cache: just docs --clean
+docs *args: tutorials bench-report
+    uv run zensical build {{args}}
 
 # Serve documentation locally
 serve:
