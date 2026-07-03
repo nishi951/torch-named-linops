@@ -184,8 +184,6 @@ class BenchmarkSession:
                 )
 
         iqr = getattr(measurement, "iqr", None)
-        # No subtraction - adjusted_mean_s is just mean_s
-        adjusted_mean_s = measurement.mean
         result = {
             "name": name,
             "library": library,
@@ -198,7 +196,6 @@ class BenchmarkSession:
             "size_label": size_label,
             "mean_s": measurement.mean,
             "data_gen_mean_s": data_gen_mean_s,
-            "adjusted_mean_s": adjusted_mean_s,
             "median_s": measurement.median,
             "iqr_s": iqr,
             "peak_mem_bytes": peak_mem,

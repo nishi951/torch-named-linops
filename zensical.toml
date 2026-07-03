@@ -75,6 +75,8 @@ repo = "fontawesome/brands/github"
 [[project.nav]]
 "Benchmarks" = [
     "benchmarks/index.md",
+    { "CPU" = "benchmarks/cpu.md" },
+    { "GPU" = "benchmarks/gpu.md" },
     { "Methodology" = "benchmarks/methodology.md" },
 ]
 

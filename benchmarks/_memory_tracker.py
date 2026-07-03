@@ -56,23 +56,8 @@ def benchmark_op(
         # Ensure minimum runs
         if len(measurement.times) < min_runs:
             for _ in range(min_runs - len(measurement.times)):
-                if device == "cuda":
-                    # Use CUDA events for accurate GPU timing
-                    start_event = torch.cuda.Event(enable_timing=True)
-                    end_event = torch.cuda.Event(enable_timing=True)
-                    start_event.record()
-                    fn()
-                    end_event.record()
-                    end_event.synchronize()
-                    elapsed = (
-                        start_event.elapsed_time(end_event) / 1000.0
-                    )  # Convert ms to s
-                    measurement.raw_times.append(elapsed)
-                else:
-                    start = time.perf_counter()
-                    fn()
-                    end = time.perf_counter()
-                    measurement.raw_times.append(end - start)
+                elapsed = _benchmark_one(fn, device)
+                measurement.raw_times.append(elapsed)
     else:
         # Manual timing with separate data generation
         times = []
@@ -85,25 +70,7 @@ def benchmark_op(
         while total_time < min_run_time or len(times) < min_runs:
             # Generate data (not timed)
             data = data_gen_fn()
-
-            # Time only computation
-            if device == "cuda":
-                # Use CUDA events for accurate GPU timing
-                start_event = torch.cuda.Event(enable_timing=True)
-                end_event = torch.cuda.Event(enable_timing=True)
-                start_event.record()
-                fn(data)
-                end_event.record()
-                end_event.synchronize()
-                elapsed = (
-                    start_event.elapsed_time(end_event) / 1000.0
-                )  # Convert ms to s
-            else:
-                start = time.perf_counter()
-                fn(data)
-                end = time.perf_counter()
-                elapsed = end - start
-
+            elapsed = _benchmark_one(fn, device, data)
             times.append(elapsed)
             total_time += elapsed
 
@@ -116,6 +83,25 @@ def benchmark_op(
         peak_mem = torch.cuda.max_memory_allocated()
 
     return measurement, peak_mem
+
+
+def _benchmark_one(fn, device, *args, **kwargs) -> float:
+    """Run a single benchmark with the appropriate device tracking and return time in seconds."""
+    if device == "cuda":
+        # Use CUDA events for accurate GPU timing
+        start_event = torch.cuda.Event(enable_timing=True)
+        end_event = torch.cuda.Event(enable_timing=True)
+        start_event.record()
+        fn(*args, **kwargs)
+        end_event.record()
+        end_event.synchronize()
+        elapsed_s = start_event.elapsed_time(end_event) / 1000.0  # Convert ms to s
+    else:
+        start = time.perf_counter()
+        fn(*args, **kwargs)
+        end = time.perf_counter()
+        elapsed_s = end - start
+    return elapsed_s
 
 
 class _SimpleMeasurement:

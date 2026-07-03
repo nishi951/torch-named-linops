@@ -21,13 +21,16 @@ dev: docs serve
 test:
     uv run pytest
 
-# Run benchmarks (CPU only)
-bench:
+# Run CPU benchmarks only
+bench-cpu:
+    uv run pytest benchmarks/ -m "benchmark and not gpu"
+
+# Run all benchmarks (CPU + GPU)
+bench-gpu:
     uv run pytest benchmarks/ -m benchmark
 
-# Run benchmarks including GPU
-bench-gpu:
-    uv run pytest benchmarks/ -m "benchmark and gpu"
+# Run all benchmarks (alias for bench-gpu)
+bench: bench-gpu
 
 # Generate benchmark report for docs
 bench-report:
