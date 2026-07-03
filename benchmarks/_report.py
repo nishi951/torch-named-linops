@@ -5,11 +5,8 @@ import json
 from pathlib import Path
 
 import matplotlib
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 BENCHMARKS_DIR = Path(__file__).parent
 RESULTS_DIR = BENCHMARKS_DIR / "results" / "latest"
@@ -94,36 +91,48 @@ def _build_metadata_section(metadata):
 
 
 def _build_table(results):
-    header = "| Operation | Size | Library | Device | Adj. Mean | Data Gen | Mean (total) | Median | IQR | Peak Memory |\n"
-    separator = "|-----------|------|---------|--------|-----------|----------|--------------|--------|-----|-------------|\n"
+    header = "| Operation | Size | Library | Mean | Data Gen | Median | IQR | Peak Memory |\n"
+    separator = "|-----------|------|---------|------|----------|--------|-----|-------------|\n"
     rows = []
     for r in results:
         iqr = _format_time(r.get("iqr_s")) if r.get("iqr_s") is not None else "—"
-        adj = (
-            _format_time(r.get("adjusted_mean_s"))
-            if r.get("adjusted_mean_s") is not None
-            else "—"
-        )
         gen = (
             _format_time(r.get("data_gen_mean_s"))
             if r.get("data_gen_mean_s") is not None
             else "—"
         )
         rows.append(
-            f"| {r['name']} | {r.get('size_label', '')} | {r.get('library', 'torchlinops')} | {r['device']} | "
-            f"{adj} | {gen} | {_format_time(r['mean_s'])} | "
+            f"| {r['name']} | {r.get('size_label', '')} | {r.get('library', 'torchlinops')} | "
+            f"{_format_time(r['mean_s'])} | {gen} | "
             f"{_format_time(r['median_s'])} | {iqr} | {_format_bytes(r.get('peak_mem_bytes'))} |"
         )
     return header + separator + "\n".join(rows) + "\n"
 
 
-def _build_markdown(results, metadata):
+def _build_index_markdown(metadata):
     lines = ["# Benchmarks", ""]
     lines.append("Performance benchmarks for torch-named-linops.")
     lines.append("")
     lines.append(_build_metadata_section(metadata))
+    lines.append("## Pages")
+    lines.append("")
+    lines.append("- [CPU Benchmarks](cpu.md)")
+    lines.append("- [GPU Benchmarks](gpu.md)")
+    lines.append("")
+    return "\n".join(lines)
 
-    groups = _group_by_label(results)
+
+def _build_device_markdown(results, metadata, device, device_label):
+    device_results = [r for r in results if r.get("device") == device]
+    if not device_results:
+        return f"# {device_label} Benchmarks\n\nNo {device_label} benchmark data available.\n"
+
+    lines = [f"# {device_label} Benchmarks", ""]
+    lines.append(f"Performance benchmarks on {device_label}.")
+    lines.append("")
+    lines.append(_build_metadata_section(metadata))
+
+    groups = _group_by_label(device_results)
     for label, group in sorted(groups.items()):
         lines.append(f"## {label}")
         lines.append("")
@@ -136,38 +145,38 @@ def _build_markdown(results, metadata):
         lines.append(f"### {size_name.capitalize()}")
         lines.append("")
         lines.append(
-            f"![Timing bar chart ({size_name})](assets/timing_{size_name}.png)"
+            f"![Timing bar chart ({size_name})](assets/timing_{device}_{size_name}.png)"
         )
         lines.append("")
 
     lines.append("## Scaling Curves")
     lines.append("")
-    lines.append("![Timing scaling](assets/scaling_time.png)")
+    lines.append(f"![Timing scaling]({ASSETS_DIR.name}/scaling_time_{device}.png)")
     lines.append("")
-    lines.append("![Memory scaling](assets/scaling_memory.png)")
-    lines.append("")
+
+    if device == "cuda":
+        lines.append(f"![Memory scaling]({ASSETS_DIR.name}/scaling_memory.png)")
+        lines.append("")
 
     return "\n".join(lines)
 
 
 def _get_time(r):
-    """Get adjusted mean time, falling back to raw mean."""
-    t = r.get("adjusted_mean_s")
-    if t is None:
-        t = r.get("mean_s")
-    return t
+    return r.get("mean_s")
 
 
-def _plot_bar_chart(results, size_name):
-    """Grouped bar chart for a single problem size."""
-    size_results = [r for r in results if r.get("size_name") == size_name]
-    if not size_results:
+def _plot_bar_chart(results, device, size_name):
+    device_size_results = [
+        r
+        for r in results
+        if r.get("size_name") == size_name and r.get("device") == device
+    ]
+    if not device_size_results:
         return
 
-    # Build composite labels: "Name\n(device)"
     entries = {}
-    for r in size_results:
-        key = f"{r['name']}\n({r['device']})"
+    for r in device_size_results:
+        key = r["name"]
         library = r.get("library", "torchlinops")
         entries.setdefault(key, {})[library] = _get_time(r)
 
@@ -187,9 +196,11 @@ def _plot_bar_chart(results, size_name):
         color = LIBRARY_COLORS.get(library, None)
         ax.bar(x + i * width, values, width, label=library, color=color)
 
-    ax.set_ylabel("Adjusted mean time (s)")
+    ax.set_ylabel("Mean time (s)")
     ax.set_yscale("log")
-    ax.set_title(f"Benchmark Timing Comparison — {size_name.capitalize()}")
+    ax.set_title(
+        f"Benchmark Timing Comparison — {device.upper()} {size_name.capitalize()}"
+    )
     ax.set_xticks(x + width * (n_libraries - 1) / 2)
     ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8)
     ax.legend()
@@ -197,84 +208,70 @@ def _plot_bar_chart(results, size_name):
 
     fig.tight_layout()
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-    fig.savefig(ASSETS_DIR / f"timing_{size_name}.png", dpi=150)
+    fig.savefig(ASSETS_DIR / f"timing_{device}_{size_name}.png", dpi=150)
     plt.close(fig)
 
 
-def _plot_scaling_time(results):
-    """Scaling curves: adjusted mean time vs problem size, per operation type.
+def _plot_scaling_time(results, device):
+    device_results = [r for r in results if r.get("device") == device]
+    if not device_results:
+        return
 
-    Grid of subplots: 2 columns (CPU, GPU) × N rows (operation types).
-    Each subplot has lines per library × direction.
-    """
-    # Group by (label, device) to build per-operation subplots
-    labels = sorted({r.get("label", "") for r in results})
-    devices = ["cpu", "cuda"]
+    labels = sorted({r.get("label", "") for r in device_results})
 
     n_rows = len(labels)
-    n_cols = len(devices)
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4 * n_rows), squeeze=False)
+    fig, axes = plt.subplots(n_rows, 1, figsize=(10, 4 * n_rows), squeeze=False)
 
     for row_idx, label in enumerate(labels):
-        for col_idx, device in enumerate(devices):
-            ax = axes[row_idx][col_idx]
-            device_results = [
-                r
-                for r in results
-                if r.get("label") == label and r.get("device") == device
-            ]
-            if not device_results:
-                ax.set_visible(False)
-                continue
+        ax = axes[row_idx][0]
+        label_results = [r for r in device_results if r.get("label") == label]
+        if not label_results:
+            ax.set_visible(False)
+            continue
 
-            # Group by (library, description) → list of (problem_size, time)
-            series = {}
-            for r in device_results:
-                key = (r.get("library", "torchlinops"), r.get("description", ""))
-                ps = r.get("problem_size")
-                t = _get_time(r)
-                if ps is not None and t is not None:
-                    series.setdefault(key, []).append((ps, t))
+        series = {}
+        for r in label_results:
+            key = (r.get("library", "torchlinops"), r.get("description", ""))
+            ps = r.get("problem_size")
+            t = _get_time(r)
+            if ps is not None and t is not None:
+                series.setdefault(key, []).append((ps, t))
 
-            for key, points in sorted(series.items()):
-                library, direction = key
-                points.sort()
-                xs = [p[0] for p in points]
-                ys = [p[1] for p in points]
-                color = LIBRARY_COLORS.get(library, None)
-                marker = LIBRARY_MARKERS.get(library, "o")
-                ls = DIRECTION_LINESTYLES.get(direction, "-")
-                label_str = f"{library} ({direction})"
-                ax.plot(
-                    xs,
-                    ys,
-                    ls,
-                    marker=marker,
-                    color=color,
-                    label=label_str,
-                    markersize=5,
-                )
+        for key, points in sorted(series.items()):
+            library, direction = key
+            points.sort()
+            xs = [p[0] for p in points]
+            ys = [p[1] for p in points]
+            color = LIBRARY_COLORS.get(library, None)
+            marker = LIBRARY_MARKERS.get(library, "o")
+            ls = DIRECTION_LINESTYLES.get(direction, "-")
+            label_str = f"{library} ({direction})"
+            ax.plot(
+                xs,
+                ys,
+                ls,
+                marker=marker,
+                color=color,
+                label=label_str,
+                markersize=5,
+            )
 
-            ax.set_xscale("log")
-            ax.set_yscale("log")
-            ax.set_xlabel("Problem size (elements)")
-            ax.set_ylabel("Adjusted mean time (s)")
-            ax.set_title(f"{label} ({device})")
-            ax.legend(fontsize=7)
-            ax.grid(True, which="both", ls="--", alpha=0.5)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel("Problem size (elements)")
+        ax.set_ylabel("Mean time (s)")
+        ax.set_title(f"{label} ({device.upper()})")
+        ax.legend(fontsize=7)
+        ax.grid(True, which="both", ls="--", alpha=0.5)
 
-    fig.suptitle("Timing Scaling Curves", fontsize=14, y=1.0)
+    fig.suptitle(f"Timing Scaling Curves — {device.upper()}", fontsize=14, y=1.0)
     fig.tight_layout()
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-    fig.savefig(ASSETS_DIR / "scaling_time.png", dpi=150, bbox_inches="tight")
+    fig.savefig(ASSETS_DIR / f"scaling_time_{device}.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
 def _plot_scaling_memory(results):
-    """Scaling curves: peak GPU memory vs problem size, per operation type.
-
-    Single column, one row per operation type. GPU only.
-    """
     gpu_results = [
         r for r in results if r.get("device") == "cuda" and r.get("peak_mem_bytes")
     ]
@@ -342,17 +339,23 @@ def main():
 
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
-    markdown = _build_markdown(results, metadata)
-    (DOCS_DIR / "index.md").write_text(markdown)
+    (DOCS_DIR / "index.md").write_text(_build_index_markdown(metadata))
+    (DOCS_DIR / "cpu.md").write_text(
+        _build_device_markdown(results, metadata, "cpu", "CPU")
+    )
+    (DOCS_DIR / "gpu.md").write_text(
+        _build_device_markdown(results, metadata, "cuda", "GPU")
+    )
 
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-    for size_name in ["small", "medium", "large"]:
-        _plot_bar_chart(results, size_name)
+    for device in ["cpu", "cuda"]:
+        for size_name in ["small", "medium", "large"]:
+            _plot_bar_chart(results, device, size_name)
+        _plot_scaling_time(results, device)
 
-    _plot_scaling_time(results)
     _plot_scaling_memory(results)
 
-    print(f"Benchmark report generated at {DOCS_DIR / 'index.md'}")
+    print(f"Benchmark report generated at {DOCS_DIR}")
 
 
 if __name__ == "__main__":
