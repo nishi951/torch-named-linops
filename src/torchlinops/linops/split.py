@@ -76,7 +76,7 @@ class BatchSpec:
 def create_batched_linop(
     linop,
     batch_specs: BatchSpec | list[BatchSpec],
-    default_device: torch.device = None,
+    default_device: Optional[torch.device] = None,
     _mmap=None,
 ):
     """Split and distribute a linop across devices according to batch specs.
