@@ -99,9 +99,3 @@ def test_repeat_along_axes_more_repeats_than_ndim():
     arr = np.array([[1, 2]])  # shape (1, 2)
     result = repeat_along_axes(arr, [3, 1, 2])  # 3 repeats requested on 3 axes
     assert result.shape[0] == 3
-
-
-def test_batch_spec_non_dict_warns():
-    """BatchSpec should emit a UserWarning when batch_sizes is not a dict."""
-    with pytest.warns(UserWarning):
-        BatchSpec(batch_sizes=[("N", 2)])

@@ -71,14 +71,6 @@ class BatchSpec:
     device_matrix: np.ndarray | None = None
     base_device: torch.device | None = None
 
-    def __post_init__(self):
-        if not isinstance(self.batch_sizes, dict):
-            warn(
-                f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
-            )
-        if isinstance(self.device_matrix, list | tuple):
-            object.__setattr__(self, "device_matrix", np.array(self.device_matrix))
-
     def resolve(self, linop, default_device: torch.device) -> ResolvedBatchSpec:
         """Return a new ResolvedBatchSpec with all fields filled in.
 
@@ -96,8 +88,9 @@ class BatchSpec:
         """
         base_device = default_to(default_device, self.base_device)
         device_matrix = default_to(np.array([base_device]), self.device_matrix)
+
         device_matrix = fuzzy_broadcast_to(
-            device_matrix, _tiled_shape(linop, self.batch_sizes)
+            ensure_ndarray(device_matrix), _tiled_shape(linop, self.batch_sizes)
         )
         return ResolvedBatchSpec(
             batch_sizes=self.batch_sizes,
@@ -111,8 +104,16 @@ class BatchSpec:
         tiled_shape = tuple(
             ceil(sizes[dim] / self.batch_sizes[dim]) for dim in batch_dims
         )
-        device_matrix = fuzzy_broadcast_to(self.device_matrix, tiled_shape)
+        device_matrix = fuzzy_broadcast_to(
+            ensure_ndarray(self.device_matrix), tiled_shape
+        )
         return device_matrix
+
+
+def ensure_ndarray(arr: np.ndarray | list | tuple) -> np.ndarray:
+    if not isinstance(arr, np.ndarray):
+        return np.array(arr)
+    return arr
 
 
 def _tiled_shape(linop, batch_sizes):
@@ -168,16 +169,16 @@ def create_batched_linop(
     resolved_spec = batch_specs[0].resolve(linop, default_device)
 
     # Split linop into tiles and broadcast device spec to the tile array.
-    linops, ibatches, obatches = split_linop(linop, resolved_spec.batch_sizes)
+    linops, _, _ = split_linop(linop, resolved_spec.batch_sizes)
     device_matrix = resolved_spec.device_matrix
     if device_matrix.shape != linops.shape:
         raise ValueError(
             f"device_matrix and linops should have same shape after broadcasting, but got device_matrix: {device_matrix.shape} and linops: {linops.shape}"
         )
 
-    # Create event to trigger all tiles in the linop.
+    # Input device
     source_device = resolved_spec.base_device
-    # Allocate output
+
     for idx in np.ndindex(linops.shape):
         linop, target_device = linops[idx], device_matrix[idx]
 
