@@ -5,6 +5,7 @@ import os
 import platform
 import shutil
 import subprocess  # nosec
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -12,7 +13,15 @@ from typing import Optional
 import pytest
 import torch
 
-from benchmarks._memory_tracker import benchmark_op
+from torchlinops.utils.benchmark import CupyHandler, TorchHandler
+
+# Folders and files to check for diff.
+DIFF_PATHS = [
+    "src/",
+    "tests/",
+    "uv.lock",
+    "pyproject.toml",
+]
 
 
 class BenchmarkSession:
@@ -22,57 +31,6 @@ class BenchmarkSession:
         self.config = config
         self.results_dir = results_dir
         self.metadata = _collect_metadata()
-
-    def _estimate_min_run_time(self, fn, device: str, use_cupy: bool) -> float:
-        """Estimate min_run_time to ensure at least 10 runs.
-
-        Does a quick pilot run to estimate per-call time, then sets
-        min_run_time so that blocked_autorange will get at least 10 runs
-        within a reasonable total time (~5 seconds).
-        """
-        import time
-
-        # Warmup
-        try:
-            fn()
-        except Exception:
-            pass
-
-        # Pilot run to estimate per-call time
-        if use_cupy:
-            import cupy
-
-            cupy.cuda.Stream.null.synchronize()
-            start = time.perf_counter()
-            fn()
-            cupy.cuda.Stream.null.synchronize()
-            end = time.perf_counter()
-        else:
-            if device == "cuda":
-                torch.cuda.synchronize()
-            start = time.perf_counter()
-            fn()
-            if device == "cuda":
-                torch.cuda.synchronize()
-            end = time.perf_counter()
-
-        per_call_time = end - start
-
-        # Set min_run_time to ensure at least 10 runs
-        # Strategy: min_run_time should be small enough that we get many runs
-        # For slow functions (>10ms), use very small min_run_time
-        # For fast functions, use larger min_run_time for stability
-        if per_call_time > 0.01:  # > 10ms per call
-            # Slow function: use small min_run_time to get many runs
-            min_run_time = per_call_time * 1.5  # Each run has ~1-2 calls
-        elif per_call_time > 0.001:  # > 1ms per call
-            min_run_time = per_call_time * 5  # Each run has ~5 calls
-        else:
-            # Fast function: use larger min_run_time for stability
-            min_run_time = 0.1
-
-        # Clamp to reasonable range
-        return max(0.01, min(0.5, min_run_time))
 
     def run(
         self,
@@ -118,73 +76,38 @@ class BenchmarkSession:
         """
         use_cupy = library == "sigpy" and device == "cuda"
 
-        # Auto-determine min_run_time to ensure at least 10 runs
-        if min_run_time is None:
-            if data_gen_fn is not None:
-                # For separate data gen, we need to estimate based on fn alone
-                min_run_time = self._estimate_min_run_time(
-                    lambda: fn(data_gen_fn()), device, use_cupy
-                )
-            else:
-                min_run_time = self._estimate_min_run_time(fn, device, use_cupy)
+        # Create appropriate handler
+        if use_cupy:
+            handler = CupyHandler()
+        else:
+            handler = TorchHandler(device=device, memory_snapshot_file=None)
 
-        # Run benchmark
+        # Auto-determine min_run_time via pilot run
+        if min_run_time is None:
+            min_run_time = self._estimate_min_run_time(
+                fn, device, use_cupy, data_gen_fn
+            )
+
         min_runs_target = 10
 
-        if use_cupy:
-            from benchmarks._cupy_benchmark import cupy_blocked_autorange
+        # Benchmark data gen separately for reporting if provided
+        data_gen_mean_s = None
+        if data_gen_fn is not None:
+            gen_result = handler.blocked_autorange(
+                data_gen_fn, min_run_time=0.1, min_runs=5
+            )
+            data_gen_mean_s = gen_result.mean
 
-            effective_min_run_time = min_run_time
+        # Run main benchmark
+        result = handler.blocked_autorange(
+            fn,
+            min_run_time=min_run_time,
+            min_runs=min_runs_target,
+            data_gen_fn=data_gen_fn,
+        )
 
-            data_gen_mean_s = None  # No longer tracking separately
-            if data_gen_fn is not None:
-                # Benchmark data gen separately just for reporting, not for subtraction
-                gen_measurement = cupy_blocked_autorange(
-                    data_gen_fn, min_run_time=0.1, min_runs=5
-                )
-                data_gen_mean_s = gen_measurement.mean
-
-                # Wrap fn to use generated data
-                def fn_with_data():
-                    data = data_gen_fn()
-                    return fn(data)
-
-                measurement = cupy_blocked_autorange(
-                    fn_with_data,
-                    min_run_time=effective_min_run_time,
-                    min_runs=min_runs_target,
-                )
-            else:
-                measurement = cupy_blocked_autorange(
-                    fn, min_run_time=effective_min_run_time, min_runs=min_runs_target
-                )
-            peak_mem = measurement.peak_mem_bytes
-        else:
-            data_gen_mean_s = None  # No longer tracking separately
-            if data_gen_fn is not None:
-                # Benchmark data gen separately just for reporting
-                gen_measurement, _ = benchmark_op(
-                    data_gen_fn, device=device, min_run_time=0.1, min_runs=5
-                )
-                data_gen_mean_s = gen_measurement.mean
-                # Pass data_gen_fn to benchmark_op for separate timing
-                measurement, peak_mem = benchmark_op(
-                    fn,
-                    device=device,
-                    min_run_time=min_run_time,
-                    min_runs=min_runs_target,
-                    data_gen_fn=data_gen_fn,
-                )
-            else:
-                measurement, peak_mem = benchmark_op(
-                    fn,
-                    device=device,
-                    min_run_time=min_run_time,
-                    min_runs=min_runs_target,
-                )
-
-        iqr = getattr(measurement, "iqr", None)
-        result = {
+        # Build result dict
+        result_dict = {
             "name": name,
             "library": library,
             "label": label or name,
@@ -194,16 +117,73 @@ class BenchmarkSession:
             "size_name": size_name,
             "problem_size": problem_size,
             "size_label": size_label,
-            "mean_s": measurement.mean,
+            "mean_s": result.mean,
             "data_gen_mean_s": data_gen_mean_s,
-            "median_s": measurement.median,
-            "iqr_s": iqr,
-            "peak_mem_bytes": peak_mem,
-            "num_runs": len(measurement.times),
-            "number_per_run": measurement.number_per_run,
+            "median_s": result.median,
+            "iqr_s": result.iqr,
+            "peak_mem_bytes": result.peak_mem_bytes,
+            "num_runs": len(result.times),
+            "number_per_run": result.number_per_run,
             "num_threads": torch.get_num_threads(),
         }
-        self.config._benchmark_results.append(result)
+        self.config._benchmark_results.append(result_dict)
+
+    def _estimate_min_run_time(
+        self, fn, device: str, use_cupy: bool, data_gen_fn=None
+    ) -> float:
+        """Estimate min_run_time to ensure at least 10 runs.
+
+        Does a quick pilot run to estimate per-call time, then sets
+        min_run_time so that we get at least 10 runs within a reasonable
+        total time (~5 seconds).
+        """
+        # Warmup
+        try:
+            if data_gen_fn is not None:
+                data = data_gen_fn()
+                fn(data)
+            else:
+                fn()
+        except Exception:
+            pass
+
+        # Pilot run to estimate per-call time
+        if use_cupy:
+            import cupy
+
+            cupy.cuda.Stream.null.synchronize()
+            start = time.perf_counter()
+            if data_gen_fn is not None:
+                data = data_gen_fn()
+                fn(data)
+            else:
+                fn()
+            cupy.cuda.Stream.null.synchronize()
+            end = time.perf_counter()
+        else:
+            if device == "cuda":
+                torch.cuda.synchronize()
+            start = time.perf_counter()
+            if data_gen_fn is not None:
+                data = data_gen_fn()
+                fn(data)
+            else:
+                fn()
+            if device == "cuda":
+                torch.cuda.synchronize()
+            end = time.perf_counter()
+
+        per_call_time = end - start
+
+        # Set min_run_time to ensure at least 10 runs
+        if per_call_time > 0.01:  # > 10ms per call
+            min_run_time = per_call_time * 1.5
+        elif per_call_time > 0.001:  # > 1ms per call
+            min_run_time = per_call_time * 5
+        else:
+            min_run_time = 0.1
+
+        return max(0.01, min(0.5, min_run_time))
 
 
 def _collect_metadata():
@@ -238,7 +218,7 @@ def _collect_metadata():
         metadata["gpu_name"] = None
 
     try:
-        subprocess.check_output(["git", "diff", "--quiet"])  # nosec
+        subprocess.check_output(["git", "diff", "--"] + DIFF_PATHS + ["--quiet"])  # nosec
         metadata["dirty"] = False
     except (subprocess.CalledProcessError, FileNotFoundError):
         metadata["dirty"] = True

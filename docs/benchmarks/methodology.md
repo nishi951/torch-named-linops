@@ -20,11 +20,17 @@ computation on the same tensor. For small inputs (e.g. a 64×64 grid ≈ 32 KB),
 the data fits entirely in the RTX 3090's 6 MB L2 cache, so caching would
 otherwise dominate the measurement.
 
-The timed function includes:
+The benchmark handlers (`TorchHandler` and `CupyHandler`) implement this via
+the `data_gen_fn` parameter to `blocked_autorange()`:
 
-1. Random input generation (`torch.randn` / `xp.random.randn`)
-2. Random location generation (`_get_valid_locs`)
-3. The actual operation
+```python
+# Simplified pseudocode of handler's timing loop
+for each iteration:
+    data = data_gen_fn()    # NOT timed
+    trial_start()
+    fn(data)                # timed
+    trial_end()
+```
 
 For the linop variant, the linop is **constructed once outside the timed loop**
 so that construction cost (apodization weights, padding parameters, etc.) is
@@ -48,30 +54,51 @@ What each variant's data-gen function includes:
 
 ## Timing
 
-### CPU and torchlinops GPU
+All benchmarks use a unified handler-based approach via `TorchHandler` and `CupyHandler`, which provide `blocked_autorange()` methods with automatic iteration count determination.
 
-Timing uses `torch.utils.benchmark.Timer.blocked_autorange()` with:
+### torchlinops (CPU and GPU)
 
-- `min_run_time = 0.2` seconds for CPU benchmarks
-- `min_run_time = 0.05` seconds for GPU benchmarks
+`TorchHandler.blocked_autorange()` handles both CPU and CUDA timing:
 
-`blocked_autorange` first runs an auto-calibration phase (doubling the number
-of runs per block until the block time exceeds measurement overhead), which
-also serves as warm-up. It then collects measurements until the target total
-time is reached, providing statistically robust mean, median, and IQR.
+- **GPU**: Uses `torch.cuda.Event` for accurate GPU timing with `event.synchronize()`
+- **CPU**: Uses `time.perf_counter()` for high-resolution wall-clock timing
+
+The handler performs:
+1. **Warmup**: One untimed call to initialize caches and JIT compilation
+2. **Auto-calibration**: Doubles runs per block until block time exceeds 5ms
+3. **Measurement**: Collects per-run times until minimum run time or run count is reached
+4. **Memory tracking**: Records peak GPU memory via `torch.cuda.max_memory_allocated()` (GPU only)
 
 ### sigpy GPU
 
-SigPy operations on GPU use CuPy arrays rather than PyTorch tensors. Timing
-uses a custom `cupy_blocked_autorange()` function that mirrors
-`torch.utils.benchmark.Timer.blocked_autorange()` but uses:
+`CupyHandler.blocked_autorange()` provides equivalent functionality for CuPy-based operations:
 
-- `cp.cuda.Event` for GPU timing (with `event.synchronize()`)
-- `cp.cuda.runtime.deviceSynchronize()` for warm-up synchronization
-- `cp.get_default_memory_pool().total_bytes()` for peak memory tracking
+- Uses `cp.cuda.Event` for GPU timing with `event.synchronize()`
+- Uses `cp.get_default_memory_pool().total_bytes()` for peak memory tracking
+- Follows the same auto-calibration and measurement algorithm as `TorchHandler`
 
-The auto-calibration and collection phases follow the same algorithm as
-`blocked_autorange`.
+### Minimum Run Time Estimation
+
+The benchmark suite dynamically estimates `min_run_time` via a pilot run to ensure at least 10 runs complete within a reasonable total time (~5 seconds):
+
+1. **Pilot run**: Measures per-call time with one untimed warmup call followed by one timed call
+2. **Estimation**: Sets `min_run_time` based on per-call time:
+   - Slow functions (>10ms): `min_run_time = per_call_time * 1.5`
+   - Medium functions (>1ms): `min_run_time = per_call_time * 5`
+   - Fast functions (<1ms): `min_run_time = 0.1`
+3. **Clamping**: Final value is clamped to \[0.01, 0.5\] seconds
+
+If `min_run_time` is explicitly provided, it is used directly without estimation.
+
+### Data Generation in Timing Loop
+
+The handlers' `blocked_autorange()` method accepts an optional `data_gen_fn` parameter. When provided:
+
+- **Data generation is untimed**: `data = data_gen_fn()` runs outside the timing loop
+- **Operation is timed**: `fn(data)` runs inside the timing loop
+- **Fresh data per iteration**: Prevents GPU L2 cache effects that would artificially speed up repeated computation on the same tensor
+
+This ensures that only the operation itself is measured, while still benefiting from fresh data on each iteration to avoid cache artifacts.
 
 ## Memory Tracking
 

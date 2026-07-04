@@ -85,7 +85,11 @@ class Truncate(NamedLinop):
         if ibatch[truncate.dim] != slice(None) or obatch[truncate.dim] != slice(None):
             raise ValueError("Cannot slice a Truncate linop along truncation dimension")
         return type(truncate)(
-            truncate.dim, truncate.from_length, truncate.to_length, truncate.ishape, truncate.oshape
+            truncate.dim,
+            truncate.from_length,
+            truncate.to_length,
+            truncate.ishape,
+            truncate.oshape,
         )
 
     def adjoint(self):
@@ -178,5 +182,9 @@ class PadDim(NamedLinop):
         if ibatch[padend.dim] != slice(None) or obatch[padend.dim] != slice(None):
             raise ValueError("Cannot slice a PadEnd linop along truncation dimension")
         return type(padend)(
-            padend.dim, padend.from_length, padend.to_length, padend.ishape, padend.oshape
+            padend.dim,
+            padend.from_length,
+            padend.to_length,
+            padend.ishape,
+            padend.oshape,
         )

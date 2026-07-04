@@ -4,9 +4,9 @@ Performance benchmarks for torch-named-linops.
 
 ## Metadata
 
-- **Date**: 2026-07-03T14:56:46.736391
-- **Commit**: `4ee7153`
-- **Working tree**: dirty ([patch.diff](../../benchmarks/results/latest/patch.diff))
+- **Date**: 2026-07-04T01:58:24.995183
+- **Commit**: `16b8203`
+- **Working tree**: clean
 - **PyTorch**: 2.10.0+cu128
 - **CUDA**: 12.8
 - **GPU**: NVIDIA GeForce RTX 3090
