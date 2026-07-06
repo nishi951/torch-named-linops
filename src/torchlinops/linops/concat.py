@@ -261,7 +261,7 @@ class Concat(NamedLinop):
 
     def adjoint(self):
         adj_linops = [linop.H for linop in self.linops]
-        adj_shape = adj_linops[0].shape
+        adj_shape = copy(adj_linops[0].shape)
         return self.spinoff(
             linops=adj_linops,
             shape=adj_shape,
@@ -276,7 +276,7 @@ class Concat(NamedLinop):
             max_oshape = max_shape([linop.N.oshape for linop in self.linops])
             new_shape = NS(max_ishape, max_oshape)
             if self.idim is None:  # Vertical (inner product)
-                linops = [linop.N for linop in self.linops]
+                linops = [copy(linop.N) for linop in self.linops]
                 linops = standardize_shapes(linops, new_shape)
                 new = Add(*linops, threaded=self.threaded, num_workers=self.num_workers)
                 return new
@@ -287,9 +287,9 @@ class Concat(NamedLinop):
                     row = []
                     for linop_right in self.linops:
                         if linop_left == linop_right:
-                            new_linop = linop_right.N
+                            new_linop = copy(linop_right.N)
                         else:
-                            new_linop = linop_left.H @ linop_right
+                            new_linop = copy(linop_left.H) @ copy(linop_right)
                         row.append(new_linop)
                         row = standardize_shapes(row, new_shape)
                     rows.append(
@@ -302,7 +302,7 @@ class Concat(NamedLinop):
                 diag = []
                 new_idim, new_odim = self._get_new_normal_io_dims(new_shape, self.idim)
                 for linop in self.linops:
-                    diag.append(linop.N)
+                    diag.append(copy(linop.N))
                 diag = standardize_shapes(diag, new_shape)
                 return self.spinoff(diag, shape=new_shape, idim=new_idim, odim=new_odim)
         return super().normal(inner)

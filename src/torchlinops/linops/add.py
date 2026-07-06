@@ -131,9 +131,9 @@ class Add(NamedLinop):
             for left_linop in self.linops:
                 for right_linop in self.linops:
                     if left_linop == right_linop:
-                        all_combinations.append(left_linop.N)
+                        all_combinations.append(copy(left_linop.N))
                     else:
-                        all_combinations.append(left_linop.H @ right_linop)
+                        all_combinations.append(copy(left_linop.H) @ copy(right_linop))
             all_combinations = standardize_shapes(all_combinations, new_shape)
             normal = copy(self)
             normal.linops = nn.ModuleList(list(all_combinations))
@@ -156,7 +156,6 @@ class Add(NamedLinop):
     def H(self):
         try:
             if config.cache_adjoint_normal:
-                config._warn_if_caching_enabled()
                 if self._adjoint is None:
                     self._adjoint = [self.adjoint()]
                 return self._adjoint[0]
@@ -168,7 +167,6 @@ class Add(NamedLinop):
     def N(self):
         try:
             if config.cache_adjoint_normal:
-                config._warn_if_caching_enabled()
                 if self._normal is None:
                     self._normal = [self.normal()]
                 return self._normal[0]
