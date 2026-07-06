@@ -302,9 +302,9 @@ class Stack(NamedLinop):
                     row = []
                     for linop_right in self.linops:
                         if linop_left == linop_right:
-                            new_linop = linop_right.N
+                            new_linop = copy(linop_right.N)
                         else:
-                            new_linop = linop_left.H @ linop_right
+                            new_linop = copy(linop_left.H) @ copy(linop_right)
                             new_linop.ishape = new_shape.ishape
                             new_linop.oshape = new_shape.oshape
                         row.append(new_linop)

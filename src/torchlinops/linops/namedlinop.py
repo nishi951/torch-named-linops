@@ -267,24 +267,20 @@ class NamedLinop(nn.Module):
         """
         return None
 
-    @final
     @property
     def dims(self) -> set:
         """Get the set of dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
 
-    @final
     @property
     def H(self) -> "NamedLinop":
         """Adjoint operator $A^H$.
 
-        By default, creates a new adjoint on each access. Set
-        ``torchlinops.config.cache_adjoint_normal = True`` to enable caching
-        (deprecated).
+        Creates a new adjoint on each access. Set
+        ``torchlinops.config.cache_adjoint_normal = False`` to disable caching.
         """
         try:
             if config.cache_adjoint_normal:
-                config._warn_if_caching_enabled()
                 if self._adjoint is None:
                     try:
                         _adjoint = self.adjoint()
@@ -331,7 +327,6 @@ class NamedLinop(nn.Module):
         elif normal:
             self._suffix += ".N"
 
-    @final
     @property
     def N(self) -> "NamedLinop":
         """Normal operator $A^H A$.
@@ -340,13 +335,11 @@ class NamedLinop(nn.Module):
         This function is reserved for custom behavior, as many linops have
         optimized normal forms.
 
-        By default, creates a new normal on each access. Set
-        ``torchlinops.config.cache_adjoint_normal = True`` to enable caching
-        (deprecated).
+        Creates a new normal on each access. Set
+        ``torchlinops.config.cache_adjoint_normal = False`` to disable caching.
         """
         try:
             if config.cache_adjoint_normal:
-                config._warn_if_caching_enabled()
                 if self._normal is None:
                     try:
                         _normal = self.normal()
@@ -535,7 +528,7 @@ class NamedLinop(nn.Module):
             topology when moving tensors.
         called_by_adjoint : bool, default False
             Internal flag to prevent infinite recursion when the adjoint
-            also calls ``.to()``. Will be deprecated along with cache_adjoint_normal.
+            also calls ``.to()``.
 
         Returns
         -------
@@ -544,7 +537,6 @@ class NamedLinop(nn.Module):
         """
 
         if config.cache_adjoint_normal:  # pragma: no cover
-            config._warn_if_caching_enabled()
             if self._adjoint and not called_by_adjoint:
                 # bool flag avoids infinite recursion
                 self._adjoint[0] = self._adjoint[0].to(
