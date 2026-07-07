@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops import Truncate, PadDim
-from torchlinops.tests.test_base import BaseNamedLinopTests
+from test_base import BaseNamedLinopTests
 
 
 class TestTruncate(BaseNamedLinopTests):

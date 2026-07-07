@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops import Dense, Dim, Stack
-from torchlinops.tests.test_base import BaseNamedLinopTests
+from test_base import BaseNamedLinopTests
 from torchlinops.utils import inner
 
 
