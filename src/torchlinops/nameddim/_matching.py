@@ -47,7 +47,7 @@ def isequal(
     ----------
     shape1, shape2 : Sequence
         The sequences of tokens to compare.
-    shape*_consume_all: bool
+    shape1_consume_all, shape2_consume_all: bool
         Whether to consume all elements of the sequence greedily.
         This usually means maximizing matches with ELLIPSES tokens.
 

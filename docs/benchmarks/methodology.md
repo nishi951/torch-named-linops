@@ -16,12 +16,11 @@ scientific computing package. Three variants are compared per operation:
 
 Each benchmarked function **generates fresh input data on every iteration**.
 This prevents GPU L2 cache effects that would artificially speed up repeated
-computation on the same tensor. For small inputs (e.g. a 64×64 grid ≈ 32 KB),
+computation on the same tensor. For small inputs (e.g. a 64x64 grid ~32 KB),
 the data fits entirely in the RTX 3090's 6 MB L2 cache, so caching would
 otherwise dominate the measurement.
 
-The benchmark handlers (`TorchHandler` and `CupyHandler`) implement this via
-the `data_gen_fn` parameter to `blocked_autorange()`:
+The benchmark handlers implement this via the `data_gen_fn` parameter:
 
 ```python
 # Simplified pseudocode of handler's timing loop
@@ -36,25 +35,23 @@ For the linop variant, the linop is **constructed once outside the timed loop**
 so that construction cost (apodization weights, padding parameters, etc.) is
 not included in the benchmark.
 
-### Data Generation Reporting
-
-A **separate data-generation-only benchmark** is run for each variant using
-the same `blocked_autorange` methodology. The mean data generation time is
-reported in the "Data Gen" column for reference, but is **not subtracted**
-from the operation's total mean time. The "Mean" column reports the total
-time including data generation.
-
-What each variant's data-gen function includes:
-
-| Variant | Data gen includes |
-|---------|-------------------|
-| torchlinops (functional) | `torch.randn` + `_get_valid_locs` |
-| torchlinops (linop) | `torch.randn` |
-| sigpy | `xp.random.randn` + `_get_valid_locs` + `from_pytorch` (+ `with dev:` for GPU) |
-
 ## Timing
 
 All benchmarks use a unified handler-based approach via `TorchHandler` and `CupyHandler`, which provide `blocked_autorange()` methods with automatic iteration count determination.
+
+### Timing Mechanisms
+
+The handlers use two distinct timing mechanisms depending on whether data generation is used:
+
+**Without `data_gen_fn` (blocked autorange):**
+- Auto-calibrates `runs_per_block` by doubling until block time exceeds 5ms
+- Times blocks of N iterations with a single event pair, divides by N
+- More efficient for fast operations
+
+**With `data_gen_fn` (per-iteration timing):**
+- Falls back to per-iteration Event-based timing
+- Creates a new event pair each iteration, synchronizes after each
+- Necessary since data must be regenerated between iterations
 
 ### torchlinops (CPU and GPU)
 
@@ -64,8 +61,8 @@ All benchmarks use a unified handler-based approach via `TorchHandler` and `Cupy
 - **CPU**: Uses `time.perf_counter()` for high-resolution wall-clock timing
 
 The handler performs:
-1. **Warmup**: One untimed call to initialize caches and JIT compilation
-2. **Auto-calibration**: Doubles runs per block until block time exceeds 5ms
+1. **Warmup**: `num_warmup` untimed calls (default 1, set to 3 in this suite) to initialize caches and JIT compilation
+2. **Auto-calibration**: Doubles runs per block until block time exceeds 5ms (blocked mode only)
 3. **Measurement**: Collects per-run times until minimum run time or run count is reached
 4. **Memory tracking**: Records peak GPU memory via `torch.cuda.max_memory_allocated()` (GPU only)
 
@@ -81,7 +78,7 @@ The handler performs:
 
 The benchmark suite dynamically estimates `min_run_time` via a pilot run to ensure at least 10 runs complete within a reasonable total time (~5 seconds):
 
-1. **Pilot run**: Measures per-call time with one untimed warmup call followed by one timed call
+1. **Pilot run**: Measures per-call time with `num_warmup` untimed calls followed by one timed call
 2. **Estimation**: Sets `min_run_time` based on per-call time:
    - Slow functions (>10ms): `min_run_time = per_call_time * 1.5`
    - Medium functions (>1ms): `min_run_time = per_call_time * 5`
@@ -89,16 +86,6 @@ The benchmark suite dynamically estimates `min_run_time` via a pilot run to ensu
 3. **Clamping**: Final value is clamped to \[0.01, 0.5\] seconds
 
 If `min_run_time` is explicitly provided, it is used directly without estimation.
-
-### Data Generation in Timing Loop
-
-The handlers' `blocked_autorange()` method accepts an optional `data_gen_fn` parameter. When provided:
-
-- **Data generation is untimed**: `data = data_gen_fn()` runs outside the timing loop
-- **Operation is timed**: `fn(data)` runs inside the timing loop
-- **Fresh data per iteration**: Prevents GPU L2 cache effects that would artificially speed up repeated computation on the same tensor
-
-This ensures that only the operation itself is measured, while still benefiting from fresh data on each iteration to avoid cache artifacts.
 
 ## Memory Tracking
 
@@ -120,7 +107,7 @@ Non-uniform FFT forward and adjoint, 2D and 3D.
 
 ### Interpolate
 
-Kaiser-Bessel interpolation forward (grid → points) and adjoint (points → grid), 2D and 3D.
+Kaiser-Bessel interpolation forward (grid -> points) and adjoint (points -> grid), 2D and 3D.
 
 - **torchlinops functional**: `interpolate(x, locs, width, ...)` / `interpolate_adjoint(y, locs, grid_size, width, ...)`
 - **torchlinops linop**: `Interpolate(locs, grid_size, ...)` then `A(x)` / `A.H(y)`
@@ -143,9 +130,9 @@ to show how performance and memory scale with input size.
 
 | Size | Grid | npts | Problem size |
 |------|------|------|-------------|
-| Small | 64×64 | 4,096 | 4,096 |
-| Medium | 128×128 | 16,384 | 16,384 |
-| Large | 256×256 | 65,536 | 65,536 |
+| Small | 64x64 | 4,096 | 4,096 |
+| Medium | 128x128 | 16,384 | 16,384 |
+| Large | 256x256 | 65,536 | 65,536 |
 
 The number of points equals `prod(grid_size)` (fully sampled).
 
@@ -153,9 +140,9 @@ The number of points equals `prod(grid_size)` (fully sampled).
 
 | Size | Grid | npts | Problem size |
 |------|------|------|-------------|
-| Small | 32³ | 4,096 | 32,768 |
-| Medium | 64³ | 32,768 | 262,144 |
-| Large | 128³ | 262,144 | 2,097,152 |
+| Small | 32^3 | 4,096 | 32,768 |
+| Medium | 64^3 | 32,768 | 262,144 |
+| Large | 128^3 | 262,144 | 2,097,152 |
 
 The number of points is 1/8 of `prod(grid_size)` (realistic 3D undersampling).
 
@@ -163,11 +150,11 @@ The number of points is 1/8 of `prod(grid_size)` (realistic 3D undersampling).
 
 | Size | Grid | Block | Stride | Problem size |
 |------|------|-------|--------|-------------|
-| Small | 32³ | 8³ | 4 | 32,768 |
-| Medium | 64³ | 8³ | 4 | 262,144 |
-| Large | 128³ | 8³ | 4 | 2,097,152 |
+| Small | 32^3 | 8^3 | 4 | 32,768 |
+| Medium | 64^3 | 8^3 | 4 | 262,144 |
+| Large | 128^3 | 8^3 | 4 | 2,097,152 |
 
-The "problem size" is `prod(grid_size)`. The large size (128³) produces
+The "problem size" is `prod(grid_size)`. The large size (128^3) produces
 ~15M output elements (~120 MB for complex64).
 
 ## Charts
@@ -175,7 +162,7 @@ The "problem size" is `prod(grid_size)`. The large size (128³) produces
 ### Bar Charts
 
 One grouped bar chart per problem size per device, showing mean time for all
-operations × libraries. Bars are grouped by library:
+operations x libraries. Bars are grouped by library:
 
 - **torchlinops** (blue): functional API
 - **torchlinops (linop)** (light blue): NamedLinop abstraction
@@ -188,7 +175,7 @@ Scaling curve figures per device:
 - **Timing scaling**: One subplot per operation type (NUFFT 2D,
   NUFFT 3D, Interpolate 2D, Interpolate 3D, ArrayToBlocks 3D). X-axis is
   problem size (log scale), Y-axis is mean time (log scale). Lines are per
-  library × direction (solid = forward, dashed = adjoint).
+  library x direction (solid = forward, dashed = adjoint).
 
 - **Memory scaling**: One subplot per operation type (GPU only). X-axis is
   problem size, Y-axis is peak GPU memory (log scale). Same line/marker
