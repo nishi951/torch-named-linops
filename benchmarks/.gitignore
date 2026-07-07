@@ -3,7 +3,4 @@
 *.log
 tmp/
 
-tutorials/
-
-*.png
-*.json
+results/

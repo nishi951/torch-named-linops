@@ -7,23 +7,12 @@ of their direct children.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Callable, Literal, Optional
+from typing import Optional
 
 import torch
 from torch import Tensor
 
 __all__ = ["parallel_execute"]
-
-# Type definitions
-LinopId = int | Literal["parent"]
-
-# A linop-event pair of the form (linop, [start|end]_event)
-# e.g. ("parent", "start_event"), or (1, "end_event")
-LinopEvent = tuple[LinopId, Literal['start_event", "end_event"']]
-
-# A mapping from the linop id to a list of events the linop must wait for
-# before starting.
-Dependencies = dict[LinopId, list[LinopEvent]]
 
 
 def thread_initializer():
@@ -33,8 +22,36 @@ def thread_initializer():
 
 
 def parallel_execute(
-    linops, inputs, context, reduce_fn, parent=None, threaded=False, num_workers=None
+    linops, inputs, context, reduce_fn, threaded=False, num_workers=None
 ):
+    """Execute a set of linops, possibly with threading-based concurrency.
+
+    Note that under the GIL, threading-based concurrency only helps when the actual compute is
+    not written in python (e.g. numpy functions, GPU kernels).
+
+    Written as a "map-reduce" operation.
+
+    Parameters
+    ----------
+    linops : list[NamedLinop]
+        The linops to execute in parallel.
+    inputs : list[Tensor]
+        The corresponding list of inputs, one for each linop in `linops`.
+    context : SyncContext
+        The context object used to synchronize torch linop calls across multiple GPUs.
+    reduce_fn : Callable[[list[Tensor]], Tensor]
+        Function that combines the individual outputs of each linop to give the final output.
+        Must be linear!
+    threaded : bool, default False
+        Whether to run the linops in separate threads.
+    num_workers : int, optional
+        The maximum number of workers to use in the threaded case.
+
+    Returns
+    -------
+    Tensor
+        The output tensor.
+    """
     if len(linops) != len(inputs):
         raise ValueError(
             f"linops and inputs must have same length but got linops: {len(linops)} != inputs: {len(inputs)}"

@@ -19,6 +19,5 @@
             - normal
             - flatten
             - compose
-            - apply
             - to
             - reset_adjoint_and_normal

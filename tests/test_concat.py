@@ -3,7 +3,7 @@ import torch
 
 from torchlinops import Add, Concat, Dense, Dim, Stack
 from torchlinops.linops.concat import partition_slices
-from torchlinops.tests.test_base import BaseNamedLinopTests
+from test_base import BaseNamedLinopTests
 from torchlinops.utils import inner
 
 

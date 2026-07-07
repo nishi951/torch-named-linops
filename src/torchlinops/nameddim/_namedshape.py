@@ -138,4 +138,7 @@ class NamedShape(NamedDimCollection):
         return left.__add__(self)
 
     def __eq__(self, other):
-        return isequal(self.ishape, other.ishape) and isequal(self.oshape, other.oshape)
+        return (
+            isequal(self.ishape, other.ishape)[0]
+            and isequal(self.oshape, other.oshape)[0]
+        )

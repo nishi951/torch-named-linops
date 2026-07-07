@@ -6,4 +6,6 @@ without the `NamedLinop` abstraction, and are used internally by the linop class
 ::: torchlinops.functional
     options:
         members: true
-        filters: ["!^_[^_]", "__init__"]
+        filters:
+          - "!^_(?!_)"
+          - "__init__"

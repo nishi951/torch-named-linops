@@ -61,10 +61,10 @@ class Add(NamedLinop):
         num_workers : int | None, optional
             Number of worker threads. If None, defaults to the number of sub-linops.
         """
-        assert all(isequal(linop.ishape, linops[0].ishape) for linop in linops), (
+        assert all(isequal(linop.ishape, linops[0].ishape)[0] for linop in linops), (
             f"Add: All linops must share same ishape. Found {linops}"
         )
-        assert all(isequal(linop.oshape, linops[0].oshape) for linop in linops), (
+        assert all(isequal(linop.oshape, linops[0].oshape)[0] for linop in linops), (
             f"Add: All linops must share same oshape. Linops: {linops}"
         )
         super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
@@ -94,7 +94,6 @@ class Add(NamedLinop):
             [x] * len(add),
             context,
             reduce_fn=sum,
-            parent=add,
             threaded=add.threaded,
             num_workers=add.num_workers,
         )
@@ -105,7 +104,6 @@ class Add(NamedLinop):
             [linop.H for linop in add.linops],
             [x] * len(add),
             context,
-            parent=add,
             reduce_fn=sum,
             threaded=add.threaded,
             num_workers=add.num_workers,
@@ -133,9 +131,9 @@ class Add(NamedLinop):
             for left_linop in self.linops:
                 for right_linop in self.linops:
                     if left_linop == right_linop:
-                        all_combinations.append(left_linop.N)
+                        all_combinations.append(copy(left_linop.N))
                     else:
-                        all_combinations.append(left_linop.H @ right_linop)
+                        all_combinations.append(copy(left_linop.H) @ copy(right_linop))
             all_combinations = standardize_shapes(all_combinations, new_shape)
             normal = copy(self)
             normal.linops = nn.ModuleList(list(all_combinations))
@@ -158,7 +156,6 @@ class Add(NamedLinop):
     def H(self):
         try:
             if config.cache_adjoint_normal:
-                config._warn_if_caching_enabled()
                 if self._adjoint is None:
                     self._adjoint = [self.adjoint()]
                 return self._adjoint[0]
@@ -170,7 +167,6 @@ class Add(NamedLinop):
     def N(self):
         try:
             if config.cache_adjoint_normal:
-                config._warn_if_caching_enabled()
                 if self._normal is None:
                     self._normal = [self.normal()]
                 return self._normal[0]

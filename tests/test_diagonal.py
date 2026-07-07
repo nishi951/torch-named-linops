@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchlinops import Diagonal
-from torchlinops.tests.test_base import BaseNamedLinopTests
+from test_base import BaseNamedLinopTests
 from torchlinops.utils import inner
 
 
@@ -24,7 +24,6 @@ class TestDiagonal(BaseNamedLinopTests):
         return A, x, y
 
 
-@pytest.mark.xfail(reason="Deprecated behavior: changing a non-() dim to ()")
 def test_diagonal_shape_renaming():
     M = 10
     weight = torch.randn(M, 1, 1, dtype=torch.complex64)
