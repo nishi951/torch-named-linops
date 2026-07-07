@@ -161,19 +161,12 @@ class SumReduce(NamedLinop):
             d.next_unused(self.ishape) if d not in post.ishape else d
             for d in post.oshape
         )
-        shape_updates = {
-            d: new_d for d, new_d in zip(pre.ishape, post.oshape) if d != new_d
-        }
         if inner is not None:
             pre.oshape = inner.ishape
             post.ishape = inner.oshape
-            inner_shape_updates = getattr(inner, "_shape_updates", {})
-            shape_updates.update(inner_shape_updates)
             normal = post @ inner @ pre
-            normal._shape_updates = shape_updates
         else:
             normal = post @ pre
-            normal._shape_updates = shape_updates
         return normal
 
     @property
