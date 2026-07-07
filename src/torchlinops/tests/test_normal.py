@@ -4,6 +4,7 @@ from torchlinops import (
     Chain,
     Dense,
     Diagonal,
+    NamedShape,
 )
 
 
@@ -34,3 +35,19 @@ def test_diagonal_normal():
     A = Diagonal(weight, ioshape)
     assert torch.isclose(A.N(x), A.H(A(x))).all()
     assert not isinstance(A.N, Chain)
+
+
+def test_shape_updates_hidden():
+    M, N, P = 3, 5, 7
+
+    B = Dense(torch.randn(M, P), ("M", "P"), ishape=("M",), oshape=("P",))
+    C = Diagonal(torch.randn(M), ("...",))
+    D = Dense(torch.randn(M, N), ("M", "N"), ishape=("N",), oshape=("M",))
+
+    A = B @ C @ D
+    AN = A.N
+
+    required_shape = NamedShape(("M1",), ("N1",))
+
+    assert AN[-1].ishape == required_shape.ishape
+    assert AN[-1].oshape == required_shape.oshape

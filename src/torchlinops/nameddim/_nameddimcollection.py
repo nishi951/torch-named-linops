@@ -253,10 +253,11 @@ class NamedDimCollection:
         # Modify idx directly
         data = self.idx[oldshape_name]
         # Change k -> n in data
-        k = self._index(ANY)
         if isinstance(data, Mapping):
             # Fancy way to replace a dictionary key
-            data[n] = data.pop(k)
+            for k in data:
+                if self._dims[k] == ANY:
+                    data[n] = data.pop(k)
         elif isinstance(data, Tuple):
             # Less fancy way to replace a tuple entry
             data = list(data)
@@ -281,7 +282,7 @@ class NamedDimCollection:
                 self._dims.append(newdim)
             ns.append(self._index(newdim))
         if isinstance(data, Mapping):
-            oldval = data.pop[k]
+            oldval = data.pop(k)
             for n in ns:
                 data[n] = oldval
         elif isinstance(data, Tuple):
