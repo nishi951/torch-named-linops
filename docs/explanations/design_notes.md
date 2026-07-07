@@ -60,16 +60,16 @@ The library favors `copy.copy()` (shallow copy) over `copy.deepcopy()` as the pr
 - A shallow copy shares the data but gets its own shape, function references, and cache state. This is exactly what's needed for an adjoint: same data, different interpretation.
 - When true data independence is needed (e.g., for multi-GPU placement), the library provides `memory_aware_deepcopy` as an explicit opt-in. See [Copying Linops](copying_linops.md).
 
-## Threadable and shared linop copying
+## Composite linop execution model
 
-The `Add`, `Concat`, and `Stack` classes inherit from `Threadable`, which enables parallel execution of sub-linops using Python threads. When `threaded=True` (the default), each sub-linop runs in a separate thread via `ThreadPoolExecutor`, which is beneficial when sub-linops release the GIL (e.g., PyTorch tensor operations).
+The `Add`, `Concat`, `Stack`, and `Chain` classes are **composite linops** — they hold other linops as children and coordinate their execution. Each manages its own `linops` property and controls parallelism through `threaded` and `num_workers` constructor parameters.
 
 ### Why linops is a property
 
-The `Threadable` mixin manages sub-linops through a `linops` property rather than a direct attribute. This design choice is intentional:
+Each composite linop manages sub-linops through a `linops` property rather than a direct attribute. This design choice is intentional:
 
 ```python
-class Threadable:
+class Add(NamedLinop):
     @property
     def linops(self):
         return self._linops
@@ -77,19 +77,13 @@ class Threadable:
     @linops.setter
     def linops(self, new_linops):
         self._linops = new_linops
-        self._setup_events()
 ```
 
-When `linops` is assigned (e.g., in `__init__` or via `self.linops = ...`), the setter automatically:
-
-1. **Creates shallow copies of each linop** using `copy()`. This ensures that linops shared by identity (e.g., `Add(A, A)`) have independent `nn.Module` identities while still sharing tensor data.
-2. **Sets up input listeners** on each copied linop for event coordination.
-
-This automatic housekeeping prevents a common bug: without copying, two entries in `linops` pointing to the same object would cause race conditions when accessed from multiple threads.
+The property ensures that when `linops` is reassigned, any dependent state is kept in sync. Unlike the old `Threadable` mixin (removed in the stream-sync refactor), the current model **does not** create shallow copies of shared linops or set up input listeners. Shared linops (e.g., `Add(A, A)`) are used directly — each thread receives the same linop object but an independent execution context.
 
 ### Why `__setattr__` bypass is needed
 
-PyTorch's `nn.Module.__setattr__` intercepts all attribute assignments. When you set `self.linops = nn.ModuleList([...])`, PyTorch would register each linop as a submodule. The `__setattr__` override in `Threadable` ensures that `linops` assignment goes through the property descriptor instead:
+PyTorch's `nn.Module.__setattr__` intercepts all attribute assignments. When you set `self.linops = nn.ModuleList([...])`, PyTorch would register each linop as a submodule. The `__setattr__` override on each composite class ensures that `linops` assignment goes through the property descriptor instead:
 
 ```python
 def __setattr__(self, name, value):
@@ -99,22 +93,37 @@ def __setattr__(self, name, value):
         super().__setattr__(name, value)
 ```
 
-### Shallow copy preserves tensor sharing
+### Parallel execution via `parallel_execute`
 
-The shallow copy in `_setup_events` preserves tensor data sharing:
+When `threaded=True` (the default), composite linops use `parallel_execute()` from `torchlinops.linops.schedule` to run child linops in a `ThreadPoolExecutor`. This is beneficial when sub-linops release the GIL (e.g., PyTorch tensor operations). The `num_workers` parameter controls the maximum number of threads; if `None`, it defaults to the number of children.
+
+When `threaded=False`, children run sequentially in a simple loop. This is useful for debugging or when thread overhead outweighs benefits.
+
+```python
+# Parallel (default)
+add = Add(A, B, C)  # threaded=True by default
+
+# Sequential
+add = Add(A, B, C, threaded=False)
+
+# Limited parallelism
+add = Add(A, B, C, threaded=True, num_workers=2)
+```
+
+Shared linops are used directly without copying:
 
 ```python
 A = Dense(weight, ...)
-add = Add(A, A)  # Shared linop by identity
+add = Add(A, A)  # Same A object in both slots
 
-# linops[0] and linops[1] are different objects
-assert add.linops[0] is not add.linops[1]
+# linops[0] and linops[1] ARE the same object
+assert add.linops[0] is add.linops[1]
 
-# But they share the same weight data
+# They share the same weight data (obviously, since they're the same object)
 assert add.linops[0].weight.data_ptr() == add.linops[1].weight.data_ptr()
 ```
 
-This is efficient for memory and ensures that modifying weights in one place updates all references consistently.
+See [Multi-GPU Execution](multi_gpu.md) for the synchronization mechanism (`SyncContext`, CUDA events, and streams) that makes parallel containers work safely.
 
 ## Gotchas and Pitfalls
 

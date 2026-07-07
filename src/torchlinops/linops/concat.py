@@ -22,8 +22,8 @@ from ..nameddim import (
 from .add import Add
 from .device import ToDevice
 from .identity import Zero
-from .namedlinop import NamedLinop
-from .threadable import Threadable, _threaded_apply, _threaded_apply_sum_reduce
+from .namedlinop import NamedLinop, SyncContext
+from .schedule import parallel_execute
 
 __all__ = ["Concat"]
 
@@ -35,7 +35,7 @@ def _log_transfer(msg):
         logger.info(msg)
 
 
-class Concat(Threadable, NamedLinop):
+class Concat(NamedLinop):
     """Concatenate some linops along an existing dimension.
 
     Linops need not output tensors of the same size, but they should
@@ -59,13 +59,12 @@ class Concat(Threadable, NamedLinop):
         . B .
         . . C
 
-    Inherits from ``Threadable`` to support parallel execution of sub-linops.
     When ``threaded=True`` (default), each sub-linop is executed in parallel
     using a ThreadPoolExecutor.
 
-    Note that shared linops (e.g., ``Concat(A, A, idim="x")``) are automatically
-    shallow-copied to ensure independent identity for threading, while still
-    sharing tensor data. See ``Threadable`` for details.
+    Shared linops (e.g., ``Concat(A, A, idim="x")``) are used directly without
+    copying — each thread receives the same linop object but independent
+    execution context.
 
     Attributes
     ----------
@@ -81,11 +80,15 @@ class Concat(Threadable, NamedLinop):
         Output dimension along which to concatenate.
     """
 
+    is_container = True
+
     def __init__(
         self,
         *linops,
         idim: Optional[ND | str] = None,
         odim: Optional[ND | str] = None,
+        threaded: bool = True,
+        num_workers: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -99,49 +102,70 @@ class Concat(Threadable, NamedLinop):
         odim : str or ND, optional
             Output dimension along which to concatenate. If ``None``, the output
             is not concatenated (outputs are summed).
+        threaded : bool, optional
+            Whether to run sub-linops in parallel. Default is True.
+        num_workers : int | None, optional
+            Number of worker threads. If None, defaults to the number of sub-linops.
         """
         self._check_linop_compatibility(linops)
         super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
-        self.linops = nn.ModuleList(list(linops))
+        self.threaded = threaded
+        self.num_workers = num_workers
+        self._linops = nn.ModuleList(list(linops))
         self._setup_indices(idim, odim)
 
+    @property
+    def linops(self):
+        return self._linops
+
+    @linops.setter
+    def linops(self, new_linops):
+        self._linops = new_linops
+
+    def __setattr__(self, name, value):
+        """Bypass PyTorch's setattr for linops."""
+        if name == "linops":
+            type(self).linops.fset(self, value)
+        else:
+            super().__setattr__(name, value)
+
     @staticmethod
-    def fn(concat, x):
+    def fn(concat, x, context=None):
         return concat._fn(
+            concat,
             x,
             concat.linops,
             concat.idim_idx,
             concat.odim_idx,
             concat.islices,
             concat.oslices,
-            concat.threaded,
-            concat.num_workers,
+            context,
         )
 
     @staticmethod
-    def adj_fn(concat, x):
+    def adj_fn(concat, x, context=None):
         adj_linops = [linop.H for linop in concat.linops]
         return concat._fn(
+            concat,
             x,
             adj_linops,
             concat.odim_idx,
             concat.idim_idx,
             concat.oslices,
             concat.islices,
-            concat.threaded,
-            concat.num_workers,
+            context,
         )
 
     @staticmethod
     def _fn(
+        concat,
         x: Tensor,
         linops,
         idim_idx,
         odim_idx,
         islices,
         oslices,
-        threaded: bool = False,
-        num_workers: int | None = None,
+        context,
     ):
         """Unifies forward and adjoint functionality for stacked linops"""
         if idim_idx is not None:  # Diagonal, Horizontal
@@ -154,20 +178,24 @@ class Concat(Threadable, NamedLinop):
             xs = [x] * len(oslices)
 
         if odim_idx is not None:  # Diagonal, Vertical
-            if threaded:
-                ys = _threaded_apply(list(linops), xs, num_workers)
-            else:
-                ys = [linop(xi) for xi, linop in zip(xs, linops)]
-            return torch.concatenate(ys, dim=odim_idx)
+            return parallel_execute(
+                linops,
+                xs,
+                context,
+                reduce_fn=lambda ys: torch.concatenate(ys, dim=odim_idx),
+                threaded=concat.threaded,
+                num_workers=concat.num_workers,
+            )
 
         # Horizontal
-        if threaded:
-            y = _threaded_apply_sum_reduce(list(linops), xs, num_workers)
-        else:
-            y = 0.0
-            for xi, linop in zip(xs, linops):
-                y += linop(xi)
-        return y
+        return parallel_execute(
+            linops,
+            xs,
+            context,
+            reduce_fn=sum,
+            threaded=concat.threaded,
+            num_workers=concat.num_workers,
+        )
 
     def size(self, dim):
         if dim == self.idim:
@@ -179,30 +207,37 @@ class Concat(Threadable, NamedLinop):
                 if linop.size(dim) is not None:
                     return linop.size(dim)
 
-    def split_forward(self, ibatch, obatch):
+    @staticmethod
+    def split(concat, tile):
         """Split concat linop, making a new concat linop if necessary"""
-        ibatches = self.subslice(ibatch, self.idim_idx, self.islices, len(self.linops))
-        obatches = self.subslice(obatch, self.odim_idx, self.oslices, len(self.linops))
+        ibatch = list(tile.get(dim, slice(None)) for dim in concat.ishape)
+        obatch = list(tile.get(dim, slice(None)) for dim in concat.oshape)
+        ibatches = concat.subslice(
+            ibatch, concat.idim_idx, concat.islices, len(concat.linops)
+        )
+        obatches = concat.subslice(
+            obatch, concat.odim_idx, concat.oslices, len(concat.linops)
+        )
 
         output_linop_idxs = ibatches.keys() & obatches.keys()
         output_linop_idxs = sorted(list(output_linop_idxs))
         if len(output_linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
-            return Zero(self.ishape, self.oshape)
+            return Zero(concat.ishape, concat.oshape)
         elif len(output_linop_idxs) == 1:
             # Singleton linop
             linop_idx = output_linop_idxs.pop()
-            linop = self.linops[linop_idx]
-            ibatch, obatch = ibatches[linop_idx], obatches[linop_idx]
-            return linop.split_forward(ibatch, obatch)
+            linop = concat.linops[linop_idx]
+            sub_tile = {dim: tile.get(dim, slice(None)) for dim in linop.dims}
+            return type(linop).split(linop, sub_tile)
         else:
             output_linop_idxs = sorted(list(output_linop_idxs))
             output_linops = []
             for i in output_linop_idxs:
-                linop = self.linops[i]
-                ibatch, obatch = ibatches[i], obatches[i]
-                output_linops.append(linop.split_forward(ibatch, obatch))
-            return self.spinoff(output_linops, idim=self.idim, odim=self.odim)
+                linop = concat.linops[i]
+                sub_tile = {dim: tile.get(dim, slice(None)) for dim in linop.dims}
+                output_linops.append(type(linop).split(linop, sub_tile))
+            return concat.spinoff(output_linops, idim=concat.idim, odim=concat.odim)
 
     @staticmethod
     def subslice(batch: list[slice], dim_idx: Optional[int], slices, num_linops):
@@ -226,7 +261,7 @@ class Concat(Threadable, NamedLinop):
 
     def adjoint(self):
         adj_linops = [linop.H for linop in self.linops]
-        adj_shape = adj_linops[0].shape
+        adj_shape = copy(adj_linops[0].shape)
         return self.spinoff(
             linops=adj_linops,
             shape=adj_shape,
@@ -241,10 +276,9 @@ class Concat(Threadable, NamedLinop):
             max_oshape = max_shape([linop.N.oshape for linop in self.linops])
             new_shape = NS(max_ishape, max_oshape)
             if self.idim is None:  # Vertical (inner product)
-                linops = [linop.N for linop in self.linops]
+                linops = [copy(linop.N) for linop in self.linops]
                 linops = standardize_shapes(linops, new_shape)
-                new = Add(*linops)
-                new.settings = self.settings  # Copy Threadable settings
+                new = Add(*linops, threaded=self.threaded, num_workers=self.num_workers)
                 return new
             elif self.odim is None:  # Horizontal (outer product)
                 rows = []
@@ -253,9 +287,9 @@ class Concat(Threadable, NamedLinop):
                     row = []
                     for linop_right in self.linops:
                         if linop_left == linop_right:
-                            new_linop = linop_right.N
+                            new_linop = copy(linop_right.N)
                         else:
-                            new_linop = linop_left.H @ linop_right
+                            new_linop = copy(linop_left.H) @ copy(linop_right)
                         row.append(new_linop)
                         row = standardize_shapes(row, new_shape)
                     rows.append(
@@ -263,13 +297,12 @@ class Concat(Threadable, NamedLinop):
                             linops=row, shape=new_shape, idim=new_idim, odim=None
                         )
                     )
-                # rows = standardize_shapes(rows, new_shape)
                 return self.spinoff(rows, shape=new_shape, idim=None, odim=new_odim)
             else:  # Diagonal
                 diag = []
                 new_idim, new_odim = self._get_new_normal_io_dims(new_shape, self.idim)
                 for linop in self.linops:
-                    diag.append(linop.N)
+                    diag.append(copy(linop.N))
                 diag = standardize_shapes(diag, new_shape)
                 return self.spinoff(diag, shape=new_shape, idim=new_idim, odim=new_odim)
         return super().normal(inner)
@@ -287,8 +320,8 @@ class Concat(Threadable, NamedLinop):
         target_shape = linops[0].shape
         for linop in linops:
             if not (
-                isequal(target_shape.ishape, linop.ishape)
-                and isequal(target_shape.oshape, linop.oshape)
+                isequal(target_shape.ishape, linop.ishape)[0]
+                and isequal(target_shape.oshape, linop.oshape)[0]
             ):
                 raise ValueError(
                     f"Incompatible linops being stacked. Target shape: {target_shape} but got linop shape: {linop.shape}"

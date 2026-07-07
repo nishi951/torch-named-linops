@@ -51,17 +51,8 @@ class Diagonal(NamedLinop):
             raise ValueError(
                 f"All dimensions must be named or broadcastable, but got weight shape {weight.shape} and ioshape {ioshape}"
             )
-        # if broadcast_dims is not None:
-        #     warn(
-        #         f"broadcast_dims argument is deprecated for torchlinops Diagonal but got {broadcast_dims}",
-        #         DeprecationWarning,
-        #         stacklevel=2,
-        #     )
         super().__init__(NS(ioshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
-        # assert (
-        #     len(self.ishape) >= len(self.weight.shape)
-        # ), f"Weight cannot have fewer dimensions than the input shape: ishape: {self.ishape}, weight: {weight.shape}"
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         if ANY in self.ishape:
             broadcast_dims.append(ANY)
@@ -154,10 +145,13 @@ class Diagonal(NamedLinop):
             return normal
         return super().normal(inner)
 
-    def split_forward(self, ibatch, obatch):
-        weight = self.split_weight(ibatch, obatch, self.weight)
-        split = copy(self)
-        split.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
+    @staticmethod
+    def split(diagonal, tile):
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in diagonal.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in diagonal.oshape)
+        weight = diagonal.split_weight(ibatch, obatch, diagonal.weight)
+        split = copy(diagonal)
+        split.weight = nn.Parameter(weight, requires_grad=diagonal.weight.requires_grad)
         return split
 
     def split_weight(self, ibatch, obatch, /, weight):

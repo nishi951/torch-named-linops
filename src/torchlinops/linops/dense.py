@@ -178,7 +178,6 @@ class Dense(NamedLinop):
         wout_shape = []
         win_shape = []
         used_shapes = self.ishape + self.oshape
-        shape_updates = {}
         # Make new oshape and weight shape
         # Rules:
         # New weightshape
@@ -193,7 +192,6 @@ class Dense(NamedLinop):
                 if dim not in self.oshape:
                     win_shape.append(dim)
                     new_dim = dim.next_unused(used_shapes)
-                    shape_updates[dim] = new_dim
                     wout_shape.append(new_dim)
                 else:
                     wdiag_shape.append(dim)
@@ -221,23 +219,22 @@ class Dense(NamedLinop):
             )
             normal._name = self._name
             normal._update_suffix(normal=self._name is not None)
-            normal._shape_updates = shape_updates
             return normal
-        _shape_updates = getattr(inner, "_shape_updates", {})
-        _shape_updates.update(shape_updates)
         pre = copy(self)
         pre.oshape = inner.ishape
         post = self.adjoint()  # Copy happens inside adjoint
         post.ishape = inner.oshape
         post.oshape = new_oshape
         normal = post @ inner @ pre
-        normal._shape_updates = _shape_updates
         return normal
 
-    def split_forward(self, ibatch, obatch):
-        weight = self.split_weight(ibatch, obatch, self.weight)
-        out = copy(self)
-        out.weight = nn.Parameter(weight, requires_grad=self.weight.requires_grad)
+    @staticmethod
+    def split(dense, tile):
+        ibatch = tuple(tile.get(dim, slice(None)) for dim in dense.ishape)
+        obatch = tuple(tile.get(dim, slice(None)) for dim in dense.oshape)
+        weight = dense.split_weight(ibatch, obatch, dense.weight)
+        out = copy(dense)
+        out.weight = nn.Parameter(weight, requires_grad=dense.weight.requires_grad)
         return out
 
     def split_weight(self, ibatch, obatch, /, weight):

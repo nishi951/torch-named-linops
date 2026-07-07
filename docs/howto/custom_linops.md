@@ -84,19 +84,23 @@ def normal_fn(x: Tensor, /, weight: Tensor) -> Tensor:
 
 The first positional argument is always the input tensor `x`. Additional arguments are operator-specific data (weights, parameters, etc.) passed from `forward()`.
 
-### 3. Use `type(self)` in `split_forward()`
+### 3. Use `type(linop)` in `split()`
 
-If you override `split_forward()` for multi-GPU splitting, construct new instances using `type(self)(...)` instead of `copy.deepcopy(self)`. This avoids unnecessary tensor copies and ensures proper parameter isolation:
+If you override `split()` for multi-GPU splitting, construct new instances using `type(linop)(...)` instead of `copy.deepcopy(linop)`. This avoids unnecessary tensor copies and ensures proper parameter isolation:
 
 ```python
-def split_forward(self, ibatch, obatch):
+@staticmethod
+def split(linop, tile):
+    # Extract slices for your dimensions
+    ibatch = tuple(tile.get(dim, slice(None)) for dim in linop.ishape)
+    obatch = tuple(tile.get(dim, slice(None)) for dim in linop.oshape)
     # Slice your data for this batch
-    sub_weight = self.weight[obatch, ibatch]
+    sub_weight = linop.weight[obatch, ibatch]
     # Create a new instance (not a copy)
-    return type(self)(sub_weight, ishape=..., oshape=...)
+    return type(linop)(sub_weight, ishape=..., oshape=...)
 ```
 
-See [Copying Linops](../explanations/copying_linops.md) and [Multi-GPU Splitting](../explanations/multi_gpu.md) for more details on why this matters.
+See [Copying Linops](../explanations/copying_linops.md) and [Multi-GPU Execution](../explanations/multi_gpu.md) for more details on why this matters.
 
 ## Testing Your Linop
 

@@ -73,13 +73,21 @@ repo = "fontawesome/brands/github"
 ]
 
 [[project.nav]]
+"Benchmarks" = [
+    "benchmarks/index.md",
+    { "CPU" = "benchmarks/cpu.md" },
+    { "GPU" = "benchmarks/gpu.md" },
+    { "Methodology" = "benchmarks/methodology.md" },
+]
+
+[[project.nav]]
 "Explanations" = [
     "explanations/index.md",
     { "Named Abstractions" = "explanations/named_abstractions.md" },
     { "Why This Package?" = "explanations/why_this_package.md" },
     { "Design Notes" = "explanations/design_notes.md" },
     { "Copying Linops" = "explanations/copying_linops.md" },
-    { "Multi-GPU Splitting" = "explanations/multi_gpu.md" },
+    { "Multi-GPU Execution" = "explanations/multi_gpu.md" },
     { "FAQ" = "explanations/faq.md" },
 ]
 
@@ -104,7 +112,6 @@ repo = "fontawesome/brands/github"
         { "Padding & Truncation" = "reference/linops/pad.md" },
         { "Sampling" = "reference/linops/sampling.md" },
         { "Splitting" = "reference/linops/split.md" },
-        { "Threadable" = "reference/linops/threadable.md" },
     ] },
     { "Functional" = [
         "reference/functional/index.md",
@@ -123,6 +130,7 @@ repo = "fontawesome/brands/github"
         "reference/alg/cg.md",
         "reference/alg/poly.md",
         "reference/alg/powermethod.md",
+        { "SVD" = "reference/alg/svd.md" },
     ] },
     { "Utils" = [
         "reference/utils/math.md",

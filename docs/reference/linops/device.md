@@ -12,5 +12,7 @@
         inherited_members: false
         members:
             - __init__
+            - device
+            - compute_stream
+            - transfer_stream
             - p2p_setup
-            - get_transfer_stream

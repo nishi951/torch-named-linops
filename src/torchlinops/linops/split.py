@@ -1,5 +1,4 @@
-from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import ceil
 from typing import Optional
 from warnings import warn
@@ -10,7 +9,6 @@ from torch.cuda import Stream
 
 from torchlinops.utils import (
     ModuleMemoryMap,
-    RepeatedEvent,
     batch_iterator,
     default_to,
     dict_product,
@@ -23,7 +21,7 @@ from .concat import Concat
 from .device import ToDevice
 from .namedlinop import NamedLinop
 
-__all__ = ["split_linop", "create_batched_linop", "BatchSpec"]
+__all__ = ["split_linop", "create_batched_linop", "BatchSpec", "ResolvedBatchSpec"]
 
 Batch = tuple[int, slice]
 # Represents a single batch at index 0 over the full extent
@@ -32,7 +30,29 @@ DEFAULT_BATCH = (0, slice(None))
 Tile = dict[ND | str, Batch]
 
 
-@dataclass
+@dataclass(frozen=True)
+class ResolvedBatchSpec:
+    """Resolved batch specification with all computed values.
+
+    This is a frozen dataclass returned by BatchSpec.resolve() containing
+    the fully computed device matrix and base device.
+
+    Parameters
+    ----------
+    batch_sizes : dict[ND | str, int]
+        Mapping from dimension names to chunk sizes for tiling.
+    device_matrix : np.ndarray
+        Array of torch.device objects specifying target devices for each tile.
+    base_device : torch.device
+        The device where input/output data resides.
+    """
+
+    batch_sizes: dict[ND | str, int]
+    device_matrix: np.ndarray
+    base_device: torch.device
+
+
+@dataclass(frozen=True)
 class BatchSpec:
     """Specification for splitting and distributing a linop across devices.
 
@@ -51,33 +71,61 @@ class BatchSpec:
     device_matrix: np.ndarray | None = None
     base_device: torch.device | None = None
 
-    def __post_init__(self):
-        if not isinstance(self.batch_sizes, dict):
-            warn(
-                f"Got {self.batch_sizes} of type {type(self.batch_sizes).__name__} for batch_sizes instead of dict."
-            )
-        # Ensure ndarray
-        if isinstance(self.device_matrix, list | tuple):
-            self.device_matrix = np.array(self.device_matrix)
+    def resolve(self, linop, default_device: torch.device) -> ResolvedBatchSpec:
+        """Return a new ResolvedBatchSpec with all fields filled in.
+
+        Parameters
+        ----------
+        linop : NamedLinop
+            The operator to resolve the device matrix against (for broadcasting).
+        default_device : torch.device
+            The default device to use for unspecified fields.
+
+        Returns
+        -------
+        ResolvedBatchSpec
+            A new frozen resolved specification with computed values.
+        """
+        base_device = default_to(default_device, self.base_device)
+        device_matrix = default_to(np.array([base_device]), self.device_matrix)
+
+        device_matrix = fuzzy_broadcast_to(
+            ensure_ndarray(device_matrix), _tiled_shape(linop, self.batch_sizes)
+        )
+        return ResolvedBatchSpec(
+            batch_sizes=self.batch_sizes,
+            device_matrix=device_matrix,
+            base_device=base_device,
+        )
 
     def broadcast_device_matrix(self, linop):
-        # Compute the number of tiles along each batched axis/dimension
         batch_dims = list(self.batch_sizes.keys())
         sizes = {dim: linop.size(dim) for dim in linop.dims}
         tiled_shape = tuple(
             ceil(sizes[dim] / self.batch_sizes[dim]) for dim in batch_dims
         )
-
-        # Broadcast device_matrix over requested tiles.
-        # Each tile should receive a single device.
-        device_matrix = fuzzy_broadcast_to(self.device_matrix, tiled_shape)
+        device_matrix = fuzzy_broadcast_to(
+            ensure_ndarray(self.device_matrix), tiled_shape
+        )
         return device_matrix
+
+
+def ensure_ndarray(arr: np.ndarray | list | tuple) -> np.ndarray:
+    if not isinstance(arr, np.ndarray):
+        return np.array(arr)
+    return arr
+
+
+def _tiled_shape(linop, batch_sizes):
+    batch_dims = list(batch_sizes.keys())
+    sizes = {dim: linop.size(dim) for dim in linop.dims}
+    return tuple(ceil(sizes[dim] / batch_sizes[dim]) for dim in batch_dims)
 
 
 def create_batched_linop(
     linop,
     batch_specs: BatchSpec | list[BatchSpec],
-    default_device: torch.device = None,
+    default_device: Optional[torch.device] = None,
     _mmap=None,
 ):
     """Split and distribute a linop across devices according to batch specs.
@@ -97,7 +145,7 @@ def create_batched_linop(
     _mmap : ModuleMemoryMap, optional
         Internal memory map for efficient device transfers. Created
         automatically on the first call. Probably don't set this manually.
-    _default_device : torch.device, optional
+    default_device : torch.device, optional
         The default device to use if no device info is provided in the batch spec.
 
     Returns
@@ -118,24 +166,19 @@ def create_batched_linop(
     if len(batch_specs) == 0:
         # Recursive ending
         return linop
-    batch_spec = deepcopy(batch_specs[0])
-    # Set defaults
-    batch_spec.base_device = default_to(default_device, batch_spec.base_device)
-    batch_spec.device_matrix = default_to(
-        np.array([default_device]), batch_spec.device_matrix
-    )
+    resolved_spec = batch_specs[0].resolve(linop, default_device)
 
     # Split linop into tiles and broadcast device spec to the tile array.
-    linops, ibatches, obatches = split_linop(linop, batch_spec.batch_sizes)
-    device_matrix = batch_spec.broadcast_device_matrix(linop)
+    linops, _, _ = split_linop(linop, resolved_spec.batch_sizes)
+    device_matrix = resolved_spec.device_matrix
     if device_matrix.shape != linops.shape:
         raise ValueError(
             f"device_matrix and linops should have same shape after broadcasting, but got device_matrix: {device_matrix.shape} and linops: {linops.shape}"
         )
 
-    # Create event to trigger all tiles in the linop.
-    source_device = batch_spec.base_device
-    # Allocate output
+    # Input device
+    source_device = resolved_spec.base_device
+
     for idx in np.ndindex(linops.shape):
         linop, target_device = linops[idx], device_matrix[idx]
 
@@ -166,7 +209,7 @@ def create_batched_linop(
         # Overwrite entry in linops
         linops[idx] = tiled_linop
 
-    for dim in reversed(batch_spec.batch_sizes):
+    for dim in reversed(resolved_spec.batch_sizes):
         # Manual axis reduction because I made Concat and Add too nice
         flat_linops = linops.reshape(-1, linops.shape[-1])
         new_linops = np.empty(flat_linops.shape[0], dtype=object)

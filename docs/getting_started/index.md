@@ -127,7 +127,7 @@ with config.using(reduce_identity_in_normal=False, log_device_transfers=False):
 
 ## Splitting linops
 
-Linops can be split across sub-problems (e.g., for multi-GPU processing) using `split_linop`. See [Multi-GPU Splitting](../explanations/multi_gpu.md) for the full explanation.
+Linops can be split across sub-problems (e.g., for multi-GPU processing) using `split_linop`. See [Multi-GPU Execution](../explanations/multi_gpu.md) for the full explanation.
 
 ```python
 from torchlinops import split_linop

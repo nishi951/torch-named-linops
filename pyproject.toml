@@ -8,14 +8,9 @@ dependencies = [
     "triton>=3.0; sys_platform != 'darwin'",
     "jaxtyping>=0.2.36",
     "setuptools>=75.6.0", # For triton
-    # Torch on mac (intel)
-    "torch>1.13,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
-    "torchvision<0.25.1; sys_platform == 'darwin' and platform_machine == 'x86_64'",
-    "torchaudio>1.13,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
-    # Torch on other platforms
-    "torch>=2.5.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    "torchvision>=0.20.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    "torchaudio>=2.5.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1",
     # "torch>=2.5.1",
     # "torchvision>=0.20.1",
     # "torchaudio>=2.5.1",
@@ -48,6 +43,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "ruff>=0.8.4",
     "ty>=0.0.18",
+    "griffe>=2.1.0",
 ]
 sigpy = [
     "numba>=0.60.0",
@@ -80,20 +76,21 @@ exclude = [
 minversion = "6.0"
 addopts = """
 -ra -q \
--m 'not slow'
+-m 'not slow and not benchmark'
 """
 # --ignore libraries --ignore notebooks"
 filterwarnings = [
     "ignore::DeprecationWarning:sigpy.*",
     "ignore::DeprecationWarning:cupy.*",
-    "ignore:torch.jit.script_method:DeprecationWarning", # torch.jit.script_method
-    "ignore:torch.distributed.reduce_op:FutureWarning", # reduce_op -> ReduceOp
+    "ignore::DeprecationWarning:torch.jit.*",
+    "ignore::FutureWarning:torchlinops.utils._device",
 ]
 markers = [
     "slow: tests that are slow (deselect with '-m \"not slow\"')",
     "big: tests that require large memory (cpu or gpu)",
     "gpu: tests that require a gpu",
     "plot: tests that involve plotting",
+    "benchmark: performance benchmarks",
 ]
 
 [tool.coverage.report]
@@ -111,6 +108,9 @@ known_first_party = ["torchlinops"]
 combine_as_imports = true
 # no_lines_before = ["LOCALFOLDER"]
 
+[project.scripts]
+tl_diagnostic = "torchlinops.scripts.diagnostic:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -125,7 +125,7 @@ packages = ["src/torchlinops"]
 path = "src/torchlinops/__init__.py"
 
 [tool.bandit]
-exclude = ["**/tests/*"]
+exclude = ["**/tests/*", "**/benchmarks/*"]
 skips = [
     "B101" # Asserts
 ]

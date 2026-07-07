@@ -2,20 +2,20 @@ from collections.abc import Callable
 from copy import copy
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple, Optional
-from warnings import warn
 import logging
 
 import torch
-from torch.cuda import Event, Stream, default_stream
+from torch.cuda import Stream, default_stream, Event, current_stream
 
 import torchlinops.config as config
-from torchlinops.utils import INDENT, RepeatedEvent, default_to
+from torchlinops.cuda_trace import cuda_logger
+from torchlinops.utils import INDENT, default_to
 
 from ..nameddim import NamedShape as NS, Shape
 from .identity import Identity
-from .namedlinop import NamedLinop, ForwardedAttribute
+from .namedlinop import NamedLinop
 
-__all__ = ["ToDevice", "DeviceSpec", "clear_transfer_streams_registry"]
+__all__ = ["ToDevice", "DeviceSpec"]
 
 logger = logging.getLogger("torchlinops")
 
@@ -36,15 +36,12 @@ class DeviceSpec:
     compute_stream : Stream, optional
         Stream used for computation on this device. Set automatically by ``p2p_setup``.
     transfer_stream : Stream, optional
-        Stream used for data transfers to/from this device. Obtained from a registry
-        to enable stream reuse across transfers.
+        Stream used for transfers from this device to another GPU. Set automatically by ``p2p_setup``.
 
     Methods
     -------
     p2p_setup(other_device)
         Configure compute and transfer streams for peer-to-peer transfers.
-    get_transfer_stream(source_device, target_device)
-        Get or create a transfer stream for a source/target device pair.
     """
 
     device: Any = field(default_factory=lambda: torch.device("cpu"))
@@ -52,7 +49,7 @@ class DeviceSpec:
     compute_stream: Optional[Stream] = None
     """Stream used for computation."""
     transfer_stream: Optional[Stream] = None
-    """Stream used for data transfer."""
+    """Stream used for transfers from this device."""
 
     def __post_init__(self):
         """Ensure self.device is a proper torch.device."""
@@ -60,7 +57,7 @@ class DeviceSpec:
             self.device = torch.device(self.device)
 
     def p2p_setup(self, other_device):
-        """Sets up compute and transfer streams for peer2peer transfers, if not set yet.
+        """Sets up compute stream for peer2peer transfers, if not set yet.
 
         Parameters
         ----------
@@ -73,42 +70,12 @@ class DeviceSpec:
             if self.compute_stream is None:
                 self.compute_stream = default_stream(self.device)
             if self.transfer_stream is None:
-                self.transfer_stream = self.get_transfer_stream(
-                    self.device, other_device
-                )
+                self.transfer_stream = Stream(self.device)
 
     @property
     def type(self):
         """Passthrough for torch.device.type."""
         return self.device.type
-
-    @staticmethod
-    def get_transfer_stream(
-        source_device: torch.device, target_device: torch.device
-    ):  # pragma: no cover
-        """Return the stream used for device transfers associated with this device.
-
-        Streams are cached in a registry to enable reuse. Each source/target device
-        pair gets a dedicated transfer stream.
-
-        Parameters
-        ----------
-        source_device : torch.device
-            The source device for transfers.
-        target_device : torch.device
-            The target device for transfers.
-
-        Returns
-        -------
-        Stream
-            A CUDA stream for performing transfers.
-        """
-        if (source_device, target_device) in _TRANSFER_STREAMS_REGISTRY:
-            return _TRANSFER_STREAMS_REGISTRY[(source_device, target_device)]
-        # Create a new stream
-        new_stream = Stream(source_device)
-        _TRANSFER_STREAMS_REGISTRY[(source_device, target_device)] = new_stream
-        return new_stream
 
 
 class ToDevice(NamedLinop):
@@ -118,7 +85,7 @@ class ToDevice(NamedLinop):
     The adjoint reverses the direction. The normal $T^H T$ is the identity
     (device round-trip is lossless).
 
-    For CUDA-to-CUDA transfers, streams and events are used for asynchronous
+    For CUDA-to-CUDA transfers, dedicated streams are used for asynchronous
     pipelined execution.
 
     Attributes
@@ -176,8 +143,34 @@ class ToDevice(NamedLinop):
         x,
         ispec: DeviceSpec,
         ospec: DeviceSpec,
-        input_listener: Optional[Event] = None,
+        wait_for_event: Optional[Event] = None,
     ):
+        """Transfer a tensor between devices.
+
+        Handles CPU↔GPU and GPU↔GPU transfers. For GPU→GPU, uses dedicated
+        transfer and compute streams for asynchronous pipelined execution.
+
+        Parameters
+        ----------
+        x : Tensor
+            The tensor to transfer. Must be on ``ispec.device``.
+        ispec : DeviceSpec
+            Source device specification.
+        ospec : DeviceSpec
+            Target device specification.
+        wait_for_event : Event, optional
+            CUDA event to wait on before starting the transfer.
+
+        Returns
+        -------
+        Tensor
+            The tensor on ``ospec.device``.
+
+        Notes
+        -----
+        Copying from CPU → GPU or GPU → CPU may result in strange behavior:
+            https://github.com/pytorch/pytorch/issues/127612
+        """
         idevice, odevice = ispec.device, ospec.device
         if x.device != idevice:
             raise RuntimeError(
@@ -186,40 +179,40 @@ class ToDevice(NamedLinop):
 
         # GPU -> GPU
         if idevice.type == "cuda" and odevice.type == "cuda":  # pragma: no cover
-            if input_listener is None:
-                warn(
-                    "Peer-to-peer device transfer with input_listener = None detected. Results may not be accurate."
-                )
             return _gpu2gpu_transfer(
                 x,
                 ospec.compute_stream,
                 ispec.transfer_stream,
-                input_listener,
+                wait_for_event,
             )
         elif idevice.type == "cuda" and odevice.type == "cpu":  # pragma: no cover
-            # GPU -> CPU requires additional synchronization, see:
-            # https://github.com/pytorch/pytorch/issues/127612
+            # GPU -> CPU requires non_blocking=False for stability.
+            # This is usually ok since GPU -> CPU usually happens at the "end" of a computation,
+            # when synchronization isn't a problem.
             return x.to(odevice, non_blocking=False)
 
         # CPU -> GPU or CPU -> CPU
+        # Need to be careful not to overwrite x in-place too quickly after calling this.
+        # However, we riskily choose non_blocking=True because CPU -> GPU typically occurs
+        # at the "beginning" of a parallelized computation, where non-blocking makes a big difference.
         return x.to(odevice, non_blocking=True)
 
     @staticmethod
-    def fn(todevice, x, /):
+    def fn(todevice, x, context):
         return todevice._fn(
             x,
             todevice.ispec,
             todevice.ospec,
-            todevice.input_listener,
+            wait_for_event=context.start_event,
         )
 
     @staticmethod
-    def adj_fn(todevice, x, /):
+    def adj_fn(todevice, x, context):
         return todevice._fn(
             x,
             todevice.ospec,
             todevice.ispec,
-            todevice.input_listener,
+            wait_for_event=context.start_event,
         )
 
     def adjoint(self):
@@ -233,31 +226,22 @@ class ToDevice(NamedLinop):
             return Identity()
         return super().normal(inner)
 
-    def split_forward(self, ibatch, obatch):
+    @staticmethod
+    def split(linop, tile):
         """Return a new instance"""
-        return copy(self)
+        return copy(linop)
 
     def __repr__(self):
         """Helps prevent recursion error caused by .H and .N"""
-        if (
-            self.ispec.compute_stream is not None
-            or self.ispec.transfer_stream is not None
-        ):  # pragma: no cover
-            irepr = f"{self.ispec.device}, compute: 0x{self.ispec.compute_stream.cuda_stream:x}, transfer: 0x{self.ispec.transfer_stream.cuda_stream:x}"
+        if self.ispec.transfer_stream is not None:  # pragma: no cover
+            irepr = f"{self.ispec.device}, transfer: 0x{self.ispec.transfer_stream.cuda_stream:x}"
         else:
             irepr = f"{self.ispec.device}"
-        if (
-            self.ospec.compute_stream is not None
-            or self.ospec.transfer_stream is not None
-        ):  # pragma: no cover
-            orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}, transfer: 0x{self.ospec.transfer_stream.cuda_stream:x}"
+        if self.ospec.compute_stream is not None:  # pragma: no cover
+            orepr = f"{self.ospec.device}, compute: 0x{self.ospec.compute_stream.cuda_stream:x}"
         else:
             orepr = f"{self.ospec.device}"
-        if self.input_listener is not None and self.is_gpu2gpu:  # pragma: no cover
-            input_listener_repr = f"on: {self.input_listener.event_id:x}"
-        else:
-            input_listener_repr = ""
-        out = f"({input_listener_repr} | {irepr} -> {orepr})"
+        out = f"({irepr} -> {orepr})"
         out = INDENT.indent(out)
         return out
 
@@ -266,10 +250,9 @@ def _gpu2gpu_transfer(
     x,
     target_stream,
     transfer_stream=None,
-    input_listener=None,
-    source_stream=None,
+    wait_for_event: Optional[Event] = None,
 ):  # pragma: no cover
-    """Perform efficient gpu-gpu transfer with a dedicated transfer stream and event-based triggering.
+    """Perform efficient gpu-gpu transfer with a dedicated transfer stream.
 
     Parameters
     ----------
@@ -279,12 +262,8 @@ def _gpu2gpu_transfer(
         The stream on the target device that needs `x` for computation.
     transfer_stream : Stream
         The stream on the source device on which to queue the transfer.
-    input_listener : Event
-        The CUDA event that the transfer stream should wait for before initiating transfer.
-        Allows fine-grained control of transfer timing. The event should be queued to
-        record() when x is ready to be transferred.
-    source_stream : Stream
-        The stream on the source device to wait for (optional).
+    wait_for_event : Event, optional
+        Optional event for transfer stream to wait on before proceeding.
 
     Returns
     -------
@@ -296,13 +275,27 @@ def _gpu2gpu_transfer(
         odevice = target_stream.device
         if transfer_stream is None:
             raise ValueError(f"Multi-GPU transfer requires transfer_stream != None")
-        if input_listener is None:
-            if source_stream is None:
-                source_stream = default_stream(x.device)
-            transfer_stream.wait_stream(source_stream)
+
+        if config.log_cuda_events:
+            src_id = cuda_logger.implicit_node(f"default_stream:{x.device}", x.device)
+            cuda_logger.wait(
+                f"ToDevice:{x.device}\u2192{odevice}:transfer",
+                x.device,
+                [src_id],
+                reason="wait_stream",
+            )
+
+        if wait_for_event is not None:
+            # Used when this is run as the first step in a Chain
+            logger.debug(f"Waiting on parent event: {wait_for_event}")
+            transfer_stream.wait_event(wait_for_event)
         else:
-            transfer_stream.wait_event(input_listener)
-            _log_transfer(f"Stream {transfer_stream} waiting on event {input_listener}")
+            logger.debug(f"Waiting on current device's stream: {x.device}")
+            # Used when this is run as a later step in a Chain
+            # Sometimes this is not what we want because there might be a lot of work on the default stream
+            # that we want to parallelize with this transfer.
+            transfer_stream.wait_stream(current_stream(x.device))
+
         with torch.cuda.stream(transfer_stream):
             _log_transfer(
                 f"Transferring tensor from {x.device} to {odevice}, "
@@ -311,7 +304,18 @@ def _gpu2gpu_transfer(
             out = x.to(odevice, non_blocking=True)
             # Don't mess with x's memory until transfer is completed
             x.record_stream(transfer_stream)
-            # out.record_stream(transfer_stream) # Unnecessary
+
+        if config.log_cuda_events:
+            transfer_id = cuda_logger.record(
+                f"ToDevice:{x.device}\u2192{odevice}:transfer-done", x.device
+            )
+            cuda_logger.wait(
+                f"ToDevice:{x.device}\u2192{odevice}:target-wait",
+                odevice,
+                [transfer_id],
+                reason="wait_stream",
+            )
+
         # Target stream should wait until transfer is complete
         _log_transfer(
             f"Target stream cuda:{target_stream.device_index}:{target_stream} waiting for transfer stream {transfer_stream}"
@@ -321,16 +325,3 @@ def _gpu2gpu_transfer(
         # Same device - do nothing
         out = x
     return out
-
-
-# Registry to keep track of transfer streams already created.
-_TRANSFER_STREAMS_REGISTRY = {}
-
-
-def clear_transfer_streams_registry() -> None:
-    """Clear the transfer streams registry.
-
-    This is useful for testing to ensure a clean state between tests.
-    The registry caches CUDA streams to enable reuse across transfers.
-    """
-    _TRANSFER_STREAMS_REGISTRY.clear()

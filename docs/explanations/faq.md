@@ -33,7 +33,7 @@ Subclass `NamedLinop` and implement:
 1. **`__init__`**: Call `super().__init__(NS(ishape, oshape))` to set the shape.
 2. **`fn` (staticmethod)**: The forward pass, `fn(linop, x) -> y`.
 3. **`adj_fn` (staticmethod)**: The adjoint pass, `adj_fn(linop, x) -> y`.
-4. **`split_forward`** (optional): How to split along named dimensions.
+4. **`split`** (optional): How to split along named dimensions.
 
 See the [Custom Linops](../howto/custom_linops.md) guide for the full details and conventions.
 
@@ -95,7 +95,7 @@ The library can decompose a linop into tiles along its named dimensions and plac
 2. **`create_batched_linop`**: Orchestrates the split, placement, and reassembly.
 3. **`ToDevice`**: Handles data transfer between devices using CUDA streams.
 
-The result is a composite linop (tree of `Concat`/`Add` operators) that behaves identically to the original but executes across multiple devices. See [Multi-GPU Splitting](multi_gpu.md) for the full explanation.
+The result is a composite linop (tree of `Concat`/`Add` operators) that behaves identically to the original but executes across multiple devices. See [Multi-GPU Execution](multi_gpu.md) for the full explanation.
 
 ## Troubleshooting
 
