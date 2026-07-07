@@ -320,8 +320,8 @@ class Concat(NamedLinop):
         target_shape = linops[0].shape
         for linop in linops:
             if not (
-                isequal(target_shape.ishape, linop.ishape)
-                and isequal(target_shape.oshape, linop.oshape)
+                isequal(target_shape.ishape, linop.ishape)[0]
+                and isequal(target_shape.oshape, linop.oshape)[0]
             ):
                 raise ValueError(
                     f"Incompatible linops being stacked. Target shape: {target_shape} but got linop shape: {linop.shape}"

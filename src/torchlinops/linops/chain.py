@@ -70,7 +70,7 @@ class Chain(NamedLinop):
     def _check_inputs_outputs(self):
         curr_shape = self.ishape
         for i, linop in enumerate(self.linops):
-            if not isequal(linop.ishape, curr_shape):
+            if not isequal(linop.ishape, curr_shape)[0]:
                 raise ValueError(
                     f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {i}"
                 )
