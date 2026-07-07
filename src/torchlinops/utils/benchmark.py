@@ -85,7 +85,7 @@ def benchmark(
     Defaults to torch benchmarking
     """
     if backend == "torch":
-        handler = TorchHandler(device="cuda", memory_snapshot_file=None)
+        handler = TorchHandler()
     elif backend == "cupy":
         handler = CupyHandler()
     else:
@@ -121,7 +121,7 @@ class TorchHandler:
     def __init__(
         self,
         device: str = "cuda",
-        memory_snapshot_file: Optional[Path] = "memory.pkl",
+        memory_snapshot_file: Optional[Path] = None,
     ):
         self.device = device
         self.memory_snapshot_file = memory_snapshot_file
@@ -180,6 +180,7 @@ class TorchHandler:
         min_run_time: float = 0.5,
         min_runs: int = 10,
         data_gen_fn=None,
+        num_warmup: int = 1,
     ) -> BenchmarkResult:
         """Run benchmark with automatic iteration count determination.
 
@@ -195,18 +196,20 @@ class TorchHandler:
         data_gen_fn : callable, optional
             If provided, regenerates data each iteration (not timed).
             The fn should accept the generated data as an argument.
+        num_warmup : int
+            Number of untimed warmup iterations before measurement.
 
         Returns
         -------
         BenchmarkResult
             Result containing timings and memory statistics.
         """
-        # Warmup
-        if data_gen_fn is not None:
-            data = data_gen_fn()
-            fn(data)
-        else:
-            fn()
+        for _ in range(num_warmup):
+            if data_gen_fn is not None:
+                data = data_gen_fn()
+                fn(data)
+            else:
+                fn()
 
         if self.device == "cuda":
             torch.cuda.synchronize()
@@ -348,6 +351,7 @@ class CupyHandler:
         min_run_time: float = 0.5,
         min_runs: int = 10,
         data_gen_fn=None,
+        num_warmup: int = 1,
     ) -> BenchmarkResult:
         """Run benchmark with automatic iteration count determination.
 
@@ -363,6 +367,8 @@ class CupyHandler:
         data_gen_fn : callable, optional
             If provided, regenerates data each iteration (not timed).
             The fn should accept the generated data as an argument.
+        num_warmup : int
+            Number of untimed warmup iterations before measurement.
 
         Returns
         -------
@@ -371,12 +377,12 @@ class CupyHandler:
         """
         import cupy as cp
 
-        # Warmup
-        if data_gen_fn is not None:
-            data = data_gen_fn()
-            fn(data)
-        else:
-            fn()
+        for _ in range(num_warmup):
+            if data_gen_fn is not None:
+                data = data_gen_fn()
+                fn(data)
+            else:
+                fn()
 
         cp.cuda.runtime.deviceSynchronize()
 

@@ -15,6 +15,8 @@ import torch
 
 from torchlinops.utils.benchmark import CupyHandler, TorchHandler
 
+NUM_WARMUP = 3
+
 # Folders and files to check for diff.
 DIFF_PATHS = [
     "src/",
@@ -90,20 +92,13 @@ class BenchmarkSession:
 
         min_runs_target = 10
 
-        # Benchmark data gen separately for reporting if provided
-        data_gen_mean_s = None
-        if data_gen_fn is not None:
-            gen_result = handler.blocked_autorange(
-                data_gen_fn, min_run_time=0.1, min_runs=5
-            )
-            data_gen_mean_s = gen_result.mean
-
         # Run main benchmark
         result = handler.blocked_autorange(
             fn,
             min_run_time=min_run_time,
             min_runs=min_runs_target,
             data_gen_fn=data_gen_fn,
+            num_warmup=NUM_WARMUP,
         )
 
         # Build result dict
@@ -118,7 +113,6 @@ class BenchmarkSession:
             "problem_size": problem_size,
             "size_label": size_label,
             "mean_s": result.mean,
-            "data_gen_mean_s": data_gen_mean_s,
             "median_s": result.median,
             "iqr_s": result.iqr,
             "peak_mem_bytes": result.peak_mem_bytes,
@@ -137,15 +131,15 @@ class BenchmarkSession:
         min_run_time so that we get at least 10 runs within a reasonable
         total time (~5 seconds).
         """
-        # Warmup
-        try:
-            if data_gen_fn is not None:
-                data = data_gen_fn()
-                fn(data)
-            else:
-                fn()
-        except Exception:
-            pass
+        for _ in range(NUM_WARMUP):
+            try:
+                if data_gen_fn is not None:
+                    data = data_gen_fn()
+                    fn(data)
+                else:
+                    fn()
+            except Exception:
+                pass
 
         # Pilot run to estimate per-call time
         if use_cupy:

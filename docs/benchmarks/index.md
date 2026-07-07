@@ -4,8 +4,8 @@ Performance benchmarks for torch-named-linops.
 
 ## Metadata
 
-- **Date**: 2026-07-04T01:58:24.995183
-- **Commit**: `16b8203`
+- **Date**: 2026-07-07T12:28:06.113308
+- **Commit**: `26b2481`
 - **Working tree**: clean
 - **PyTorch**: 2.10.0+cu128
 - **CUDA**: 12.8

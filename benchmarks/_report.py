@@ -91,19 +91,14 @@ def _build_metadata_section(metadata):
 
 
 def _build_table(results):
-    header = "| Operation | Size | Library | Mean | Data Gen | Median | IQR | Peak Memory |\n"
-    separator = "|-----------|------|---------|------|----------|--------|-----|-------------|\n"
+    header = "| Operation | Size | Library | Mean | Median | IQR | Peak Memory |\n"
+    separator = "|-----------|------|---------|------|--------|-----|-------------|\n"
     rows = []
     for r in results:
         iqr = _format_time(r.get("iqr_s")) if r.get("iqr_s") is not None else "—"
-        gen = (
-            _format_time(r.get("data_gen_mean_s"))
-            if r.get("data_gen_mean_s") is not None
-            else "—"
-        )
         rows.append(
             f"| {r['name']} | {r.get('size_label', '')} | {r.get('library', 'torchlinops')} | "
-            f"{_format_time(r['mean_s'])} | {gen} | "
+            f"{_format_time(r['mean_s'])} | "
             f"{_format_time(r['median_s'])} | {iqr} | {_format_bytes(r.get('peak_mem_bytes'))} |"
         )
     return header + separator + "\n".join(rows) + "\n"

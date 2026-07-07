@@ -4,8 +4,8 @@ Performance benchmarks on GPU.
 
 ## Metadata
 
-- **Date**: 2026-07-04T01:58:24.995183
-- **Commit**: `16b8203`
+- **Date**: 2026-07-07T12:28:06.113308
+- **Commit**: `26b2481`
 - **Working tree**: clean
 - **PyTorch**: 2.10.0+cu128
 - **CUDA**: 12.8
@@ -16,122 +16,122 @@ Performance benchmarks on GPU.
 
 ## ArrayToBlocks 3D
 
-| Operation | Size | Library | Mean | Data Gen | Median | IQR | Peak Memory |
-|-----------|------|---------|------|----------|--------|-----|-------------|
-| ArrayToBlocks forward | 32x32x32 | torchlinops | 121.38 us | 7.82 us | 120.83 us | 2.85 us | 1.59 MB |
-| ArrayToBlocks forward | 32x32x32 | torchlinops (linop) | 134.45 us | 7.90 us | 133.12 us | 4.10 us | 1.59 MB |
-| ArrayToBlocks forward | 32x32x32 | sigpy | 48.42 us | 34.35 us | 48.13 us | 1.28 us | 2.48 MB |
-| ArrayToBlocks forward | 64x64x64 | torchlinops | 120.99 us | 7.83 us | 120.77 us | 2.19 us | 16.00 MB |
-| ArrayToBlocks forward | 64x64x64 | torchlinops (linop) | 133.27 us | 7.86 us | 132.90 us | 2.91 us | 16.00 MB |
-| ArrayToBlocks forward | 64x64x64 | sigpy | 112.11 us | 33.10 us | 111.62 us | 1.02 us | 21.70 MB |
-| ArrayToBlocks forward | 128x128x128 | torchlinops | 392.55 us | 25.05 us | 392.19 us | 2.05 us | 132.37 MB |
-| ArrayToBlocks forward | 128x128x128 | torchlinops (linop) | 402.68 us | 24.86 us | 402.43 us | 2.05 us | 132.37 MB |
-| ArrayToBlocks forward | 128x128x128 | sigpy | 725.81 us | 158.49 us | 721.92 us | 1.02 us | 180.89 MB |
-| BlocksToArray forward | 32x32x32 | torchlinops | 107.53 us | 7.93 us | 106.59 us | 3.03 us | 2.68 MB |
-| BlocksToArray forward | 32x32x32 | torchlinops (linop) | 121.00 us | 8.01 us | 118.85 us | 3.28 us | 2.68 MB |
-| BlocksToArray forward | 32x32x32 | sigpy | 44.27 us | 34.37 us | 44.03 us | 1.50 us | 5.88 MB |
-| BlocksToArray forward | 64x64x64 | torchlinops | 106.49 us | 20.30 us | 106.18 us | 2.06 us | 26.37 MB |
-| BlocksToArray forward | 64x64x64 | torchlinops (linop) | 116.63 us | 20.11 us | 115.94 us | 3.07 us | 26.37 MB |
-| BlocksToArray forward | 64x64x64 | sigpy | 32.41 us | 130.27 us | 32.77 us | 1.02 us | 53.25 MB |
-| BlocksToArray forward | 128x128x128 | torchlinops | 321.19 us | 200.06 us | 321.54 us | 904.00 ns | 232.74 MB |
-| BlocksToArray forward | 128x128x128 | torchlinops (linop) | 301.63 us | 160.86 us | 301.06 us | 8.19 us | 232.74 MB |
-| BlocksToArray forward | 128x128x128 | sigpy | 220.31 us | 1.11 ms | 216.06 us | 10.27 us | 466.00 MB |
+| Operation | Size | Library | Mean | Median | IQR | Peak Memory |
+|-----------|------|---------|------|--------|-----|-------------|
+| ArrayToBlocks forward | 32x32x32 | torchlinops | 117.34 us | 116.48 us | 3.17 us | 17.50 MB |
+| ArrayToBlocks forward | 32x32x32 | torchlinops (linop) | 128.34 us | 127.79 us | 3.90 us | 17.50 MB |
+| ArrayToBlocks forward | 32x32x32 | sigpy | 43.56 us | 43.01 us | 1.79 us | 2.86 MB |
+| ArrayToBlocks forward | 64x64x64 | torchlinops | 116.08 us | 115.62 us | 2.58 us | 30.43 MB |
+| ArrayToBlocks forward | 64x64x64 | torchlinops (linop) | 127.05 us | 125.95 us | 3.07 us | 30.43 MB |
+| ArrayToBlocks forward | 64x64x64 | sigpy | 116.28 us | 115.71 us | 1.99 us | 21.70 MB |
+| ArrayToBlocks forward | 128x128x128 | torchlinops | 391.60 us | 391.17 us | 2.05 us | 147.62 MB |
+| ArrayToBlocks forward | 128x128x128 | torchlinops (linop) | 400.59 us | 400.38 us | 2.05 us | 147.62 MB |
+| ArrayToBlocks forward | 128x128x128 | sigpy | 758.66 us | 760.83 us | 4.12 us | 180.89 MB |
+| BlocksToArray forward | 32x32x32 | torchlinops | 98.89 us | 98.30 us | 2.37 us | 18.59 MB |
+| BlocksToArray forward | 32x32x32 | torchlinops (linop) | 112.49 us | 111.78 us | 3.04 us | 18.59 MB |
+| BlocksToArray forward | 32x32x32 | sigpy | 38.01 us | 37.89 us | 1.55 us | 8.52 MB |
+| BlocksToArray forward | 64x64x64 | torchlinops | 103.05 us | 102.40 us | 2.05 us | 41.62 MB |
+| BlocksToArray forward | 64x64x64 | torchlinops (linop) | 114.49 us | 112.64 us | 4.10 us | 41.62 MB |
+| BlocksToArray forward | 64x64x64 | sigpy | 32.69 us | 32.77 us | 672.00 ns | 53.25 MB |
+| BlocksToArray forward | 128x128x128 | torchlinops | 631.23 us | 523.26 us | 273.66 us | 247.99 MB |
+| BlocksToArray forward | 128x128x128 | torchlinops (linop) | 330.35 us | 316.42 us | 23.55 us | 247.99 MB |
+| BlocksToArray forward | 128x128x128 | sigpy | 220.31 us | 218.32 us | 2.05 us | 466.00 MB |
 
 
 ## Interpolate 2D
 
-| Operation | Size | Library | Mean | Data Gen | Median | IQR | Peak Memory |
-|-----------|------|---------|------|----------|--------|-----|-------------|
-| Interpolate forward 2D | 64x64 | torchlinops | 99.26 us | 7.85 us | 98.34 us | 2.78 us | 96.00 KB |
-| Interpolate forward 2D | 64x64 | torchlinops (linop) | 113.35 us | 7.80 us | 112.64 us | 2.35 us | 96.00 KB |
-| Interpolate forward 2D | 64x64 | sigpy | 111.93 us | 48.74 us | 111.62 us | 2.05 us | 528.00 KB |
-| Interpolate forward 2D | 128x128 | torchlinops | 135.71 us | 7.82 us | 135.17 us | 2.05 us | 384.00 KB |
-| Interpolate forward 2D | 128x128 | torchlinops (linop) | 148.35 us | 7.86 us | 147.46 us | 3.02 us | 384.00 KB |
-| Interpolate forward 2D | 128x128 | sigpy | 145.16 us | 47.41 us | 144.38 us | 2.05 us | 656.00 KB |
-| Interpolate forward 2D | 256x256 | torchlinops | 295.86 us | 7.80 us | 294.91 us | 1.34 us | 1.50 MB |
-| Interpolate forward 2D | 256x256 | torchlinops (linop) | 291.46 us | 7.85 us | 291.34 us | 4.05 us | 1.50 MB |
-| Interpolate forward 2D | 256x256 | sigpy | 292.13 us | 45.87 us | 291.78 us | 1.98 us | 2.27 MB |
-| Interpolate adjoint 2D | 64x64 | torchlinops | 99.54 us | 7.85 us | 99.14 us | 2.05 us | 96.00 KB |
-| Interpolate adjoint 2D | 64x64 | torchlinops (linop) | 112.82 us | 7.82 us | 111.84 us | 2.80 us | 96.00 KB |
-| Interpolate adjoint 2D | 64x64 | sigpy | 112.61 us | 45.24 us | 111.90 us | 2.27 us | 528.00 KB |
-| Interpolate adjoint 2D | 128x128 | torchlinops | 130.88 us | 7.83 us | 130.05 us | 1.22 us | 384.00 KB |
-| Interpolate adjoint 2D | 128x128 | torchlinops (linop) | 142.21 us | 7.82 us | 142.02 us | 2.88 us | 384.00 KB |
-| Interpolate adjoint 2D | 128x128 | sigpy | 146.26 us | 44.28 us | 145.47 us | 2.73 us | 656.00 KB |
-| Interpolate adjoint 2D | 256x256 | torchlinops | 280.39 us | 7.83 us | 280.51 us | 2.05 us | 1.50 MB |
-| Interpolate adjoint 2D | 256x256 | torchlinops (linop) | 271.85 us | 7.82 us | 271.36 us | 2.82 us | 1.50 MB |
-| Interpolate adjoint 2D | 256x256 | sigpy | 292.26 us | 43.85 us | 291.81 us | 1.92 us | 2.27 MB |
+| Operation | Size | Library | Mean | Median | IQR | Peak Memory |
+|-----------|------|---------|------|--------|-----|-------------|
+| Interpolate forward 2D | 64x64 | torchlinops | 93.31 us | 92.16 us | 3.07 us | 15.34 MB |
+| Interpolate forward 2D | 64x64 | torchlinops (linop) | 106.60 us | 105.47 us | 2.96 us | 15.34 MB |
+| Interpolate forward 2D | 64x64 | sigpy | 100.59 us | 100.32 us | 1.86 us | 528.00 KB |
+| Interpolate forward 2D | 128x128 | torchlinops | 124.97 us | 123.90 us | 1.92 us | 15.63 MB |
+| Interpolate forward 2D | 128x128 | torchlinops (linop) | 136.21 us | 135.94 us | 2.06 us | 15.63 MB |
+| Interpolate forward 2D | 128x128 | sigpy | 128.55 us | 127.28 us | 1.98 us | 656.00 KB |
+| Interpolate forward 2D | 256x256 | torchlinops | 298.10 us | 296.85 us | 2.05 us | 16.75 MB |
+| Interpolate forward 2D | 256x256 | torchlinops (linop) | 306.08 us | 308.13 us | 2.11 us | 16.75 MB |
+| Interpolate forward 2D | 256x256 | sigpy | 278.87 us | 276.48 us | 4.34 us | 2.27 MB |
+| Interpolate adjoint 2D | 64x64 | torchlinops | 93.51 us | 92.21 us | 2.74 us | 15.34 MB |
+| Interpolate adjoint 2D | 64x64 | torchlinops (linop) | 107.14 us | 106.50 us | 2.11 us | 15.34 MB |
+| Interpolate adjoint 2D | 64x64 | sigpy | 100.02 us | 99.33 us | 1.25 us | 784.00 KB |
+| Interpolate adjoint 2D | 128x128 | torchlinops | 121.50 us | 120.83 us | 1.25 us | 15.66 MB |
+| Interpolate adjoint 2D | 128x128 | torchlinops (linop) | 134.14 us | 133.84 us | 2.17 us | 15.66 MB |
+| Interpolate adjoint 2D | 128x128 | sigpy | 127.73 us | 126.98 us | 1.15 us | 784.00 KB |
+| Interpolate adjoint 2D | 256x256 | torchlinops | 258.76 us | 257.02 us | 2.24 us | 16.91 MB |
+| Interpolate adjoint 2D | 256x256 | torchlinops (linop) | 270.12 us | 269.31 us | 3.06 us | 16.91 MB |
+| Interpolate adjoint 2D | 256x256 | sigpy | 280.06 us | 279.44 us | 2.98 us | 2.27 MB |
 
 
 ## Interpolate 3D
 
-| Operation | Size | Library | Mean | Data Gen | Median | IQR | Peak Memory |
-|-----------|------|---------|------|----------|--------|-----|-------------|
-| Interpolate forward 3D | 32x32x32 | torchlinops | 110.25 us | 7.87 us | 109.57 us | 1.38 us | 560.00 KB |
-| Interpolate forward 3D | 32x32x32 | torchlinops (linop) | 123.51 us | 7.92 us | 122.88 us | 2.05 us | 560.00 KB |
-| Interpolate forward 3D | 32x32x32 | sigpy | 214.64 us | 47.03 us | 214.02 us | 2.75 us | 1.14 MB |
-| Interpolate forward 3D | 64x64x64 | torchlinops | 367.23 us | 7.87 us | 366.59 us | 2.05 us | 4.38 MB |
-| Interpolate forward 3D | 64x64x64 | torchlinops (linop) | 361.54 us | 7.90 us | 360.13 us | 2.72 us | 4.38 MB |
-| Interpolate forward 3D | 64x64x64 | sigpy | 576.35 us | 46.53 us | 575.49 us | 2.93 us | 8.52 MB |
-| Interpolate forward 3D | 128x128x128 | torchlinops | 2.64 ms | 30.78 us | 2.58 ms | 176.64 us | 35.00 MB |
-| Interpolate forward 3D | 128x128x128 | torchlinops (linop) | 2.62 ms | 24.76 us | 2.62 ms | 18.43 us | 35.00 MB |
-| Interpolate forward 3D | 128x128x128 | sigpy | 3.18 ms | 160.15 us | 3.16 ms | 49.92 us | 64.52 MB |
-| Interpolate adjoint 3D | 32x32x32 | torchlinops | 110.00 us | 7.83 us | 109.57 us | 2.05 us | 336.00 KB |
-| Interpolate adjoint 3D | 32x32x32 | torchlinops (linop) | 122.97 us | 7.94 us | 122.56 us | 2.18 us | 336.00 KB |
-| Interpolate adjoint 3D | 32x32x32 | sigpy | 211.64 us | 43.55 us | 210.94 us | 1.34 us | 528.00 KB |
-| Interpolate adjoint 3D | 64x64x64 | torchlinops | 354.96 us | 7.86 us | 354.30 us | 2.05 us | 2.62 MB |
-| Interpolate adjoint 3D | 64x64x64 | torchlinops (linop) | 344.80 us | 7.83 us | 346.11 us | 8.72 us | 2.62 MB |
-| Interpolate adjoint 3D | 64x64x64 | sigpy | 578.04 us | 44.48 us | 576.66 us | 3.07 us | 3.14 MB |
-| Interpolate adjoint 3D | 128x128x128 | torchlinops | 2.32 ms | 7.88 us | 2.31 ms | 9.27 us | 21.00 MB |
-| Interpolate adjoint 3D | 128x128x128 | torchlinops (linop) | 2.28 ms | 7.84 us | 2.27 ms | 11.64 us | 21.00 MB |
-| Interpolate adjoint 3D | 128x128x128 | sigpy | 3.19 ms | 42.28 us | 3.18 ms | 12.73 us | 24.52 MB |
+| Operation | Size | Library | Mean | Median | IQR | Peak Memory |
+|-----------|------|---------|------|--------|-----|-------------|
+| Interpolate forward 3D | 32x32x32 | torchlinops | 107.54 us | 107.23 us | 1.76 us | 16.45 MB |
+| Interpolate forward 3D | 32x32x32 | torchlinops (linop) | 120.18 us | 119.81 us | 2.05 us | 16.45 MB |
+| Interpolate forward 3D | 32x32x32 | sigpy | 206.57 us | 205.06 us | 2.75 us | 1.27 MB |
+| Interpolate forward 3D | 64x64x64 | torchlinops | 372.72 us | 371.71 us | 2.05 us | 20.28 MB |
+| Interpolate forward 3D | 64x64x64 | torchlinops (linop) | 384.67 us | 384.00 us | 3.77 us | 20.28 MB |
+| Interpolate forward 3D | 64x64x64 | sigpy | 575.54 us | 568.32 us | 9.22 us | 8.52 MB |
+| Interpolate forward 3D | 128x128x128 | torchlinops | 2.92 ms | 2.78 ms | 327.42 us | 51.28 MB |
+| Interpolate forward 3D | 128x128x128 | torchlinops (linop) | 2.51 ms | 2.50 ms | 6.30 us | 51.28 MB |
+| Interpolate forward 3D | 128x128x128 | sigpy | 3.51 ms | 3.51 ms | 959.99 ns | 64.52 MB |
+| Interpolate adjoint 3D | 32x32x32 | torchlinops | 107.72 us | 107.42 us | 2.24 us | 15.61 MB |
+| Interpolate adjoint 3D | 32x32x32 | torchlinops (linop) | 116.93 us | 116.74 us | 2.05 us | 15.61 MB |
+| Interpolate adjoint 3D | 32x32x32 | sigpy | 200.19 us | 199.68 us | 2.05 us | 528.00 KB |
+| Interpolate adjoint 3D | 64x64x64 | torchlinops | 352.03 us | 351.04 us | 2.08 us | 17.95 MB |
+| Interpolate adjoint 3D | 64x64x64 | torchlinops (linop) | 363.67 us | 363.52 us | 2.26 us | 17.95 MB |
+| Interpolate adjoint 3D | 64x64x64 | sigpy | 571.12 us | 565.33 us | 15.36 us | 3.14 MB |
+| Interpolate adjoint 3D | 128x128x128 | torchlinops | 2.82 ms | 2.75 ms | 185.34 us | 37.70 MB |
+| Interpolate adjoint 3D | 128x128x128 | torchlinops (linop) | 2.55 ms | 2.54 ms | 5.12 us | 37.70 MB |
+| Interpolate adjoint 3D | 128x128x128 | sigpy | 3.67 ms | 3.62 ms | 12.46 us | 24.52 MB |
 
 
 ## NUFFT 2D
 
-| Operation | Size | Library | Mean | Data Gen | Median | IQR | Peak Memory |
-|-----------|------|---------|------|----------|--------|-----|-------------|
-| NUFFT forward 2D | 64x64 | torchlinops | 549.75 us | 8.77 us | 548.86 us | 12.58 us | 360.50 KB |
-| NUFFT forward 2D | 64x64 | torchlinops (linop) | 361.94 us | 8.79 us | 357.38 us | 13.41 us | 312.50 KB |
-| NUFFT forward 2D | 64x64 | sigpy | 562.99 us | 44.89 us | 561.25 us | 11.50 us | 294.00 KB |
-| NUFFT forward 2D | 128x128 | torchlinops | 652.85 us | 7.76 us | 651.26 us | 11.10 us | 1.41 MB |
-| NUFFT forward 2D | 128x128 | torchlinops (linop) | 344.09 us | 7.79 us | 343.04 us | 9.68 us | 1.22 MB |
-| NUFFT forward 2D | 128x128 | sigpy | 661.73 us | 45.12 us | 660.88 us | 12.46 us | 1.10 MB |
-| NUFFT forward 2D | 256x256 | torchlinops | 1.10 ms | 7.78 us | 1.10 ms | 15.62 us | 5.63 MB |
-| NUFFT forward 2D | 256x256 | torchlinops (linop) | 480.25 us | 7.78 us | 477.98 us | 11.26 us | 4.88 MB |
-| NUFFT forward 2D | 256x256 | sigpy | 1.09 ms | 46.14 us | 1.07 ms | 19.62 us | 4.36 MB |
-| NUFFT adjoint 2D | 64x64 | torchlinops | 507.58 us | 7.75 us | 505.94 us | 13.38 us | 360.50 KB |
-| NUFFT adjoint 2D | 64x64 | torchlinops (linop) | 328.84 us | 7.68 us | 326.72 us | 12.19 us | 312.50 KB |
-| NUFFT adjoint 2D | 64x64 | sigpy | 487.35 us | 43.32 us | 484.35 us | 13.65 us | 294.00 KB |
-| NUFFT adjoint 2D | 128x128 | torchlinops | 630.66 us | 7.77 us | 628.74 us | 14.18 us | 1.41 MB |
-| NUFFT adjoint 2D | 128x128 | torchlinops (linop) | 325.95 us | 7.72 us | 325.63 us | 11.18 us | 1.22 MB |
-| NUFFT adjoint 2D | 128x128 | sigpy | 479.14 us | 43.37 us | 478.40 us | 12.26 us | 1.10 MB |
-| NUFFT adjoint 2D | 256x256 | torchlinops | 1.02 ms | 7.81 us | 1.01 ms | 21.44 us | 5.63 MB |
-| NUFFT adjoint 2D | 256x256 | torchlinops (linop) | 372.83 us | 7.76 us | 371.71 us | 6.40 us | 4.88 MB |
-| NUFFT adjoint 2D | 256x256 | sigpy | 844.82 us | 43.15 us | 844.80 us | 5.12 us | 4.36 MB |
+| Operation | Size | Library | Mean | Median | IQR | Peak Memory |
+|-----------|------|---------|------|--------|-----|-------------|
+| NUFFT forward 2D | 64x64 | torchlinops | 555.75 us | 535.55 us | 19.63 us | 360.50 KB |
+| NUFFT forward 2D | 64x64 | torchlinops (linop) | 348.67 us | 345.09 us | 15.25 us | 312.50 KB |
+| NUFFT forward 2D | 64x64 | sigpy | 523.23 us | 521.23 us | 13.70 us | 294.00 KB |
+| NUFFT forward 2D | 128x128 | torchlinops | 652.85 us | 650.24 us | 24.85 us | 1.41 MB |
+| NUFFT forward 2D | 128x128 | torchlinops (linop) | 349.19 us | 347.36 us | 12.18 us | 1.22 MB |
+| NUFFT forward 2D | 128x128 | sigpy | 631.24 us | 626.69 us | 16.45 us | 1.10 MB |
+| NUFFT forward 2D | 256x256 | torchlinops | 1.66 ms | 1.80 ms | 149.74 us | 5.63 MB |
+| NUFFT forward 2D | 256x256 | torchlinops (linop) | 507.52 us | 497.68 us | 15.36 us | 4.88 MB |
+| NUFFT forward 2D | 256x256 | sigpy | 1.16 ms | 1.15 ms | 15.52 us | 4.36 MB |
+| NUFFT adjoint 2D | 64x64 | torchlinops | 522.50 us | 515.07 us | 18.89 us | 360.50 KB |
+| NUFFT adjoint 2D | 64x64 | torchlinops (linop) | 327.00 us | 325.63 us | 11.32 us | 312.50 KB |
+| NUFFT adjoint 2D | 64x64 | sigpy | 455.18 us | 452.70 us | 14.34 us | 272.00 KB |
+| NUFFT adjoint 2D | 128x128 | torchlinops | 626.58 us | 614.40 us | 30.18 us | 1.49 MB |
+| NUFFT adjoint 2D | 128x128 | torchlinops (linop) | 326.81 us | 323.15 us | 11.54 us | 1.30 MB |
+| NUFFT adjoint 2D | 128x128 | sigpy | 449.42 us | 449.47 us | 10.46 us | 936.00 KB |
+| NUFFT adjoint 2D | 256x256 | torchlinops | 955.80 us | 953.34 us | 10.24 us | 5.63 MB |
+| NUFFT adjoint 2D | 256x256 | torchlinops (linop) | 384.11 us | 375.55 us | 29.70 us | 4.88 MB |
+| NUFFT adjoint 2D | 256x256 | sigpy | 935.01 us | 931.84 us | 4.03 us | 4.36 MB |
 
 
 ## NUFFT 3D
 
-| Operation | Size | Library | Mean | Data Gen | Median | IQR | Peak Memory |
-|-----------|------|---------|------|----------|--------|-----|-------------|
-| NUFFT forward 3D | 32x32x32 | torchlinops | 963.51 us | 7.82 us | 957.44 us | 17.74 us | 3.08 MB |
-| NUFFT forward 3D | 32x32x32 | torchlinops (linop) | 361.33 us | 7.88 us | 360.13 us | 12.29 us | 2.91 MB |
-| NUFFT forward 3D | 32x32x32 | sigpy | 993.00 us | 46.69 us | 980.99 us | 6.42 us | 2.12 MB |
-| NUFFT forward 3D | 64x64x64 | torchlinops | 2.15 ms | 7.83 us | 2.15 ms | 14.76 us | 25.03 MB |
-| NUFFT forward 3D | 64x64x64 | torchlinops (linop) | 565.94 us | 7.84 us | 565.06 us | 9.22 us | 23.66 MB |
-| NUFFT forward 3D | 64x64x64 | sigpy | 2.08 ms | 46.20 us | 2.06 ms | 11.39 us | 20.23 MB |
-| NUFFT forward 3D | 128x128x128 | torchlinops | 34.11 ms | 24.68 us | 34.18 ms | 182.75 us | 202.00 MB |
-| NUFFT forward 3D | 128x128x128 | torchlinops (linop) | 3.51 ms | 24.49 us | 3.52 ms | 14.27 us | 190.00 MB |
-| NUFFT forward 3D | 128x128x128 | sigpy | 10.30 ms | 157.75 us | 10.25 ms | 112.64 us | 158.27 MB |
-| NUFFT adjoint 3D | 32x32x32 | torchlinops | 756.98 us | 7.80 us | 747.39 us | 15.36 us | 2.86 MB |
-| NUFFT adjoint 3D | 32x32x32 | torchlinops (linop) | 349.41 us | 7.70 us | 349.18 us | 9.22 us | 2.69 MB |
-| NUFFT adjoint 3D | 32x32x32 | sigpy | 655.03 us | 44.59 us | 654.34 us | 6.14 us | 1.98 MB |
-| NUFFT adjoint 3D | 64x64x64 | torchlinops | 2.07 ms | 7.80 us | 2.06 ms | 12.54 us | 23.28 MB |
-| NUFFT adjoint 3D | 64x64x64 | torchlinops (linop) | 509.05 us | 7.77 us | 507.90 us | 7.97 us | 21.91 MB |
-| NUFFT adjoint 3D | 64x64x64 | sigpy | 1.80 ms | 43.86 us | 1.79 ms | 8.34 us | 12.86 MB |
-| NUFFT adjoint 3D | 128x128x128 | torchlinops | 33.79 ms | 7.77 us | 33.95 ms | 519.17 us | 187.00 MB |
-| NUFFT adjoint 3D | 128x128x128 | torchlinops (linop) | 3.46 ms | 7.70 us | 3.46 ms | 9.73 us | 176.00 MB |
-| NUFFT adjoint 3D | 128x128x128 | sigpy | 10.41 ms | 44.18 us | 10.40 ms | 11.56 us | 105.27 MB |
+| Operation | Size | Library | Mean | Median | IQR | Peak Memory |
+|-----------|------|---------|------|--------|-----|-------------|
+| NUFFT forward 3D | 32x32x32 | torchlinops | 922.10 us | 921.73 us | 12.19 us | 4.33 MB |
+| NUFFT forward 3D | 32x32x32 | torchlinops (linop) | 349.38 us | 347.07 us | 13.31 us | 4.16 MB |
+| NUFFT forward 3D | 32x32x32 | sigpy | 1.02 ms | 1.02 ms | 17.92 us | 2.24 MB |
+| NUFFT forward 3D | 64x64x64 | torchlinops | 2.07 ms | 2.06 ms | 9.47 us | 26.28 MB |
+| NUFFT forward 3D | 64x64x64 | torchlinops (linop) | 593.28 us | 591.04 us | 12.19 us | 24.91 MB |
+| NUFFT forward 3D | 64x64x64 | sigpy | 2.24 ms | 2.22 ms | 18.22 us | 20.23 MB |
+| NUFFT forward 3D | 128x128x128 | torchlinops | 28.52 ms | 28.36 ms | 350.46 us | 203.25 MB |
+| NUFFT forward 3D | 128x128x128 | torchlinops (linop) | 3.30 ms | 3.30 ms | 5.84 us | 191.25 MB |
+| NUFFT forward 3D | 128x128x128 | sigpy | 10.35 ms | 10.19 ms | 4.31 us | 158.27 MB |
+| NUFFT adjoint 3D | 32x32x32 | torchlinops | 736.48 us | 735.10 us | 13.66 us | 4.11 MB |
+| NUFFT adjoint 3D | 32x32x32 | torchlinops (linop) | 336.46 us | 334.46 us | 13.48 us | 3.94 MB |
+| NUFFT adjoint 3D | 32x32x32 | sigpy | 639.97 us | 636.93 us | 6.05 us | 1.98 MB |
+| NUFFT adjoint 3D | 64x64x64 | torchlinops | 2.04 ms | 2.04 ms | 6.58 us | 24.75 MB |
+| NUFFT adjoint 3D | 64x64x64 | torchlinops (linop) | 537.43 us | 535.71 us | 8.21 us | 23.38 MB |
+| NUFFT adjoint 3D | 64x64x64 | sigpy | 1.99 ms | 1.98 ms | 6.91 us | 12.97 MB |
+| NUFFT adjoint 3D | 128x128x128 | torchlinops | 34.52 ms | 34.53 ms | 220.44 us | 188.25 MB |
+| NUFFT adjoint 3D | 128x128x128 | torchlinops (linop) | 3.45 ms | 3.45 ms | 10.51 us | 177.25 MB |
+| NUFFT adjoint 3D | 128x128x128 | sigpy | 11.20 ms | 11.58 ms | 984.12 us | 103.17 MB |
 
 
 ## Bar Charts
