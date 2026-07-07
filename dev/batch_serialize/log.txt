@@ -1,0 +1,112 @@
+Chain(
+    Dense((X, Y) -> (C, X, Y))
+    Dense((C, X, Y) -> (B, C, X, Y))
+)
+Not batched
+Device cuda:0
+====================
+linops.0.weight	(5, 64, 64)		81.92 KiB
+linops.1.weight	(6, 1, 64, 64)		98.30 KiB
+Total: 180.22 KiB
+Concat((X, Y) -> (B, C, X, Y)
+    Concat((X, Y) -> (B, C, X, Y)
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        idim = None, odim = B
+    )
+    Concat((X, Y) -> (B, C, X, Y)
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        idim = None, odim = B
+    )
+    Concat((X, Y) -> (B, C, X, Y)
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        idim = None, odim = B
+    )
+    Concat((X, Y) -> (B, C, X, Y)
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        idim = None, odim = B
+    )
+    Concat((X, Y) -> (B, C, X, Y)
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        Chain(
+            Dense((X, Y) -> (C, X, Y))
+            Dense((C, X, Y) -> (B, C, X, Y))
+        )
+        idim = None, odim = B
+    )
+    idim = None, odim = C
+)
+Batched
+Device cuda:0
+====================
+linops.0.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+linops.0.linops.0.linops.1.weight	(2, 1, 64, 64)		32.77 KiB
+linops.0.linops.1.linops.1.weight	(2, 1, 64, 64)		32.77 KiB
+linops.0.linops.2.linops.1.weight	(2, 1, 64, 64)		32.77 KiB
+linops.1.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+linops.2.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+linops.3.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+linops.4.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+Total: 180.22 KiB
+Deserialized
+Device cuda:0
+====================
+linops.0.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+linops.0.linops.0.linops.1.weight	(2, 1, 64, 64)		32.77 KiB
+linops.0.linops.1.linops.1.weight	(2, 1, 64, 64)		32.77 KiB
+linops.0.linops.2.linops.1.weight	(2, 1, 64, 64)		32.77 KiB
+linops.1.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+linops.2.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+linops.3.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+linops.4.linops.0.linops.0.weight	(1, 64, 64)		16.38 KiB
+Total: 180.22 KiB
