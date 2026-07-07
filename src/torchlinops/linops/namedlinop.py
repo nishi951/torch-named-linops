@@ -390,10 +390,6 @@ class NamedLinop(nn.Module):
             # Assume that none of the dims are the same anymore
             # Override this behavior for e.g. diagonal linops
             normal.oshape = tuple(d.next_unused(normal.ishape) for d in normal.oshape)
-            # Remember which shapes were updated
-            normal._shape_updates = {
-                d: d.next_unused(normal.ishape) for d in normal.oshape
-            }
             normal._update_suffix(normal=True)
             return normal
         pre = copy(self)
@@ -401,7 +397,6 @@ class NamedLinop(nn.Module):
         post = self.adjoint()  # Copy happens inside adjoint
         post.ishape = inner.oshape
         normal = post @ inner @ pre
-        normal._shape_updates = getattr(inner, "_shape_updates", {})
         return normal
 
     def flatten(self) -> list["NamedLinop"]:

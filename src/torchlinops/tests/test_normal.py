@@ -37,7 +37,7 @@ def test_diagonal_normal():
     assert not isinstance(A.N, Chain)
 
 
-def test_shape_updates_hidden():
+def test_normal_shape_propagation():
     M, N, P = 3, 5, 7
 
     B = Dense(torch.randn(M, P), ("M", "P"), ishape=("M",), oshape=("P",))

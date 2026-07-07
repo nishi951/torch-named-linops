@@ -97,7 +97,6 @@ class ShapeSpec(Identity):
         pre.oshape = inner.ishape
         post.ishape = inner.oshape
         normal = post @ inner @ pre
-        normal._shape_updates = getattr(inner, "_shape_updates", {})
         return normal
 
 
