@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops.linops.einops import Rearrange, Repeat, SumReduce
-from torchlinops.tests.test_base import BaseNamedLinopTests
+from test_base import BaseNamedLinopTests
 
 
 class TestSumReduce(BaseNamedLinopTests):
