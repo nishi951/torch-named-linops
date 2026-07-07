@@ -129,8 +129,8 @@ def test_partition_not_found():
 
 
 def test_isequal_incompatible():
-    result = isequal(("A", "B"), ("C",), return_assignments=True)
-    assert result[0] is False
+    result, _ = isequal(("A", "B"), ("C",))
+    assert not result
 
 
 def test_iscompatible_string_warning():

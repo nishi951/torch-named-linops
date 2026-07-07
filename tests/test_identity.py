@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops import Identity, Zero, ShapeSpec
-from torchlinops.tests.test_base import BaseNamedLinopTests
+from test_base import BaseNamedLinopTests
 
 
 class TestIdentity(BaseNamedLinopTests):

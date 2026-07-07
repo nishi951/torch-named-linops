@@ -195,7 +195,6 @@ class Stack(NamedLinop):
                 linops,
                 xs,
                 context,
-                parent=stack,
                 reduce_fn=lambda ys: torch.stack(ys, dim=odim_idx),
                 threaded=stack.threaded,
                 num_workers=stack.num_workers,
@@ -206,7 +205,6 @@ class Stack(NamedLinop):
             linops,
             xs,
             context,
-            parent=stack,
             reduce_fn=sum,
             threaded=stack.threaded,
             num_workers=stack.num_workers,
@@ -304,9 +302,9 @@ class Stack(NamedLinop):
                     row = []
                     for linop_right in self.linops:
                         if linop_left == linop_right:
-                            new_linop = linop_right.N
+                            new_linop = copy(linop_right.N)
                         else:
-                            new_linop = linop_left.H @ linop_right
+                            new_linop = copy(linop_left.H) @ copy(linop_right)
                             new_linop.ishape = new_shape.ishape
                             new_linop.oshape = new_shape.oshape
                         row.append(new_linop)
@@ -349,8 +347,8 @@ class Stack(NamedLinop):
         target_shape = self.linops[0].shape
         for linop in self.linops:
             if not (
-                isequal(target_shape.ishape, linop.ishape)
-                and isequal(target_shape.oshape, linop.oshape)
+                isequal(target_shape.ishape, linop.ishape)[0]
+                and isequal(target_shape.oshape, linop.oshape)[0]
             ):
                 raise ValueError(
                     f"Incompatible linops being stacked. Target shape: {target_shape} but got linop shape: {linop.shape}"

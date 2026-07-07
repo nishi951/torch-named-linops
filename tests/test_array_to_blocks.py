@@ -5,7 +5,7 @@ import torch
 
 import torchlinops.functional as F
 from torchlinops import ArrayToBlocks
-from torchlinops.tests.test_base import BaseNamedLinopTests
+from test_base import BaseNamedLinopTests
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,

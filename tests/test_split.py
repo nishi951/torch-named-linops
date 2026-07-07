@@ -203,3 +203,46 @@ def test_batched_linop_weight_integrity_multi_device():
         assert Abatch(x).allclose(A(x), rtol=1e-3), (
             "Batched linop output does not match original"
         )
+
+
+def test_batchspec_resolve_different_defaults():
+    """Verify that .resolve() twice with different defaults returns different resolved specs."""
+    ishape = ("B", "N")
+    oshape = ("B", "M")
+    B = 10
+    M, N = (3, 7)
+    weight = torch.randn(B, M, N)
+    weightshape = ("B", "M", "N")
+    A = Dense(weight, weightshape, ishape, oshape)
+
+    spec = BatchSpec(dict(N=2))
+
+    # Resolve with CPU default
+    resolved_cpu = spec.resolve(A, torch.device("cpu"))
+    assert resolved_cpu.base_device == torch.device("cpu")
+
+    # Resolve with CUDA default (if available)
+    if torch.cuda.is_available():
+        resolved_cuda = spec.resolve(A, torch.device("cuda:0"))
+        assert resolved_cuda.base_device == torch.device("cuda:0")
+        assert resolved_cpu.base_device != resolved_cuda.base_device
+    else:
+        # Just verify that resolve returns a new object each time
+        resolved_cpu2 = spec.resolve(A, torch.device("cpu"))
+        assert resolved_cpu is not resolved_cpu2
+        assert resolved_cpu.base_device == resolved_cpu2.base_device
+
+
+def test_batchspec_frozen():
+    """Verify that BatchSpec is frozen and mutation raises FrozenInstanceError."""
+    spec = BatchSpec(dict(N=2))
+
+    # Attempting to mutate should raise FrozenInstanceError
+    with pytest.raises(Exception):  # FrozenInstanceError
+        spec.base_device = torch.device("cpu")
+
+    with pytest.raises(Exception):  # FrozenInstanceError
+        spec.device_matrix = None
+
+    with pytest.raises(Exception):  # FrozenInstanceError
+        spec.batch_sizes = dict(M=3)

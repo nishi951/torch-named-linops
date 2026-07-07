@@ -100,7 +100,7 @@ def split(linop, tile):
     return type(linop)(sub_weight, ishape=..., oshape=...)
 ```
 
-See [Copying Linops](../explanations/copying_linops.md) and [Multi-GPU Splitting](../explanations/multi_gpu.md) for more details on why this matters.
+See [Copying Linops](../explanations/copying_linops.md) and [Multi-GPU Execution](../explanations/multi_gpu.md) for more details on why this matters.
 
 ## Testing Your Linop
 

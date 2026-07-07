@@ -92,3 +92,51 @@ def test_max_shape_incompatible_raises():
     """max_shape should raise ValueError for incompatible shapes."""
     with pytest.raises(ValueError, match="incompatib"):
         max_shape([("A", "B"), ("C",)])
+
+
+# --- update tests ---
+
+
+def test_update_ellipses():
+    """Ellipses can be replaced"""
+    ndc = NamedDimCollection(shape=("...", "C"), other_shape=("...", "D"))
+    new_shape = ("A", "B", "C")  # Replaces "..." with ("A", "B")
+    ndc.shape = new_shape
+    assert ndc.shape == new_shape
+    # other shape is preserved
+    assert ndc.other_shape == ("...", "D")
+
+
+def test_replace_ellipses_with_ellipses():
+    ndc = NamedDimCollection(shape=("...", "C"), other_shape=("...", "D"))
+    new_shape = ("...", "B", "C")
+    ndc.shape = new_shape
+    assert ndc.shape == new_shape
+    # other shape is preserved
+    assert ndc.other_shape == ("...", "D")
+
+
+def test_repeated_dim_replacement():
+    ndc = NamedDimCollection(shape=("C", "C"), other_shape=("C", "D"))
+    new_shape = ("A", "B")
+    with pytest.raises(ValueError, match="inconsistent mapping"):
+        ndc.shape = new_shape
+
+    ndc = NamedDimCollection(shape=("C", "C"), other_shape=("C", "D"))
+    new_shape = ("B", "B")
+    ndc.shape = new_shape
+    assert ndc.shape == ("B", "B")
+    assert ndc.other_shape == ("B", "D")
+
+
+def test_override_with_ellipses():
+    ndc = NamedDimCollection(shape=("A", "B", "C"), other_shape=("B", "..."))
+    new_shape = ("...", "C")
+    ndc.shape = new_shape
+    assert ndc.shape == ("...", "C")
+    assert ndc.other_shape == ("B", "...")
+
+
+def test_repeated_ellipses_coalesce():
+    ndc = NamedDimCollection(shape=("...", "..."), other_shape=("C", "D"))
+    assert ndc.shape == ("...",)
