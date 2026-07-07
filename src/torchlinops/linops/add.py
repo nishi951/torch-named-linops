@@ -61,10 +61,10 @@ class Add(NamedLinop):
         num_workers : int | None, optional
             Number of worker threads. If None, defaults to the number of sub-linops.
         """
-        assert all(isequal(linop.ishape, linops[0].ishape) for linop in linops), (
+        assert all(isequal(linop.ishape, linops[0].ishape)[0] for linop in linops), (
             f"Add: All linops must share same ishape. Found {linops}"
         )
-        assert all(isequal(linop.oshape, linops[0].oshape) for linop in linops), (
+        assert all(isequal(linop.oshape, linops[0].oshape)[0] for linop in linops), (
             f"Add: All linops must share same oshape. Linops: {linops}"
         )
         super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
