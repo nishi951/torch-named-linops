@@ -36,8 +36,9 @@ def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
 def isequal(
     shape1: Sequence,
     shape2: Sequence,
-    return_assignments: bool = False,
-) -> bool | tuple[bool, Optional[dict[int, list]]]:
+    shape1_consume_all: bool = False,
+    shape2_consume_all: bool = False,
+) -> tuple[bool, Optional[dict[int, list]]]:
     """Test if two sequences with ellipses are length-compatible and value-compatible.
 
     Implemented with bottom-up DP
@@ -46,44 +47,50 @@ def isequal(
     ----------
     shape1, shape2 : Sequence
         The sequences of tokens to compare.
-    ELLIPSES : str, default = "..."
-        The wildcard that can match any number of tokens.
+    shape1_consume_all, shape2_consume_all: bool
+        Whether to consume all elements of the sequence greedily.
+        This usually means maximizing matches with ELLIPSES tokens.
 
     Returns
     -------
     bool
         Whether shape1 and shape2 are compatible.
+    dict[int, list]
+        A mapping from ``shape1`` indices to matching ``shape2`` indices,
+        or ``None`` if the shapes are not compatible.
 
     Examples
     --------
 
-    >>> isequal(("A", "B"), ("A", "B"))
+    >>> isequal(("A", "B"), ("A", "B"))[0]
     True
-    >>> isequal(("A", "C"), ("A",))
+    >>> isequal(("A", "C"), ("A",))[0]
     False
-    >>> isequal(("A", "C"), tuple())
+    >>> isequal(("A", "C"), tuple())[0]
     False
-    >>> isequal(("A", "C"), ("...",))
+    >>> isequal(("A", "C"), ("...",))[0]
     True
-    >>> isequal(("A", "C", "..."), ("...",))
+    >>> isequal(("A", "C", "..."), ("...",))[0]
     True
-    >>> isequal(("A", "B", "C"), ("A", "...", "C"))
+    >>> isequal(("A", "B", "C"), ("A", "...", "C"))[0]
     True
-    >>> isequal(("...", "A", "C", "..."), ("...",))
+    >>> isequal(("...", "A", "C", "..."), ("...",))[0]
     True
-    >>> isequal(("...", "A", "C"), ("B", "C"))
+    >>> isequal(("...", "A", "C"), ("B", "C"))[0]
     False
 
     # Wildcards
-    >>> isequal(("A", "B"), ("A", "()"))
+    >>> isequal(("A", "B"), ("A", "()"))[0]
     True
-    >>> isequal(("A",), ("()", "()"))
+    >>> isequal(("A",), ("()", "()"))[0]
     False
 
     # Think about this one...
-    >>> isequal(("...", "A", "C", "..."), ("...", "A"))
+    >>> isequal(("...", "A", "C", "..."), ("...", "A"))[0]
     True
     """
+    # Rows = shape1
+    # Cols = shape2
     ptrs = [[(0, 0) for _ in range(len(shape2) + 1)] for _ in range(len(shape1) + 1)]
     # Base cases
     ptrs[0][0] = (0, 0)  # True (note that bool(tuple()) == False)
@@ -116,48 +123,39 @@ def isequal(
                 val = None
             ptrs[i][j] = val
 
-    if return_assignments:
-        if not ptrs[-1][-1]:
-            return False, None
-        # Traverse in reverse order
-        assignments = defaultdict(list)
-        row, col = len(shape1), len(shape2)
-        while row > 0 and col > 0:
-            assignments[row - 1].append(col - 1)
-            drow, dcol = ptrs[row][col]
-            row = row + drow
-            col = col + dcol
-        return True, assignments
-    return bool(ptrs[-1][-1])
+    if not ptrs[-1][-1]:
+        return False, None
+    # Traverse in reverse order
+    assignments = defaultdict(list)
+    row, col = len(shape1), len(shape2)
+    while True:
+        if (
+            (row == 0 and not shape1_consume_all)
+            or (col == 0 and not shape2_consume_all)
+            or (row == 0 and col == 0)
+        ):
+            break
+        assignments[max(0, row - 1)].insert(0, max(0, col - 1))
+        drow, dcol = ptrs[row][col]
+        row = row + drow
+        col = col + dcol
+    return True, assignments
 
 
-# def get_assignments(ptrs):
-#     """Assign indices from first to second sequence."""
-#     len_shape1 = len(ptrs[0]) - 1
-#     len_shape2 = len(ptrs) - 1
-#     assignment = defaultdict(list)
-#     row = 1
-#     for col in range(1, len_shape1 + 1):
-#         while row < len_shape2 + 1 and ptrs[row][col]:
-#             assignment[col - 1].append(row - 1)
-#             row += 1
-#     return assignment
-
-
-def iscompatible(
-    shape1: Sequence,
-    shape2: Sequence,
-    return_assignments: bool = False,
-) -> bool | tuple[bool, Optional[dict]]:
+def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, Optional[dict]]:
     """Whether the two shapes are length-compatible.
 
-    >>> iscompatible(("A","B"), ("C", "D"))
+    Greedily consume shape1, but not shape2
+
+    >>> iscompatible(("A","B"), ("C", "D"))[0]
     True
-    >>> iscompatible(("...",), ("A","B"))
+    >>> iscompatible(("...",), ("A","B"))[0]
     True
-    >>> iscompatible(("B","..."), ("A","..."))
+    >>> iscompatible(("B","..."), ("A","..."))[0]
     True
-    >>> iscompatible(("...",), tuple())
+    >>> iscompatible(("...",), tuple())[0]
+    True
+    >>> iscompatible(("C", "C"), ("D", "E"))[0]
     True
 
     """
@@ -168,7 +166,7 @@ def iscompatible(
 
     shape1 = [ANY if s != ELLIPSES else ELLIPSES for s in deepcopy(shape1)]
     shape2 = [ANY if s != ELLIPSES else ELLIPSES for s in deepcopy(shape2)]
-    return isequal(shape1, shape2, return_assignments=return_assignments)
+    return isequal(shape1, shape2, shape1_consume_all=True)
 
 
 def max_shape(shapes):
@@ -191,9 +189,7 @@ def max_shape(shapes):
     max_shape_names_only = [ND(d.name) for d in max_shape]
     for shape in shapes[1:]:
         shape_names_only = [ND(d.name) for d in shape]
-        iscompat, assignments = iscompatible(
-            max_shape_names_only, shape_names_only, return_assignments=True
-        )
+        iscompat, assignments = iscompatible(max_shape_names_only, shape_names_only)
         if not iscompat:
             raise ValueError(
                 f"Shape incompatibilty detected in concat: {max_shape} not compatible with {shape}"

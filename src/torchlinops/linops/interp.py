@@ -103,17 +103,19 @@ class Interpolate(NamedLinop):
             x, interp.locs, interp.grid_size, **interp.interp_params
         )
 
-    def split_forward(self, ibatch, obatch):
-        return type(self)(
-            self.split_locs(ibatch, obatch, self.locs),
-            self.grid_size,
-            self._shape.batch_shape,
-            self._shape.locs_batch_shape,
-            self._shape.grid_shape,
-            **self.interp_params,
+    @staticmethod
+    def split(interp, tile):
+        obatch = tuple(tile.get(dim, slice(None)) for dim in interp.oshape)
+        return type(interp)(
+            interp.split_locs(obatch, interp.locs),
+            interp.grid_size,
+            interp._shape.batch_shape,
+            interp._shape.locs_batch_shape,
+            interp._shape.grid_shape,
+            **interp.interp_params,
         )
 
-    def split_locs(self, ibatch, obatch, /, locs):
+    def split_locs(self, obatch, /, locs):
         """Can only split on locs dimensions"""
         if self._shape.locs_batch_shape == ELLIPSES:
             return locs

@@ -87,8 +87,9 @@ class ArrayToBlocks(NamedLinop):
     def normal_fn(arraytoblocks, x, /):
         return arraytoblocks.adj_fn(arraytoblocks, arraytoblocks.fn(arraytoblocks, x))
 
-    def split_forward(self, ibatch, obatch):
-        return copy(self)
+    @staticmethod
+    def split(linop, tile):
+        return copy(linop)
 
     def adjoint(self):
         return BlocksToArray(
@@ -181,8 +182,9 @@ class BlocksToArray(NamedLinop):
             blockstoarray.mask,
         )
 
-    def split_forward(self, ibatch, obatch):
-        return copy(self)
+    @staticmethod
+    def split(linop, tile):
+        return copy(linop)
 
     def adjoint(self):
         return ArrayToBlocks(

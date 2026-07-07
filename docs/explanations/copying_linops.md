@@ -4,7 +4,7 @@ Copying linops is a surprisingly difficult thing to achieve in a memory-efficien
 
 ## Basic shallow copy
 
-`copy.copy()` of a `NamedLinop` is the workhorse of the library. It is used internally by `adjoint()`, `normal()`, and many `split_forward()` implementations.
+`copy.copy()` of a `NamedLinop` is the workhorse of the library. It is used internally by `adjoint()`, `normal()`, and many `split()` implementations.
 
 A shallow copy:
 
@@ -29,7 +29,7 @@ def adjoint(self):
 The result is a new `NamedLinop` that represents $A^H$ but uses the exact same weight tensors as $A$. Modifying the weights of one will affect the other -- this is intentional and desirable, as the adjoint should always reflect the current state of the operator.
 
 !!! note
-    Many concrete linops override `split_forward` to call their own constructor via `type(self)(...)` rather than using `copy()`. This is because PyTorch's `copy` does not properly isolate `nn.Parameter` objects -- modifications to a shallow-copied parameter can propagate back to the original. Calling the constructor creates truly independent parameters that happen to reference the same tensor data.
+    Many concrete linops override `split` to call their own constructor via `type(linop)(...)` rather than using `copy()`. This is because PyTorch's `copy` does not properly isolate `nn.Parameter` objects -- modifications to a shallow-copied parameter can propagate back to the original. Calling the constructor creates truly independent parameters that happen to reference the same tensor data.
 
 ## Memory-aware deepcopy
 

@@ -148,12 +148,6 @@ class CGRun:
         xy = zdot(x, self.y)
         self.loss = (zdot(x, Ax) - xy - xy.conj()).real.item()
 
-        # Track best seen, or just update
-        # if self.return_best:
-        #     if self.loss < self.loss_best:
-        #         self.x_out = x.clone()
-        #         self.loss_best = self.loss
-        # else:
         self.x_out = x
 
         # Compute grad norm

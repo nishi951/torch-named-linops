@@ -25,7 +25,7 @@ def _(mo):
        adjoint operation $y = A^H x$.
 
     Optionally you can also override `normal_fn` (for an efficient $A^H A$),
-    `split_forward` (for multi-GPU tiling), and `size` (to report dimension
+    `split` (for multi-GPU tiling), and `size` (to report dimension
     sizes).
     """)
     return

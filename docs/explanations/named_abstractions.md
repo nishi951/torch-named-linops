@@ -196,15 +196,10 @@ def normal_fn(linop, x: Tensor, /) -> Tensor:
     return linop.adj_fn(linop, linop.fn(linop, x))
 ```
 
-The `forward()` method wraps `fn()` with optional CUDA stream execution:
+The `forward()` method simply delegates to `fn()`:
 
 ```python
 def forward(self, x):
-    if self.stream is not None:
-        with torch.cuda.stream(self.stream):
-            y = self.fn(self, x)
-        x.record_stream(self.stream)
-        return y
     return self.fn(self, x)
 ```
 
@@ -259,7 +254,7 @@ Note that `Chain` stores linops in **execution order** (inner-to-outer), so `A @
 
 ### Splitting
 
-Every linop can implement `split_forward(ibatch, obatch)` to support decomposition into sub-linops along named dimensions. The default `split()` static method translates a tile dictionary (mapping dim names to slices) into the `ibatch`/`obatch` format and delegates to `split_forward`. See [Multi-GPU Splitting](multi_gpu.md) for how this is used to distribute computation.
+Every linop can implement `split(linop, tile)` to support decomposition into sub-linops along named dimensions. The `tile` argument is a dictionary mapping dimension names to slices. See [Multi-GPU Execution](multi_gpu.md) for how this is used to distribute computation.
 
 ### Size reporting
 

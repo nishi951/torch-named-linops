@@ -4,3 +4,6 @@
 tmp/
 
 tutorials/
+
+*.png
+*.json
