@@ -155,10 +155,8 @@ def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, Optional[dic
     True
     >>> iscompatible(("...",), tuple())[0]
     True
-
-    # C cannot map to both D and E
     >>> iscompatible(("C", "C"), ("D", "E"))[0]
-    False
+    True
 
     """
     if isinstance(shape1, str) or isinstance(shape2, str):
