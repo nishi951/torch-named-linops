@@ -8,7 +8,7 @@ import torch
 from torchlinops import NUFFT, Interpolate, Pad
 from torchlinops.functional import nufft, nufft_adjoint
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
-from test_base import BaseNamedLinopTests
+from torchlinops.testing import BaseNamedLinopTests
 
 
 class TestNUFFT(BaseNamedLinopTests):

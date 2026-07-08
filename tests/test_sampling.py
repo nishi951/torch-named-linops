@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops import Sampling
-from test_base import BaseNamedLinopTests
+from torchlinops.testing import BaseNamedLinopTests
 import torchlinops.functional as F
 
 
