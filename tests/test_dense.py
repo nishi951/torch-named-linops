@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops import Dense, Diagonal
-from test_base import BaseNamedLinopTests
+from torchlinops.testing import BaseNamedLinopTests
 
 
 class TestDense(BaseNamedLinopTests):

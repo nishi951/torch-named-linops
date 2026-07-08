@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchlinops.linops.scalar import Scalar
-from test_base import BaseNamedLinopTests
+from torchlinops.testing import BaseNamedLinopTests
 
 
 class TestScalar(BaseNamedLinopTests):
