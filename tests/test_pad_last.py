@@ -8,7 +8,7 @@ from torchlinops.linops.pad_last import (
     pad_to_scale,
     pad_to_size,
 )
-from test_base import BaseNamedLinopTests
+from torchlinops.testing import BaseNamedLinopTests
 from torchlinops.utils import is_adjoint
 
 

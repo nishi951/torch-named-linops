@@ -3,7 +3,7 @@ import torch
 
 from torchlinops import Dense, Dim
 from torchlinops.linops.chain import Chain
-from test_base import BaseNamedLinopTests
+from torchlinops.testing import BaseNamedLinopTests
 
 
 class TestChain(BaseNamedLinopTests):

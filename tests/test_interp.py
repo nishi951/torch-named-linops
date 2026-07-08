@@ -6,7 +6,7 @@ import torch
 
 from torchlinops import Interpolate
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
-from test_base import BaseNamedLinopTests
+from torchlinops.testing import BaseNamedLinopTests
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,
