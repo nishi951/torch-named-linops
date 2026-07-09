@@ -17,20 +17,59 @@ IndexOrSlice = Integer[Tensor, "..."] | slice
 def index(
     vals: Shaped[Tensor, "..."],
     idx: tuple[IndexOrSlice, ...],
+    deterministic_backward: bool = False,
 ) -> Tensor:
     """
     Parameters
     ----------
-    idx : tuple of Tensor or Slice objects
-        Index
+    vals : Shaped[Tensor, "N..., D..."]
+        N... are (optional) batch dims
+        D... are indexable dims. Should be same as the length of idx
+    idx : tuple[IndexOrSlice, ...],
+        tuple of Tensor or Slice objects
+    deterministic_backward : bool, default False
+        If True, uses pytorch advanced indexing, which results in a deterministic backward pass that can be slower.
+        If False, uses index_select, which results in a nondeterministic backward pass that is much faster.
     """
     if len(vals.shape) < len(idx):
         raise ValueError(
             f"Input value with shape {vals.shape} cannot be indexed with index tensors of length {len(idx)}"
         )
-    batch_slc = [slice(None)] * (len(vals.shape) - len(idx))
-    idx_batched = (*batch_slc, *idx)
-    return vals[idx_batched]
+    if any(isinstance(i, slice) for i in idx):
+        # Force deterministic backend
+        deterministic_backward = True
+
+    if deterministic_backward:
+        batch_slc = [slice(None)] * (len(vals.shape) - len(idx))
+        idx_batched = (*batch_slc, *idx)
+        return vals[idx_batched]
+    # Nondeterministic using multi_index
+    ndims = len(idx)
+    idx = torch.broadcast_tensors(*idx)
+    return multi_index(vals, ndims, idx=torch.stack(idx))
+
+
+def multi_index(x: torch.Tensor, ndims: int, idx: torch.Tensor, raveled: bool = False):
+    """Extract linear indexing over last D dimensions of x, with indices given in idx
+    x: [N... D...] tensor to index
+    ndims: number of dimensions (from the end of the tensor) to index (length of D)
+    idx: [ndims, I...] or [I...] if raveled=True
+    raveled: Whether the idx still needs to be raveled or not (convenient if idx is reused multiple times)
+
+    Returns:
+    Tensor with shape [N... I...] (the shape of the raveled index)
+    """
+    x_flat = torch.flatten(x, start_dim=-ndims, end_dim=-1)
+    if not raveled:
+        assert ndims == idx.shape[0], (
+            "idx must have same last dimension as number of indexed dimensions"
+        )
+        idx = ravel(idx, x.shape[-ndims:], dim=0)
+    out_shape = idx.shape
+    idx_flat = torch.flatten(idx)
+    y = torch.index_select(x_flat, -1, idx_flat)
+    y = y.reshape((tuple(x.shape[:-ndims]) + tuple(out_shape)))
+    return y
 
 
 def index_adjoint(
