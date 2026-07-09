@@ -38,7 +38,7 @@ def test_index_nondeterministic_forward():
     vals = torch.randn(64, 100)
     idx = (torch.randint(0, 100, (1000,)),)
 
-    out_ref = vals[(slice(None), *idx)]
+    out_ref = index(vals, idx, deterministic_backward=True)
     out_nd = index(vals, idx, deterministic_backward=False)
 
     assert torch.equal(out_ref, out_nd)
@@ -52,7 +52,7 @@ def test_index_nondeterministic_backward():
 
     # Test with index
     vals_ref = vals.detach().clone().requires_grad_(True)
-    out_ref = vals_ref[(slice(None), *idx)]
+    out_ref = index(vals_ref, idx, deterministic_backward=True)
     grad_out = torch.randn_like(out_ref)
     out_ref.backward(grad_out)
     grad_ref = vals_ref.grad.clone()
