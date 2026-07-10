@@ -5,7 +5,7 @@ from ._nameddim import NamedDimension as ND
 __all__ = ["fake_dims", "get_nd_shape", "N2K", "K2N"]
 
 
-def get_nd_shape(dim: Literal[1, 2, 3], kspace=False):
+def get_nd_shape(dim: int, kspace=False):
     """Return spatial dimension names for a given image size.
 
     Maps a 1-D, 2-D, or 3-D image size tuple to the corresponding named
