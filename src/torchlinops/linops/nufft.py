@@ -108,9 +108,11 @@ class NUFFT(Chain):
         self.mode = mode
         self.options = options
         # Infer shapes
-        self.input_shape = ND.infer(default_to(get_nd_shape(grid_size), input_shape))
+        self.input_shape = ND.infer(
+            default_to(get_nd_shape(len(grid_size)), input_shape)
+        )
         self.input_kshape = ND.infer(
-            default_to(get_nd_shape(grid_size, kspace=True), input_kshape)
+            default_to(get_nd_shape(len(grid_size), kspace=True), input_kshape)
         )
         self.output_shape = ND.infer(output_shape)
         self.batch_shape = ND.infer(default_to(("...",), batch_shape))
