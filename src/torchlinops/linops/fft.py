@@ -58,7 +58,7 @@ class FFT(NamedLinop):
         self.dim = tuple(range(-self.ndim, 0))
         self.grid_shapes = grid_shapes
         if grid_shapes is None:
-            grid_shapes = get_nd_shape(self.dim), get_nd_shape(self.dim, kspace=True)
+            grid_shapes = get_nd_shape(self.ndim), get_nd_shape(self.ndim, kspace=True)
         elif len(grid_shapes) != 2:
             raise ValueError(
                 f"grid_shapes should consist of two shape tuples but got {grid_shapes}"
