@@ -8,6 +8,26 @@ from torch.autograd.functional import vjp
 
 
 def circular_pad(t: Tensor, padding: int | tuple):
+    """Apply circular padding to the last dimensions of a tensor.
+
+    Necessary because torch's nn.functional.pad is not as expressive.
+
+    Parameters
+    ----------
+    t : Tensor
+        Input tensor to pad.
+    padding : int | tuple
+        Padding in same format as nn.functional.pad requires.
+
+    Returns
+    -------
+    Tensor
+        The padded tensor.
+
+    References
+    ----------
+    https://docs.pytorch.org/docs/main/generated/torch.nn.functional.pad.html
+    """
     # Infer dimension
     if isinstance(padding, int):
         ndim = t.ndim
