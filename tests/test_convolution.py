@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops import Dim
-from torchlinops.linops.convolution import Convolution
+from torchlinops.linops.convolution import Convolution, FFTConvolution
 from torchlinops.testing import BaseNamedLinopTests
 
 
@@ -160,3 +160,22 @@ class TestConvolutionCircular(BaseNamedLinopTests):
         x = torch.randn(3, 8, 8)
         y = torch.randn(3, 8, 8)
         return conv, x, y
+
+
+class TestFFTConvolution1D(BaseNamedLinopTests):
+    equality_check = "approx"
+    isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
+
+    @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
+    def linop_input_output(self, request):
+        dtype = request.param
+        weight = torch.randn(5, dtype=dtype)
+        fft_conv = FFTConvolution(
+            weight,
+            batch_shape=("...",),
+            in_grid_shape=("x",),
+            out_grid_shape=("x",),
+        )
+        x = torch.randn(3, 16, dtype=dtype)
+        y = torch.randn(3, 16, dtype=dtype)
+        return fft_conv, x, y
