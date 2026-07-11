@@ -268,6 +268,9 @@ class FFTConvolution(Convolution):
         # Pad kernel to input size, placing it at the origin
         pad_sizes = pad_to_size(self.kernel.shape, grid_size)
         kernel_padded = F.pad(self.kernel, pad_sizes)
+        kernel_padded = torch.fft.ifftshift(
+            kernel_padded, dim=tuple(range(-self.ndim, 0))
+        )
 
         # FFT along spatial dimensions
         Fkernel = torch.fft.fftn(kernel_padded, dim=tuple(range(-self.ndim, 0)))
