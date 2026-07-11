@@ -198,3 +198,22 @@ class TestFFTConvolution2D(BaseNamedLinopTests):
         x = torch.randn(3, 8, 8, dtype=dtype)
         y = torch.randn(3, 8, 8, dtype=dtype)
         return fft_conv, x, y
+
+
+class TestFFTConvolution3D(BaseNamedLinopTests):
+    equality_check = "approx"
+    isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
+
+    @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
+    def linop_input_output(self, request):
+        dtype = request.param
+        weight = torch.randn(3, 3, 3, dtype=dtype)
+        fft_conv = FFTConvolution(
+            weight,
+            batch_shape=("...",),
+            in_grid_shape=("x", "y", "z"),
+            out_grid_shape=("x", "y", "z"),
+        )
+        x = torch.randn(3, 8, 8, 8, dtype=dtype)
+        y = torch.randn(3, 8, 8, 8, dtype=dtype)
+        return fft_conv, x, y
