@@ -11,6 +11,7 @@ from ..nameddim import NamedDimension as ND
 from ..nameddim import NamedShape as NS
 from ..nameddim import Shape, get_nd_shape
 from .namedlinop import NamedLinop
+from .pad_last import pad_to_size
 
 __all__ = ["Convolution"]
 
@@ -35,7 +36,7 @@ class Convolution(NamedLinop):
     ----------
     ndim : int
         Number of spatial dimensions (1, 2, or 3).
-    weight : Tensor
+    kernel : Tensor
         Convolution kernel of shape (out_channels, in_channels, *kernel_size).
     padding : str or int
         Padding mode or size.
@@ -43,7 +44,7 @@ class Convolution(NamedLinop):
 
     def __init__(
         self,
-        weight: Tensor,
+        kernel: Tensor,
         batch_shape: Optional[Shape] = None,
         in_grid_shape: Optional[Shape] = None,
         out_grid_shape: Optional[Shape] = None,
@@ -53,7 +54,7 @@ class Convolution(NamedLinop):
         """
         Parameters
         ----------
-        weight : Tensor
+        kernel : Tensor
             Convolution kernel of shape (*kernel_size).
         batch_shape : Shape, optional
             Named batch dimensions. Defaults to ("...",).
@@ -68,13 +69,9 @@ class Convolution(NamedLinop):
         **options : dict
             Additional options (normal_mode, fft_dtype, etc.)
         """
-        ndim = weight.dim()
+        ndim = kernel.dim()
         if ndim not in (1, 2, 3):
             raise ValueError(f"ndim must be 1, 2, or 3, got {ndim}")
-        # if weight.dim() != ndim:
-        #     raise ValueError(
-        #         f"Expected weight with {ndim} dims but got shape {weight.shape}"
-        #     )
 
         self.ndim = ndim
         self.options = options
@@ -82,8 +79,8 @@ class Convolution(NamedLinop):
         # Pad to odd size for simplicity
         # Later, might want to revisit for efficiency gains
         self.padding_mode = padding_mode
-        weight = pad_to_odd(weight, ndim)
-        _pad = [(s // 2, s // 2) for s in weight.shape[-ndim:]]
+        kernel = pad_to_odd(kernel, ndim)
+        _pad = [(s // 2, s // 2) for s in kernel.shape[-ndim:]]
         self._crop = tuple(
             slice(first, -last if last > 0 else None) for first, last in _pad
         )
@@ -95,10 +92,10 @@ class Convolution(NamedLinop):
             batch_shape = ("...",)
 
         if in_grid_shape is None:
-            in_grid_shape = ("Cin",) + get_nd_shape(ndim)
+            in_grid_shape = get_nd_shape(ndim)
 
         if out_grid_shape is None:
-            out_grid_shape = ("Cout",) + tuple(
+            out_grid_shape = tuple(
                 ND.infer(s).next_unused() for s in get_nd_shape(ndim)
             )
 
@@ -107,15 +104,17 @@ class Convolution(NamedLinop):
         oshape = batch_shape + out_grid_shape
 
         super().__init__(NS(ishape, oshape))
-        self._kernel = weight  # The original input, possibly padded
+        self.kernel = kernel  # The original input, possibly padded
         self._shape.batch_shape = tuple(batch_shape)
         self._shape.in_grid_shape = tuple(in_grid_shape)
         self._shape.out_grid_shape = tuple(out_grid_shape)
 
         # Proper conv: flip but don't conjugate each dim
-        weight = torch.flip(weight, dims=tuple(range(-ndim, 0)))
+        # kernel -> "weight" to indicate that we are moving from
+        # math language to pytorch language
+        weight = torch.flip(kernel, dims=tuple(range(-ndim, 0)))
         weight = weight[None, None]  # [1, 1, *kernel_size]
-        self.weight = nn.Parameter(weight, requires_grad=False)
+        self._weight = nn.Parameter(weight, requires_grad=False)
 
     @staticmethod
     def fn(conv, x, /):
@@ -125,9 +124,9 @@ class Convolution(NamedLinop):
         conv_fn = (F.conv1d, F.conv2d, F.conv3d)[conv.ndim - 1]
         if conv.padding_mode == "circular":
             x = circular_pad(x, conv._pad)
-            x = conv_fn(x, conv.weight, padding=0)
+            x = conv_fn(x, conv._weight, padding=0)
         elif conv.padding_mode == "zeros":
-            x = conv_fn(x, conv.weight, padding="same")
+            x = conv_fn(x, conv._weight, padding="same")
         else:
             raise ValueError(f"Unrecognized padding_mode: {conv.padding_mode}")
         x = expand_batch_and_channel(x, batch_size)
@@ -143,13 +142,13 @@ class Convolution(NamedLinop):
             # which is circular convolution with flipped and conjugated kernel
             # Flip the spatial dimensions of the kernel
             # Also transpose the input and output channels
-            weight_flipped = torch.flip(conv.weight, dims=tuple(range(-conv.ndim, 0)))
+            weight_flipped = torch.flip(conv._weight, dims=tuple(range(-conv.ndim, 0)))
             weight_flipped = weight_flipped.conj()
             conv_fn = (F.conv1d, F.conv2d, F.conv3d)[conv.ndim - 1]
             x = circular_pad(x, conv._pad)
             x = conv_fn(x, weight_flipped, padding=0)
         elif conv.padding_mode == "zeros":
-            weight_conj = conv.weight.conj()
+            weight_conj = conv._weight.conj()
             conv_t_fn = (F.conv_transpose1d, F.conv_transpose2d, F.conv_transpose3d)[
                 conv.ndim - 1
             ]
@@ -207,17 +206,14 @@ class Convolution(NamedLinop):
         This only works correctly for circular padding. For zero padding,
         the normal operator is not a simple convolution due to boundary effects.
         """
-
-        kernel = self._kernel[None, None]
-        kernel_conj = kernel.conj()
-        conv_fn = (F.conv1d, F.conv2d, F.conv3d)[self.ndim - 1]
+        new_kernel = cross_correlation(self.kernel, self.kernel)
+        batch_shape = self._shape.batch_shape
         in_grid_shape = self._shape.in_grid_shape
-        double_pad = tuple(2 * p for p in self._pad)
-        kernel_circ_pad = F.pad(kernel, pad=double_pad)
-        new_weight = conv_fn(kernel_circ_pad, kernel_conj, padding=0)
+
+        # TODO change this?
         return type(self)(
-            new_weight[0, 0],
-            self._shape.batch_shape,
+            new_kernel,
+            batch_shape,
             in_grid_shape,
             ND.infer(tuple(s.next_unused(in_grid_shape) for s in in_grid_shape)),
             padding_mode=self.padding_mode,
@@ -226,97 +222,134 @@ class Convolution(NamedLinop):
 
     def _normal_fft(self):
         """Normal operator via FFT-based circular convolution (circular padding only)."""
-        # For circular convolution, the normal operator is:
-        # A^H A x = IFFT(|FFT(k)|^2 * FFT(x))
-        # We implement this as a custom forward function that uses FFT directly.
-        # The PSD is computed dynamically based on the input spatial size.
 
-        # kernel = self._kernel
-        # out_c, in_c = weight.shape[0], weight.shape[1]
-        # kernel_size = weight.shape[2:]
+        batch_shape = self._shape.batch_shape
+        in_grid_shape = self._shape.in_grid_shape
+        out_grid_shape = self._shape.out_grid_shape
+        return FFTConvolution(
+            self.kernel,
+            batch_shape,
+            in_grid_shape,
+            out_grid_shape,
+        ).N
 
-        # Create a custom linop that computes PSD dynamically
-        class FFTNormalLinop(NamedLinop):
-            def __init__(self, weight, kernel_size, batch_shape, in_grid_shape, ndim):
-                ishape = batch_shape + in_grid_shape
-                oshape = batch_shape + in_grid_shape
-                super().__init__(NS(ishape, oshape))
-                self._weight = weight
-                self._kernel_size = kernel_size
-                self._batch_shape = batch_shape
-                self._in_grid_shape = in_grid_shape
-                self.ndim = ndim
-                self._psd_cache = {}  # Cache PSD for different spatial sizes
 
-            def _get_psd(self, spatial_size):
-                """Compute PSD for given spatial size, with caching."""
-                if spatial_size in self._psd_cache:
-                    return self._psd_cache[spatial_size]
+class FFTConvolution(Convolution):
+    """Compute the convolution via the FFT."""
 
-                # Pad kernel to input size, placing it at the origin
-                pad_sizes = []
-                for k, n in zip(self._kernel_size, spatial_size):
-                    pad_sizes.extend([0, n - k])
+    def __init__(
+        self,
+        kernel,
+        batch_shape,
+        in_grid_shape,
+        out_grid_shape,
+    ):
+        super().__init__(
+            kernel,
+            batch_shape,
+            in_grid_shape,
+            out_grid_shape,
+            padding_mode="circular",
+        )
 
-                weight_padded = F.pad(self._weight, tuple(reversed(pad_sizes)))
+        self._kernel_is_complex = torch.is_complex(self.kernel)
+        self._fourier_kernel_cache = {}
 
-                # FFT along spatial dimensions
-                spatial_dims_fft = tuple(range(-self.ndim, 0))
-                weight_fft = torch.fft.fftn(weight_padded, dim=spatial_dims_fft)
+    def _get_fourier_kernel(self, grid_size):
+        """Compute fourier transform of kernel for a given input grid size."""
+        if grid_size in self._fourier_kernel_cache:
+            return self._fourier_kernel_cache[grid_size]
 
-                # Compute |FFT(k)|^2, sum over output channels
-                spatial_indices = "abc"[: self.ndim]
-                einsum_str = (
-                    f"oi{spatial_indices},oj{spatial_indices}->ij{spatial_indices}"
-                )
-                psd = torch.einsum(einsum_str, weight_fft.conj(), weight_fft)
+        if any(k > s for k, s in zip(self.kernel.shape, grid_size)):
+            raise ValueError(
+                f"Current FFT implementation requires all grid_sizes to be no smaller than kernel dims but got {grid_size} < {self.kernel.shape}"
+            )
 
-                self._psd_cache[spatial_size] = psd
-                return psd
+        # Pad kernel to input size, placing it at the origin
+        pad_sizes = pad_to_size(self.kernel.shape, grid_size)
+        kernel_padded = F.pad(self.kernel, pad_sizes)
 
-            @staticmethod
-            def fn(linop, x):
-                # Get spatial size from input
-                # ishape has format: (*batch, c_in, *spatial)
-                # We need to figure out how many batch dims there are
-                # Total dims in ishape = len(batch_shape) + 1 + ndim
-                # But "..." can expand to 0 or more dims
-                # So actual_batch_dims = x.ndim - 1 - linop.ndim
-                actual_batch_dims = x.ndim - 1 - linop.ndim
-                spatial_size = x.shape[
-                    actual_batch_dims + 1 :
-                ]  # Skip batch and channel dims
+        # FFT along spatial dimensions
+        Fkernel = torch.fft.fftn(kernel_padded, dim=tuple(range(-self.ndim, 0)))
 
-                psd = linop._get_psd(spatial_size)
+        self._fourier_kernel_cache[grid_size] = Fkernel
+        return Fkernel
 
-                spatial_dims = tuple(range(-linop.ndim, 0))
-                x_fft = torch.fft.fftn(x, dim=spatial_dims)
+    @staticmethod
+    def fn(linop, x):
+        input_is_complex = torch.is_complex(x)
+        x, batch_size = compress_batch_and_channel(x, linop.ndim)
+        grid_size = x.shape[-linop.ndim :]
+        dims = tuple(range(-linop.ndim, 0))
 
-                # Multiply by PSD: result[i] = sum_j psd[i,j] * x_fft[j]
-                spatial_indices = "abc"[: linop.ndim]
-                einsum_str = (
-                    f"ij{spatial_indices},j{spatial_indices}->i{spatial_indices}"
-                )
-                result_fft = torch.einsum(einsum_str, psd, x_fft)
+        # Convolution theorem
+        Fkernel = linop._get_fourier_kernel(grid_size)
+        Fx = torch.fft.fftn(x, dim=dims)
+        Fy = Fx * Fkernel
+        y = torch.fft.ifftn(Fy, dim=dims)
 
-                return torch.fft.ifftn(result_fft, dim=spatial_dims).real
+        y = expand_batch_and_channel(y, batch_size)
+        if not linop._kernel_is_complex and not input_is_complex:
+            y = y.real
+        return y
 
-            @staticmethod
-            def adj_fn(linop, x):
-                # PSD is Hermitian, so adjoint is the same
-                return FFTNormalLinop.fn(linop, x)
+    @staticmethod
+    def adj_fn(linop, x):
+        input_is_complex = torch.is_complex(x)
+        x, batch_size = compress_batch_and_channel(x, linop.ndim)
+        grid_size = x.shape[-linop.ndim :]
+        dims = tuple(range(-linop.ndim, 0))
 
-            @staticmethod
-            def split(linop, tile):
-                return copy(linop)
+        # Convolution theorem
+        Fkernel = linop._get_fourier_kernel(grid_size).conj()
+        Fx = torch.fft.fftn(x, dim=dims)
+        Fy = Fx * Fkernel
+        y = torch.fft.ifftn(Fy, dim=dims)
 
-            def size(self, dim):
-                # Can't determine size without knowing input
-                return None
+        y = expand_batch_and_channel(y, batch_size)
+        if not linop._kernel_is_complex and not input_is_complex:
+            y = y.real
+        return y
 
-        # return FFTNormalLinop(
-        #     weight, kernel_size, self._batch_shape, self._in_grid_shape, self.ndim
-        # )
+    @staticmethod
+    def normal_fn(linop, x):
+        input_is_complex = torch.is_complex(x)
+        x, batch_size = compress_batch_and_channel(x, linop.ndim)
+        grid_size = x.shape[-linop.ndim :]
+        dims = tuple(range(-linop.ndim, 0))
+
+        # Convolution theorem
+        Fkernel = linop._get_fourier_kernel(grid_size).abs() ** 2
+        Fx = torch.fft.fftn(x, dim=dims)
+        Fy = Fx * Fkernel
+        y = torch.fft.ifftn(Fy, dim=dims)
+
+        y = expand_batch_and_channel(y, batch_size)
+        if not linop._kernel_is_complex and not input_is_complex:
+            y = y.real
+        return y
+
+    def size(self, dim):
+        # Can't determine size without knowing input
+        return None
+
+
+def cross_correlation(f: Tensor, g: Tensor) -> Tensor:
+    """Compute the (non-circular) cross correlation f \\star g."""
+    if f.dim() != g.dim():
+        raise ValueError(
+            f"f and g must have the same dimension but got f.dim() {f.dim()} and g.dim() {g.dim()}"
+        )
+    if f.dim() > 3:
+        raise ValueError(f"cross correlation only supported for input dimensions <= 3.")
+    ndim = f.dim()
+    f = f[None, None]
+    g = g[None, None]
+    conv_fn = (F.conv1d, F.conv2d, F.conv3d)[ndim - 1]  # really a correlation function
+    full_pad = sum(((d - 1, d - 1) for d in reversed(g.shape)), start=tuple())
+    g_padded = F.pad(g, pad=full_pad)
+    out = conv_fn(g_padded, f.conj(), padding=0)  # no further padding required
+    return out[0, 0]
 
 
 def pad_to_odd(weight: Tensor, ndim: int):
