@@ -178,13 +178,13 @@ class Convolution(NamedLinop):
         -----
         Three modes controlled by options["normal_mode"]:
         - None: Default fallback, compose adj_fn(fn(x))
-        - "conv": Composed convolution with autocorrelated kernel (default)
+        - "conv": Composed convolution with autocorrelated kernel (circular padding only)
         - "fft": FFT-based Toeplitz embedding (circular padding only)
         """
         if inner is not None:
             return super().normal(inner)
 
-        mode = self.options.get("normal_mode", "conv")
+        mode = self.options.get("normal_mode")
 
         if mode is None:
             return super().normal()
@@ -195,6 +195,8 @@ class Convolution(NamedLinop):
             return self._normal_fft()
 
         if mode == "conv":
+            if self.padding_mode != "circular":
+                raise ValueError("Conv normal mode only supports circular padding")
             return self._normal_conv()
 
         raise ValueError(f"Unknown normal_mode: {mode}")
@@ -207,17 +209,12 @@ class Convolution(NamedLinop):
         """
 
         kernel = self._kernel[None, None]
-        kernel_conv_transpose = torch.flip(
-            kernel.conj(), dims=tuple(range(-self.ndim, 0))
-        )
+        kernel_conj = kernel.conj()
         conv_fn = (F.conv1d, F.conv2d, F.conv3d)[self.ndim - 1]
         in_grid_shape = self._shape.in_grid_shape
-        if self.padding_mode == "zeros":
-            kernel_padded = F.pad(kernel, tuple(2 * p for p in self._pad))
-            new_weight = conv_fn(kernel_padded, kernel_conv_transpose, padding="same")
-        elif self.padding_mode == "circular":
-            kernel_circ_pad = circular_pad(kernel, self._pad)
-            new_weight = conv_fn(kernel_circ_pad, kernel_conv_transpose, padding="same")
+        double_pad = tuple(2 * p for p in self._pad)
+        kernel_circ_pad = F.pad(kernel, pad=double_pad)
+        new_weight = conv_fn(kernel_circ_pad, kernel_conj, padding=0)
         return type(self)(
             new_weight[0, 0],
             self._shape.batch_shape,
@@ -227,34 +224,6 @@ class Convolution(NamedLinop):
             **self.options,
         )
 
-        # # Compute autocorrelation using FFT
-        # # For circular autocorrelation, we can use the kernel as-is
-        # spatial_dims = tuple(range(-self.ndim, 0))
-        # k_fft = torch.fft.fftn(weight, dim=spatial_dims)
-
-        # # Cross-spectral density: sum over output channels
-        # # k_fft has shape (out_c, in_c, *freq_size)
-        # # Result: (in_c, in_c, *freq_size)
-        # spatial_indices = "abc"[: self.ndim]
-        # einsum_str = f"oi{spatial_indices},oj{spatial_indices}->ij{spatial_indices}"
-        # psd = torch.einsum(einsum_str, k_fft.conj(), k_fft)
-
-        # # IFFT to get autocorrelation kernel
-        # k_eff = torch.fft.ifftn(psd, dim=spatial_dims).real
-
-        # # Create new convolution with effective kernel
-        # normal_conv = Convolution(
-        #     k_eff,
-        #     ndim=self.ndim,
-        #     batch_shape=self._batch_shape,
-        #     in_grid_shape=self._in_grid_shape,
-        #     out_grid_shape=self._in_grid_shape,
-        #     stride=1,
-        #     padding="circular",
-        #     normal_mode=None,
-        # )
-        # return normal_conv
-
     def _normal_fft(self):
         """Normal operator via FFT-based circular convolution (circular padding only)."""
         # For circular convolution, the normal operator is:
@@ -262,9 +231,9 @@ class Convolution(NamedLinop):
         # We implement this as a custom forward function that uses FFT directly.
         # The PSD is computed dynamically based on the input spatial size.
 
-        weight = self.weight
+        # kernel = self._kernel
         # out_c, in_c = weight.shape[0], weight.shape[1]
-        kernel_size = weight.shape[2:]
+        # kernel_size = weight.shape[2:]
 
         # Create a custom linop that computes PSD dynamically
         class FFTNormalLinop(NamedLinop):
@@ -345,9 +314,9 @@ class Convolution(NamedLinop):
                 # Can't determine size without knowing input
                 return None
 
-        return FFTNormalLinop(
-            weight, kernel_size, self._batch_shape, self._in_grid_shape, self.ndim
-        )
+        # return FFTNormalLinop(
+        #     weight, kernel_size, self._batch_shape, self._in_grid_shape, self.ndim
+        # )
 
 
 def pad_to_odd(weight: Tensor, ndim: int):

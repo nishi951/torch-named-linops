@@ -10,16 +10,17 @@ class TestConvolution1D(BaseNamedLinopTests):
     equality_check = "approx"
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
-    @pytest.fixture(scope="class")
-    def linop_input_output(self):
-        weight = torch.randn(5)  # (out_c, in_c, kx)
+    @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
+    def linop_input_output(self, request):
+        dtype = request.param
+        weight = torch.randn(5, dtype=dtype)  # (out_c, in_c, kx)
         conv = Convolution(
             weight,
             in_grid_shape=("x",),
             out_grid_shape=("x",),
         )
-        x = torch.randn(3, 16)  # (c_in, x)
-        y = torch.randn(3, 16)  # (c_out, x)
+        x = torch.randn(3, 16, dtype=dtype)  # (c_in, x)
+        y = torch.randn(3, 16, dtype=dtype)  # (c_out, x)
         return conv, x, y
 
 
@@ -27,16 +28,17 @@ class TestConvolution2D(BaseNamedLinopTests):
     equality_check = "approx"
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
-    @pytest.fixture(scope="class")
-    def linop_input_output(self):
-        weight = torch.randn(3, 3)  # (kx, ky)
+    @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
+    def linop_input_output(self, request):
+        dtype = request.param
+        weight = torch.randn(3, 3, dtype=dtype)  # (kx, ky)
         conv = Convolution(
             weight,
             in_grid_shape=("x", "y"),
             out_grid_shape=("x", "y"),
         )
-        x = torch.randn(3, 8, 8)  # (c_in, x, y)
-        y = torch.randn(3, 8, 8)  # (c_out, x, y)
+        x = torch.randn(3, 8, 8, dtype=dtype)  # (c_in, x, y)
+        y = torch.randn(3, 8, 8, dtype=dtype)  # (c_out, x, y)
         return conv, x, y
 
 
@@ -44,16 +46,17 @@ class TestConvolution3D(BaseNamedLinopTests):
     equality_check = "approx"
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
-    @pytest.fixture(scope="class")
-    def linop_input_output(self):
-        weight = torch.randn(3, 3, 3)  # (out_c, in_c, kx, ky, kz)
+    @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
+    def linop_input_output(self, request):
+        dtype = request.param
+        weight = torch.randn(3, 3, 3, dtype=dtype)  # (out_c, in_c, kx, ky, kz)
         conv = Convolution(
             weight,
             in_grid_shape=("x", "y", "z"),
             out_grid_shape=("x", "y", "z"),
         )
-        x = torch.randn(3, 8, 8, 8)  # (c_in, x, y, z)
-        y = torch.randn(3, 8, 8, 8)  # (c_out, x, y, z)
+        x = torch.randn(3, 8, 8, 8, dtype=dtype)  # (c_in, x, y, z)
+        y = torch.randn(3, 8, 8, 8, dtype=dtype)  # (c_out, x, y, z)
         return conv, x, y
 
 
@@ -71,27 +74,27 @@ class TestConvolutionNormalModes:
         )
         x = torch.randn(1, 5, 5)
         assert torch.allclose(
-            conv_default.N(x), conv_default.H(conf_default(x)), rtol=1e-4
+            conv_default.N(x), conv_default.H(conv_default(x)), rtol=1e-4
         )
 
     def test_normal_conv_mode(self):
         """Composed convolution mode should match default."""
-        weight = torch.randn(3, 3)
+        weight = torch.randn(2, 3)
         conv_default = Convolution(
             weight,
             in_grid_shape=("x", "y"),
             out_grid_shape=("x", "y"),
-            padding_mode="zeros",
+            padding_mode="circular",
             normal_mode=None,
         )
         conv_conv = Convolution(
             weight,
             in_grid_shape=("x", "y"),
             out_grid_shape=("x", "y"),
-            padding_mode="zeros",
+            padding_mode="circular",
             normal_mode="conv",
         )
-        x = torch.randn(1, 5, 5)
+        x = torch.randn(1, 5, 2)
         assert torch.allclose(conv_default.N(x), conv_conv.N(x), rtol=1e-4)
 
     def test_normal_fft_mode_circular(self):
@@ -104,7 +107,7 @@ class TestConvolutionNormalModes:
             padding_mode="circular",
             normal_mode="fft",
         )
-        x = torch.randn(3, 8, 8)
+        x = torch.randn(3, 11, 8)
         result = conv_fft.N(x)
         assert result.shape == x.shape
 
