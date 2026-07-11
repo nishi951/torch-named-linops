@@ -138,7 +138,10 @@ class Convolution(NamedLinop):
         x, batch_size = compress_batch_and_channel(x, conv.ndim)
 
         if conv.padding_mode == "circular":
-            # Conv transpose does not support circular padding
+            # Adjoint of circular convolution is circular correlation
+            # which is circular convolution with flipped and conjugated kernel
+            # Flip the spatial dimensions of the kernel
+            # Also transpose the input and output channels
             weight_flipped = torch.flip(conv._weight, dims=tuple(range(-conv.ndim, 0)))
             weight_flipped = weight_flipped.conj()
             conv_fn = (F.conv1d, F.conv2d, F.conv3d)[conv.ndim - 1]
@@ -207,6 +210,7 @@ class Convolution(NamedLinop):
         batch_shape = self._shape.batch_shape
         in_grid_shape = self._shape.in_grid_shape
 
+        # TODO change this?
         return type(self)(
             new_kernel,
             batch_shape,
@@ -264,11 +268,6 @@ class FFTConvolution(Convolution):
         # Pad kernel to input size, placing it at the origin
         pad_sizes = pad_to_size(self.kernel.shape, grid_size)
         kernel_padded = F.pad(self.kernel, pad_sizes)
-        
-        # Move kernel center to origin for FFT convolution theorem
-        kernel_padded = torch.fft.ifftshift(
-            kernel_padded, dim=tuple(range(-self.ndim, 0))
-        )
 
         # FFT along spatial dimensions
         Fkernel = torch.fft.fftn(kernel_padded, dim=tuple(range(-self.ndim, 0)))
@@ -336,26 +335,7 @@ class FFTConvolution(Convolution):
 
 
 def cross_correlation(f: Tensor, g: Tensor) -> Tensor:
-    """Compute the (non-circular) cross correlation f \\star g.
-
-    Cross correlation (for complex values) is defined as
-
-    (f \\star g)(t) = \int_{-\inf}^\inf \conj(f(t - \tau)) g(t) dt
-
-    Note that it is not commutative.
-
-    Parameters
-    ----------
-    f, g : Tensor
-        The input tensors of shape [*dims]
-
-    Returns
-    -------
-    Tensor
-        The cross correlation f \\star g
-
-
-    """
+    """Compute the (non-circular) cross correlation f \\star g."""
     if f.dim() != g.dim():
         raise ValueError(
             f"f and g must have the same dimension but got f.dim() {f.dim()} and g.dim() {g.dim()}"
@@ -399,16 +379,11 @@ def pad_to_odd(weight: Tensor, ndim: int):
     return F.pad(weight, pad=_pad, value=0)
 
 
-def compress_batch_and_channel(x: Tensor, ndim: int):
-    """Convert a tensor with arbitrary batch dim into a shape compatible with pytorch's conv functions
+def compress_batch_and_channel(x, ndim):
+    """
+    x has shape [B... C *dims]
 
-    Parameters
-    ----------
-    x : Tensor
-        Shape [B... C *dims]
-        B... and C are optional
-    ndim : int
-        Number of dimensions to preserve at the end of x.
+    B and C are optional
 
     Returns
     -------
@@ -425,6 +400,5 @@ def compress_batch_and_channel(x: Tensor, ndim: int):
     return x_flat[:, None], batch_size
 
 
-def expand_batch_and_channel(x: Tensor, batch_size: tuple):
-    """Return a tensor with converted batch dims to its original shape."""
+def expand_batch_and_channel(x, batch_size):
     return x.reshape(batch_size + x.shape[2:])
