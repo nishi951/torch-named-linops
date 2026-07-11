@@ -199,12 +199,9 @@ class NamedLinop(nn.Module):
             Result of applying $A^H A$ to *x*.
         """
         if "context" in inspect.signature(linop.fn).parameters:
-            return linop.adj_fn(
-                linop,
-                linop.fn(linop, x, context=context),
-                context=context,
-            )
-
+            Ax = linop.fn(linop, x, context=context)
+            AHAx = linop.adj_fn(linop, Ax, context=context)
+            return AHAx
         return linop.adj_fn(linop, linop.fn(linop, x))
 
     @staticmethod
