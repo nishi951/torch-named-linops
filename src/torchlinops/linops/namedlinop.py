@@ -226,7 +226,7 @@ class NamedLinop(nn.Module):
         NamedLinop
             A new linop that operates on the specified slice of the data.
         """
-        return type(linop)(linop._shape)
+        return copy(linop)
 
     @final
     @staticmethod
