@@ -338,7 +338,24 @@ class FFTConvolution(Convolution):
 
 
 def cross_correlation(f: Tensor, g: Tensor) -> Tensor:
-    """Compute the (non-circular) cross correlation f \\star g."""
+    """Compute the (non-circular) cross correlation f \\star g.
+
+    Cross correlation (for complex values) is defined as
+
+    (f \\star g)(t) = \int_{-\inf}^\inf \conj(f(t - \tau)) g(t) dt
+
+    Note that it is not commutative.
+
+    Parameters
+    ----------
+    f, g : Tensor
+        The input tensors of shape [*dims]
+
+    Returns
+    -------
+    Tensor
+        The cross correlation f \\star g
+    """
     if f.dim() != g.dim():
         raise ValueError(
             f"f and g must have the same dimension but got f.dim() {f.dim()} and g.dim() {g.dim()}"
@@ -386,7 +403,13 @@ def compress_batch_and_channel(x, ndim):
     """
     x has shape [B... C *dims]
 
-    B and C are optional
+    Parameters
+    ----------
+    x : Tensor
+        Shape [B... C *dims]
+        B... and C are optional
+    ndim : int
+        Number of dimensions to preserve at the end of x.
 
     Returns
     -------
@@ -404,4 +427,5 @@ def compress_batch_and_channel(x, ndim):
 
 
 def expand_batch_and_channel(x, batch_size):
+    """Return a tensor with converted batch dims to its original shape."""
     return x.reshape(batch_size + x.shape[2:])
