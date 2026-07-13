@@ -279,14 +279,12 @@ class FFTConvolution(Convolution):
         return Fkernel
 
     @staticmethod
-    def fn(linop, x):
+    def apply_fourier_kernel(linop, x, Fkernel):
         input_is_complex = torch.is_complex(x)
         x, batch_size = compress_batch_and_channel(x, linop.ndim)
-        grid_size = x.shape[-linop.ndim :]
         dims = tuple(range(-linop.ndim, 0))
 
         # Convolution theorem
-        Fkernel = linop._get_fourier_kernel(grid_size)
         Fx = torch.fft.fftn(x, dim=dims)
         Fy = Fx * Fkernel
         y = torch.fft.ifftn(Fy, dim=dims)
@@ -295,42 +293,24 @@ class FFTConvolution(Convolution):
         if not linop._kernel_is_complex and not input_is_complex:
             y = y.real
         return y
+
+    @staticmethod
+    def fn(linop, x):
+        grid_size = x.shape[-linop.ndim :]
+        Fkernel = linop._get_fourier_kernel(grid_size)
+        return linop.apply_fourier_kernel(linop, x, Fkernel)
 
     @staticmethod
     def adj_fn(linop, x):
-        input_is_complex = torch.is_complex(x)
-        x, batch_size = compress_batch_and_channel(x, linop.ndim)
         grid_size = x.shape[-linop.ndim :]
-        dims = tuple(range(-linop.ndim, 0))
-
-        # Convolution theorem
         Fkernel = linop._get_fourier_kernel(grid_size).conj()
-        Fx = torch.fft.fftn(x, dim=dims)
-        Fy = Fx * Fkernel
-        y = torch.fft.ifftn(Fy, dim=dims)
-
-        y = expand_batch_and_channel(y, batch_size)
-        if not linop._kernel_is_complex and not input_is_complex:
-            y = y.real
-        return y
+        return linop.apply_fourier_kernel(linop, x, Fkernel)
 
     @staticmethod
     def normal_fn(linop, x):
-        input_is_complex = torch.is_complex(x)
-        x, batch_size = compress_batch_and_channel(x, linop.ndim)
         grid_size = x.shape[-linop.ndim :]
-        dims = tuple(range(-linop.ndim, 0))
-
-        # Convolution theorem
         Fkernel = linop._get_fourier_kernel(grid_size).abs() ** 2
-        Fx = torch.fft.fftn(x, dim=dims)
-        Fy = Fx * Fkernel
-        y = torch.fft.ifftn(Fy, dim=dims)
-
-        y = expand_batch_and_channel(y, batch_size)
-        if not linop._kernel_is_complex and not input_is_complex:
-            y = y.real
-        return y
+        return linop.apply_fourier_kernel(linop, x, Fkernel)
 
     def size(self, dim):
         # Can't determine size without knowing input
