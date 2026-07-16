@@ -2,8 +2,8 @@ import pytest
 import torch
 
 import torchlinops.config as config
-from torchlinops import FFT, Sampling, Diagonal, Chain
-from torchlinops.nameddim import resolve_wildcards
+from torchlinops import FFT, Sampling, Diagonal, Chain, Add, Identity
+from torchlinops.nameddim import resolve_wildcards, isequal
 
 
 def test_shape_inference_default_false():
@@ -84,3 +84,37 @@ def test_chain_inference_mri_forward_model():
         assert D2.ishape == S2.oshape  # D.ioshape inferred from Sampling output
         assert "..." not in str(S2.ishape) and "()" not in str(S2.ishape)
         assert "..." not in str(D2.ishape) and "()" not in str(D2.ishape)
+
+
+def test_add_inference_regularization():
+    """Add should unify shapes for A^H A + lambda * I pattern.
+    
+    This is a common regularization pattern where:
+    - model.N: normal operator with concrete shape
+    - Identity: regularization with unspecified shape
+    """
+    # Create a simple model (e.g., diagonal operator)
+    weights = torch.randn(64, dtype=torch.complex64)
+    model = Diagonal(weights, ioshape=("Nx", "Ny"))
+    
+    # Identity with unspecified shape
+    I = Identity()
+    
+    # Without inference, shapes remain as wildcards
+    result_no_infer = model.N + 0.01 * I
+    assert I.ishape == ("...",)  # Still has wildcards
+    assert I.oshape == ("...",)
+    
+    # Reset for next test
+    I2 = Identity()
+    
+    # With inference, Identity's shape should be unified
+    with config.using(shape_inference=True):
+        result = model.N + 0.01 * I2
+        # The result should have the concrete shape from model.N
+        assert result.ishape == model.N.ishape
+        assert result.oshape == model.N.oshape
+        # The linops in the Add should all have the same shape
+        for linop in result.linops:
+            assert isequal(linop.ishape, model.N.ishape)[0]
+            assert isequal(linop.oshape, model.N.oshape)[0]
