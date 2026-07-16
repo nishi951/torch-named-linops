@@ -7,7 +7,8 @@ import torch.nn as nn
 
 import torchlinops.config as config
 
-from ..nameddim import NamedShape as NS, isequal, max_shape, standardize_shapes
+from ..nameddim import NamedShape as NS
+from ..nameddim import isequal, max_shape, resolve_wildcards, standardize_shapes
 from .device import ToDevice
 from .namedlinop import NamedLinop
 from .schedule import parallel_execute
@@ -65,19 +66,16 @@ class Add(NamedLinop):
             # Find the most specific shape across all linops
             max_ishape = max_shape([linop.ishape for linop in linops])
             max_oshape = max_shape([linop.oshape for linop in linops])
-            
-            # Resolve wildcards in each linop's shape
-            from ..nameddim import resolve_wildcards
-            
+
             for linop in linops:
                 resolved_ishape = resolve_wildcards(linop.ishape, max_ishape)
                 if resolved_ishape != linop.ishape:
                     linop.ishape = resolved_ishape
-                
+
                 resolved_oshape = resolve_wildcards(linop.oshape, max_oshape)
                 if resolved_oshape != linop.oshape:
                     linop.oshape = resolved_oshape
-        
+
         assert all(isequal(linop.ishape, linops[0].ishape)[0] for linop in linops), (
             f"Add: All linops must share same ishape. Found {linops}"
         )

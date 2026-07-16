@@ -9,7 +9,9 @@ import torch.nn as nn
 import torchlinops.config as config
 from torchlinops.utils import INDENT
 
-from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
+from ..nameddim import NamedDimension as ND
+from ..nameddim import NamedShape as NS
+from ..nameddim import isequal, resolve_wildcards
 from .device import ToDevice
 from .namedlinop import NamedLinop
 
@@ -49,10 +51,10 @@ class Chain(NamedLinop):
         if len(linops) == 0:
             raise ValueError(f"Chain must contain at least one linop.")
         self.linops = nn.ModuleList(list(linops))
-        
+
         if config.shape_inference:
             self._infer_shapes()
-        
+
         self._check_inputs_outputs()
 
     @property
@@ -82,12 +84,10 @@ class Chain(NamedLinop):
 
     def _infer_shapes(self):
         """Propagate shapes forward through the chain, resolving wildcards."""
-        from ..nameddim import resolve_wildcards
-        
         for i in range(len(self.linops) - 1):
             curr = self.linops[i]
             next_linop = self.linops[i + 1]
-            
+
             # Resolve wildcards in next_linop.ishape using curr.oshape
             resolved_ishape = resolve_wildcards(next_linop.ishape, curr.oshape)
             if resolved_ishape != next_linop.ishape:

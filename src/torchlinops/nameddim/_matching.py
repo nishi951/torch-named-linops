@@ -5,7 +5,14 @@ from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
 
-__all__ = ["partition", "isequal", "iscompatible", "max_shape", "standardize_shapes", "resolve_wildcards"]
+__all__ = [
+    "partition",
+    "isequal",
+    "iscompatible",
+    "max_shape",
+    "standardize_shapes",
+    "resolve_wildcards",
+]
 
 
 def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
@@ -144,19 +151,24 @@ def isequal(
 
 def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
     """Resolve wildcards in shape using target_shape via isequal assignment mapping.
-    
+
+    If no assignment is possible, return `shape` unchanged.
+
+    Rules:
+    - Any concrete shapes in input shape should be propagated to output shape
+
     Parameters
     ----------
     shape : Sequence
         Shape potentially containing wildcards (ELLIPSES or ANY)
     target_shape : Sequence
         Concrete shape to resolve wildcards against
-    
+
     Returns
     -------
     tuple
         Shape with wildcards resolved, or original shape if no wildcards or incompatible
-    
+
     Examples
     --------
     >>> resolve_wildcards(("C", "..."), ("C", "Kx", "Ky"))
@@ -165,14 +177,16 @@ def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
     ('A', 'B')
     >>> resolve_wildcards(("A", "B"), ("A", "B"))  # no wildcards
     ('A', 'B')
+    >>> resolve_wildcards(("X", "..."), ("A", "B")) # no match possible
+    ('X', '...')
     """
     if ANY not in shape and ELLIPSES not in shape:
         return shape
-    
+
     match, assignments = isequal(shape, target_shape)
     if not match or assignments is None:
         return shape
-    
+
     resolved = []
     for idx in range(len(shape)):
         dim = shape[idx]
