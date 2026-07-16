@@ -23,6 +23,7 @@ activate
 # Agentic
 .aider*
 AGENTS.md
+.superpowers/
 
 # Docs
 _site/
