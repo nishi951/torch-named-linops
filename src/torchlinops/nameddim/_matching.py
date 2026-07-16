@@ -5,7 +5,7 @@ from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
 
-__all__ = ["partition", "isequal", "iscompatible", "max_shape", "standardize_shapes"]
+__all__ = ["partition", "isequal", "iscompatible", "max_shape", "standardize_shapes", "resolve_wildcards"]
 
 
 def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
@@ -140,6 +140,48 @@ def isequal(
         row = row + drow
         col = col + dcol
     return True, assignments
+
+
+def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
+    """Resolve wildcards in shape using target_shape via isequal assignment mapping.
+    
+    Parameters
+    ----------
+    shape : Sequence
+        Shape potentially containing wildcards (ELLIPSES or ANY)
+    target_shape : Sequence
+        Concrete shape to resolve wildcards against
+    
+    Returns
+    -------
+    tuple
+        Shape with wildcards resolved, or original shape if no wildcards or incompatible
+    
+    Examples
+    --------
+    >>> resolve_wildcards(("C", "..."), ("C", "Kx", "Ky"))
+    ('C', 'Kx', 'Ky')
+    >>> resolve_wildcards(("...",), ("A", "B"))
+    ('A', 'B')
+    >>> resolve_wildcards(("A", "B"), ("A", "B"))  # no wildcards
+    ('A', 'B')
+    """
+    if ANY not in shape and ELLIPSES not in shape:
+        return shape
+    
+    match, assignments = isequal(shape, target_shape)
+    if not match or assignments is None:
+        return shape
+    
+    resolved = []
+    for idx in range(len(shape)):
+        dim = shape[idx]
+        if dim == ELLIPSES or dim == ANY:
+            matched_indices = assignments.get(idx, [])
+            resolved.extend(target_shape[j] for j in matched_indices)
+        else:
+            resolved.append(dim)
+    return tuple(resolved)
 
 
 def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, Optional[dict]]:
