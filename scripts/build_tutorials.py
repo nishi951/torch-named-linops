@@ -276,6 +276,9 @@ def process_tutorial(marimo_path: Path, output_dir: Path) -> str:
     # Clean up the {.marimo} class from code blocks
     final_md = re.sub(r"```python\s*\{\.marimo\}", "```python", final_md)
 
+    # Fix empty HTML comments that trigger nXML validation errors
+    final_md = final_md.replace("<!---->", "<!-- -->")
+
     # Remove frontmatter
     final_md = re.sub(r"^---\n.*?\n---\n", "", final_md, flags=re.DOTALL)
 
