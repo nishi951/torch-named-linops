@@ -49,6 +49,10 @@ class Chain(NamedLinop):
         if len(linops) == 0:
             raise ValueError(f"Chain must contain at least one linop.")
         self.linops = nn.ModuleList(list(linops))
+        
+        if config.shape_inference:
+            self._infer_shapes()
+        
         self._check_inputs_outputs()
 
     @property
@@ -75,6 +79,19 @@ class Chain(NamedLinop):
                     f"Mismatched shape: expected {linop.ishape}, got {curr_shape} at input to {linop}. Full stack: {self}, index {i}"
                 )
             curr_shape = linop.oshape
+
+    def _infer_shapes(self):
+        """Propagate shapes forward through the chain, resolving wildcards."""
+        from ..nameddim import resolve_wildcards
+        
+        for i in range(len(self.linops) - 1):
+            curr = self.linops[i]
+            next_linop = self.linops[i + 1]
+            
+            # Resolve wildcards in next_linop.ishape using curr.oshape
+            resolved_ishape = resolve_wildcards(next_linop.ishape, curr.oshape)
+            if resolved_ishape != next_linop.ishape:
+                next_linop.ishape = resolved_ishape
 
     @staticmethod
     def fn(chain, x: torch.Tensor, context=None):
