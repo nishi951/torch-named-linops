@@ -125,6 +125,62 @@ with config.using(reduce_identity_in_normal=False, log_device_transfers=False):
     pass
 ```
 
+### Shape inference
+
+When composing linops, you can enable automatic shape inference to reduce boilerplate. This is especially useful for chains where intermediate shapes can be inferred from the composition structure.
+
+```python
+from torchlinops import FFT, Sampling, Diagonal, config
+from torchlinops.linops.chain import Chain
+
+# Create operators with unspecified or partially-specified shapes
+F = FFT(ndim=2, batch_shape=("C",))  # oshape: (C, Kx, Ky)
+S = Sampling(idx, input_size=(64, 64), batch_shape=("C",), output_shape=("K",))  # ishape: (C, ...)
+D = Diagonal(weights)                   # ioshape: (...)
+
+# Without shape inference, you must specify all shapes manually
+# With shape inference, shapes propagate automatically
+with config.using(shape_inference=True):
+    model = Chain(F, S, D)
+    print(model)
+```
+
+Output:
+```
+Chain(
+  FFT(('C', 'Nx', 'Ny') -> ('C', 'Kx', 'Ky'))
+  Sampling(('C', 'Kx', 'Ky') -> ('C', 'K'))
+  Diagonal(('C', 'K') -> ('C', 'K'))
+)
+```
+
+Notice how `Sampling`'s input shape was resolved from `(C, ...)` to `(C, Kx, Ky)`, and `Diagonal`'s shape was resolved from `(...)` to `(C, K)`.
+
+Shape inference also works with `Add` for regularization patterns:
+
+```python
+from torchlinops import Identity
+
+# Common pattern: A^H A + lambda * I
+with config.using(shape_inference=True):
+    normal = model.N + 0.01 * Identity()  # Identity's shape inferred from model.N
+    print(normal)
+```
+
+Output:
+```
+Add(
+  Chain(...)  # model.N with shape (('C', 'Nx', 'Ny'),) -> (('C', 'Nx1', 'Ny1'),)
+  Scalar(Identity(('C', 'Nx', 'Ny') -> ('C', 'Nx', 'Ny')))
+)
+```
+
+!!! note "Shape inference behavior"
+    - Wildcards (`...` and `()`) in shapes are resolved using compatibility checking
+    - Partially-specified shapes like `("C", "...")` are resolved to match concrete shapes
+    - Shape inference is **disabled by default** and must be explicitly enabled
+    - Existing validation still applies — incompatible shapes will raise errors
+
 ## Splitting linops
 
 Linops can be split across sub-problems (e.g., for multi-GPU processing) using `split_linop`. See [Multi-GPU Execution](../explanations/multi_gpu.md) for the full explanation.
