@@ -23,7 +23,11 @@ activate
 # Agentic
 .aider*
 AGENTS.md
+.superpowers/
 
 # Docs
 _site/
 docs/tutorials/*.md
+
+# OpenCode
+.opencode/

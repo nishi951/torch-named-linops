@@ -3,6 +3,7 @@ from .array_to_blocks import *
 from .breakpt import *
 from .chain import *
 from .concat import *
+from .convolution import *
 from .dense import *
 from .device import *
 from .diagonal import *
@@ -16,6 +17,7 @@ from .pad_last import *
 from .sampling import *
 from .scalar import *
 from .schedule import *
+from .simple import *
 from .split import *
 from .stack import *
 from .trunc_pad import *

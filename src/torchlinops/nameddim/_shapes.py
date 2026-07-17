@@ -1,11 +1,11 @@
-from typing import Tuple
+from typing import Literal, Optional, Tuple
 
 from ._nameddim import NamedDimension as ND
 
 __all__ = ["fake_dims", "get_nd_shape", "N2K", "K2N"]
 
 
-def get_nd_shape(im_size, kspace=False):
+def get_nd_shape(dim: int, kspace=False):
     """Return spatial dimension names for a given image size.
 
     Maps a 1-D, 2-D, or 3-D image size tuple to the corresponding named
@@ -13,9 +13,8 @@ def get_nd_shape(im_size, kspace=False):
 
     Parameters
     ----------
-    im_size : tuple
-        Image size tuple whose length (1, 2, or 3) determines the spatial
-        dimensionality.
+    dim : int
+        Number of tensor dimensions.
     kspace : bool, optional
         If ``True``, return k-space dimension names (``Kx``, ``Ky``, …)
         instead of image-space names (``Nx``, ``Ny``, …).  Defaults to
@@ -31,14 +30,14 @@ def get_nd_shape(im_size, kspace=False):
     ValueError
         If ``im_size`` does not have length 1, 2, or 3.
     """
-    if len(im_size) == 1:
+    if dim == 1:
         im_dim = ("Kx",) if kspace else ("Nx",)
-    elif len(im_size) == 2:
+    elif dim == 2:
         im_dim = ("Kx", "Ky") if kspace else ("Nx", "Ny")
-    elif len(im_size) == 3:
+    elif dim == 3:
         im_dim = ("Kx", "Ky", "Kz") if kspace else ("Nx", "Ny", "Nz")
     else:
-        raise ValueError(f"Image size {im_size} - should have length 2 or 3")
+        raise ValueError(f"dim should be 1, 2, or 3 but got {dim}")
     return im_dim
 
 

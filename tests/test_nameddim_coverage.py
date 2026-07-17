@@ -19,27 +19,27 @@ from torchlinops.nameddim._matching import iscompatible, isequal, partition
 
 
 def test_get_nd_shape_1d():
-    result = get_nd_shape((10,))
+    result = get_nd_shape(1)
     assert len(result) == 1
 
 
 def test_get_nd_shape_2d():
-    result = get_nd_shape((10, 20))
+    result = get_nd_shape(2)
     assert len(result) == 2
 
 
 def test_get_nd_shape_3d():
-    result = get_nd_shape((10, 20, 30))
+    result = get_nd_shape(3)
     assert len(result) == 3
 
 
 def test_get_nd_shape_invalid():
     with pytest.raises(ValueError):
-        get_nd_shape((1, 2, 3, 4))
+        get_nd_shape(4)
 
 
 def test_get_nd_shape_kspace():
-    result = get_nd_shape((10, 20), kspace=True)
+    result = get_nd_shape(2, kspace=True)
     assert len(result) == 2
 
 

@@ -86,6 +86,69 @@ class Dense(NamedLinop):
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         self._shape.broadcast_dims = broadcast_dims
 
+    @classmethod
+    def from_einstr(
+        cls,
+        weight: Tensor,
+        einstr: str,
+        broadcast_dims: Optional[list] = None,
+    ) -> "Dense":
+        """Construct a Dense linop from a weight tensor and einsum-style string.
+        
+        Parameters
+        ----------
+        weight : Tensor
+            The dense matrix used for this linop.
+        einstr : str
+            Einsum-style string in the format "weightshape,ishape->oshape".
+            Each shape is parsed using Dim() to handle camelCase splitting.
+            Example: "MN,N->M" means weightshape=("M","N"), ishape=("N",), oshape=("M",)
+        broadcast_dims : list, optional
+            Dimensions in weightshape that should be broadcast (not sliced during split).
+            Must appear in weightshape AND (ishape or oshape).
+        
+        Returns
+        -------
+        Dense
+            A new Dense linop.
+        
+        Examples
+        --------
+        >>> W = torch.randn(3, 7)
+        >>> A = Dense.from_einstr(W, "MN,N->M")
+        
+        >>> W = torch.randn(2, 3, 7)  # (batch, M, N)
+        >>> A = Dense.from_einstr(W, "BMN,BN->BM", broadcast_dims=["B"])
+        """
+        from ..nameddim import Dim
+        
+        # Parse einstr
+        parts = einstr.replace(" ", "").split(",")
+        if len(parts) != 2:
+            raise ValueError(f"einstr must have format 'weightshape,ishape->oshape', got {einstr}")
+        
+        weightshape_str = parts[0]
+        rest = parts[1].split("->")
+        if len(rest) != 2:
+            raise ValueError(f"einstr must have format 'weightshape,ishape->oshape', got {einstr}")
+        
+        ishape_str, oshape_str = rest
+        
+        # Parse using Dim()
+        weightshape = Dim(weightshape_str)
+        ishape = Dim(ishape_str)
+        oshape = Dim(oshape_str)
+        
+        # Validate broadcast_dims if provided
+        if broadcast_dims is not None:
+            for dim in broadcast_dims:
+                if dim not in weightshape:
+                    raise ValueError(f"broadcast_dim {dim} not in weightshape {weightshape}")
+                if dim not in ishape and dim not in oshape:
+                    raise ValueError(f"broadcast_dim {dim} must appear in ishape or oshape")
+        
+        return cls(weight, weightshape, ishape, oshape, broadcast_dims=broadcast_dims)
+
     @property
     def weightshape(self) -> Shape:
         weightshape = self._shape.weightshape

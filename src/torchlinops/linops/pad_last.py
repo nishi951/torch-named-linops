@@ -47,7 +47,7 @@ class Pad(NamedLinop):
             )
 
         if in_shape is None:
-            self.in_im_shape = ND.infer(get_nd_shape(im_size))
+            self.in_im_shape = ND.infer(get_nd_shape(len(im_size)))
         else:
             self.in_im_shape = ND.infer(in_shape)
         if out_shape is None:

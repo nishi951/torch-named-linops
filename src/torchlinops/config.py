@@ -23,6 +23,9 @@ log_device_transfers : bool
 log_cuda_events : bool
     If True, record CUDA synchronization (record_event, wait_event, wait_stream)
     as a labeled dependency graph. View with ``cuda_logger.display()``. Default is False.
+shape_inference : bool
+    If True, enable automatic shape inference in Chain and Add containers.
+    Default is False.
 """
 
 import torchlinops
@@ -41,6 +44,9 @@ log_device_transfers: bool = True
 # If True, log CUDA record_event/wait_event/wait_stream calls as a dependency
 # graph for visualization. Use cuda_logger.display() to view the trace.
 log_cuda_events: bool = False
+
+# If True, enable automatic shape inference in Chain and Add containers
+shape_inference: bool = False
 
 
 def inner_not_relevant(inner):
@@ -66,6 +72,7 @@ class ConfigContext:
         "cache_adjoint_normal",
         "log_device_transfers",
         "log_cuda_events",
+        "shape_inference",
     }
 
     def __init__(self, **kwargs: bool) -> None:
@@ -107,6 +114,7 @@ def using(**kwargs: bool) -> ConfigContext:
         - cache_adjoint_normal
         - log_device_transfers
         - log_cuda_events
+        - shape_inference
 
     Returns
     -------
