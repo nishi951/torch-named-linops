@@ -111,3 +111,54 @@ def test_simple_linop_adjoint_normal_computed_correctly():
     z = A_H.N(x)
     expected = 6 * x
     assert torch.allclose(z, expected)
+
+
+def test_simple_linop_composition():
+    """Test composition with @ operator."""
+    from torchlinops import Identity
+
+    A = SimpleLinop(
+        forward=lambda x: 2 * x,
+        adjoint=lambda y: 2 * y,
+        ishape=("N",),
+    )
+    B = Identity(ishape=("N",))
+
+    # Compose: B @ A should apply A first, then B
+    C = B @ A
+    x = torch.randn(10)
+    y = C(x)
+    expected = 2 * x
+    assert torch.allclose(y, expected)
+
+
+def test_simple_linop_addition():
+    """Test addition with + operator."""
+    A = SimpleLinop(
+        forward=lambda x: 2 * x,
+        adjoint=lambda y: 2 * y,
+    )
+    B = SimpleLinop(
+        forward=lambda x: 3 * x,
+        adjoint=lambda y: 3 * y,
+    )
+
+    C = A + B
+    x = torch.randn(10, 20)
+    y = C(x)
+    expected = 5 * x
+    assert torch.allclose(y, expected)
+
+
+def test_simple_linop_scalar_multiplication():
+    """Test scalar multiplication with * operator."""
+    A = SimpleLinop(
+        forward=lambda x: 2 * x,
+        adjoint=lambda y: 2 * y,
+    )
+
+    B = 3 * A
+    x = torch.randn(10, 20)
+    y = B(x)
+    expected = 6 * x
+    assert torch.allclose(y, expected)
