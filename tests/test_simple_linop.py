@@ -228,3 +228,79 @@ def test_simple_linop_no_name():
     )
     assert A.name == "SimpleLinop"
     assert "SimpleLinop" in repr(A)
+
+
+def test_simple_linop_in_chain():
+    """Test SimpleLinop in Chain container."""
+    from torchlinops import Chain, Identity
+
+    A = SimpleLinop(
+        forward=lambda x: 2 * x,
+        adjoint=lambda y: 2 * y,
+        ishape=("N",),
+    )
+    B = Identity(ishape=("N",))
+    C = Chain(A, B)
+
+    x = torch.randn(10)
+    y = C(x)
+    expected = 2 * x
+    assert torch.allclose(y, expected)
+
+
+def test_simple_linop_in_add():
+    """Test SimpleLinop in Add container."""
+    from torchlinops import Add
+
+    A = SimpleLinop(
+        forward=lambda x: 2 * x,
+        adjoint=lambda y: 2 * y,
+    )
+    B = SimpleLinop(
+        forward=lambda x: 3 * x,
+        adjoint=lambda y: 3 * y,
+    )
+    C = Add(A, B)
+
+    x = torch.randn(10, 20)
+    y = C(x)
+    expected = 5 * x
+    assert torch.allclose(y, expected)
+
+
+def test_simple_linop_in_stack():
+    """Test SimpleLinop in Stack container."""
+    from torchlinops import Stack
+
+    A = SimpleLinop(
+        forward=lambda x: 2 * x,
+        adjoint=lambda y: 2 * y,
+        ishape=("N",),
+        oshape=("N",),
+    )
+    B = SimpleLinop(
+        forward=lambda x: 3 * x,
+        adjoint=lambda y: 3 * y,
+        ishape=("N",),
+        oshape=("N",),
+    )
+    C = Stack(A, B, odim_and_idx=("K", 0))
+
+    x = torch.randn(10)
+    y = C(x)
+    assert y.shape[0] == 2
+    assert torch.allclose(y[0], 2 * x)
+    assert torch.allclose(y[1], 3 * x)
+
+
+def test_simple_linop_in_concat():
+    """Test SimpleLinop in Concat container."""
+    from torchlinops import Concat, Dense
+
+    A = Dense(torch.randn(10, 10), ("M", "N"), ishape=("N",), oshape=("M",))
+    B = Dense(torch.randn(10, 10), ("M", "N"), ishape=("N",), oshape=("M",))
+    C = Concat(A, B, odim="M")
+
+    x = torch.randn(10)
+    y = C(x)
+    assert y.shape[0] == 20
