@@ -15,6 +15,7 @@ from .namedlinop import *
 from .nufft import *
 from .pad_last import *
 from .sampling import *
+from .simple import *
 from .scalar import *
 from .schedule import *
 from .split import *
