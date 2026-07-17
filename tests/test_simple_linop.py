@@ -304,3 +304,5 @@ def test_simple_linop_in_concat():
     x = torch.randn(10)
     y = C(x)
     assert y.shape[0] == 20
+    assert torch.allclose(y[:10], A(x))
+    assert torch.allclose(y[10:], B(x))
