@@ -162,3 +162,69 @@ def test_simple_linop_scalar_multiplication():
     y = B(x)
     expected = 6 * x
     assert torch.allclose(y, expected)
+
+
+def test_simple_linop_custom_shapes():
+    """Test custom ishape and oshape."""
+    A = SimpleLinop(
+        forward=lambda x: x,
+        adjoint=lambda y: y,
+        ishape=("Nx", "Ny"),
+        oshape=("Mx", "My"),
+    )
+    assert A.ishape == ("Nx", "Ny")
+    assert A.oshape == ("Mx", "My")
+
+
+def test_simple_linop_default_shapes():
+    """Test default shapes are (...,)."""
+    A = SimpleLinop(
+        forward=lambda x: x,
+        adjoint=lambda y: y,
+    )
+    assert A.ishape == ("...",)
+    assert A.oshape == ("...",)
+
+
+def test_simple_linop_oshape_defaults_to_ishape():
+    """Test that oshape defaults to ishape when not provided."""
+    A = SimpleLinop(
+        forward=lambda x: x,
+        adjoint=lambda y: y,
+        ishape=("Nx", "Ny"),
+    )
+    assert A.ishape == ("Nx", "Ny")
+    assert A.oshape == ("Nx", "Ny")
+
+
+def test_simple_linop_name():
+    """Test custom name."""
+    A = SimpleLinop(
+        forward=lambda x: x,
+        adjoint=lambda y: y,
+        name="MyLinop",
+    )
+    assert A.name == "MyLinop"
+    assert "MyLinop" in repr(A)
+
+
+def test_simple_linop_adjoint_name():
+    """Test that adjoint gets .H suffix in name."""
+    A = SimpleLinop(
+        forward=lambda x: x,
+        adjoint=lambda y: y,
+        name="MyLinop",
+    )
+    A_H = A.H
+    assert A_H.name == "MyLinop.H"
+    assert "MyLinop.H" in repr(A_H)
+
+
+def test_simple_linop_no_name():
+    """Test that linop without name uses class name."""
+    A = SimpleLinop(
+        forward=lambda x: x,
+        adjoint=lambda y: y,
+    )
+    assert A.name == "SimpleLinop"
+    assert "SimpleLinop" in repr(A)
