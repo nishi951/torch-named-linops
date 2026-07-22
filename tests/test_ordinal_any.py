@@ -93,3 +93,19 @@ class TestOrdinalAnyMatching:
         assert result == ("A",)
         result = resolve_wildcards(("(1)", "(2)"), ("A", "B"))
         assert result == ("A", "B")
+
+
+class TestNamedDimCollectionOrdinalAny:
+    def test_collection_with_ordinal_any(self):
+        """NamedDimCollection should handle ordinal ANYs."""
+        from torchlinops.nameddim import NamedDimCollection
+        coll = NamedDimCollection(ishape=("(1)",), oshape=("(2)",))
+        assert coll.ishape == ("(1)",)
+        assert coll.oshape == ("(2)",)
+
+    def test_collection_update_with_ordinal_any(self):
+        """Updating shape with ordinal ANY should work."""
+        from torchlinops.nameddim import NamedDimCollection
+        coll = NamedDimCollection(ishape=("(1)",), oshape=("(2)",))
+        coll.ishape = ("A",)
+        assert coll.ishape == ("A",)
