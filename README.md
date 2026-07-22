@@ -35,6 +35,25 @@ B = Diagonal(d, ioshape=Dim("M"))
 C = B @ A             # Chain: C(x) = diag(d) @ W @ x
 ```
 
+Or use the simplified API - no dimension names needed:
+
+```python
+import torch
+from torchlinops import Dense
+
+# Simple usage - auto-infers shapes
+W = torch.randn(5, 3)
+A = Dense(W)
+x = torch.randn(3)
+y = A(x)  # Equivalent to W @ x
+
+# Batched usage
+W_batch = torch.randn(2, 5, 3)  # (batch, M, N)
+A_batch = Dense(W_batch)
+x_batch = torch.randn(2, 3)  # (batch, N)
+y_batch = A_batch(x_batch)  # Batched matmul
+```
+
 See the [Getting Started](https://nishi951.github.io/torch-named-linops/getting_started/) guide for a full walkthrough.
 
 ## Selected Feature List

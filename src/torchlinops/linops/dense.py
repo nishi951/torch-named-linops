@@ -7,7 +7,8 @@ from torch import Tensor
 
 import torchlinops.config as config
 
-from ..nameddim import NamedShape as NS, Shape
+from ..nameddim import AnyDim, Shape
+from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
 __all__ = ["Dense"]
@@ -59,9 +60,9 @@ class Dense(NamedLinop):
     def __init__(
         self,
         weight: Tensor,
-        weightshape: Shape,
-        ishape: Shape,
-        oshape: Shape,
+        weightshape: Optional[Shape] = None,
+        ishape: Optional[Shape] = None,
+        oshape: Optional[Shape] = None,
         broadcast_dims: Optional[list] = None,
     ):
         """
@@ -69,16 +70,48 @@ class Dense(NamedLinop):
         ----------
         weight : Tensor
             The dense matrix used for this linop.
-        weightshape : Shape
+        weightshape : Shape, optional
             The shape of the matrix, in symbolic form.
-        ishape : Shape
+            If None, auto-inferred using ordinal ANY dimensions.
+        ishape : Shape, optional
             The input shape of the matrix.
-        oshape : Shape
+            If None, auto-inferred using ordinal ANY dimensions.
+        oshape : Shape, optional
             The output shape of the matrix.
-        broadcast_dims : list
+            If None, auto-inferred using ordinal ANY dimensions.
+        broadcast_dims : list, optional
             A list of the dimensions of weight that are intended to be broadcasted over the input.
             As such, they are excluded from splitting.
+
+        Examples
+        --------
+        Simple usage with automatic shape inference:
+
+        >>> W = torch.randn(5, 3)
+        >>> A = Dense(W)  # Auto-infers shapes
+        >>> x = torch.randn(3)
+        >>> y = A(x)  # Equivalent to W @ x
+
+        Batched usage:
+
+        >>> W = torch.randn(2, 5, 3)  # (batch, M, N)
+        >>> A = Dense(W)
+        >>> x = torch.randn(2, 3)  # (batch, N)
+        >>> y = A(x)  # Batched matmul
+
+        Explicit usage (original API):
+
+        >>> W = torch.randn(5, 3)
+        >>> A = Dense(W, ("M", "N"), ("N",), ("M",))
         """
+        # Auto-inference logic
+        if weightshape is None or ishape is None or oshape is None:
+            if not (weightshape is None and ishape is None and oshape is None):
+                raise ValueError(
+                    "All of weightshape, ishape, oshape must be provided or all must be None"
+                )
+            weightshape, ishape, oshape = self._infer_dense_shapes(weight)
+
         super().__init__(NS(ishape, oshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
         self._shape.weightshape = weightshape
@@ -94,7 +127,7 @@ class Dense(NamedLinop):
         broadcast_dims: Optional[list] = None,
     ) -> "Dense":
         """Construct a Dense linop from a weight tensor and einsum-style string.
-        
+
         Parameters
         ----------
         weight : Tensor
@@ -106,47 +139,55 @@ class Dense(NamedLinop):
         broadcast_dims : list, optional
             Dimensions in weightshape that should be broadcast (not sliced during split).
             Must appear in weightshape AND (ishape or oshape).
-        
+
         Returns
         -------
         Dense
             A new Dense linop.
-        
+
         Examples
         --------
         >>> W = torch.randn(3, 7)
         >>> A = Dense.from_einstr(W, "MN,N->M")
-        
+
         >>> W = torch.randn(2, 3, 7)  # (batch, M, N)
         >>> A = Dense.from_einstr(W, "BMN,BN->BM", broadcast_dims=["B"])
         """
         from ..nameddim import Dim
-        
+
         # Parse einstr
         parts = einstr.replace(" ", "").split(",")
         if len(parts) != 2:
-            raise ValueError(f"einstr must have format 'weightshape,ishape->oshape', got {einstr}")
-        
+            raise ValueError(
+                f"einstr must have format 'weightshape,ishape->oshape', got {einstr}"
+            )
+
         weightshape_str = parts[0]
         rest = parts[1].split("->")
         if len(rest) != 2:
-            raise ValueError(f"einstr must have format 'weightshape,ishape->oshape', got {einstr}")
-        
+            raise ValueError(
+                f"einstr must have format 'weightshape,ishape->oshape', got {einstr}"
+            )
+
         ishape_str, oshape_str = rest
-        
+
         # Parse using Dim()
         weightshape = Dim(weightshape_str)
         ishape = Dim(ishape_str)
         oshape = Dim(oshape_str)
-        
+
         # Validate broadcast_dims if provided
         if broadcast_dims is not None:
             for dim in broadcast_dims:
                 if dim not in weightshape:
-                    raise ValueError(f"broadcast_dim {dim} not in weightshape {weightshape}")
+                    raise ValueError(
+                        f"broadcast_dim {dim} not in weightshape {weightshape}"
+                    )
                 if dim not in ishape and dim not in oshape:
-                    raise ValueError(f"broadcast_dim {dim} must appear in ishape or oshape")
-        
+                    raise ValueError(
+                        f"broadcast_dim {dim} must appear in ishape or oshape"
+                    )
+
         return cls(weight, weightshape, ishape, oshape, broadcast_dims=broadcast_dims)
 
     @property
@@ -172,7 +213,56 @@ class Dense(NamedLinop):
 
     @staticmethod
     def einstr(arr):
-        return " ".join(str(s) for s in arr)
+        """Convert shape to einsum string, sanitizing ordinal ANYs for einops.
+
+        Einops doesn't accept parentheses in dimension names, so we convert:
+        - () → any0
+        - (1) → any1
+        - (2) → any2
+        """
+        parts = []
+        for s in arr:
+            s_str = str(s)
+            if s_str == "()":
+                parts.append("any0")
+            elif s_str.startswith("(") and s_str.endswith(")"):
+                # Ordinal ANY: (1), (2), etc.
+                ordinal = s_str[1:-1]
+                parts.append(f"any{ordinal}")
+            else:
+                parts.append(s_str)
+        return " ".join(parts)
+
+    @staticmethod
+    def _infer_dense_shapes(weight: Tensor) -> tuple:
+        """Infer Dense shapes from tensor using ordinal ANYs.
+
+        Convention:
+        - Last dimension = input dimension
+        - Second-to-last = output dimension
+        - All others = batch dimensions
+
+        Returns
+        -------
+        weightshape, ishape, oshape
+        """
+        ndim = weight.ndim
+        if ndim < 2:
+            raise ValueError(f"Weight must be at least 2D, got {ndim}D")
+
+        # Create ordinal ANYs for each dimension
+        dims = [AnyDim(i) for i in range(ndim)]
+
+        # Last dim = input, second-to-last = output
+        input_dim = dims[-1]
+        output_dim = dims[-2]
+        batch_dims = dims[:-2]
+
+        weightshape = tuple(dims)
+        ishape = tuple(batch_dims) + (input_dim,)
+        oshape = tuple(batch_dims) + (output_dim,)
+
+        return weightshape, ishape, oshape
 
     @staticmethod
     def fn(dense, x, /):
