@@ -37,6 +37,11 @@ weight = torch.randn(M, N)
 # oshape=Dim("M") sets the expected output shape.
 A = Dense(weight, weightshape=Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
 
+# Create a Dense linear operator with automatically-inferred dimensions
+# Simpler syntax, leaves shape names unspecified.
+# 2D weight -> assumed to be a matrix
+# A = Dense(weight)
+
 # Create input data and apply the operator
 x = torch.randn(N)  # Random input vector of size N
 y = A(x)  # Apply the linear operator (equivalent to A @ x)
