@@ -2,7 +2,7 @@ from copy import copy
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
-__all__ = ["NamedDimension", "ELLIPSES", "ANY", "Dim"]
+__all__ = ["NamedDimension", "ELLIPSES", "ANY", "Dim", "AnyDim"]
 
 # Special dim names
 ELLIPSES = "..."
@@ -137,6 +137,8 @@ class NamedDimension:
         return curr
 
     def __repr__(self):
+        if self.name == ANY and self.i > 0:
+            return f"({self.i})"
         return self.name + ("" if self.i == 0 else str(self.i))
 
     def __add__(self, k):
@@ -154,6 +156,31 @@ class NamedDimension:
     def __hash__(self):
         """Allow dictionary lookups to work with strings too."""
         return hash(repr(self))
+
+
+def AnyDim(i: Optional[int] = None) -> NamedDimension:
+    """Create an ANY dimension with optional ordinal.
+    
+    Parameters
+    ----------
+    i : int, optional
+        Ordinal index. If None, returns base ANY (i=0).
+    
+    Returns
+    -------
+    NamedDimension
+        An ANY dimension, e.g. (), (1), (2), etc.
+    
+    Examples
+    --------
+    >>> AnyDim()
+    ()
+    >>> AnyDim(1)
+    (1)
+    >>> AnyDim(2)
+    (2)
+    """
+    return NamedDimension(ANY, i if i is not None else 0)
 
 
 if __name__ == "__main__":
