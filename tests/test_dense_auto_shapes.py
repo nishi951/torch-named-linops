@@ -52,3 +52,23 @@ class TestDenseAutoShapes:
         assert A.weightshape[1].name == "()"
         assert A.ishape[0].name == "()"
         assert A.oshape[0].name == "()"
+
+
+class TestEinstrSanitization:
+    def test_einstr_sanitization(self):
+        """Ordinal ANYs should be sanitized for einops."""
+        mat = torch.randn(5, 3)
+        A = Dense(mat)
+        
+        # Internal representation uses parentheses
+        assert A.weightshape[0].name == "()"
+        assert A.weightshape[1].name == "()"
+        
+        # Einsum string uses sanitized names
+        assert "any0" in A.forward_einstr
+        assert "any1" in A.forward_einstr
+        
+        # Should work with einops
+        x = torch.randn(3)
+        y = A(x)
+        assert y.shape == (5,)

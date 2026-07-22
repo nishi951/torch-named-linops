@@ -237,7 +237,25 @@ class Dense(NamedLinop):
 
     @staticmethod
     def einstr(arr):
-        return " ".join(str(s) for s in arr)
+        """Convert shape to einsum string, sanitizing ordinal ANYs for einops.
+        
+        Einops doesn't accept parentheses in dimension names, so we convert:
+        - () → any0
+        - (1) → any1
+        - (2) → any2
+        """
+        parts = []
+        for s in arr:
+            s_str = str(s)
+            if s_str == "()":
+                parts.append("any0")
+            elif s_str.startswith("(") and s_str.endswith(")"):
+                # Ordinal ANY: (1), (2), etc.
+                ordinal = s_str[1:-1]
+                parts.append(f"any{ordinal}")
+            else:
+                parts.append(s_str)
+        return " ".join(parts)
 
     @staticmethod
     def fn(dense, x, /):
