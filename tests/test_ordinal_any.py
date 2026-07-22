@@ -69,3 +69,27 @@ class TestDimParserOrdinalAny:
         """Dim should parse multiple ordinal ANYs."""
         assert Dim("(1)(2)(3)") == ("(1)", "(2)", "(3)")
         assert Dim("(12)(34)") == ("(12)", "(34)")
+
+
+class TestOrdinalAnyMatching:
+    def test_ordinal_any_matches_anything(self):
+        """Ordinal ANY should match any concrete dimension."""
+        from torchlinops.nameddim._matching import isequal
+        assert isequal(("A",), ("(1)",))[0]
+        assert isequal(("(1)",), ("B",))[0]
+        assert isequal(("(2)",), ("Nx",))[0]
+
+    def test_ordinal_any_in_isequal(self):
+        """Ordinal ANYs should work in isequal."""
+        from torchlinops.nameddim._matching import isequal
+        assert isequal(("A", "(1)"), ("A", "B"))[0]
+        assert isequal(("(1)", "B"), ("A", "B"))[0]
+        assert isequal(("(1)", "(2)"), ("A", "B"))[0]
+
+    def test_resolve_wildcards_ordinal_any(self):
+        """resolve_wildcards should handle ordinal ANYs."""
+        from torchlinops.nameddim._matching import resolve_wildcards
+        result = resolve_wildcards(("(1)",), ("A",))
+        assert result == ("A",)
+        result = resolve_wildcards(("(1)", "(2)"), ("A", "B"))
+        assert result == ("A", "B")

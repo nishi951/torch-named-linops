@@ -12,7 +12,16 @@ __all__ = [
     "max_shape",
     "standardize_shapes",
     "resolve_wildcards",
+    "_is_any",
 ]
+
+
+def _is_any(dim):
+    """Check if dim is ANY or ordinal ANY."""
+    if isinstance(dim, str):
+        # Check if it's a string representation of ANY or ordinal ANY
+        return dim == ANY or (dim.startswith("(") and dim.endswith(")") and dim[1:-1].isdigit())
+    return hasattr(dim, 'name') and dim.name == ANY
 
 
 def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
@@ -112,7 +121,7 @@ def isequal(
                     val = (-1, -1)
                 elif shape1[i - 1] == shape2[j - 1]:
                     val = (-1, -1)
-                elif shape1[i - 1] == ANY or shape2[j - 1] == ANY:
+                elif _is_any(shape1[i - 1]) or _is_any(shape2[j - 1]):
                     val = (-1, -1)
                 else:
                     val = None
@@ -180,7 +189,8 @@ def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
     >>> resolve_wildcards(("X", "..."), ("A", "B")) # no match possible
     ('X', '...')
     """
-    if ANY not in shape and ELLIPSES not in shape:
+    has_any = any(_is_any(d) for d in shape)
+    if not has_any and ELLIPSES not in shape:
         return shape
 
     match, assignments = isequal(shape, target_shape)
@@ -190,7 +200,7 @@ def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
     resolved = []
     for idx in range(len(shape)):
         dim = shape[idx]
-        if dim == ELLIPSES or dim == ANY:
+        if dim == ELLIPSES or _is_any(dim):
             matched_indices = assignments.get(idx, [])
             resolved.extend(target_shape[j] for j in matched_indices)
         else:
@@ -257,9 +267,9 @@ def max_shape(shapes):
             new_dims = [shape[j] for j in sorted(assignments[i])]
             # Heuristic
             # 1. Ellipses and Any lose to everything
-            if orig_dim == ELLIPSES or orig_dim == ANY:
+            if orig_dim == ELLIPSES or _is_any(orig_dim):
                 new_max_shape.extend(new_dims)
-            elif ELLIPSES in new_dims or ANY in new_dims:
+            elif any(d == ELLIPSES or _is_any(d) for d in new_dims):
                 new_max_shape.append(orig_dim)
             else:
                 assert len(new_dims) == 1, (
