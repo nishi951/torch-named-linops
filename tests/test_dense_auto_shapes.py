@@ -59,16 +59,58 @@ class TestEinstrSanitization:
         """Ordinal ANYs should be sanitized for einops."""
         mat = torch.randn(5, 3)
         A = Dense(mat)
-        
+
         # Internal representation uses parentheses
         assert A.weightshape[0].name == "()"
         assert A.weightshape[1].name == "()"
-        
+
         # Einsum string uses sanitized names
         assert "any0" in A.forward_einstr
         assert "any1" in A.forward_einstr
-        
+
         # Should work with einops
         x = torch.randn(3)
         y = A(x)
         assert y.shape == (5,)
+
+
+class TestDenseOperators:
+    def test_dense_adjoint_auto_shapes(self):
+        """Adjoint should work with auto-inferred shapes."""
+        mat = torch.randn(5, 3, dtype=torch.complex64)
+        A = Dense(mat)
+
+        # Adjoint
+        AH = A.H
+        y = torch.randn(5, dtype=torch.complex64)
+        z = AH(y)
+        expected = mat.conj().T @ y
+        assert torch.allclose(z, expected)
+
+    def test_dense_normal_auto_shapes(self):
+        """Normal operator should work with auto-inferred shapes."""
+        mat = torch.randn(5, 3, dtype=torch.complex64)
+        A = Dense(mat)
+
+        # Normal
+        AN = A.N
+        x = torch.randn(3, dtype=torch.complex64)
+        y = AN(x)
+        expected = mat.conj().T @ mat @ x
+        assert torch.allclose(y, expected)
+
+    def test_dense_with_named_linops(self):
+        """Dense with auto shapes should compose with named linops."""
+        from torchlinops import Diagonal
+
+        mat = torch.randn(5, 3)
+        A = Dense(mat)
+        d = torch.randn(5)
+        B = Diagonal(d, ioshape=("M",))
+
+        # Composition should work
+        C = B @ A
+        x = torch.randn(3)
+        y = C(x)
+        expected = d * (mat @ x)
+        assert torch.allclose(y, expected)

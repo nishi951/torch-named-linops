@@ -155,7 +155,7 @@ class NamedDimension:
         curr = copy(self)
         if avoid is None:
             return curr + 1
-        if self.name == ELLIPSES or self.name == ANY:
+        if self.name == ELLIPSES:
             return curr
         while curr in avoid:
             curr = curr + 1
