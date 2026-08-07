@@ -9,7 +9,6 @@ from torch.cuda import default_stream
 from torch.testing import assert_close
 
 import torchlinops.config as config
-from torchlinops.cuda_trace import cuda_logger
 from torchlinops import (
     Add,
     Chain,
@@ -372,11 +371,6 @@ def test_multigpu_parallelism(CombineOp, base_device, threaded):
         assert_close(y0.cpu(), y_true0, atol=1e1, rtol=1e0)
         assert_close(y1.cpu(), y_true1, atol=1e1, rtol=1e0)
         assert_close(y_gpu1.cpu(), y_true1, atol=1e1, rtol=1e0)
-
-    # Show dependency graph
-    with config.using(log_cuda_events=True, log_device_transfers=True):
-        _ = OnDevice(x)
-        print(cuda_logger.display(reset=True))
 
     wait, warmup, active = 2, 2, 1
     with torch.profiler.profile(

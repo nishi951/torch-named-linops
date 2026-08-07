@@ -2,7 +2,7 @@ from copy import copy
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
-__all__ = ["NamedDimension", "ELLIPSES", "ANY", "Dim"]
+__all__ = ["NamedDimension", "ELLIPSES", "ANY", "Dim", "AnyDim"]
 
 # Special dim names
 ELLIPSES = "..."
@@ -18,6 +18,7 @@ def Dim(s: Optional[str] = None) -> tuple[str]:
     - A new dimension begins at each uppercase letter.
     - A dimension name cannot start with a digit.
     - The special token ``()`` (ANY) is recognised and split out.
+    - Ordinal ANY tokens ``(1)``, ``(2)``, ``(23)``, etc. are recognised.
 
     Parameters
     ----------
@@ -40,16 +41,40 @@ def Dim(s: Optional[str] = None) -> tuple[str]:
     ('A1', 'B2', 'Kx1', 'Ky2')
     >>> Dim("()A()B")
     ('()', 'A', '()', 'B')
+    >>> Dim("(1)A(23)")
+    ('(1)', 'A', '(23)')
     """
     if s is None or len(s) == 0:
         return tuple()
     parts = []
     current = s[0]
-    for char in s[1:]:
+    i = 0
+    while i < len(s) - 1:
+        i += 1
+        char = s[i]
         if char == "(":
-            parts.append(current)
-            current = char
-        elif current == "()":
+            # Look ahead for pattern "(digits)"
+            if i + 1 < len(s) and s[i + 1].isdigit():
+                # Find the closing paren
+                j = i + 2
+                while j < len(s) and s[j].isdigit():
+                    j += 1
+                if j < len(s) and s[j] == ")":
+                    # Found pattern "(digits)"
+                    parts.append(current)
+                    current = s[i : j + 1]  # "(1)", "(23)", etc.
+                    i = j  # Skip ahead past the closing paren
+                else:
+                    # No closing paren, treat as regular dim start
+                    parts.append(current)
+                    current = char
+            else:
+                parts.append(current)
+                current = char
+        elif current == "()" or (
+            current.startswith("(") and current.endswith(")") and len(current) >= 3
+        ):
+            # Current is ANY or ordinal ANY, start new dim
             parts.append(current)
             current = char
         elif char.isupper():
@@ -130,13 +155,15 @@ class NamedDimension:
         curr = copy(self)
         if avoid is None:
             return curr + 1
-        if self.name == ELLIPSES or self.name == ANY:
+        if self.name == ELLIPSES:
             return curr
         while curr in avoid:
             curr = curr + 1
         return curr
 
     def __repr__(self):
+        if self.name == ANY and self.i > 0:
+            return f"({self.i})"
         return self.name + ("" if self.i == 0 else str(self.i))
 
     def __add__(self, k):
@@ -154,6 +181,31 @@ class NamedDimension:
     def __hash__(self):
         """Allow dictionary lookups to work with strings too."""
         return hash(repr(self))
+
+
+def AnyDim(i: Optional[int] = None) -> NamedDimension:
+    """Create an ANY dimension with optional ordinal.
+
+    Parameters
+    ----------
+    i : int, optional
+        Ordinal index. If None, returns base ANY (i=0).
+
+    Returns
+    -------
+    NamedDimension
+        An ANY dimension, e.g. (), (1), (2), etc.
+
+    Examples
+    --------
+    >>> AnyDim()
+    ()
+    >>> AnyDim(1)
+    (1)
+    >>> AnyDim(2)
+    (2)
+    """
+    return NamedDimension(ANY, i if i is not None else 0)
 
 
 if __name__ == "__main__":
