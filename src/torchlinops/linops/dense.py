@@ -410,8 +410,5 @@ class Dense(NamedLinop):
 
 def shapes2einstr(shape1, shape2, oshape):
     """Takes 3 tuples and produces the corresponding einsum string."""
-
-    def to_str(shape):
-        return " ".join(str(s) for s in shape)
-
+    to_str = Dense.einstr
     return f"{to_str(shape1)},{to_str(shape2)}->{to_str(oshape)}"

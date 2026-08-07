@@ -2,7 +2,7 @@ from collections import OrderedDict
 from copy import copy
 from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
-from ._matching import iscompatible
+from ._matching import iscompatible, is_any
 from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
 
 __all__ = ["NamedDimCollection"]
@@ -192,13 +192,13 @@ class NamedDimCollection:
                 j = newdims_i_list[0]
                 newdim = newshape[j]
 
-                if newdim == ELLIPSES or newdim == ANY:
+                if newdim == ELLIPSES or is_any(newdim):
                     self._replace_old_with_wildcard(olddim, oldshape_name, i, newdim)
-                elif olddim != ANY:
+                elif not is_any(olddim):
                     self._replace_old_with_new(
                         olddim, newdim, old2new, oldshape, newshape
                     )
-                else:  # olddim == ANY
+                else:  # olddim is ANY
                     self._replace_any_with_new(oldshape_name, i, newdim)
 
             else:  # olddim == ELLIPSES
@@ -256,7 +256,7 @@ class NamedDimCollection:
         if isinstance(data, Mapping):
             # Fancy way to replace a dictionary key
             for k in data:
-                if self._dims[k] == ANY:
+                if is_any(self._dims[k]):
                     data[n] = data.pop(k)
         elif isinstance(data, Tuple):
             # Less fancy way to replace a tuple entry

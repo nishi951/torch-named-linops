@@ -6,7 +6,7 @@ import torch.nn as nn
 from einops import repeat
 from torch import Tensor
 
-from ..nameddim import ANY, NamedShape as NS, Shape
+from ..nameddim import NamedShape as NS, Shape, is_any
 from .namedlinop import NamedLinop
 
 __all__ = ["Diagonal"]
@@ -54,8 +54,9 @@ class Diagonal(NamedLinop):
         super().__init__(NS(ioshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
-        if ANY in self.ishape:
-            broadcast_dims.append(ANY)
+        for s in self.ishape:
+            if is_any(s):
+                broadcast_dims.append(s)
         self._shape.broadcast_dims = broadcast_dims
 
     @classmethod
