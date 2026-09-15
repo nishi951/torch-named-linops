@@ -20,6 +20,9 @@ from .schedule import parallel_execute
 
 __all__ = ["Stack"]
 
+_INHERIT = object()
+"""Sentinel for spinoff(): inherit the stacking dim/index from the parent linop."""
+
 logger = logging.getLogger("torchlinops")
 
 
@@ -364,8 +367,8 @@ class Stack(NamedLinop):
         self,
         linops=None,
         shape=None,
-        idim_and_idx=(None, None),
-        odim_and_idx=(None, None),
+        idim_and_idx=_INHERIT,
+        odim_and_idx=_INHERIT,
     ):
         """Helper function for creating a new linop using the provided inputs.
 
@@ -387,6 +390,10 @@ class Stack(NamedLinop):
         """
         linops = linops if linops is not None else self.linops
 
+        if idim_and_idx is _INHERIT:
+            idim_and_idx = (self.idim, self.idim_idx)
+        if odim_and_idx is _INHERIT:
+            odim_and_idx = (self.odim, self.odim_idx)
         idim, idim_idx = idim_and_idx
         odim, odim_idx = odim_and_idx
 
