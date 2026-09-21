@@ -3,7 +3,7 @@ from typing import Optional
 
 import torch.fft as fft
 
-from torchlinops.utils import default_to
+from torchlinops.utils import default_to, cfftn, cifftn
 
 from ..nameddim import NamedShape as NS, Shape, get_nd_shape
 from .identity import Identity
@@ -34,6 +34,7 @@ class FFT(NamedLinop):
         grid_shapes: Optional[tuple[Shape, Shape]] = None,
         norm: Optional[str] = "ortho",
         centered: bool = False,
+        centered_method: str = "modulate",
     ):
         """
         Parameters
@@ -52,7 +53,11 @@ class FFT(NamedLinop):
             unitary forward/adjoint pair.
         centered : bool, default False
             If ``True``, treat the center of the array (``N // 2``) as the
-            origin via ``fftshift`` / ``ifftshift``. Mimics sigpy convention.
+            origin. Mimics sigpy convention.
+        centered_method : "shift" or "modulate"
+            The method to use to computed the centered FFT.
+            "modulate" - uses phase ramps to apply shifts memory-efficiently.
+            "shift" - raw fftshift
         """
         self.ndim = ndim
         self.dim = tuple(range(-self.ndim, 0))
@@ -76,6 +81,7 @@ class FFT(NamedLinop):
         self._shape.output_grid_shape = grid_shapes[1]
         self.norm = norm
         self.centered = centered
+        self.method = centered_method
 
     @property
     def batch_shape(self):
@@ -84,20 +90,14 @@ class FFT(NamedLinop):
     @staticmethod
     def fn(linop, x):
         if linop.centered:
-            x = fft.ifftshift(x, dim=linop.dim)
-        x = fft.fftn(x, dim=linop.dim, norm=linop.norm)
-        if linop.centered:
-            x = fft.fftshift(x, dim=linop.dim)
-        return x
+            return cfftn(x, linop.dim, linop.norm, linop.method)
+        return fft.fftn(x, dim=linop.dim, norm=linop.norm)
 
     @staticmethod
     def adj_fn(linop, x):
         if linop.centered:
-            x = fft.ifftshift(x, dim=linop.dim)
-        x = fft.ifftn(x, dim=linop.dim, norm=linop.norm)
-        if linop.centered:
-            x = fft.fftshift(x, dim=linop.dim)
-        return x
+            return cifftn(x, linop.dim, linop.norm, linop.method)
+        return fft.ifftn(x, dim=linop.dim, norm=linop.norm)
 
     @staticmethod
     def normal_fn(linop, x):

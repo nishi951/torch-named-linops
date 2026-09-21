@@ -1,10 +1,11 @@
+import torch
 import torch.fft as fft
 from torch import Tensor
 
 __all__ = ["cfft", "cifft", "cfft2", "cifft2", "cfftn", "cifftn"]
 
 
-def cfftn(x, dim=None, norm="ortho"):
+def cfftn(x, dim=None, norm="ortho", method="shift"):
     """Compute the centered n-dimenional FFT.
 
     Assumes the origin lies in the middle of the array (i.e., that the array has
@@ -25,14 +26,16 @@ def cfftn(x, dim=None, norm="ortho"):
         mode will apply an overall normalization of 1/n between the two transforms.
         This is required to make ifft() the exact inverse. Default is "backward"
         (no normalization).
+    method : str
     """
-    x = fft.ifftshift(x, dim=dim)
-    x = fft.fftn(x, dim=dim, norm=norm)
-    x = fft.fftshift(x, dim=dim)
-    return x
+    if method == "shift":
+        return _cfftn(x, dim, norm)
+    elif method == "modulate":
+        return _cfftn_modulate(x, dim, norm)
+    raise ValueError(f"method must be 'shift' or 'modulate', got {method!r}")
 
 
-def cifftn(x, dim=None, norm="ortho"):
+def cifftn(x, dim=None, norm="ortho", method="shift"):
     """Compute the centered n-dimensional inverse FFT.
 
     Assumes the origin lies in the middle of the array (i.e., that the array has
@@ -54,10 +57,127 @@ def cifftn(x, dim=None, norm="ortho"):
         is required to make ifft() the exact inverse. Default is "backward"
         (normalize by 1/n).
     """
+
+    if method == "shift":
+        return _cifftn(x, dim, norm)
+    elif method == "modulate":
+        return _cifftn_modulate(x, dim, norm)
+    raise ValueError(f"method must be 'shift' or 'modulate', got {method!r}")
+
+
+def _cfftn(x, dim, norm):
+    """Centered fft, shift method."""
+    x = fft.ifftshift(x, dim=dim)
+    x = fft.fftn(x, dim=dim, norm=norm)
+    x = fft.fftshift(x, dim=dim)
+    return x
+
+
+def _cifftn(x, dim, norm):
+    """Centered ifft, shift method"""
     x = fft.ifftshift(x, dim=dim)
     x = fft.ifftn(x, dim=dim, norm=norm)
     x = fft.fftshift(x, dim=dim)
     return x
+
+
+def _cfftn_modulate(x, dim, norm):
+    """Centered fft, modulate method."""
+    if dim is None:
+        dim = tuple(range(x.ndim))
+    for d in dim:
+        N = x.shape[d]
+        phase = _fftshift_phase_ramp(
+            N, mode="fftshift", dtype=_complex_dtype(x), device=x.device
+        )
+        x = _mul1d_at_dim(x, phase, d)
+    x = fft.fftn(x, dim=dim, norm=norm)
+    for d in dim:
+        N = x.shape[d]
+        phase = _fftshift_phase_ramp(
+            N, mode="ifftshift", dtype=_complex_dtype(x), device=x.device
+        )
+        x = _mul1d_at_dim(x, phase, d)
+    return x
+
+
+def _cifftn_modulate(x, dim, norm):
+    """Centered ifft, modulate method.
+
+    The inverse DFT kernel carries the opposite sign to the forward, so the
+    fold modulations are the conjugates of the cfft ones (not their negation:
+    ``-exp(i*theta) != exp(-i*theta)``).
+    """
+    if dim is None:
+        dim = tuple(range(x.ndim))
+    for d in dim:
+        N = x.shape[d]
+        phase = _fftshift_phase_ramp(
+            N, mode="fftshift", dtype=_complex_dtype(x), device=x.device
+        )
+        x = _mul1d_at_dim(x, phase.conj(), d)
+    x = fft.ifftn(x, dim=dim, norm=norm)
+    for d in dim:
+        N = x.shape[d]
+        phase = _fftshift_phase_ramp(
+            N, mode="ifftshift", dtype=_complex_dtype(x), device=x.device
+        )
+        x = _mul1d_at_dim(x, phase.conj(), d)
+    return x
+
+
+_PHASE_RAMP_CACHE = {}
+
+
+def _complex_dtype(x: Tensor):
+    """Dtype of the result of transforming ``x``: complex64 for float32/int input,
+    complex128 for float64, and unchanged for complex input. Keeping ramps at
+    this dtype avoids silent float32 -> complex128 working-set upcasts."""
+    if x.is_floating_point() or x.is_complex():
+        return {
+            torch.float32: torch.complex64,
+            torch.float64: torch.complex128,
+            torch.complex64: torch.complex64,
+            torch.complex128: torch.complex128,
+        }.get(x.dtype, torch.complex64)
+    return torch.complex64
+
+
+def _fftshift_phase_ramp(N: int, mode="fftshift", dtype=torch.complex128, device="cpu"):
+    """Unit-modulus ramp whose multiply equals fftshift (mode="fftshift",
+    applied to the input) or ifftshift (mode="ifftshift", applied to the
+    output) of a length-N axis, for both even and odd N.
+
+    Derivation (cfft, f = N // 2, torch's roll(+f)/roll(-f) conventions):
+    ``fftshift(fftn(ifftshift(x)))[n] = e^{2i*pi*f*(n-f)/N} * fftn(x * e^{2i*pi*f*k/N})[n]``
+    -- the (n - f) offset on the output side absorbs the constant e^{-2i*pi*f^2/N},
+    which is (+/-1) for even N and genuinely complex for odd N.
+    """
+    key = (N, mode, dtype, device)
+    if key not in _PHASE_RAMP_CACHE:
+        Nover2 = N // 2
+        n = torch.arange(N, dtype=torch.float64)
+        if mode == "ifftshift":
+            n = n - Nover2
+        elif mode != "fftshift":
+            raise ValueError(f"mode must be 'fftshift' or 'ifftshift', got {mode!r}")
+        phase = torch.exp(2j * torch.pi * Nover2 * n / N).to(dtype)
+        _PHASE_RAMP_CACHE[key] = phase.to(device)
+    return _PHASE_RAMP_CACHE[key]
+
+
+def _mul1d_at_dim(input_nd, input_1d, i: int):
+    """Multiply the ith axis of input_nd by input_1d.
+    Shapes must work out.
+    """
+    # 1. Build a dynamic shape list: [1, 1, C, 1]
+    # It places 1 everywhere, except at index 'i' where it places C
+    broadcast_shape = [1] * input_nd.ndim
+    broadcast_shape[i] = input_nd.shape[i]
+
+    # 2. Reshape and multiply
+    result = input_nd * input_1d.view(broadcast_shape)
+    return result
 
 
 # Convenience functions
