@@ -122,11 +122,17 @@ def _tiled_shape(linop, batch_sizes):
     return tuple(ceil(sizes[dim] / batch_sizes[dim]) for dim in batch_dims)
 
 
+_THREADED_DEFAULT = False
+_NUM_WORKERS_DEFAULT = None
+_ACCUMULATE_DEFAULT = False
+
+
 def create_batched_linop(
     linop,
     batch_specs: BatchSpec | list[BatchSpec],
     default_device: Optional[torch.device] = None,
     _mmap=None,
+    **options,
 ):
     """Split and distribute a linop across devices according to batch specs.
 
@@ -142,12 +148,19 @@ def create_batched_linop(
         The operator to split and distribute.
     batch_specs : BatchSpec or list[BatchSpec]
         One or more batch specifications to apply (processed in order).
+    default_device : torch.device, optional
+        The default device to use if no device info is provided in the batch spec.
     _mmap : ModuleMemoryMap, optional
         Internal memory map for efficient device transfers. Created
         automatically on the first call. Probably don't set this manually.
-    default_device : torch.device, optional
-        The default device to use if no device info is provided in the batch spec.
-
+    **options : dict
+        Additional options to pass to downstream container linops.
+        threaded : bool
+            Whether to run the sub-linops in parallel threads or not.
+        num_workers : int
+            Number of concurrent workers to allow.
+        accumulate : bool
+            Whether to accumulate batches of outputs. Batch size determined by num_workers (threaded=True) or automatically 1 (threaded=False)
     Returns
     -------
     NamedLinop
@@ -155,6 +168,12 @@ def create_batched_linop(
         that is functionally equivalent to the original but distributed
         according to the batch specs.
     """
+    # Resolve concurrency options
+    copt = dict(
+        threaded=options.get("threaded", _THREADED_DEFAULT),
+        num_workers=options.get("num_workers", _NUM_WORKERS_DEFAULT),
+        accumulate=options.get("accumulate", _ACCUMULATE_DEFAULT),
+    )
     if default_device is None:
         default_device = torch.device("cpu")
     if isinstance(batch_specs, BatchSpec):
@@ -184,7 +203,7 @@ def create_batched_linop(
 
         # Recursive call to batch the tile
         tiled_linop = create_batched_linop(
-            linop, batch_specs[1:], default_device=target_device, _mmap=_mmap
+            linop, batch_specs[1:], default_device=target_device, _mmap=_mmap, **copt
         )
 
         # Move linop to device
@@ -215,14 +234,15 @@ def create_batched_linop(
         new_linops = np.empty(flat_linops.shape[0], dtype=object)
         for i, linop_arr in enumerate(flat_linops):
             linop = linop_arr[0]
+            # Ignore types because **kwargs confuses things.
             if dim in linop.ishape and dim in linop.oshape:
-                new_linop = Concat(*linop_arr, idim=dim, odim=dim)
+                new_linop = Concat(*linop_arr, idim=dim, odim=dim, **copt)  # type: ignore
             elif dim not in linop.ishape and dim in linop.oshape:
-                new_linop = Concat(*linop_arr, odim=dim)
+                new_linop = Concat(*linop_arr, odim=dim, **copt)  # type: ignore
             elif dim in linop.ishape and dim not in linop.oshape:
-                new_linop = Concat(*linop_arr, idim=dim)
+                new_linop = Concat(*linop_arr, idim=dim, **copt)  # type: ignore
             else:
-                new_linop = Add(*linop_arr)
+                new_linop = Add(*linop_arr, **copt)  # type: ignore
             new_linops[i] = new_linop
         linops = new_linops.reshape(linops.shape[:-1])
     linop = linops.item()

@@ -12,6 +12,8 @@ from typing import Optional
 import torch
 from torch import Tensor
 
+from torchlinops.utils import batch_iterator
+
 __all__ = ["parallel_execute"]
 
 
@@ -22,7 +24,14 @@ def thread_initializer():
 
 
 def parallel_execute(
-    linops, inputs, context, reduce_fn, threaded=False, num_workers=None
+    linops,
+    inputs,
+    context,
+    reduce_fn,
+    threaded=False,
+    num_workers=None,
+    accumulate=True,
+    accumulate_fn=None,
 ):
     """Execute a set of linops, possibly with threading-based concurrency.
 
@@ -46,6 +55,12 @@ def parallel_execute(
         Whether to run the linops in separate threads.
     num_workers : int, optional
         The maximum number of workers to use in the threaded case.
+        Doubles as the batch size for threaded=False and accumulate=True
+    accumulate : bool
+        Accumulate the results of the computations to limit memory usage.
+        Uses num_workers as the batch size.
+    accumulate_fn : Callable[[Tensor, Tensor], Tensor], optional
+        If accumulate is True, the function to use to accumulate the output incrementally.
 
     Returns
     -------
@@ -60,19 +75,47 @@ def parallel_execute(
         # TODO: decide if this is correct
         raise ValueError(f"linops must have length greater than or equal to 1.")
 
+    if not accumulate:
+        return _execute(linops, inputs, context, reduce_fn, threaded, num_workers)
+
+    if accumulate_fn is None:
+
+        def accumulate_fn(x, y):
+            return reduce_fn([x, y])
+
+    output = None
+    job_batch_size = num_workers if num_workers is not None else 1
+    for start_job, end_job in batch_iterator(len(linops), job_batch_size):
+        linops_batch = linops[start_job:end_job]
+        inputs_batch = inputs[start_job:end_job]
+        output_batch = _execute(
+            linops_batch, inputs_batch, context, reduce_fn, threaded, num_workers
+        )
+
+        if output is None:
+            output = output_batch
+        else:
+            output = accumulate_fn(output, output_batch)  # type: ignore
+    return output
+
+
+def _execute(linops, inputs, context, reduce_fn, threaded, num_workers):
+    """Helper function that executes all linops on all inputs."""
+
     if not threaded:
         return reduce_fn([linop(x, context) for linop, x in zip(linops, inputs)])
-
-    num_workers = num_workers if num_workers is not None else len(linops)
-    results: list[Optional[Tensor]] = [None] * len(linops)
 
     def worker(idx: int):
         linop = linops[idx]
         x = inputs[idx]
         results[idx] = linop(x, context)
 
+    num_workers = num_workers if num_workers is not None else len(linops)
+    results: list[Optional[Tensor]] = [None] * len(linops)
+
+    idxs = range(len(linops))
     with ThreadPoolExecutor(
         max_workers=num_workers, initializer=thread_initializer
     ) as pool:
-        list(pool.map(worker, range(len(linops))))
+        list(pool.map(worker, idxs))
     return reduce_fn(results)
