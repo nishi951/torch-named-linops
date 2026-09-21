@@ -55,8 +55,10 @@ def parallel_execute(
         Whether to run the linops in separate threads.
     num_workers : int, optional
         The maximum number of workers to use in the threaded case.
+        Doubles as the batch size for threaded=False and accumulate=True
     accumulate : bool
-        accumulate the results of the computations to limit memory usage.
+        Accumulate the results of the computations to limit memory usage.
+        Uses num_workers as the batch size.
     accumulate_fn : Callable[[Tensor, Tensor], Tensor], optional
         If accumulate is True, the function to use to accumulate the output incrementally.
 
@@ -73,58 +75,47 @@ def parallel_execute(
         # TODO: decide if this is correct
         raise ValueError(f"linops must have length greater than or equal to 1.")
 
-    if accumulate and accumulate_fn is None:
+    if not accumulate:
+        return _execute(linops, inputs, context, reduce_fn, threaded, num_workers)
+
+    if accumulate_fn is None:
 
         def accumulate_fn(x, y):
             return reduce_fn([x, y])
 
+    output = None
+    job_batch_size = num_workers if num_workers is not None else 1
+    for start_job, end_job in batch_iterator(len(linops), job_batch_size):
+        linops_batch = linops[start_job:end_job]
+        inputs_batch = inputs[start_job:end_job]
+        output_batch = _execute(
+            linops_batch, inputs_batch, context, reduce_fn, threaded, num_workers
+        )
+
+        if output is None:
+            output = output_batch
+        else:
+            output = accumulate_fn(output, output_batch)  # type: ignore
+    return output
+
+
+def _execute(linops, inputs, context, reduce_fn, threaded, num_workers):
+    """Helper function that executes all linops on all inputs."""
+
     if not threaded:
-        if accumulate:
-            output = None
-            for linop, x in zip(linops, inputs):
-                y = reduce_fn([linop(x, context)])
-                if output is None:
-                    output = y
-                else:
-                    output = accumulate_fn(output, y)  # type: ignore
-            return output
         return reduce_fn([linop(x, context) for linop, x in zip(linops, inputs)])
 
-    def worker(idxs: tuple[int, int]):
-        idx, results_idx = idxs
+    def worker(idx: int):
         linop = linops[idx]
         x = inputs[idx]
-        results[results_idx] = linop(x, context)
+        results[idx] = linop(x, context)
 
-    if accumulate:
-        num_workers = num_workers if num_workers is not None else len(linops)
-        output = None
-        for start_job, end_job in batch_iterator(len(linops), num_workers):
-            # batch_iterator yields [start, end) ranges; the final chunk may
-            # be shorter than num_workers.
-            n_jobs = end_job - start_job
-            results: list[Optional[Tensor]] = [None] * n_jobs
-            results_idxs = range(n_jobs)
-            idxs = range(start_job, end_job)
-
-            with ThreadPoolExecutor(
-                max_workers=num_workers, initializer=thread_initializer
-            ) as pool:
-                list(pool.map(worker, zip(idxs, results_idxs)))
-            if output is None:
-                output = reduce_fn(results)
-            else:
-                output = accumulate_fn(output, reduce_fn(results))  # type: ignore
-        return output
-
-    # no accumulate
     num_workers = num_workers if num_workers is not None else len(linops)
     results: list[Optional[Tensor]] = [None] * len(linops)
 
     idxs = range(len(linops))
-    results_idxs = range(len(linops))
     with ThreadPoolExecutor(
         max_workers=num_workers, initializer=thread_initializer
     ) as pool:
-        list(pool.map(worker, zip(idxs, results_idxs)))
+        list(pool.map(worker, idxs))
     return reduce_fn(results)
