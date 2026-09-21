@@ -122,6 +122,11 @@ def _tiled_shape(linop, batch_sizes):
     return tuple(ceil(sizes[dim] / batch_sizes[dim]) for dim in batch_dims)
 
 
+_THREADED_DEFAULT = False
+_NUM_WORKERS_DEFAULT = None
+_ACCUMULATE_DEFAULT = False
+
+
 def create_batched_linop(
     linop,
     batch_specs: BatchSpec | list[BatchSpec],
@@ -149,11 +154,13 @@ def create_batched_linop(
         Internal memory map for efficient device transfers. Created
         automatically on the first call. Probably don't set this manually.
     **options : dict
-        Additional options to pass to downstream tasks.
+        Additional options to pass to downstream container linops.
         threaded : bool
             Whether to run the sub-linops in parallel threads or not.
         num_workers : int
-            Number of concurrent workers to allow. 1 = serial
+            Number of concurrent workers to allow.
+        accumulate : bool
+            Whether to accumulate batches of outputs. Batch size determined by num_workers (threaded=True) or automatically 1 (threaded=False)
     Returns
     -------
     NamedLinop
@@ -163,8 +170,9 @@ def create_batched_linop(
     """
     # Resolve concurrency options
     copt = dict(
-        threaded=options.get("threaded", True),
-        num_workers=options.get("num_workers", None),
+        threaded=options.get("threaded", _THREADED_DEFAULT),
+        num_workers=options.get("num_workers", _NUM_WORKERS_DEFAULT),
+        accumulate=options.get("accumulate", _ACCUMULATE_DEFAULT),
     )
     if default_device is None:
         default_device = torch.device("cpu")

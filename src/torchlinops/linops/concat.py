@@ -68,16 +68,19 @@ class Concat(NamedLinop):
 
     Attributes
     ----------
-    linops : nn.ModuleList
+    *linops : nn.ModuleList
         The list of linops being concatenated.
-    threaded : bool
-        Whether to run sub-linops in parallel. Default is True.
-    num_workers : int | None
-        Number of worker threads. If None, defaults to the number of sub-linops.
     idim : ND | None
         Input dimension along which to concatenate.
     odim : ND | None
         Output dimension along which to concatenate.
+    threaded : bool
+        Whether to run sub-linops in parallel. Default is True.
+    num_workers : int | None
+        Number of worker threads. If None, defaults to the number of sub-linops.
+    stream : bool, default False
+        If True, stream outputs incrementally in batches of size 1 (not threaded) or num_workers (threaded).
+        Helps manage memory.
     """
 
     is_container = True
@@ -89,6 +92,7 @@ class Concat(NamedLinop):
         odim: Optional[ND | str] = None,
         threaded: bool = True,
         num_workers: Optional[int] = None,
+        accumulate: bool = False,
         **kwargs,
     ):
         """
@@ -106,11 +110,15 @@ class Concat(NamedLinop):
             Whether to run sub-linops in parallel. Default is True.
         num_workers : int | None, optional
             Number of worker threads. If None, defaults to the number of sub-linops.
+        accumulate : bool, default False
+            If True, accumulate outputs incrementally in batches of size 1 (not threaded) or num_workers (threaded).
+            Helps manage memory.
         """
         self._check_linop_compatibility(linops)
         super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
         self.threaded = threaded
         self.num_workers = num_workers
+        self.accumulate = accumulate
         self._linops = nn.ModuleList(list(linops))
         self._setup_indices(idim, odim)
 
@@ -185,6 +193,7 @@ class Concat(NamedLinop):
                 reduce_fn=lambda ys: torch.concatenate(ys, dim=odim_idx),
                 threaded=concat.threaded,
                 num_workers=concat.num_workers,
+                accumulate=concat.accumulate,
             )
 
         # Horizontal
@@ -195,6 +204,7 @@ class Concat(NamedLinop):
             reduce_fn=sum,
             threaded=concat.threaded,
             num_workers=concat.num_workers,
+            accumulate=concat.accumulate,
         )
 
     def size(self, dim):
