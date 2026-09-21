@@ -82,7 +82,7 @@ def parallel_execute(
         if accumulate:
             output = None
             for linop, x in zip(linops, inputs):
-                y = linop(x, context)
+                y = reduce_fn([linop(x, context)])
                 if output is None:
                     output = y
                 else:
@@ -100,10 +100,12 @@ def parallel_execute(
         num_workers = num_workers if num_workers is not None else len(linops)
         output = None
         for start_job, end_job in batch_iterator(len(linops), num_workers):
-            # Clear old results
-            results: list[Optional[Tensor]] = [None] * num_workers
-            results_idxs = range(num_workers)
-            idxs = range(start_job, end_job + 1)
+            # batch_iterator yields [start, end) ranges; the final chunk may
+            # be shorter than num_workers.
+            n_jobs = end_job - start_job
+            results: list[Optional[Tensor]] = [None] * n_jobs
+            results_idxs = range(n_jobs)
+            idxs = range(start_job, end_job)
 
             with ThreadPoolExecutor(
                 max_workers=num_workers, initializer=thread_initializer
