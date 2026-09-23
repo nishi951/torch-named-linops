@@ -21,8 +21,6 @@ class FFT(NamedLinop):
         Number of spatial dimensions to transform.
     centered : bool
         Whether to treat the array center as the origin (sigpy convention).
-    method : str
-        The approach to use to center the array if desired.
     """
 
     def __init__(
@@ -31,7 +29,6 @@ class FFT(NamedLinop):
         batch_shape: Optional[Shape] = None,
         grid_shapes: Optional[tuple[Shape, Shape]] = None,
         centered: bool = False,
-        centered_method: str = "modulate",
     ):
         """
         Parameters
@@ -48,10 +45,6 @@ class FFT(NamedLinop):
         centered : bool, default False
             If ``True``, treat the center of the array (``N // 2``) as the
             origin. Mimics sigpy convention.
-        centered_method : "shift" or "modulate"
-            The method to use to computed the centered FFT.
-            "modulate" - uses phase ramps to apply shifts memory-efficiently.
-            "shift" - raw fftshift
         """
         self.ndim = ndim
         self.dim = tuple(range(-self.ndim, 0))
@@ -74,7 +67,6 @@ class FFT(NamedLinop):
         self._shape.input_grid_shape = grid_shapes[0]
         self._shape.output_grid_shape = grid_shapes[1]
         self.centered = centered
-        self.method = centered_method
 
     @property
     def batch_shape(self):
@@ -83,13 +75,13 @@ class FFT(NamedLinop):
     @staticmethod
     def fn(linop, x):
         if linop.centered:
-            return cfftn(x, linop.dim, "ortho", linop.method)
+            return cfftn(x, linop.dim, "ortho")
         return fft.fftn(x, dim=linop.dim, norm="ortho")
 
     @staticmethod
     def adj_fn(linop, x):
         if linop.centered:
-            return cifftn(x, linop.dim, "ortho", linop.method)
+            return cifftn(x, linop.dim, "ortho")
         return fft.ifftn(x, dim=linop.dim, norm="ortho")
 
     @staticmethod

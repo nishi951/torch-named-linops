@@ -1,10 +1,8 @@
-"""Linop-level tests for FFT centered_method ("shift" vs "modulate").
+"""Linop-level tests for FFT centered method.
 
 The utils-level tests (src/torchlinops/utils/tests/test_cfft.py) check cfftn/
-cifftn directly; these check the FFT NamedLinop wiring: default method, forward
-and adjoint agreement across parities, dtype, and error surfacing. The
-modulate path is the default (FFT.__init__), so every centered FFT in the
-library — including NUFFT's interp pipeline (nufft.py) — flows through it.
+cifftn directly; these check the FFT NamedLinop wiring: forward and adjoint
+agreement across parities and dtype.
 """
 
 import pytest
@@ -20,13 +18,8 @@ SHAPES = [
 ]
 
 
-def _linop(method, shape):
-    return FFT(ndim=len(shape), centered=True, centered_method=method)
-
-
-@pytest.mark.parametrize("method", ["shift", "modulate"])
 @pytest.mark.parametrize("shape", SHAPES)
-def test_forward_matches_manual_sandwich(method, shape):
+def test_forward_matches_manual_sandwich(shape):
     g = torch.Generator().manual_seed(0)
     x = (torch.randn(*shape, generator=g) + 1j * torch.randn(*shape, generator=g)).to(
         torch.complex64
@@ -35,7 +28,8 @@ def test_forward_matches_manual_sandwich(method, shape):
         torch.fft.fftn(torch.fft.ifftshift(x), dim=(0, 1, 2), norm="ortho"),
         dim=(0, 1, 2),
     )
-    y = _linop(method, shape)(x)
+    F = FFT(ndim=len(shape), centered=True)
+    y = F(x)
     assert y.dtype == torch.complex64
     assert torch.allclose(y, manual, rtol=1e-5, atol=1e-5)
 
@@ -50,8 +44,8 @@ def test_adjoint_matches_manual_sandwich(shape):
         torch.fft.ifftn(torch.fft.ifftshift(y), dim=(0, 1, 2), norm="ortho"),
         dim=(0, 1, 2),
     )
-    assert torch.allclose(_linop("modulate", shape).H(y), manual, rtol=1e-5, atol=1e-5)
-    assert torch.allclose(_linop("shift", shape).H(y), manual, rtol=1e-5, atol=1e-5)
+    F = FFT(ndim=len(shape), centered=True)
+    assert torch.allclose(F.H(y), manual, rtol=1e-5, atol=1e-5)
 
 
 @pytest.mark.parametrize("shape", SHAPES)
@@ -60,13 +54,5 @@ def test_round_trip_identity(shape):
     x = (torch.randn(*shape, generator=g) + 1j * torch.randn(*shape, generator=g)).to(
         torch.complex64
     )
-    for method in ("shift", "modulate"):
-        F = _linop(method, shape)
-        assert torch.allclose(F.H(F(x)), x, rtol=1e-4, atol=1e-4), method
-
-
-def test_unknown_method_raises_through_linop():
-    F = FFT(ndim=1, centered=True, centered_method="banana")
-    x = torch.randn(5).to(torch.complex64)
-    with pytest.raises(ValueError, match="method"):
-        F(x)
+    F = FFT(ndim=len(shape), centered=True)
+    assert torch.allclose(F.H(F(x)), x, rtol=1e-4, atol=1e-4)
