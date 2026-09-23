@@ -89,13 +89,13 @@ class TilingStrategy:
         return self.devices.index(resolve_device(dev))
 
     def place_all(self, dev: torch.device, roles=ALL_DEVICE_ROLES):
-        """Assign all_DEVICE_ROLES tiles role(s) to a single device."""
+        """Assign all tiles role(s) to a single device."""
         for r in roles:
             self.tiles[..., r] = self._d(dev)
         return self
 
     def distribute_across_devices(self, axis: ND, roles=ALL_DEVICE_ROLES):
-        """Along a single axis, distribute the tiles evenly across all_DEVICE_ROLES devices."""
+        """Along a single axis, distribute the tiles evenly across all devices."""
         ax = self.axes.index(axis)
         idx = np.arange(self.shape[ax]) % len(self.devices)
         idx = np.expand_dims(idx, [a for a in range(len(self.shape)) if a != ax])
@@ -250,7 +250,7 @@ def create_batched_linop_v2(linop, strategies: list[TilingStrategy], **options):
 
 @dataclass(frozen=True)
 class ResolvedBatchSpec:
-    """Resolved batch specification with all_DEVICE_ROLES computed values.
+    """Resolved batch specification with all computed values.
 
     This is a frozen dataclass returned by BatchSpec.resolve() containing
     the fully computed device matrix and base device.
@@ -290,7 +290,7 @@ class BatchSpec:
     base_device: torch.device | None = None
 
     def resolve(self, linop, default_device: torch.device) -> ResolvedBatchSpec:
-        """Return a new ResolvedBatchSpec with all_DEVICE_ROLES fields filled in.
+        """Return a new ResolvedBatchSpec with all fields filled in.
 
         Parameters
         ----------
@@ -582,7 +582,7 @@ def _split_linop_with_tile(linop: NamedLinop, tile: Tile):
 
 
 def _tile_get_idx(tile: Tile, batch_dims) -> tuple[int]:
-    """Get all_DEVICE_ROLES indices from the tile"""
+    """Get all indices from the tile"""
     return tuple(tile.get(dim, DEFAULT_BATCH)[0] for dim in batch_dims)
 
 
