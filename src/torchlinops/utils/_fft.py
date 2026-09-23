@@ -29,11 +29,7 @@ def cfftn(x, dim=None, norm="ortho", method="shift"):
         (no normalization).
     method : str
     """
-    if method == "shift":
-        return CenteredFFTFn.apply(x, dim, norm)
-    elif method == "modulate":
-        return _cfftn_modulate(x, dim, norm)
-    raise ValueError(f"method must be 'shift' or 'modulate', got {method!r}")
+    return CenteredFFTFn.apply(x, dim, norm, method)
 
 
 def cifftn(x, dim=None, norm="ortho", method="shift"):
@@ -58,28 +54,7 @@ def cifftn(x, dim=None, norm="ortho", method="shift"):
         is required to make ifft() the exact inverse. Default is "backward"
         (normalize by 1/n).
     """
-
-    if method == "shift":
-        return CenteredIFFTFn.apply(x, dim, norm)
-    elif method == "modulate":
-        return _cifftn_modulate(x, dim, norm)
-    raise ValueError(f"method must be 'shift' or 'modulate', got {method!r}")
-
-
-def _cfftn(x, dim, norm):
-    """Centered fft, shift method."""
-    x = fft.ifftshift(x, dim=dim)
-    x = fft.fftn(x, dim=dim, norm=norm)
-    x = fft.fftshift(x, dim=dim)
-    return x
-
-
-def _cifftn(x, dim, norm):
-    """Centered ifft, shift method"""
-    x = fft.ifftshift(x, dim=dim)
-    x = fft.ifftn(x, dim=dim, norm=norm)
-    x = fft.fftshift(x, dim=dim)
-    return x
+    return CenteredIFFTFn.apply(x, dim, norm, method)
 
 
 class CenteredFFTFn(Function):
@@ -90,12 +65,13 @@ class CenteredFFTFn(Function):
         x: Tensor,
         dim: tuple[int, ...],
         norm: str,
+        method: str,
     ) -> Tensor:
-        return _cfftn(x, dim, norm)
+        return _cfftn(x, dim, norm, method)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        _, ctx.dim, ctx.norm = inputs
+        _, ctx.dim, ctx.norm, ctx.method = inputs
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -108,7 +84,12 @@ class CenteredFFTFn(Function):
             backward_norm = "ortho"
         else:
             raise ValueError(f"Unknown fft normalization: {ctx.norm}")
-        return _cifftn(grad_output, ctx.dim, backward_norm), None, None
+        return (
+            _cifftn(grad_output, ctx.dim, backward_norm, ctx.method),
+            None,
+            None,
+            None,
+        )
 
 
 class CenteredIFFTFn(Function):
@@ -119,12 +100,13 @@ class CenteredIFFTFn(Function):
         x: Tensor,
         dim: tuple[int, ...],
         norm: str,
+        method: str,
     ) -> Tensor:
-        return _cifftn(x, dim, norm)
+        return _cifftn(x, dim, norm, method)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        _, ctx.dim, ctx.norm = inputs
+        _, ctx.dim, ctx.norm, ctx.method = inputs
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -137,11 +119,49 @@ class CenteredIFFTFn(Function):
             backward_norm = "ortho"
         else:
             raise ValueError(f"Unknown ifft normalization: {ctx.norm}")
-        return _cfftn(grad_output, ctx.dim, backward_norm), None, None
+        return (
+            _cfftn(grad_output, ctx.dim, backward_norm, ctx.method),
+            None,
+            None,
+            None,
+        )
+
+
+def _cfftn(x, dim, norm, method):
+    if method == "shift":
+        return _cfftn_shift(x, dim, norm)
+    elif method == "modulate":
+        return _cfftn_modulate(x, dim, norm)
+    raise ValueError(f"method must be 'shift' or 'modulate', got {method!r}")
+
+
+def _cifftn(x, dim, norm, method):
+    if method == "shift":
+        return _cifftn_shift(x, dim, norm)
+    elif method == "modulate":
+        return _cifftn_modulate(x, dim, norm)
+    raise ValueError(f"method must be 'shift' or 'modulate', got {method!r}")
+
+
+def _cfftn_shift(x, dim, norm):
+    """Centered fft, shift method."""
+    x = fft.ifftshift(x, dim=dim)
+    x = fft.fftn(x, dim=dim, norm=norm)
+    x = fft.fftshift(x, dim=dim)
+    return x
+
+
+def _cifftn_shift(x, dim, norm):
+    """Centered ifft, shift method"""
+    x = fft.ifftshift(x, dim=dim)
+    x = fft.ifftn(x, dim=dim, norm=norm)
+    x = fft.fftshift(x, dim=dim)
+    return x
 
 
 def _cfftn_modulate(x, dim, norm):
     """Centered fft, modulate method."""
+    x = x.to(_complex_dtype(x))
     if dim is None:
         dim = tuple(range(x.ndim))
     for d in dim:
@@ -167,6 +187,7 @@ def _cifftn_modulate(x, dim, norm):
     fold modulations are the conjugates of the cfft ones (not their negation:
     ``-exp(i*theta) != exp(-i*theta)``).
     """
+    x = x.to(_complex_dtype(x))
     if dim is None:
         dim = tuple(range(x.ndim))
     for d in dim:
@@ -228,6 +249,7 @@ def _fftshift_phase_ramp(N: int, mode="fftshift", dtype=torch.complex128, device
 def _mul1d_at_dim(input_nd, input_1d, i: int):
     """Multiply the ith axis of input_nd by input_1d.
     Shapes must work out.
+    Inplace multiplication for memory benefits.
     """
     # 1. Build a dynamic shape list: [1, 1, C, 1]
     # It places 1 everywhere, except at index 'i' where it places C
@@ -235,7 +257,7 @@ def _mul1d_at_dim(input_nd, input_1d, i: int):
     broadcast_shape[i] = input_nd.shape[i]
 
     # 2. Reshape and multiply
-    result = input_nd * input_1d.view(broadcast_shape)
+    result = input_nd.mul_(input_1d.view(broadcast_shape))
     return result
 
 
