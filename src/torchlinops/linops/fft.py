@@ -13,18 +13,16 @@ from .namedlinop import NamedLinop
 class FFT(NamedLinop):
     """$n$-dimensional Fast Fourier Transform as a named linear operator.
 
-    With ``norm="ortho"`` (the default), the FFT is unitary: $F^H F = I$.
-    This means the normal operator is the identity and the adjoint is the
-    inverse FFT.
+    Uses orthogonal normalization for true adjoint behavior.
 
     Attributes
     ----------
     ndim : int
         Number of spatial dimensions to transform.
-    norm : str or None
-        FFT normalization mode.
     centered : bool
         Whether to treat the array center as the origin (sigpy convention).
+    method : str
+        The approach to use to center the array if desired.
     """
 
     def __init__(
@@ -32,7 +30,6 @@ class FFT(NamedLinop):
         ndim: int,
         batch_shape: Optional[Shape] = None,
         grid_shapes: Optional[tuple[Shape, Shape]] = None,
-        norm: Optional[str] = "ortho",
         centered: bool = False,
         centered_method: str = "modulate",
     ):
@@ -48,9 +45,6 @@ class FFT(NamedLinop):
             Pair of shapes ``(primal, dual)`` naming the input (image-space)
             and output (k-space) grid dimensions. Defaults to
             ``(Nx[, Ny[, Nz]])`` and ``(Kx[, Ky[, Kz]])``.
-        norm : str or None, default ``"ortho"``
-            Normalization applied to the FFT. Only ``"ortho"`` gives a true
-            unitary forward/adjoint pair.
         centered : bool, default False
             If ``True``, treat the center of the array (``N // 2``) as the
             origin. Mimics sigpy convention.
@@ -79,7 +73,6 @@ class FFT(NamedLinop):
         self._shape.batch_shape = batch_shape
         self._shape.input_grid_shape = grid_shapes[0]
         self._shape.output_grid_shape = grid_shapes[1]
-        self.norm = norm
         self.centered = centered
         self.method = centered_method
 
@@ -90,14 +83,14 @@ class FFT(NamedLinop):
     @staticmethod
     def fn(linop, x):
         if linop.centered:
-            return cfftn(x, linop.dim, linop.norm, linop.method)
-        return fft.fftn(x, dim=linop.dim, norm=linop.norm)
+            return cfftn(x, linop.dim, "ortho", linop.method)
+        return fft.fftn(x, dim=linop.dim, norm="ortho")
 
     @staticmethod
     def adj_fn(linop, x):
         if linop.centered:
-            return cifftn(x, linop.dim, linop.norm, linop.method)
-        return fft.ifftn(x, dim=linop.dim, norm=linop.norm)
+            return cifftn(x, linop.dim, "ortho", linop.method)
+        return fft.ifftn(x, dim=linop.dim, norm="ortho")
 
     @staticmethod
     def normal_fn(linop, x):

@@ -1,6 +1,7 @@
 import torch
 import torch.fft as fft
 from torch import Tensor
+from torch.autograd import Function
 
 __all__ = ["cfft", "cifft", "cfft2", "cifft2", "cfftn", "cifftn"]
 
@@ -29,7 +30,7 @@ def cfftn(x, dim=None, norm="ortho", method="shift"):
     method : str
     """
     if method == "shift":
-        return _cfftn(x, dim, norm)
+        return CenteredFFTFn.apply(x, dim, norm)
     elif method == "modulate":
         return _cfftn_modulate(x, dim, norm)
     raise ValueError(f"method must be 'shift' or 'modulate', got {method!r}")
@@ -59,7 +60,7 @@ def cifftn(x, dim=None, norm="ortho", method="shift"):
     """
 
     if method == "shift":
-        return _cifftn(x, dim, norm)
+        return CenteredIFFTFn.apply(x, dim, norm)
     elif method == "modulate":
         return _cifftn_modulate(x, dim, norm)
     raise ValueError(f"method must be 'shift' or 'modulate', got {method!r}")
@@ -79,6 +80,64 @@ def _cifftn(x, dim, norm):
     x = fft.ifftn(x, dim=dim, norm=norm)
     x = fft.fftshift(x, dim=dim)
     return x
+
+
+class CenteredFFTFn(Function):
+    """Memory-efficient centered fftn."""
+
+    @staticmethod
+    def forward(
+        x: Tensor,
+        dim: tuple[int, ...],
+        norm: str,
+    ) -> Tensor:
+        return _cfftn(x, dim, norm)
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        _, ctx.dim, ctx.norm = inputs
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        # Swap normalization mode to achieve adjoint behavior
+        if ctx.norm == "forward":
+            backward_norm = "backward"
+        elif ctx.norm == "backward":
+            backward_norm = "forward"
+        elif ctx.norm == "ortho":
+            backward_norm = "ortho"
+        else:
+            raise ValueError(f"Unknown fft normalization: {ctx.norm}")
+        return _cifftn(grad_output, ctx.dim, backward_norm), None, None
+
+
+class CenteredIFFTFn(Function):
+    """Equal to ungrid"""
+
+    @staticmethod
+    def forward(
+        x: Tensor,
+        dim: tuple[int, ...],
+        norm: str,
+    ) -> Tensor:
+        return _cifftn(x, dim, norm)
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        _, ctx.dim, ctx.norm = inputs
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        # Swap normalization mode to achieve adjoint behavior
+        if ctx.norm == "forward":
+            backward_norm = "backward"
+        elif ctx.norm == "backward":
+            backward_norm = "forward"
+        elif ctx.norm == "ortho":
+            backward_norm = "ortho"
+        else:
+            raise ValueError(f"Unknown ifft normalization: {ctx.norm}")
+        return _cfftn(grad_output, ctx.dim, backward_norm), None, None
 
 
 def _cfftn_modulate(x, dim, norm):

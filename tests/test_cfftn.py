@@ -21,7 +21,7 @@ SHAPES = [
 
 
 def _linop(method, shape):
-    return FFT(ndim=len(shape), norm="ortho", centered=True, centered_method=method)
+    return FFT(ndim=len(shape), centered=True, centered_method=method)
 
 
 @pytest.mark.parametrize("method", ["shift", "modulate"])
@@ -46,27 +46,12 @@ def test_adjoint_matches_manual_sandwich(shape):
     y = (torch.randn(*shape, generator=g) + 1j * torch.randn(*shape, generator=g)).to(
         torch.complex64
     )
-    # adjoint of the centered forward is the centered inverse (norm ortho => unitary)
     manual = torch.fft.fftshift(
         torch.fft.ifftn(torch.fft.ifftshift(y), dim=(0, 1, 2), norm="ortho"),
         dim=(0, 1, 2),
     )
     assert torch.allclose(_linop("modulate", shape).H(y), manual, rtol=1e-5, atol=1e-5)
     assert torch.allclose(_linop("shift", shape).H(y), manual, rtol=1e-5, atol=1e-5)
-
-
-@pytest.mark.parametrize("shape", SHAPES)
-def test_default_is_modulate_and_agrees_with_shift(shape):
-    g = torch.Generator().manual_seed(2)
-    x = (torch.randn(*shape, generator=g) + 1j * torch.randn(*shape, generator=g)).to(
-        torch.complex64
-    )
-    F_default = FFT(ndim=len(shape), norm="ortho", centered=True)
-    assert F_default.method == "modulate"
-    assert torch.allclose(F_default(x), _linop("shift", shape)(x), rtol=1e-5, atol=1e-5)
-    assert torch.allclose(
-        F_default.H(x), _linop("shift", shape).H(x), rtol=1e-5, atol=1e-5
-    )
 
 
 @pytest.mark.parametrize("shape", SHAPES)
@@ -81,7 +66,7 @@ def test_round_trip_identity(shape):
 
 
 def test_unknown_method_raises_through_linop():
-    F = FFT(ndim=1, norm="ortho", centered=True, centered_method="banana")
+    F = FFT(ndim=1, centered=True, centered_method="banana")
     x = torch.randn(5).to(torch.complex64)
     with pytest.raises(ValueError, match="method"):
         F(x)

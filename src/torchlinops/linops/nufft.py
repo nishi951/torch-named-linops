@@ -134,7 +134,6 @@ class NUFFT(Chain):
         fft = FFT(
             ndim=locs.shape[-1],
             centered=True,
-            norm="ortho",
             batch_shape=self.batch_shape,
             grid_shapes=(pad.out_im_shape, self.input_kshape),
         )
