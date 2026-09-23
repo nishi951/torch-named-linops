@@ -13,6 +13,7 @@ from torchlinops.utils import (
     batch_iterator,
     default_to,
     dict_product,
+    resolve_device,
 )
 
 from ..nameddim import NamedDimension as ND
@@ -43,7 +44,6 @@ class DeviceRole(IntEnum):
 
 
 ALL_DEVICE_ROLES = tuple(DeviceRole)
-CHAIN_LENGTH = 3  # Maximum length of a ToDevice -> linop -> ToDevice chain
 
 
 class TilingStrategy:
@@ -80,13 +80,13 @@ class TilingStrategy:
     def __init__(self, bounds: dict[ND, list[int]], devices: list[torch.device]):
         self.axes = list(bounds.keys())
         self.bounds = bounds
-        self.devices = devices
+        self.devices = [resolve_device(dev) for dev in devices]
         self.shape = tuple(len(b) - 1 for b in bounds.values())
         self.tiles = np.zeros(self.shape + (len(DeviceRole),), dtype=int)
 
     def _d(self, dev: torch.device) -> int:
         """Get the index of a device."""
-        return self.devices.index(dev)
+        return self.devices.index(resolve_device(dev))
 
     def place_all(self, dev: torch.device, roles=ALL_DEVICE_ROLES):
         """Assign all_DEVICE_ROLES tiles role(s) to a single device."""
@@ -120,7 +120,7 @@ class TilingStrategy:
         }
 
     def transfers(self, src=DeviceRole.IN, dst=DeviceRole.COMPUTE, axes=None):
-        """(tile, from_dev, to_dev, size) for every tile whose data must move."""
+        """(tile, from_dev, to_dev) for every tile whose data must move."""
         a, b = self.tiles[..., src], self.tiles[..., dst]
         return [
             (t, self.devices[a[t]], self.devices[b[t]])
@@ -128,7 +128,7 @@ class TilingStrategy:
         ]
 
     def split(self, linop):
-        """Apply the schedule to a linop, returning tiled linops wrapped with device movement linops"""
+        """Apply the schedule to a linop, returning tiled linops alongside device movement linops."""
         # Create memory map
         mmap = ModuleMemoryMap()
         mmap.register_module(linop)
@@ -136,9 +136,9 @@ class TilingStrategy:
         # Split the linop into tiles
         linops = self._linop_to_tile_array(linop)
 
-        output = np.empty(self.shape, type=object)
-        pre = np.empty(self.shape, type=object)
-        post = np.empty(self.shape, type=object)
+        output = np.empty(self.shape, dtype=object)
+        pre = np.empty(self.shape, dtype=object)
+        post = np.empty(self.shape, dtype=object)
         # Iterate through each tile
         for tile_index in np.ndindex(self.shape):
             tiled_linop = linops[tile_index]
@@ -169,11 +169,12 @@ class TilingStrategy:
         return output, pre, post
 
     def wrap(self, linops, pre, post):
+        """Wrap the linops in the device movement linops."""
         if linops.shape != pre.shape or linops.shape != post.shape:
             raise ValueError(
                 f"All input arrays must have same shape but got linops: {linops.shape}, pre: {pre.shape}, post: {post.shape}"
             )
-        output = np.empty(linops.shape, type=object)
+        output = np.empty(linops.shape, dtype=object)
         for idx in np.ndindex(self.shape):
             wrapped = []
             if pre[idx] is not None:
@@ -189,6 +190,7 @@ class TilingStrategy:
         return output
 
     def schedule(self, linops: np.ndarray, **options):
+        """Schedule linops alongside each other using Concat and Add."""
         # Resolve concurrency options
         copt = dict(
             threaded=options.get("threaded", _THREADED_DEFAULT),
@@ -222,7 +224,7 @@ class TilingStrategy:
 
     def _linop_to_tile_array(self, linop) -> np.ndarray:
         """Extract the actual linops using the tiles."""
-        output = np.empty(self.shape, type=object)
+        output = np.empty(self.shape, dtype=object)
         for tile_index in np.ndindex(self.shape):
             slices = {}
             for dim, i in zip(self.axes, tile_index):
