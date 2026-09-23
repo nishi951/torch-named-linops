@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import IntEnum
 from math import ceil
 from typing import Optional
 from warnings import warn
@@ -12,6 +13,7 @@ from torchlinops.utils import (
     batch_iterator,
     default_to,
     dict_product,
+    resolve_device,
 )
 
 from ..nameddim import NamedDimension as ND
@@ -28,6 +30,222 @@ Batch = tuple[int, slice]
 # Could convert to a full class
 DEFAULT_BATCH = (0, slice(None))
 Tile = dict[ND | str, Batch]
+
+
+class DeviceRole(IntEnum):
+    """The role of a compute device for a particular tile."""
+
+    IN = 0
+    """Input device"""
+    COMPUTE = 1
+    """Compute device"""
+    OUT = 2
+    """Output device"""
+
+
+ALL_DEVICE_ROLES = tuple(DeviceRole)
+
+
+class TilingStrategy:
+    """Encodes a strategy for splitting a linop across one or more devices.
+
+    Each linop is split into tiles along the `axes`, specified as NamedDimensions
+
+    Furthermore, each tile has three "roles" that a device can play:
+       - IN (index 0): the device containing the input data for that tile.
+       - COMPUTE (index 1): the device on which that tile's computation will occur.
+       - OUT (index 2): the device where the output of the tile's computation will be sent to.
+
+
+    Attributes
+    ----------
+    axes : list[ND]
+        The NamedDimensions used to partition the linop into tiles.
+    bounds : dict[ND, list[int]]
+        The edges of each tile, along each axis.
+        Example: for a linop with shape (A, B) = (10, 45), we might partition it into 6 tiles as:
+            bounds[A] = [0, 5, 10]
+            bounds[B] = [0, 15, 30, 45]
+        This creates 6 tiles, each one of size [5, 15]
+    devices : list[torch.device]
+        The list of possible devices to map tiles to.
+    shape : tuple[int, ...]
+        The tile dimension along each axis.
+        In the example above with (A, B), we would have shape = (2, 3)
+    tiles : np.ndarray[int]
+        The mapping itself. maps a tile index + role to an index into `devices`.`
+        tiles[idx + (role,)] = device_index
+    """
+
+    def __init__(self, bounds: dict[ND, list[int]], devices: list[torch.device]):
+        self.axes = list(bounds.keys())
+        self.bounds = bounds
+        self.devices = [resolve_device(dev) for dev in devices]
+        self.shape = tuple(len(b) - 1 for b in bounds.values())
+        self.tiles = np.zeros(self.shape + (len(DeviceRole),), dtype=int)
+
+    def _d(self, dev: torch.device) -> int:
+        """Get the index of a device."""
+        return self.devices.index(resolve_device(dev))
+
+    def place_all(self, dev: torch.device, roles=ALL_DEVICE_ROLES):
+        """Assign all tiles role(s) to a single device."""
+        for r in roles:
+            self.tiles[..., r] = self._d(dev)
+        return self
+
+    def distribute_across_devices(self, axis: ND, roles=ALL_DEVICE_ROLES):
+        """Along a single axis, distribute the tiles evenly across all devices."""
+        ax = self.axes.index(axis)
+        idx = np.arange(self.shape[ax]) % len(self.devices)
+        idx = np.expand_dims(idx, [a for a in range(len(self.shape)) if a != ax])
+        for r in roles:
+            self.tiles[..., r] = idx
+        return self
+
+    def copy_role(self, src: DeviceRole, dst: DeviceRole):  # e.g. OUT follows COMPUTE
+        """Copy the device from a role of each tiles to another role for each tile."""
+        self.tiles[..., dst] = self.tiles[..., src]
+        return self
+
+    def device_of(self, tile_index, role: DeviceRole):
+        """Get the device for a particular tile's role."""
+        return self.devices[self.tiles[tuple(tile_index) + (role,)]]
+
+    def tiles_on(self, dev: torch.device, role=None):
+        """Return {role: [tiles]} for one role, or for every role if role is None."""
+        roles = ALL_DEVICE_ROLES if role is None else (role,)
+        return {
+            r: list(zip(*np.nonzero(self.tiles[..., r] == self._d(dev)))) for r in roles
+        }
+
+    def transfers(self, src=DeviceRole.IN, dst=DeviceRole.COMPUTE, axes=None):
+        """(tile, from_dev, to_dev) for every tile whose data must move."""
+        a, b = self.tiles[..., src], self.tiles[..., dst]
+        return [
+            (t, self.devices[a[t]], self.devices[b[t]])
+            for t in zip(*np.nonzero(a != b))
+        ]
+
+    def split(self, linop):
+        """Apply the schedule to a linop, returning tiled linops alongside device movement linops."""
+        # Create memory map
+        mmap = ModuleMemoryMap()
+        mmap.register_module(linop)
+
+        # Split the linop into tiles
+        linops = self._linop_to_tile_array(linop)
+
+        output = np.empty(self.shape, dtype=object)
+        pre = np.empty(self.shape, dtype=object)
+        post = np.empty(self.shape, dtype=object)
+        # Iterate through each tile
+        for tile_index in np.ndindex(self.shape):
+            tiled_linop = linops[tile_index]
+            source_device = self.device_of(tile_index, DeviceRole.IN)
+            compute_device = self.device_of(tile_index, DeviceRole.COMPUTE)
+            target_device = self.device_of(tile_index, DeviceRole.OUT)
+
+            # Move linop to device
+            tiled_linop = mmap.memory_aware_to(tiled_linop, compute_device)
+
+            output[tile_index] = tiled_linop
+            if source_device != compute_device:
+                pre[tile_index] = ToDevice(
+                    source_device,
+                    compute_device,
+                    ioshape=tiled_linop.ishape,
+                )
+            else:
+                pre[tile_index] = None
+            if compute_device != target_device:
+                post[tile_index] = ToDevice(
+                    compute_device,
+                    target_device,
+                    ioshape=tiled_linop.oshape,
+                )
+            else:
+                post[tile_index] = None
+        return output, pre, post
+
+    def wrap(self, linops, pre, post):
+        """Wrap the linops in the device movement linops."""
+        if linops.shape != pre.shape or linops.shape != post.shape:
+            raise ValueError(
+                f"All input arrays must have same shape but got linops: {linops.shape}, pre: {pre.shape}, post: {post.shape}"
+            )
+        output = np.empty(linops.shape, dtype=object)
+        for idx in np.ndindex(self.shape):
+            wrapped = []
+            if pre[idx] is not None:
+                wrapped.append(pre[idx])
+            wrapped.append(linops[idx])
+            if post[idx] is not None:
+                wrapped.append(post[idx])
+
+            if len(wrapped) > 1:
+                output[idx] = Chain(*wrapped)
+            else:
+                output[idx] = wrapped[0]
+        return output
+
+    def schedule(self, linops: np.ndarray, **options):
+        """Schedule linops alongside each other using Concat and Add."""
+        # Resolve concurrency options
+        copt = dict(
+            threaded=options.get("threaded", _THREADED_DEFAULT),
+            num_workers=options.get("num_workers", _NUM_WORKERS_DEFAULT),
+            accumulate=options.get("accumulate", _ACCUMULATE_DEFAULT),
+        )
+
+        for dim in reversed(self.axes):
+            # Manual axis reduction because I made Concat and Add too nice
+            flat_linops = linops.reshape(-1, linops.shape[-1])
+            new_linops = np.empty(flat_linops.shape[0], dtype=object)
+            for i, linop_arr in enumerate(flat_linops):
+                linop = linop_arr[0]
+                # Ignore types because **kwargs confuses things.
+                if dim in linop.ishape and dim in linop.oshape:
+                    new_linop = Concat(*linop_arr, idim=dim, odim=dim, **copt)  # type: ignore
+                elif dim not in linop.ishape and dim in linop.oshape:
+                    new_linop = Concat(*linop_arr, odim=dim, **copt)  # type: ignore
+                elif dim in linop.ishape and dim not in linop.oshape:
+                    new_linop = Concat(*linop_arr, idim=dim, **copt)  # type: ignore
+                else:
+                    new_linop = Add(*linop_arr, **copt)  # type: ignore
+                new_linops[i] = new_linop
+            linops = new_linops.reshape(linops.shape[:-1])
+        linop = linops.item()
+        return linop
+
+    def apply(self, linop, **options):
+        """Split -> wrap -> schedule"""
+        return self.schedule(self.wrap(*self.split(linop)), **options)
+
+    def _linop_to_tile_array(self, linop) -> np.ndarray:
+        """Extract the actual linops using the tiles."""
+        output = np.empty(self.shape, dtype=object)
+        for tile_index in np.ndindex(self.shape):
+            slices = {}
+            for dim, i in zip(self.axes, tile_index):
+                lower = self.bounds[dim][i]
+                upper = self.bounds[dim][i + 1]
+                slices[dim] = slice(lower, upper)
+            output[tile_index] = linop.split(linop, slices)
+        return output
+
+
+def create_batched_linop_v2(linop, strategies: list[TilingStrategy], **options):
+    if len(strategies) == 0:
+        return linop
+    strategy = strategies[0]
+    linops, pre, post = strategy.split(linop)
+    for linop_idx in np.ndindex(linops.shape):
+        # in-place replacement
+        linops[linop_idx] = create_batched_linop_v2(
+            linops[linop_idx], strategies[1:], **options
+        )
+    return strategy.schedule(strategy.wrap(linops, pre, post), **options)
 
 
 @dataclass(frozen=True)
