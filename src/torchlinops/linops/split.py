@@ -77,7 +77,7 @@ class TilingStrategy:
         tiles[idx + (role,)] = device_index
     """
 
-    def __init__(self, bounds: dict[ND, list[int]], devices: list[torch.device]):
+    def __init__(self, bounds: dict[ND | str, list[int]], devices: list[torch.device]):
         self.axes = list(bounds.keys())
         self.bounds = bounds
         self.devices = [resolve_device(dev) for dev in devices]
@@ -127,11 +127,22 @@ class TilingStrategy:
             for t in zip(*np.nonzero(a != b))
         ]
 
-    def split(self, linop):
-        """Apply the schedule to a linop, returning tiled linops alongside device movement linops."""
+    def split(self, linop, mmap=None, return_mmap=False):
+        """Apply the schedule to a linop, returning tiled linops alongside device movement linops.
+
+        Parameters
+        ----------
+        linop : NamedLinop
+            The linop to split
+        mmap : ModuleMemoryMap
+            Extra helper module for tracking module memory buffer locations.
+        return_mmap : bool
+            If True, also return the memory map used.
+        """
         # Create memory map
-        mmap = ModuleMemoryMap()
-        mmap.register_module(linop)
+        if mmap is None:
+            mmap = ModuleMemoryMap()
+            mmap.register_module(linop)
 
         # Split the linop into tiles
         linops = self._linop_to_tile_array(linop)
@@ -166,6 +177,8 @@ class TilingStrategy:
                 )
             else:
                 post[tile_index] = None
+        if return_mmap:
+            return output, pre, post, mmap
         return output, pre, post
 
     def wrap(self, linops, pre, post):
@@ -235,15 +248,17 @@ class TilingStrategy:
         return output
 
 
-def create_batched_linop_v2(linop, strategies: list[TilingStrategy], **options):
+def create_batched_linop_v2(
+    linop, strategies: list[TilingStrategy], mmap=None, **options
+):
     if len(strategies) == 0:
         return linop
     strategy = strategies[0]
-    linops, pre, post = strategy.split(linop)
+    linops, pre, post, mmap = strategy.split(linop, mmap, return_mmap=True)
     for linop_idx in np.ndindex(linops.shape):
         # in-place replacement
         linops[linop_idx] = create_batched_linop_v2(
-            linops[linop_idx], strategies[1:], **options
+            linops[linop_idx], strategies[1:], mmap, **options
         )
     return strategy.schedule(strategy.wrap(linops, pre, post), **options)
 
