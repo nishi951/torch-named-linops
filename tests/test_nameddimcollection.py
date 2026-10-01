@@ -1,7 +1,7 @@
 import pytest
 
 from torchlinops import ANY, NamedDimCollection
-from torchlinops.nameddim._matching import max_shape
+from torchlinops.nameddim._matching import max_shape, align
 
 
 def test_overwrite_any():
@@ -140,3 +140,21 @@ def test_override_with_ellipses():
 def test_repeated_ellipses_coalesce():
     ndc = NamedDimCollection(shape=("...", "..."), other_shape=("C", "D"))
     assert ndc.shape == ("...",)
+
+
+def test_update_shape_with_ellipsis_shrink():
+    """Regression test: updating a shape with ellipsis to a shorter shape.
+
+    When oldshape has more dims than newshape due to ellipsis expansion,
+    the update should correctly remove the extra dims without corrupting indices.
+    See: https://github.com/nishi951/torch-named-linops/issues/205
+    """
+    ndc = NamedDimCollection(
+        ishape=("...", "Nx", "Ny"),
+        oshape=("...", "C", "Nx", "Ny"),
+    )
+    # Update oshape to match ishape (removing "C")
+    ndc.oshape = ("...", "Nx", "Ny")
+    assert ndc.oshape == ("...", "Nx", "Ny")
+    # ishape should be unchanged
+    assert ndc.ishape == ("...", "Nx", "Ny")
