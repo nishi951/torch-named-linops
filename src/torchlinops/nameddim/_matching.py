@@ -181,6 +181,9 @@ def align(base_shape, new_shape):
     >>> align(("...", "Nx1", "Ny1"), ("...", "C", "Nx", "Ny"))
     ('...', 'C', 'Nx', 'Ny')
 
+    >>> align(("C", "C", "Nx", "Ny"), ("C", "C", "Nx1", "Ny1"))
+    ('C', 'C', 'Nx1', 'Ny1')
+
     """
     compatible, assignments = iscompatible(base_shape, new_shape)
 
@@ -189,9 +192,8 @@ def align(base_shape, new_shape):
             f"Shape incompatibilty detected in merge: {base_shape} not compatible with {new_shape}"
         )
     aligned_shape = []
-    for olddim in base_shape:
-        olddim_idx = base_shape.index(olddim)
-        dim_assignments = [new_shape[d] for d in assignments[olddim_idx]]
+    for i, olddim in enumerate(base_shape):
+        dim_assignments = [new_shape[d] for d in assignments[i]]
         if olddim == ELLIPSES:
             aligned_shape.append(olddim)
             aligned_shape.extend(dim_assignments)
