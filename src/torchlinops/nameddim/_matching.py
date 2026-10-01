@@ -3,16 +3,19 @@ from copy import deepcopy
 from typing import Any, Optional, Sequence, Tuple
 from warnings import warn
 
-from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
+from ._nameddim import ANY, ELLIPSES
+from ._nameddim import NamedDimension as ND
 
 __all__ = [
-    "partition",
+    "align",
+    "coalesce",
+    "is_any",
     "isequal",
     "iscompatible",
     "max_shape",
-    "standardize_shapes",
+    "partition",
     "resolve_wildcards",
-    "is_any",
+    "standardize_shapes",
 ]
 
 
@@ -160,6 +163,53 @@ def isequal(
     return True, assignments
 
 
+def align(base_shape, new_shape):
+    """Align base_shape to new_shape according to some rules.
+    base_shape -> new_shape
+    concrete -> concrete => replace (or keep if same)
+    concrete -> ellipses => keep
+    ellipses -> concrete => add concrete
+    ellipses -> ellipses => ellipses
+
+
+    Examples
+    --------
+    >>> align(("A", "B"), ("C", "D"))
+    ('C', 'D')
+    >>> align(("...", "C", "Nx", "Ny"), ("...", "Nx1", "Ny1"))
+    ('...', 'C', 'Nx1', 'Ny1')
+    >>> align(("...", "Nx1", "Ny1"), ("...", "C", "Nx", "Ny"))
+    ('...', 'C', 'Nx', 'Ny')
+
+    """
+    compatible, assignments = iscompatible(base_shape, new_shape)
+
+    if not compatible:
+        raise ValueError(
+            f"Shape incompatibilty detected in merge: {base_shape} not compatible with {new_shape}"
+        )
+    aligned_shape = []
+    for olddim in base_shape:
+        olddim_idx = base_shape.index(olddim)
+        dim_assignments = [new_shape[d] for d in assignments[olddim_idx]]
+        if olddim == ELLIPSES:
+            aligned_shape.append(olddim)
+            aligned_shape.extend(dim_assignments)
+        else:
+            if len(dim_assignments) != 1:
+                raise ValueError(
+                    f"During alignment, non-ellipses dim {olddim} received invalid number of assignment dims {dim_assignments}."
+                    + f"base_shape: {base_shape} new_shape: {new_shape}"
+                )
+            newdim = dim_assignments[0]
+            if newdim == ELLIPSES or is_any(newdim):
+                aligned_shape.append(olddim)
+            else:
+                aligned_shape.append(newdim)
+    aligned_shape = coalesce(aligned_shape, lambda x: x == ELLIPSES)
+    return tuple(aligned_shape)
+
+
 def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
     """Resolve wildcards in shape using target_shape via isequal assignment mapping.
 
@@ -293,6 +343,15 @@ def standardize_shapes(linops, shape):
         linop.ishape = shape.ishape
         linop.oshape = shape.oshape
     return linops
+
+
+def coalesce(lst, cond):
+    result = []
+    for x in lst:
+        if cond(x) and result and cond(result[-1]):
+            continue
+        result.append(x)
+    return result
 
 
 if __name__ == "__main__":
