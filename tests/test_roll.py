@@ -1,6 +1,6 @@
 import pytest
 import torch
-from torchlinops.functional import roll, fftshift, ifftshift
+from torchlinops.utils._roll import roll, fftshift, ifftshift
 
 
 def test_roll_fused():
