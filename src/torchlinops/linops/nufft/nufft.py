@@ -61,6 +61,13 @@ class NUFFT(NUFFTBase):
         "toeplitz_dtype": torch.complex64,
     }
 
+    def __init__(self, *args, **kwargs):
+        if "mode" in kwargs:
+            raise ValueError(
+                f"`mode` parameter was deprecated. Must now explicitly choose torchlinops.SamplingNUFFT or torchlinops.NUFFT."
+            )
+        super().__init__(*args, **kwargs)
+
     def build(self):
         grid_size = self.grid_size
         ndim = len(self.grid_size)
