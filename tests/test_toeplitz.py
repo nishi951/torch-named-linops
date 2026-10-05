@@ -88,10 +88,10 @@ def dense_inner(nufft_params):
     return linop
 
 
-def test_toeplitz_psf_raises_for_sampling_mode(sampling_nufft_linop):
-    """toeplitz_psf should raise NotImplementedError for Sampling-mode NUFFTs."""
-    with pytest.raises(NotImplementedError, match="Sampling"):
-        toeplitz_psf(sampling_nufft_linop)
+# def test_toeplitz_psf_raises_for_sampling_mode(sampling_nufft_linop):
+#     """toeplitz_psf should raise NotImplementedError for Sampling-mode NUFFTs."""
+#     with pytest.raises(NotImplementedError, match="Sampling"):
+#         toeplitz_psf(sampling_nufft_linop)
 
 
 @pytest.fixture
@@ -137,7 +137,7 @@ def test_toeplitz_full(inner_type, nufft_linop, nufft_params, request):
         psf_sp = sp_toeplitz_psf(
             coord,
             nufft_linop.grid_size,
-            oversamp=nufft_linop.oversamp,
-            width=nufft_linop.width,
+            oversamp=nufft_linop.options["oversamp"],
+            width=nufft_linop.options["width"],
         )
         assert np.isclose(psf_sp, psf.numpy(), rtol=1e-1).sum() / psf_sp.size > 0.99

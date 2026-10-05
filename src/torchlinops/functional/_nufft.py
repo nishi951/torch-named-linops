@@ -154,7 +154,7 @@ def init_nufft(grid_size, locs, oversamp, width, device):
 
     # Apodize weights
     beta = NUFFT.beta(width, oversamp)
-    apodize = NUFFT.apodize_weights(grid_size, padded_size, oversamp, width, beta)
+    apodize = NUFFT.apodize_weights(grid_size, padded_size, width, beta)
     apodize = apodize.to(device)
 
     # Pad Attrs

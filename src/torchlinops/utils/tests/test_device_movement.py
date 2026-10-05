@@ -113,11 +113,11 @@ def make_linop(trj, dcf, mps, nufft_width, nufft_oversamp, nufft_mode):
     )
     for p in range(P):
         # DCF
-        Dp = Diagonal(dcf[p], ioshape=Dim("CTK"), broadcast_dims=Dim("C"))
+        Dp = Diagonal(dcf[p], ioshape=Dim("CK"), broadcast_dims=Dim("C"))
         Fp = NUFFT(
             trj[p],
             im_size,
-            output_shape=Dim("TK"),
+            output_shape=Dim("K"),
             oversamp=nufft_oversamp,
             mode=nufft_mode,
         )
