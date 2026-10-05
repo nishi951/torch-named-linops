@@ -61,6 +61,9 @@ def toeplitz_psf(
         c1=tuple(w // 2 for w in new_width),
         w1=new_width,
     )
+    # new_locs is already scaled/shifted into the prepared interpolation
+    # coordinate system, so the reconstructed NUFFT must not re-prep locs
+    os_options = {**nufft.options, "skip_prep_locs": True}
     nufft_os = NUFFT(
         new_locs,
         grid_size=new_grid_size,
@@ -68,7 +71,7 @@ def toeplitz_psf(
         input_shape=nufft.input_shape,
         input_kshape=nufft.input_kshape,
         batch_shape=nufft.batch_shape,
-        **nufft.options,
+        **os_options,
     )
 
     # Initialize inner if not provided

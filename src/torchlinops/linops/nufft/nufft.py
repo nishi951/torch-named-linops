@@ -43,6 +43,8 @@ class NUFFT(NUFFTBase):
             Oversampling factor for fourier domain grid
         width : float
             Width of kernel to use for interpolation
+        skip_prep_locs : bool
+            Flag for skipping scaling/shifting/etc of locs
         toeplitz : bool
             If True, normal() performs toeplitz embedding calculation
         toeplitz_dtype : torch.dtype
@@ -64,12 +66,17 @@ class NUFFT(NUFFTBase):
         ndim = len(self.grid_size)
         padded_size = tuple(int(i * self.options["oversamp"]) for i in grid_size)
         self.padded_size = padded_size
-        locs_key = (self.locs, self.grid_size, self.padded_size)
-        if locs_key in self._locs_cache:
-            locs_prepared = self._locs_cache[locs_key]
+        if self.options.get("skip_prep_locs"):
+            locs_prepared = self.locs
         else:
-            locs_prepared = self.prep_locs(self.locs, self.grid_size, self.padded_size)
-            self._locs_cache[locs_key] = locs_prepared
+            locs_key = (self.locs, self.grid_size, self.padded_size)
+            if locs_key in self._locs_cache:
+                locs_prepared = self._locs_cache[locs_key]
+            else:
+                locs_prepared = self.prep_locs(
+                    self.locs, self.grid_size, self.padded_size
+                )
+                self._locs_cache[locs_key] = locs_prepared
         pad = Pad(
             self.padded_size,
             self.grid_size,
