@@ -72,20 +72,17 @@ class NUFFT(NUFFTBase):
         grid_size = self.grid_size
         ndim = len(self.grid_size)
         padded_size = tuple(int(i * self.options["oversamp"]) for i in grid_size)
-        self.padded_size = padded_size
         if self.options.get("skip_prep_locs"):
             locs_prepared = self.locs
         else:
-            locs_key = (self.locs, self.grid_size, self.padded_size)
+            locs_key = (self.locs, self.grid_size, padded_size)
             if locs_key in self._locs_cache:
                 locs_prepared = self._locs_cache[locs_key]
             else:
-                locs_prepared = self.prep_locs(
-                    self.locs, self.grid_size, self.padded_size
-                )
+                locs_prepared = self.prep_locs(self.locs, self.grid_size, padded_size)
                 self._locs_cache[locs_key] = locs_prepared
         pad = Pad(
-            self.padded_size,
+            padded_size,
             self.grid_size,
             in_shape=self.input_shape,
             batch_shape=self.batch_shape,
@@ -105,11 +102,11 @@ class NUFFT(NUFFTBase):
         # Create Apodization
         width, oversamp = self.options["width"], self.options["oversamp"]
         beta = self.beta(width, oversamp)
-        apod_key = (grid_size, self.padded_size, oversamp, width)
+        apod_key = (grid_size, padded_size, oversamp, width)
         if apod_key in self._apod_cache:
             weight = self._apod_cache[apod_key]
         else:
-            weight = self.apodize_weights(grid_size, self.padded_size, width, beta)
+            weight = self.apodize_weights(grid_size, padded_size, width, beta)
             self._apod_cache[apod_key] = weight
         if weight.isnan().any() or weight.isinf().any():
             raise ValueError(
@@ -122,7 +119,7 @@ class NUFFT(NUFFTBase):
         # Create Interpolator
         interp = Interpolate(
             locs_prepared,
-            self.padded_size,
+            padded_size,
             batch_shape=self.batch_shape,
             locs_batch_shape=self.output_shape,
             grid_shape=grid_shape,
@@ -131,7 +128,7 @@ class NUFFT(NUFFTBase):
             kernel_params=dict(beta=beta),
         )
         # Create scaling
-        scale_factor = width**ndim * (prod(grid_size) / prod(self.padded_size)) ** 0.5
+        scale_factor = width**ndim * (prod(grid_size) / prod(padded_size)) ** 0.5
         scale = Scalar(weight=1.0 / scale_factor, ioshape=interp.oshape)
         linops = [apodize, pad, fft, interp, scale]
         return linops

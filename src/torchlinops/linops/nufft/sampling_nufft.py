@@ -36,8 +36,8 @@ class SamplingNUFFT(NUFFTBase):
 
     def build(self):
         ndim = len(self.grid_size)
-        locs_prepared = self.prep_locs(self.locs, self.grid_size, self.padded_size)
         padded_size = tuple(int(i * self.options["oversamp"]) for i in self.grid_size)
+        locs_prepared = self.prep_locs(self.locs, self.grid_size, padded_size)
         pad = Pad(
             padded_size,
             self.grid_size,

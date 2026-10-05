@@ -81,7 +81,7 @@ def test_composed_normal_nufft_dense():
         oshape=shape.oshape,
         broadcast_dims=None,
     )
-    F = NUFFT(trj, im_size, output_shape=Dim("RK"), mode="interpolate", oversamp=1.25)
+    F = NUFFT(trj, im_size, output_shape=Dim("RK"), oversamp=1.25)
 
     x = torch.randn(im_size, dtype=torch.complex64)
 
