@@ -10,6 +10,7 @@ from jaxtyping import Float, Shaped
 from torch import Tensor
 
 from torchlinops.utils import cfftn, default_to
+from torchlinops import config
 
 from ...nameddim import (
     ELLIPSES,
@@ -55,9 +56,6 @@ class NUFFT(NUFFTBase):
             Data type for the toeplitz embedding. Probably should be torch.complex64
     """
 
-    _locs_cache = {}
-    _apod_cache = {}
-
     default_options = {
         "oversamp": 1.25,
         "width": 4.0,
@@ -79,12 +77,12 @@ class NUFFT(NUFFTBase):
         if self.options.get("skip_prep_locs"):
             locs_prepared = self.locs
         else:
-            locs_key = (self.locs, self.grid_size, padded_size)
-            if locs_key in self._locs_cache:
-                locs_prepared = self._locs_cache[locs_key]
-            else:
+            if config.cache_nufft_parameters:
                 locs_prepared = self.prep_locs(self.locs, self.grid_size, padded_size)
-                self._locs_cache[locs_key] = locs_prepared
+            else:
+                locs_prepared = self.prep_locs.__wrapped__(
+                    self.locs, self.grid_size, padded_size
+                )
         pad = Pad(
             padded_size,
             self.grid_size,
@@ -106,12 +104,12 @@ class NUFFT(NUFFTBase):
         # Create Apodization
         width, oversamp = self.options["width"], self.options["oversamp"]
         beta = self.beta(width, oversamp)
-        apod_key = (grid_size, padded_size, oversamp, width)
-        if apod_key in self._apod_cache:
-            weight = self._apod_cache[apod_key]
-        else:
+        if config.cache_nufft_parameters:
             weight = self.apodize_weights(grid_size, padded_size, width, beta)
-            self._apod_cache[apod_key] = weight
+        else:
+            weight = self.apodize_weights.__wrapped__(
+                grid_size, padded_size, width, beta
+            )
         if weight.isnan().any() or weight.isinf().any():
             raise ValueError(
                 f"Nan/Inf values detected in apodization weight (width={width}, oversamp={oversamp})."
@@ -229,6 +227,7 @@ class NUFFT(NUFFTBase):
         return self.interp.locs.device
 
     @staticmethod
+    @lru_cache(maxsize=64)
     def apodize_weights(grid_size, padded_size, width: float, beta: float):
         grid_size = torch.tensor(grid_size)
         padded_size = torch.tensor(padded_size)

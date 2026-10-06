@@ -5,6 +5,8 @@ import torch
 from jaxtyping import Float, Shaped
 from torch import Tensor
 
+from torchlinops import config
+
 from ..fft import FFT
 from ..pad_last import Pad
 from ..sampling import Sampling
@@ -27,17 +29,15 @@ class SamplingNUFFT(NUFFTBase):
 
     default_options = {"oversamp": 1.25}
 
-    _locs_cache = {}
-
     def build(self):
         ndim = len(self.grid_size)
         padded_size = tuple(int(i * self.options["oversamp"]) for i in self.grid_size)
-        locs_key = (self.locs, self.grid_size, padded_size)
-        if locs_key in self._locs_cache:
-            locs_prepared = self._locs_cache[locs_key]
-        else:
+        if config.cache_nufft_parameters:
             locs_prepared = self.prep_locs(self.locs, self.grid_size, padded_size)
-            self._locs_cache[locs_key] = locs_prepared
+        else:
+            locs_prepared = self.prep_locs.__wrapped__(
+                self.locs, self.grid_size, padded_size
+            )
         pad = Pad(
             padded_size,
             self.grid_size,

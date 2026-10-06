@@ -19,17 +19,18 @@ import numpy as np
 import pytest
 import torch
 
-from torchlinops import ArrayToBlocks, BlocksToArray, Interpolate, NUFFT
+import torchlinops.config as config
+from torchlinops import NUFFT, ArrayToBlocks, BlocksToArray, Interpolate
 from torchlinops.functional import (
     array_to_blocks,
     blocks_to_array,
+    get_nblocks,
     interpolate,
     interpolate_adjoint,
     nufft,
     nufft_adjoint,
-    get_nblocks,
 )
-from torchlinops.utils import from_pytorch, device_ordinal
+from torchlinops.utils import device_ordinal, from_pytorch
 
 try:
     import sigpy as sp
@@ -37,6 +38,10 @@ try:
     SIGPY_AVAILABLE = True
 except ImportError:
     SIGPY_AVAILABLE = False
+
+# Disable NUFFT locs caching (distorts memory reporting)
+config.cache_nufft_parameters = False
+assert not config.cache_nufft_parameters
 
 # ---------------------------------------------------------------------------
 # Size presets
