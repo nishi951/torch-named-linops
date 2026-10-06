@@ -1,4 +1,5 @@
 from copy import copy
+from functools import lru_cache
 from itertools import product
 from math import prod
 from typing import Literal, Optional
@@ -10,20 +11,23 @@ from torch import Tensor
 
 from torchlinops.utils import cfftn, default_to
 
+from ...nameddim import (
+    ELLIPSES,
+    Shape,
+    get_nd_shape,
+)
+from ...nameddim import (
+    NamedDimension as ND,
+)
+from ...nameddim import (
+    NamedShape as NS,
+)
 from ..diagonal import Diagonal
 from ..fft import FFT
 from ..identity import Identity
 from ..interp import Interpolate
-from ...nameddim import (
-    ELLIPSES,
-    NamedDimension as ND,
-    NamedShape as NS,
-    Shape,
-    get_nd_shape,
-)
 from ..pad_last import Pad
 from ..scalar import Scalar
-
 from ._base import NUFFTBase
 from .utils import scale_int
 
@@ -139,6 +143,7 @@ class NUFFT(NUFFTBase):
         self.interp = self.linops[3]
 
     @staticmethod
+    @lru_cache(maxsize=64)
     def prep_locs(
         locs: Shaped[Tensor, "... D"],
         grid_size: tuple,

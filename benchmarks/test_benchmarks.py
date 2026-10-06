@@ -228,6 +228,7 @@ def _nufft_setup(device, size_name, ndim, direction):
 
     if direction == "forward":
         A = NUFFT(locs, grid_size, output_shape=("K",), width=width, oversamp=oversamp)
+        A.to(device)
 
         def gen_functional():
             x = torch.randn(*grid_size, dtype=torch.complex64, device=device)
@@ -257,6 +258,7 @@ def _nufft_setup(device, size_name, ndim, direction):
     else:  # adjoint
         A = NUFFT(locs, grid_size, output_shape=("K",), width=width, oversamp=oversamp)
         AH = A.H
+        AH.to(device)
 
         def gen_functional():
             y = torch.randn(npts, dtype=torch.complex64, device=device)

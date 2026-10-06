@@ -131,7 +131,7 @@ def nufft_params():
     width = 6.0
     oversamp = 2.0
     grid_size = (120, 119, 146)
-    padded_size = [int(i * oversamp) for i in grid_size]
+    padded_size = tuple(int(i * oversamp) for i in grid_size)
     locs = get_valid_locs((10,), grid_size, len(grid_size), width, "cpu", centered=True)
     return {
         "width": width,
@@ -302,7 +302,7 @@ def test_nufft_class_identity():
 
 
 def test_locs_cache_shared_by_object_identity():
-    locs = _cache_test_locs()            # fresh object every call
+    locs = _cache_test_locs()  # fresh object every call
     before = len(NUFFT._locs_cache)
     n1 = NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
     after_first = len(NUFFT._locs_cache)
@@ -321,8 +321,7 @@ def test_apod_cache_keyed_by_geometry():
     assert key125 in NUFFT._apod_cache
     assert key15 not in NUFFT._apod_cache
     w0 = NUFFT._apod_cache[key125]
-    NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",),
-          oversamp=1.5, width=4.0)
+    NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), oversamp=1.5, width=4.0)
     assert key15 in NUFFT._apod_cache
     assert NUFFT._apod_cache[key125] is w0  # rebuild with same geometry: hit
 
@@ -331,8 +330,9 @@ def test_skip_prep_locs_bypasses_cache():
     padded = tuple(int(1.25 * g) for g in _CACHE_GRID)
     prepared = NUFFT.prep_locs(_cache_test_locs(), _CACHE_GRID, padded)
     before = len(NUFFT._locs_cache)
-    NUFFT(prepared, _CACHE_GRID, output_shape=("K",), skip_prep_locs=True,
-          **_CACHE_OPTS)
+    NUFFT(
+        prepared, _CACHE_GRID, output_shape=("K",), skip_prep_locs=True, **_CACHE_OPTS
+    )
     assert len(NUFFT._locs_cache) == before
 
 
@@ -348,8 +348,9 @@ def test_results_independent_of_cache_state():
 
 
 def test_options_override_defaults():
-    linop = NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",),
-                  oversamp=1.5, width=3.0)
+    linop = NUFFT(
+        _cache_test_locs(), _CACHE_GRID, output_shape=("K",), oversamp=1.5, width=3.0
+    )
     assert linop.options["oversamp"] == 1.5
     assert linop.options["width"] == 3.0
     assert linop.options["toeplitz"] is False  # untouched default survives

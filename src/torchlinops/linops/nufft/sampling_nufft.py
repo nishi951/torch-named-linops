@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Literal, Optional
 
 import torch
@@ -9,7 +10,6 @@ from ..pad_last import Pad
 from ..sampling import Sampling
 from ._base import NUFFTBase
 from .utils import scale_int
-
 
 __all__ = ["SamplingNUFFT"]
 
@@ -25,9 +25,7 @@ class SamplingNUFFT(NUFFTBase):
 
     """
 
-    default_options = {
-        "oversamp": 1.25,
-    }
+    default_options = {"oversamp": 1.25}
 
     _locs_cache = {}
 
@@ -38,9 +36,7 @@ class SamplingNUFFT(NUFFTBase):
         if locs_key in self._locs_cache:
             locs_prepared = self._locs_cache[locs_key]
         else:
-            locs_prepared = self.prep_locs(
-                self.locs, self.grid_size, padded_size
-            )
+            locs_prepared = self.prep_locs(self.locs, self.grid_size, padded_size)
             self._locs_cache[locs_key] = locs_prepared
         pad = Pad(
             padded_size,
@@ -83,6 +79,7 @@ class SamplingNUFFT(NUFFTBase):
         self.interp = self.linops[2]
 
     @staticmethod
+    @lru_cache(maxsize=64)
     def prep_locs(
         locs: Shaped[Tensor, "... D"],
         grid_size: tuple,
