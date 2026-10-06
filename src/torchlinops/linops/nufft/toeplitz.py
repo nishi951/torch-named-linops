@@ -21,10 +21,6 @@ def toeplitz_psf(
     dtype: Optional[torch.dtype] = None,
     oversamp: float = 2.0,
 ) -> NamedLinop:
-    if isinstance(nufft, SamplingNUFFT):
-        raise NotImplementedError(
-            "Toeplitz embedding is not implemented for SamplingNUFFT"
-        )
     """Compute the Toeplitz point spread function (PSF) for a NUFFT operator.
 
     Constructs a PSF kernel that enables efficient ``A.H @ inner @ A``
@@ -50,6 +46,11 @@ def toeplitz_psf(
         A ``Dense`` named linear operator containing the Toeplitz PSF
         kernel in the Fourier domain.
     """
+
+    if isinstance(nufft, SamplingNUFFT):
+        raise NotImplementedError(
+            "Toeplitz embedding is not implemented for SamplingNUFFT"
+        )
 
     # Initialize variables
     dtype = default_to(torch.complex64, dtype)
