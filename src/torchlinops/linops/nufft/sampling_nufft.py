@@ -11,6 +11,9 @@ from ._base import NUFFTBase
 from .utils import scale_int
 
 
+__all__ = ["SamplingNUFFT"]
+
+
 class SamplingNUFFT(NUFFTBase):
     """Non-uniform Fast Fourier Transform (type II) as a named linear operator.
 
@@ -19,19 +22,11 @@ class SamplingNUFFT(NUFFTBase):
     **options : dict
         oversamp : float
             Oversampling factor for fourier domain grid
-        toeplitz : bool
-            If True, normal() performs toeplitz embedding calculation
-        toeplitz_dtype : torch.dtype
-            Data type for the toeplitz embedding. Probably should be torch.complex64
 
     """
 
-    _locs_cache = {}
-
     default_options = {
         "oversamp": 1.25,
-        "toeplitz": False,
-        "toeplitz_dtype": torch.complex64,
     }
 
     def build(self):
@@ -98,17 +93,10 @@ class SamplingNUFFT(NUFFTBase):
         pad_mode : Literal["zero", "circular"], optional
             The type of padding applied. Can be "zero" for zero-padding or "circular" for circular padding.
             Default is "circular".
-        nufft_mode : Literal["interpolate", "sampling"], optional
-            The mode of the NUFFT operation. Can be "interpolate" for interpolation or "sampling" for sampling.
-            Default is "interpolate".
-
         Returns
         -------
         Shaped[Tensor, "... D"]
-            Adjusted locations tensor based on the specified padding and NUFFT modes.
-            Range is [0, N_pad].
-            dtype is floating-point if nufft_mode is "interpolate", and integer
-            if nufft_mode is "sampling"
+            Wrapped, rounded integer locations in [0, padded_size - 1].
 
         Raises
         ------
@@ -125,7 +113,7 @@ class SamplingNUFFT(NUFFTBase):
         tensor(31.9896)
         >>> grid_size = (64, 64, 64)
         >>> padded_size = (80, 80, 80) # oversamp = 1.25
-        >>> locs_scaled_shifted = NUFFT.prep_locs(locs, grid_size, padded_size)
+        >>> locs_scaled_shifted = SamplingNUFFT.prep_locs(locs, grid_size, padded_size)
         >>> locs_scaled_shifted.min()
         tensor(0.0064)
         >>> locs_scaled_shifted.max()
@@ -136,7 +124,7 @@ class SamplingNUFFT(NUFFTBase):
         >>> locs = torch.round(locs * 1.25) / 1.25
         >>> grid_size = (64, 64, 64)
         >>> padded_size = (80, 80, 80) # oversamp = 1.25
-        >>> locs_scaled_shifted = NUFFT.prep_locs(locs, grid_size, padded_size)
+        >>> locs_scaled_shifted = SamplingNUFFT.prep_locs(locs, grid_size, padded_size)
         >>> locs_scaled_shifted.min()
         tensor(0)
         >>> locs_scaled_shifted.max()
@@ -168,7 +156,5 @@ class SamplingNUFFT(NUFFTBase):
 
     @property
     def device(self):
-        """Tracks device of interpolating/sampling linop
-        Useful for toeplitz
-        """
+        """Tracks device of the sampling linop. Useful for toeplitz."""
         return self.interp.idx[0].device

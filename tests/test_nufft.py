@@ -274,3 +274,82 @@ def test_nufft_device(nufft_params):
     assert linop.device.type == "cpu"
     linop.to(torch.device("cuda"))
     assert linop.device.type == "cuda"
+
+
+# ---------------- class-split & caching machinery ----------------
+
+
+def _cache_test_locs():
+    from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
+
+    return get_valid_locs((3, 5), (16, 16, 24), 3, 4.0, "cpu", centered=True)
+
+
+_CACHE_GRID = (16, 16, 24)
+_CACHE_OPTS = {"oversamp": 1.25, "width": 4.0}
+
+
+def test_nufft_mode_kwarg_rejected():
+    with pytest.raises(ValueError, match="SamplingNUFFT"):
+        NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), mode="sampling")
+    with pytest.raises(ValueError, match="deprecated"):
+        NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), mode="interpolate")
+
+
+def test_nufft_class_identity():
+    linop = NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+    assert type(linop) is NUFFT
+
+
+def test_locs_cache_shared_by_object_identity():
+    locs = _cache_test_locs()            # fresh object every call
+    before = len(NUFFT._locs_cache)
+    n1 = NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+    after_first = len(NUFFT._locs_cache)
+    n2 = NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+    assert n1.interp.locs.data_ptr() == n2.interp.locs.data_ptr()
+    NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+    # same object: cache hit (+0); fresh object: miss (+1)
+    assert after_first - before == 1
+    assert len(NUFFT._locs_cache) - before == 2
+
+
+def test_apod_cache_keyed_by_geometry():
+    key125 = (_CACHE_GRID, tuple(int(1.25 * g) for g in _CACHE_GRID), 1.25, 4.0)
+    key15 = (_CACHE_GRID, tuple(int(1.5 * g) for g in _CACHE_GRID), 1.5, 4.0)
+    NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+    assert key125 in NUFFT._apod_cache
+    assert key15 not in NUFFT._apod_cache
+    w0 = NUFFT._apod_cache[key125]
+    NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",),
+          oversamp=1.5, width=4.0)
+    assert key15 in NUFFT._apod_cache
+    assert NUFFT._apod_cache[key125] is w0  # rebuild with same geometry: hit
+
+
+def test_skip_prep_locs_bypasses_cache():
+    padded = tuple(int(1.25 * g) for g in _CACHE_GRID)
+    prepared = NUFFT.prep_locs(_cache_test_locs(), _CACHE_GRID, padded)
+    before = len(NUFFT._locs_cache)
+    NUFFT(prepared, _CACHE_GRID, output_shape=("K",), skip_prep_locs=True,
+          **_CACHE_OPTS)
+    assert len(NUFFT._locs_cache) == before
+
+
+def test_results_independent_of_cache_state():
+    locs = _cache_test_locs()
+    op = NUFFT(locs.clone(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+    x = torch.randn(2, *_CACHE_GRID, dtype=torch.complex64)
+    y1 = op(x).clone()
+    NUFFT._locs_cache.clear()
+    NUFFT._apod_cache.clear()
+    op2 = NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+    assert torch.allclose(y1, op2(x), rtol=1e-5)
+
+
+def test_options_override_defaults():
+    linop = NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",),
+                  oversamp=1.5, width=3.0)
+    assert linop.options["oversamp"] == 1.5
+    assert linop.options["width"] == 3.0
+    assert linop.options["toeplitz"] is False  # untouched default survives

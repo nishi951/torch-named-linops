@@ -11,6 +11,7 @@ from ..dense import Dense
 from ..identity import Identity
 from ..namedlinop import NamedLinop
 from .nufft import NUFFT
+from .sampling_nufft import SamplingNUFFT
 from .utils import scale_int
 
 
@@ -20,6 +21,10 @@ def toeplitz_psf(
     dtype: Optional[torch.dtype] = None,
     oversamp: float = 2.0,
 ) -> NamedLinop:
+    if isinstance(nufft, SamplingNUFFT):
+        raise NotImplementedError(
+            "Toeplitz embedding is not implemented for SamplingNUFFT"
+        )
     """Compute the Toeplitz point spread function (PSF) for a NUFFT operator.
 
     Constructs a PSF kernel that enables efficient ``A.H @ inner @ A``

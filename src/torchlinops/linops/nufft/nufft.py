@@ -158,17 +158,10 @@ class NUFFT(NUFFTBase):
         pad_mode : Literal["zero", "circular"], optional
             The type of padding applied. Can be "zero" for zero-padding or "circular" for circular padding.
             Default is "circular".
-        nufft_mode : Literal["interpolate", "sampling"], optional
-            The mode of the NUFFT operation. Can be "interpolate" for interpolation or "sampling" for sampling.
-            Default is "interpolate".
-
         Returns
         -------
         Shaped[Tensor, "... D"]
-            Adjusted locations tensor based on the specified padding and NUFFT modes.
-            Range is [0, N_pad].
-            dtype is floating-point if nufft_mode is "interpolate", and integer
-            if nufft_mode is "sampling"
+            Adjusted locations tensor in [0, padded_size - 1], float dtype.
 
         Raises
         ------

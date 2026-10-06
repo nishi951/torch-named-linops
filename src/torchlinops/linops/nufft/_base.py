@@ -66,7 +66,7 @@ class NUFFTBase(Chain):
         # Useful parameters to save
         self.locs = locs
         self.grid_size = grid_size
-        self.options = default_to_dict(options, self.default_options)
+        self.options = default_to_dict(self.default_options, options)
         self._init_shapes(
             grid_size, output_shape, input_shape, input_kshape, batch_shape
         )
