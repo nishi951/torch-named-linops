@@ -127,3 +127,23 @@ def test_toeplitz_psf_raises_for_sampling_nufft():
     )
     with pytest.raises(NotImplementedError, match="SamplingNUFFT"):
         toeplitz_psf(op)
+
+
+def test_sampling_locs_cache_shared_by_object_identity():
+    spec = make_spec(batch=(1,), locs_batch_size=(4, 6))
+    locs = spec["locs"]
+    before = len(SamplingNUFFT._locs_cache)
+    n1 = SamplingNUFFT(locs, spec["grid_size"], output_shape=("K",),
+                       oversamp=spec["oversamp"])
+    after_first = len(SamplingNUFFT._locs_cache)
+    n2 = SamplingNUFFT(locs, spec["grid_size"], output_shape=("K",),
+                       oversamp=spec["oversamp"])
+    # same locs object: +1 entry, shared prepared storage
+    assert after_first - before == 1
+    assert len(SamplingNUFFT._locs_cache) - before == 1
+    assert n1.interp.idx[0].data_ptr() == n2.interp.idx[0].data_ptr()
+    fresh = make_spec(batch=(1,), locs_batch_size=(4, 6))["locs"]
+    SamplingNUFFT(fresh, spec["grid_size"], output_shape=("K",),
+                  oversamp=spec["oversamp"])
+    # value-equal but distinct object -> new entry (identity semantics)
+    assert len(SamplingNUFFT._locs_cache) - before == 2
