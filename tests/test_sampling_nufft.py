@@ -8,8 +8,9 @@ from torchlinops.linops.nufft.toeplitz import toeplitz_psf
 from torchlinops.testing import BaseNamedLinopTests
 
 
-def make_spec(batch=(2, 1), grid_size=(16, 16, 24), locs_batch_size=(3, 5),
-              oversamp=1.25):
+def make_spec(
+    batch=(2, 1), grid_size=(16, 16, 24), locs_batch_size=(3, 5), oversamp=1.25
+):
     """Integer-lattice centered locs: locs = (idx - padded_size//2) / oversamp.
 
     These locs round exactly onto the oversampled lattice, so
@@ -78,8 +79,9 @@ def test_sampling_prep_locs_round_and_wrap():
     assert wrapped.dtype == torch.int64
     assert ((wrapped >= 0) & (wrapped < torch.tensor(padded))).all()
     expected = torch.remainder(
-        torch.round(locs * torch.tensor(padded) / torch.tensor(grid)
-                    + torch.tensor(padded) // 2),
+        torch.round(
+            locs * torch.tensor(padded) / torch.tensor(grid) + torch.tensor(padded) // 2
+        ),
         torch.tensor(padded),
     ).long()
     assert (wrapped == expected).all()
@@ -88,9 +90,7 @@ def test_sampling_prep_locs_round_and_wrap():
 def test_sampling_prep_locs_zero_clamp():
     padded = (12, 12, 12)
     locs = torch.tensor([[-100.0, 0.0, 100.0], [5.9, 5.9, 5.9]])
-    clamped = SamplingNUFFT.prep_locs(
-        locs, (10, 10, 10), padded, pad_mode="zero"
-    )
+    clamped = SamplingNUFFT.prep_locs(locs, (10, 10, 10), padded, pad_mode="zero")
     assert clamped.dtype == torch.int64
     assert clamped[0].tolist() == [0, 6, 11]
     assert ((clamped >= 0) & (clamped <= 11)).all()
@@ -122,7 +122,9 @@ def test_nufft_class_split_identity():
 def test_toeplitz_psf_raises_for_sampling_nufft():
     spec = make_spec(batch=(1,), locs_batch_size=(4, 6))
     op = SamplingNUFFT(
-        spec["locs"], spec["grid_size"], output_shape=("K",),
+        spec["locs"],
+        spec["grid_size"],
+        output_shape=("K",),
         oversamp=spec["oversamp"],
     )
     with pytest.raises(NotImplementedError, match="SamplingNUFFT"):
@@ -130,20 +132,26 @@ def test_toeplitz_psf_raises_for_sampling_nufft():
 
 
 def test_sampling_locs_cache_shared_by_object_identity():
+    import torchlinops.config as config
+
+    config.cache_nufft_parameters = True
+    SamplingNUFFT.prep_locs.cache_clear()
+    info = SamplingNUFFT.prep_locs.cache_info
     spec = make_spec(batch=(1,), locs_batch_size=(4, 6))
     locs = spec["locs"]
-    before = len(SamplingNUFFT._locs_cache)
-    n1 = SamplingNUFFT(locs, spec["grid_size"], output_shape=("K",),
-                       oversamp=spec["oversamp"])
-    after_first = len(SamplingNUFFT._locs_cache)
-    n2 = SamplingNUFFT(locs, spec["grid_size"], output_shape=("K",),
-                       oversamp=spec["oversamp"])
-    # same locs object: +1 entry, shared prepared storage
-    assert after_first - before == 1
-    assert len(SamplingNUFFT._locs_cache) - before == 1
+    before = info().currsize
+    n1 = SamplingNUFFT(
+        locs, spec["grid_size"], output_shape=("K",), oversamp=spec["oversamp"]
+    )
+    assert info().currsize - before == 1  # fresh object: miss
+    n2 = SamplingNUFFT(
+        locs, spec["grid_size"], output_shape=("K",), oversamp=spec["oversamp"]
+    )
+    assert info().currsize - before == 1  # same object: hit
     assert n1.interp.idx[0].data_ptr() == n2.interp.idx[0].data_ptr()
     fresh = make_spec(batch=(1,), locs_batch_size=(4, 6))["locs"]
-    SamplingNUFFT(fresh, spec["grid_size"], output_shape=("K",),
-                  oversamp=spec["oversamp"])
+    SamplingNUFFT(
+        fresh, spec["grid_size"], output_shape=("K",), oversamp=spec["oversamp"]
+    )
     # value-equal but distinct object -> new entry (identity semantics)
-    assert len(SamplingNUFFT._locs_cache) - before == 2
+    assert info().currsize - before == 2

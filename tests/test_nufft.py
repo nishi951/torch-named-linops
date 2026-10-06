@@ -301,50 +301,80 @@ def test_nufft_class_identity():
     assert type(linop) is NUFFT
 
 
+def _enable_and_clear_caches():
+    import torchlinops.config as config
+
+    config.cache_nufft_parameters = True
+    NUFFT.prep_locs.cache_clear()
+    NUFFT.apodize_weights.cache_clear()
+
+
 def test_locs_cache_shared_by_object_identity():
+    _enable_and_clear_caches()
+    info = NUFFT.prep_locs.cache_info
     locs = _cache_test_locs()  # fresh object every call
-    before = len(NUFFT._locs_cache)
+    before = info().currsize
     n1 = NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
-    after_first = len(NUFFT._locs_cache)
+    assert info().currsize - before == 1  # fresh object: miss
     n2 = NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+    assert info().currsize - before == 1  # same object: hit, no new entry
     assert n1.interp.locs.data_ptr() == n2.interp.locs.data_ptr()
     NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
-    # same object: cache hit (+0); fresh object: miss (+1)
-    assert after_first - before == 1
-    assert len(NUFFT._locs_cache) - before == 2
+    assert info().currsize - before == 2  # another fresh object: miss
 
 
 def test_apod_cache_keyed_by_geometry():
-    key125 = (_CACHE_GRID, tuple(int(1.25 * g) for g in _CACHE_GRID), 1.25, 4.0)
-    key15 = (_CACHE_GRID, tuple(int(1.5 * g) for g in _CACHE_GRID), 1.5, 4.0)
-    NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
-    assert key125 in NUFFT._apod_cache
-    assert key15 not in NUFFT._apod_cache
-    w0 = NUFFT._apod_cache[key125]
-    NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), oversamp=1.5, width=4.0)
-    assert key15 in NUFFT._apod_cache
-    assert NUFFT._apod_cache[key125] is w0  # rebuild with same geometry: hit
+    _enable_and_clear_caches()
+    g = _CACHE_GRID
+    p125 = tuple(int(1.25 * x) for x in g)
+    p15 = tuple(int(1.5 * x) for x in g)
+    w = NUFFT.apodize_weights
+    b125 = NUFFT.beta(4.0, 1.25)
+    b15 = NUFFT.beta(4.0, 1.5)
+    w0 = w(g, p125, 4.0, b125)
+    assert w.cache_info().misses == 1
+    assert w(g, p125, 4.0, b125) is w0  # same geometry: hit, shared tensor
+    assert w.cache_info().hits == 1
+    assert w(g, p15, 4.0, b15) is not w0  # different oversamp: new key
+    assert w.cache_info().currsize == 2
 
 
 def test_skip_prep_locs_bypasses_cache():
+    _enable_and_clear_caches()
     padded = tuple(int(1.25 * g) for g in _CACHE_GRID)
-    prepared = NUFFT.prep_locs(_cache_test_locs(), _CACHE_GRID, padded)
-    before = len(NUFFT._locs_cache)
+    prepared = NUFFT.prep_locs.__wrapped__(_cache_test_locs(), _CACHE_GRID, padded)
+    before = NUFFT.prep_locs.cache_info().currsize
     NUFFT(
         prepared, _CACHE_GRID, output_shape=("K",), skip_prep_locs=True, **_CACHE_OPTS
     )
-    assert len(NUFFT._locs_cache) == before
+    assert NUFFT.prep_locs.cache_info().currsize == before
 
 
 def test_results_independent_of_cache_state():
+    _enable_and_clear_caches()
     locs = _cache_test_locs()
     op = NUFFT(locs.clone(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
     x = torch.randn(2, *_CACHE_GRID, dtype=torch.complex64)
     y1 = op(x).clone()
-    NUFFT._locs_cache.clear()
-    NUFFT._apod_cache.clear()
+    NUFFT.prep_locs.cache_clear()
+    NUFFT.apodize_weights.cache_clear()
     op2 = NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
     assert torch.allclose(y1, op2(x), rtol=1e-5)
+
+
+def test_caches_bypassed_when_flag_off():
+    import torchlinops.config as config
+
+    _enable_and_clear_caches()
+    config.cache_nufft_parameters = False
+    try:
+        locs = _cache_test_locs()
+        for _ in range(3):
+            NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
+        assert NUFFT.prep_locs.cache_info().currsize == 0
+        assert NUFFT.apodize_weights.cache_info().currsize == 0
+    finally:
+        config.cache_nufft_parameters = True
 
 
 def test_options_override_defaults():
