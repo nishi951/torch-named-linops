@@ -31,3 +31,5 @@ docs/tutorials/*.md
 
 # OpenCode
 .opencode/
+
+.worktrees/
