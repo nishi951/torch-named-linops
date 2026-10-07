@@ -13,7 +13,8 @@ class TestDiagonal(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         M = 10
         weight = torch.randn(M, 1, 1, dtype=torch.complex64)
         ioshape = ("M", "N", "P")
@@ -53,7 +54,8 @@ class TestDiagonalFromWeight(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         # weight has shape (C, Nx) and ioshape is (C, Nx, Ny)
         C, Nx, Ny = 3, 4, 5
         weight = torch.randn(C, Nx, dtype=torch.complex64)

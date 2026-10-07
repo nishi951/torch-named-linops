@@ -10,7 +10,8 @@ class TestTruncate(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         ishape = ("N", "M")
         oshape = ("N", "M")
         return (
@@ -51,7 +52,8 @@ class TestPadDim(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         ishape = ("N", "M")
         oshape = ("N", "M")
         return (

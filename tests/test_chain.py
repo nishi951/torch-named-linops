@@ -11,7 +11,8 @@ class TestChain(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         M, K, N = 5, 4, 3
         A = Dense(
             torch.randn(M, K, dtype=torch.complex64),

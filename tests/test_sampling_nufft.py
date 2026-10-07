@@ -39,7 +39,8 @@ class TestSamplingNUFFT(BaseNamedLinopTests):
     instances = ["small3d"]
 
     @pytest.fixture(scope="class", params=instances)
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         spec = request.getfixturevalue(request.param)
         grid_size = spec["grid_size"]
         locs_batch = spec["locs"].shape[:-1]
@@ -57,6 +58,7 @@ class TestSamplingNUFFT(BaseNamedLinopTests):
         return linop, x, y
 
     @pytest.fixture(scope="class")
+    @classmethod
     def small3d(self):
         return make_spec()
 

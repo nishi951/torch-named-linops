@@ -11,7 +11,8 @@ class TestFFT(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         F = FFT(ndim=2, centered=True)
         x = torch.randn(8, 10, dtype=torch.complex64)
         y = torch.randn(8, 10, dtype=torch.complex64)
@@ -41,7 +42,8 @@ class TestFFTNotCentered(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         F = FFT(ndim=2, centered=False)
         x = torch.randn(8, 10, dtype=torch.complex64)
         y = torch.randn(8, 10, dtype=torch.complex64)

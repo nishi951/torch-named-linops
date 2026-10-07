@@ -10,7 +10,8 @@ class TestSumReduce(BaseNamedLinopTests):
     isclose_kwargs = {"rtol": 1e-4}
 
     @pytest.fixture(scope="class", params=["fullshape", "ellipses"])
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         if request.param == "fullshape":
             A = SumReduce(("A", "B", "C"), ("A", "B"))
         else:
@@ -25,7 +26,8 @@ class TestRearrange(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         # ipattern and opattern are positional args (no ->)
         A = Rearrange(
             "(A B) C",
@@ -52,7 +54,8 @@ class TestRepeat(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         A = Repeat(
             {"C": 3},
             ishape=("A", "B"),

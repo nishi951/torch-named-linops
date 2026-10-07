@@ -20,8 +20,9 @@ class BaseNamedLinopTests(ABC):
     isclose_kwargs: dict = {}
 
     @pytest.fixture
+    @classmethod
     @abstractmethod
-    def linop_input_output(self):
+    def linop_input_output(cls):
         """Create and return:
         1. A linop to test
         2. A tensor with the same shape as the linop's inputs
