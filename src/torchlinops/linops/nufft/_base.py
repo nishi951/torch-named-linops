@@ -71,7 +71,7 @@ class NUFFTBase(Chain):
             grid_size, output_shape, input_shape, input_kshape, batch_shape
         )
         linops = self.build()
-        super().__init__(*linops, name="NUFFT")
+        super().__init__(*linops, name=type(self).__name__)
         self.post_init_hook()
 
     def build(self) -> list[NamedLinop]:

@@ -3,9 +3,9 @@
 Helps improve performance for fftshift
 """
 
-import torch
-
 from itertools import product
+
+import torch
 from torch import Tensor
 
 __all__ = ["roll", "fftshift", "ifftshift"]
@@ -32,6 +32,11 @@ def roll_fused(x: Tensor, shifts: tuple[int, ...], dims: tuple[int, ...]):
         )
     if len(dims) == 0:
         return x
+    if x.numel() == 0:
+        # torch.roll returns an empty tensor of the same shape without error,
+        # even when a rolled dimension has size 0. Mirror that so the
+        # `shift % x.shape[axis]` below never divides by zero.
+        return x.clone()
 
     slices = []
     for axis, shift in zip(dims, shifts):

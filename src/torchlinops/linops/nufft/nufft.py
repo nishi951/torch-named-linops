@@ -187,24 +187,11 @@ class NUFFT(NUFFTBase):
         >>> locs_scaled_shifted.max()
         tensor(79.9871)
 
-        >>> _ = torch.manual_seed(0);
-        >>> locs = torch.rand(1000, 3) * 64 - 32 # [-32, 32]
-        >>> locs = torch.round(locs * 1.25) / 1.25
-        >>> grid_size = (64, 64, 64)
-        >>> padded_size = (80, 80, 80) # oversamp = 1.25
-        >>> locs_scaled_shifted = NUFFT.prep_locs(locs, grid_size, padded_size, nufft_mode='sampling')
-        >>> locs_scaled_shifted.min()
-        tensor(0)
-        >>> locs_scaled_shifted.max()
-        tensor(79)
-
-
-
         Notes
         -----
         - Assumes that the input `locs` are centered.
         - Adjusts the locations by scaling and shifting them according to the grid and padded sizes.
-        - Applies clamping or remainder operations based on the padding mode and NUFFT mode.
+        - Applies clamping or remainder operations based on the padding mode.
         """
         # Clone to prevent in-place scaling from modifying the original
         out = locs.clone()

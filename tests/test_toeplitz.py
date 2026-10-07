@@ -10,23 +10,6 @@ from torchlinops.utils import from_pytorch
 
 
 @pytest.fixture
-def sampling_nufft_linop():
-    """A NUFFT in sampling mode (integer locs), for which toeplitz_psf is not implemented."""
-    grid_size = (16, 16)
-    padded_size = (20, 20)
-    # Locs must be in range [0, padded_size-1] for sampling mode
-    locs = torch.randint(0, 19, (10, 2))
-    linop = NUFFT(
-        locs.clone(),
-        grid_size,
-        output_shape=Dim("K"),
-        mode="sampling",
-        do_prep_locs=False,
-    )
-    return linop
-
-
-@pytest.fixture
 def nufft_params():
     width = 4.0
     oversamp = 1.25
@@ -86,12 +69,6 @@ def dense_inner(nufft_params):
         oshape=Dim("A1RK"),
     )
     return linop
-
-
-# def test_toeplitz_psf_raises_for_sampling_mode(sampling_nufft_linop):
-#     """toeplitz_psf should raise NotImplementedError for Sampling-mode NUFFTs."""
-#     with pytest.raises(NotImplementedError, match="Sampling"):
-#         toeplitz_psf(sampling_nufft_linop)
 
 
 @pytest.fixture

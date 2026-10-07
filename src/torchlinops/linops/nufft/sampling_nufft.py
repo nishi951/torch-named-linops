@@ -113,20 +113,6 @@ class SamplingNUFFT(NUFFTBase):
         --------
         >>> _ = torch.manual_seed(0);
         >>> locs = torch.rand(1000, 3) * 64 - 32 # [-32, 32]
-        >>> locs.min()
-        tensor(-31.9949)
-        >>> locs.max()
-        tensor(31.9896)
-        >>> grid_size = (64, 64, 64)
-        >>> padded_size = (80, 80, 80) # oversamp = 1.25
-        >>> locs_scaled_shifted = SamplingNUFFT.prep_locs(locs, grid_size, padded_size)
-        >>> locs_scaled_shifted.min()
-        tensor(0.0064)
-        >>> locs_scaled_shifted.max()
-        tensor(79.9871)
-
-        >>> _ = torch.manual_seed(0);
-        >>> locs = torch.rand(1000, 3) * 64 - 32 # [-32, 32]
         >>> locs = torch.round(locs * 1.25) / 1.25
         >>> grid_size = (64, 64, 64)
         >>> padded_size = (80, 80, 80) # oversamp = 1.25
@@ -136,13 +122,11 @@ class SamplingNUFFT(NUFFTBase):
         >>> locs_scaled_shifted.max()
         tensor(79)
 
-
-
         Notes
         -----
         - Assumes that the input `locs` are centered.
         - Adjusts the locations by scaling and shifting them according to the grid and padded sizes.
-        - Applies clamping or remainder operations based on the padding mode and NUFFT mode.
+        - Rounds and wraps the resulting indices based on the padding mode.
         """
         # Clone to prevent in-place scaling from modifying the original
         out = locs.clone()
@@ -162,5 +146,5 @@ class SamplingNUFFT(NUFFTBase):
 
     @property
     def device(self):
-        """Tracks device of the sampling linop. Useful for toeplitz."""
+        """Tracks device of the sampling linop."""
         return self.interp.idx[0].device
