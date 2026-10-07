@@ -35,3 +35,53 @@ def test_fold_centering_matches_sandwich(padded):
     got = gathered * phase
     ref = centered[locs_prepared[..., 0], locs_prepared[..., 1], locs_prepared[..., 2]]
     torch.testing.assert_close(got, ref, rtol=1e-4, atol=1e-5)
+
+
+from torchlinops import SamplingNUFFT  # noqa: E402
+
+
+def make_spec(
+    batch=(2, 1), grid_size=(16, 16, 24), locs_batch_size=(3, 5), oversamp=1.25
+):
+    """Integer-lattice centered locs (same helper as tests/test_sampling_nufft.py).
+
+    Requires oversamp * grid_size to be an exact integer so prep_locs rounds
+    back onto the lattice without loss.
+    """
+    padded_size = tuple(int(oversamp * g) for g in grid_size)
+    idx = torch.stack(
+        [torch.randint(0, p, locs_batch_size) for p in padded_size], dim=-1
+    )
+    locs = (idx - torch.tensor(padded_size) // 2).float() / oversamp
+    return {
+        "batch": batch,
+        "grid_size": grid_size,
+        "padded_size": padded_size,
+        "locs": locs.contiguous(),
+        "oversamp": oversamp,
+    }
+
+
+def test_forward_matches_sampling_nufft():
+    spec = make_spec()
+    common = dict(output_shape=("R", "K"), oversamp=spec["oversamp"])
+    slow = SamplingNUFFT(spec["locs"].clone(), spec["grid_size"], **common)
+    fast = FastSamplingNUFFT(spec["locs"].clone(), spec["grid_size"], **common)
+    x = torch.rand(*spec["batch"], *spec["grid_size"], dtype=torch.complex64) + 0.5j
+    y_fast = fast(x)
+    y_slow = slow(x)
+    assert y_fast.shape == y_slow.shape
+    torch.testing.assert_close(y_fast, y_slow, rtol=1e-3, atol=1e-4)
+
+
+def test_chain_contains_no_centered_fft():
+    """The regression this class exists to fix: no shift sandwich in the chain."""
+    spec = make_spec()
+    fast = FastSamplingNUFFT(
+        spec["locs"].clone(),
+        spec["grid_size"],
+        output_shape=("R", "K"),
+        oversamp=spec["oversamp"],
+    )
+    assert fast.fft.centered is False
+    assert not any(getattr(linop, "centered", False) for linop in fast.linops)

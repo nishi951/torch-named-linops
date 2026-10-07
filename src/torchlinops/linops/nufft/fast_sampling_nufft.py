@@ -9,6 +9,13 @@ import torch
 from jaxtyping import Integer
 from torch import Tensor
 
+from torchlinops import config
+
+from ...nameddim import NamedShape as NS
+from ..diagonal import Diagonal
+from ..fft import FFT
+from ..pad_last import Pad
+from ..sampling import Sampling
 from .sampling_nufft import SamplingNUFFT
 
 __all__ = ["FastSamplingNUFFT"]
@@ -32,6 +39,58 @@ class FastSamplingNUFFT(SamplingNUFFT):
     ``(-1)**sum_d k_d``. Computes the same operator as ``SamplingNUFFT`` (to
     complex64 rounding); inherits ``prep_locs``, ``device``, and options.
     """
+
+    def build(self):
+        ndim = len(self.grid_size)
+        padded_size = tuple(int(i * self.options["oversamp"]) for i in self.grid_size)
+
+        # Inherited, cached locs preparation: l_p = centered gather indices
+        if config.cache_nufft_parameters:
+            locs_prepared = self.prep_locs(self.locs, self.grid_size, padded_size)
+            idx, phase = self.fold_centering(locs_prepared, padded_size)
+        else:
+            locs_prepared = self.prep_locs.__wrapped__(
+                self.locs, self.grid_size, padded_size
+            )
+            idx, phase = self.fold_centering.__wrapped__(locs_prepared, padded_size)
+
+        pad = Pad(
+            padded_size,
+            self.grid_size,
+            in_shape=self.input_shape,
+            batch_shape=self.batch_shape,
+        )
+
+        # Plain (uncentered) FFT: no shift sandwich anywhere in the chain
+        fft = FFT(
+            ndim=ndim,
+            centered=False,
+            batch_shape=self.batch_shape,
+            grid_shapes=(pad.out_im_shape, self.input_kshape),
+        )
+
+        grid_shape = fft._shape.output_grid_shape
+        sampling = Sampling.from_stacked_idx(
+            idx,
+            dim=-1,
+            input_size=padded_size,
+            output_shape=self.output_shape,
+            input_shape=grid_shape,
+            batch_shape=self.batch_shape,
+        )
+
+        # Per-sample centering phase on the gathered output; broadcasts over batch
+        # dims. Unit modulus, so adjoint/normal stay exact.
+        oshape = NS(self.batch_shape) + NS(self.output_shape)
+        phase_diag = Diagonal(phase, oshape.ishape)
+        phase_diag.name = "FoldedCenteringPhase"
+
+        return [pad, fft, sampling, phase_diag]
+
+    def post_init_hook(self):
+        # Inherited hook sets .pad/.fft/.interp (identical positions in our chain)
+        super().post_init_hook()
+        self.phase_diag = self.linops[3]
 
     @staticmethod
     @lru_cache(maxsize=64)
