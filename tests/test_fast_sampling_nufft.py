@@ -171,3 +171,18 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
         op = type(A).split(A, {})
         assert type(op) is type(A)
         assert torch.isclose(A(x), op(x), rtol=1e-5).all()
+
+
+from torchlinops.linops.nufft.toeplitz import toeplitz_psf  # noqa: E402
+
+
+def test_toeplitz_psf_raises_for_fast_sampling_nufft():
+    spec = make_spec(batch=(1,), locs_batch_size=(4, 6))
+    op = FastSamplingNUFFT(
+        spec["locs"],
+        spec["grid_size"],
+        output_shape=("R", "K"),
+        oversamp=spec["oversamp"],
+    )
+    with pytest.raises(NotImplementedError, match="SamplingNUFFT"):
+        toeplitz_psf(op)
