@@ -34,6 +34,9 @@ reduce_identity_in_normal: bool = True
 # If True, cache .H and .N results.
 cache_adjoint_normal: bool = True
 
+# If True, NUFFT caches internal parameters
+cache_nufft_parameters: bool = True
+
 # If True, log CUDA events creation, stream synchronization, and device transfers
 # in the ToDevice linop and related utilities.
 log_device_transfers: bool = True

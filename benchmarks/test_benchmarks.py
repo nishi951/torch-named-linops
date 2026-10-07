@@ -19,17 +19,18 @@ import numpy as np
 import pytest
 import torch
 
-from torchlinops import ArrayToBlocks, BlocksToArray, Interpolate, NUFFT
+import torchlinops.config as config
+from torchlinops import NUFFT, ArrayToBlocks, BlocksToArray, Interpolate
 from torchlinops.functional import (
     array_to_blocks,
     blocks_to_array,
+    get_nblocks,
     interpolate,
     interpolate_adjoint,
     nufft,
     nufft_adjoint,
-    get_nblocks,
 )
-from torchlinops.utils import from_pytorch, device_ordinal
+from torchlinops.utils import device_ordinal, from_pytorch
 
 try:
     import sigpy as sp
@@ -37,6 +38,10 @@ try:
     SIGPY_AVAILABLE = True
 except ImportError:
     SIGPY_AVAILABLE = False
+
+# Disable NUFFT locs caching (distorts memory reporting)
+config.cache_nufft_parameters = False
+assert not config.cache_nufft_parameters
 
 # ---------------------------------------------------------------------------
 # Size presets
@@ -228,6 +233,7 @@ def _nufft_setup(device, size_name, ndim, direction):
 
     if direction == "forward":
         A = NUFFT(locs, grid_size, output_shape=("K",), width=width, oversamp=oversamp)
+        A.to(device)
 
         def gen_functional():
             x = torch.randn(*grid_size, dtype=torch.complex64, device=device)
@@ -257,6 +263,7 @@ def _nufft_setup(device, size_name, ndim, direction):
     else:  # adjoint
         A = NUFFT(locs, grid_size, output_shape=("K",), width=width, oversamp=oversamp)
         AH = A.H
+        AH.to(device)
 
         def gen_functional():
             y = torch.randn(npts, dtype=torch.complex64, device=device)

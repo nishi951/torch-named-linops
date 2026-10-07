@@ -2,7 +2,7 @@ from collections import OrderedDict
 from copy import copy
 from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
-from ._matching import iscompatible, is_any
+from ._matching import iscompatible, is_any, coalesce
 from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
 
 __all__ = ["NamedDimCollection"]
@@ -179,7 +179,8 @@ class NamedDimCollection:
 
         # Check for inconsistent old -> new updates
         old2new = {}
-        for i, olddim in enumerate(oldshape):
+        # Traverse in reverse order to preserve indexing
+        for i, olddim in reversed(list(enumerate(oldshape))):
             if olddim != ELLIPSES:  # and olddim != ANY:
                 # Get the new dim that should replace olddim
                 newdims_i_list = assignments[i]
@@ -308,15 +309,6 @@ class NamedDimCollection:
 
     def __repr__(self):
         return f"{type(self).__name__}({self._dims})"
-
-
-def coalesce(lst, cond):
-    result = []
-    for x in lst:
-        if cond(x) and result and cond(result[-1]):
-            continue
-        result.append(x)
-    return result
 
 
 if __name__ == "__main__":

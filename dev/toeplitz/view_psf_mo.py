@@ -192,7 +192,7 @@ def _(NUFFT):
 def _(NUFFT, beta, oversamp, width):
     img_size = (64, 64)
     oversamp_size = tuple(int(oversamp * s) for s in img_size)
-    apod = NUFFT.apodize_weights(img_size, oversamp_size, oversamp, width, beta)
+    apod = NUFFT.apodize_weights(img_size, oversamp_size, width, beta)
     return apod, img_size, oversamp_size
 
 

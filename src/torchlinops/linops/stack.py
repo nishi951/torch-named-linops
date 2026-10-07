@@ -20,6 +20,9 @@ from .schedule import parallel_execute
 
 __all__ = ["Stack"]
 
+_INHERIT = object()
+"""Sentinel for spinoff(): inherit the stacking dim/index from the parent linop."""
+
 logger = logging.getLogger("torchlinops")
 
 
@@ -61,12 +64,8 @@ class Stack(NamedLinop):
 
     Attributes
     ----------
-    linops : nn.ModuleList
+    *linops : nn.ModuleList
         The list of linops being stacked.
-    threaded : bool
-        Whether to run sub-linops in parallel. Default is True.
-    num_workers : int | None
-        Number of worker threads. If None, defaults to the number of sub-linops.
     idim : ND | None
         Input stacking dimension name.
     idim_idx : int | None
@@ -75,6 +74,13 @@ class Stack(NamedLinop):
         Output stacking dimension name.
     odim_idx : int | None
         Index position of the output stacking dimension.
+    threaded : bool
+        Whether to run sub-linops in parallel. Default is True.
+    num_workers : int | None
+        Number of worker threads. If None, defaults to the number of sub-linops.
+    accumulate : bool, default False
+        If True, accumulate outputs incrementally in batches of size 1 (not threaded) or num_workers (threaded).
+        Helps manage memory.
     """
 
     is_container = True
@@ -86,6 +92,7 @@ class Stack(NamedLinop):
         odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
         threaded: bool = True,
         num_workers: Optional[int] = None,
+        accumulate: bool = False,
         **kwargs,
     ):
         """
@@ -100,7 +107,10 @@ class Stack(NamedLinop):
         threaded : bool, optional
             Whether to run sub-linops in parallel. Default is True.
         num_workers : int | None, optional
-            Number of worker threads. If None, defaults to the number of sub-linops.
+            number of worker threads. if none, defaults to the number of sub-linops.
+        accumulate : bool, default False
+            If True, accumulate outputs incrementally in batches of size 1 (not threaded) or num_workers (threaded).
+            Helps manage memory.
         """
 
         self.idim, self.idim_idx, ishape = self._get_dim_and_idx(
@@ -114,6 +124,7 @@ class Stack(NamedLinop):
         super().__init__(NS(ishape, oshape), **kwargs)
         self.threaded = threaded
         self.num_workers = num_workers
+        self.accumulate = accumulate
         self._linops = nn.ModuleList(list(linops))
         self._check_linop_compatibility()
 
@@ -198,6 +209,8 @@ class Stack(NamedLinop):
                 reduce_fn=lambda ys: torch.stack(ys, dim=odim_idx),
                 threaded=stack.threaded,
                 num_workers=stack.num_workers,
+                accumulate=stack.accumulate,
+                accumulate_fn=lambda x, y: torch.concatenate((x, y), dim=odim_idx),
             )
 
         # Horizontal
@@ -208,6 +221,7 @@ class Stack(NamedLinop):
             reduce_fn=sum,
             threaded=stack.threaded,
             num_workers=stack.num_workers,
+            accumulate=stack.accumulate,
         )
 
     def size(self, dim) -> int | None:
@@ -364,8 +378,8 @@ class Stack(NamedLinop):
         self,
         linops=None,
         shape=None,
-        idim_and_idx=(None, None),
-        odim_and_idx=(None, None),
+        idim_and_idx=_INHERIT,
+        odim_and_idx=_INHERIT,
     ):
         """Helper function for creating a new linop using the provided inputs.
 
@@ -387,6 +401,10 @@ class Stack(NamedLinop):
         """
         linops = linops if linops is not None else self.linops
 
+        if idim_and_idx is _INHERIT:
+            idim_and_idx = (self.idim, self.idim_idx)
+        if odim_and_idx is _INHERIT:
+            odim_and_idx = (self.odim, self.odim_idx)
         idim, idim_idx = idim_and_idx
         odim, odim_idx = odim_and_idx
 

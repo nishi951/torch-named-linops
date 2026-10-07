@@ -1,6 +1,6 @@
 [project]
 site_name = "Torch Named Linops"
-site_url = "https://nishi951.github.io/torch-named-linops/"
+site_url = "https://torch-named-linops.dev/"
 site_description = "A flexible linear operator abstraction in pytorch."
 site_dir = "_site"
 docs_dir = "docs"

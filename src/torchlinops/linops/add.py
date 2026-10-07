@@ -41,6 +41,9 @@ class Add(NamedLinop):
         Whether to run sub-linops in parallel. Default is True.
     num_workers : int | None
         Number of worker threads. If None, defaults to the number of sub-linops.
+    accumulate : bool, default False
+        If True, accumulate outputs incrementally in batches of size 1 (not threaded) or num_workers (threaded).
+        Helps manage memory.
     """
 
     is_container = True
@@ -50,6 +53,7 @@ class Add(NamedLinop):
         *linops,
         threaded: bool = True,
         num_workers: Optional[int] = None,
+        accumulate: bool = False,
         **kwargs,
     ):
         """
@@ -61,6 +65,9 @@ class Add(NamedLinop):
             Whether to run sub-linops in parallel. Default is True.
         num_workers : int | None, optional
             Number of worker threads. If None, defaults to the number of sub-linops.
+        accumulate : bool, default False
+            If True, accumulate outputs incrementally in batches of size 1 (not threaded) or num_workers (threaded).
+            Helps manage memory.
         """
         if config.shape_inference:
             # Find the most specific shape across all linops
@@ -85,6 +92,7 @@ class Add(NamedLinop):
         super().__init__(NS(linops[0].ishape, linops[0].oshape), **kwargs)
         self.threaded = threaded
         self.num_workers = num_workers
+        self.accumulate = accumulate
         self._linops = nn.ModuleList(linops)
 
     @property
@@ -111,6 +119,7 @@ class Add(NamedLinop):
             reduce_fn=sum,
             threaded=add.threaded,
             num_workers=add.num_workers,
+            accumulate=add.accumulate,
         )
 
     @staticmethod
@@ -122,6 +131,7 @@ class Add(NamedLinop):
             reduce_fn=sum,
             threaded=add.threaded,
             num_workers=add.num_workers,
+            accumulate=add.accumulate,
         )
 
     @staticmethod

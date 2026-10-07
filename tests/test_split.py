@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from torchlinops import BatchSpec, Dense, create_batched_linop, split_linop
+from torchlinops.linops.split import TilingStrategy, create_batched_linop_v2
 
 
 def test_split_linop():
@@ -246,3 +247,66 @@ def test_batchspec_frozen():
 
     with pytest.raises(Exception):  # FrozenInstanceError
         spec.batch_sizes = dict(M=3)
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_mmap_no_duplication():
+    """Verify that shared parameters are not duplicated when creating batched linops.
+
+    Regression test: When creating batched linear operators from a Stack of linops
+    that share parameters (e.g., coil maps), the parameters should maintain shared
+    storage and not be duplicated across the batched operators.
+    """
+    from torchlinops import Stack
+
+    P = 3  # number of phase chains
+    C = 4  # number of coils
+    N = 8  # spatial dimension
+
+    # Create a shared parameter (e.g., coil maps) on CPU
+    shared_weight = torch.randn(C, N, N)
+
+    # Create P linops that all reference the same shared parameter
+    linops = []
+    for p in range(P):
+        # Each linop uses the same shared_weight (simulating shared coil maps)
+        A_p = Dense(shared_weight, ("C", "N", "N"), ("C", "N"), ("C", "N"))
+        linops.append(A_p)
+
+    # Stack them
+    A = Stack(*linops, odim_and_idx=("P", 0))
+
+    # Count unique storage pointers before batching (should be 1 since all share)
+    n_src_before = len({p.untyped_storage().data_ptr() for p in A.parameters()})
+    assert n_src_before == 1, (
+        f"Expected 1 shared storage before batching, got {n_src_before}"
+    )
+
+    # Create batched operators with tiling strategy
+    bounds = [0, C]  # tile bounds for dimension C
+
+    # This should fail because batching must occur AFTER stacking
+    # batched_linops = [
+    #     create_batched_linop_v2(A[p], [TilingStrategy({"C": bounds}, ["cuda:0"])])
+    #     for p in range(P)
+    # ]
+    # op = Stack(*batched_linops, odim_and_idx=("P", 0))
+
+    # This works because we stack before batching
+    Astack = Stack(*(A[p] for p in range(P)), odim_and_idx=("P", 0))
+    op = create_batched_linop_v2(Astack, [TilingStrategy({"C": bounds}, ["cuda:0"])])
+
+    # Count unique storage pointers after batching
+    # Should still be 1 (or at most P if each phase has its own, but ideally 1)
+    n_src_after = len({p.untyped_storage().data_ptr() for p in op.parameters()})
+
+    # The key check: we should not have MORE unique storages than we started with
+    # If parameters were duplicated, we'd see P distinct storages (one per phase)
+    assert n_src_after <= n_src_before, (
+        f"Parameter duplication detected: started with {n_src_before} shared storage(s), "
+        f"but after batching have {n_src_after} distinct storage(s). "
+        f"Expected parameters to remain shared."
+    )

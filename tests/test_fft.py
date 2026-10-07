@@ -12,7 +12,7 @@ class TestFFT(BaseNamedLinopTests):
 
     @pytest.fixture(scope="class")
     def linop_input_output(self):
-        F = FFT(ndim=2, centered=True, norm="ortho")
+        F = FFT(ndim=2, centered=True)
         x = torch.randn(8, 10, dtype=torch.complex64)
         y = torch.randn(8, 10, dtype=torch.complex64)
         return F, x, y
@@ -31,7 +31,7 @@ class TestFFT(BaseNamedLinopTests):
 
 def test_fft_invalid_grid_shapes():
     with pytest.raises(ValueError):
-        FFT(ndim=2, centered=True, norm="ortho", grid_shapes=(("A",), ("B",), ("C",)))
+        FFT(ndim=2, centered=True, grid_shapes=(("A",), ("B",), ("C",)))
 
 
 class TestFFTNotCentered(BaseNamedLinopTests):
@@ -42,7 +42,7 @@ class TestFFTNotCentered(BaseNamedLinopTests):
 
     @pytest.fixture(scope="class")
     def linop_input_output(self):
-        F = FFT(ndim=2, centered=False, norm="ortho")
+        F = FFT(ndim=2, centered=False)
         x = torch.randn(8, 10, dtype=torch.complex64)
         y = torch.randn(8, 10, dtype=torch.complex64)
         return F, x, y
@@ -50,7 +50,7 @@ class TestFFTNotCentered(BaseNamedLinopTests):
 
 def test_fft_split():
     """split should return an FFT with identical behaviour."""
-    F = FFT(ndim=2, centered=True, norm="ortho")
+    F = FFT(ndim=2, centered=True)
     x = torch.randn(8, 10, dtype=torch.complex64)
     F_split = type(F).split(F, {})
     assert isinstance(F_split, FFT)
@@ -61,7 +61,7 @@ def test_fft_normal_with_inner():
     """FFT.normal(inner=D) should equal F.H @ D @ F numerically."""
     from torchlinops import Diagonal
 
-    F = FFT(ndim=1, centered=True, norm="ortho")
+    F = FFT(ndim=1, centered=True)
     N = 16
     d = Diagonal(torch.randn(N, dtype=torch.complex64), ("Kx",))
     normal = F.normal(inner=d)

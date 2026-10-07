@@ -7,7 +7,7 @@ from torch import Tensor
 
 import torchlinops.config as config
 
-from ..nameddim import AnyDim, Shape
+from ..nameddim import ELLIPSES, AnyDim, Shape, is_any, align
 from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
@@ -373,11 +373,15 @@ class Dense(NamedLinop):
             normal._name = self._name
             normal._update_suffix(normal=self._name is not None)
             return normal
+
+        assert inner is not None
+        # Flexibly match shapes even through
+        # ellipses and changing dimensions.
         pre = copy(self)
-        pre.oshape = inner.ishape
+        pre.oshape = align(pre.oshape, inner.ishape)
         post = self.adjoint()  # Copy happens inside adjoint
-        post.ishape = inner.oshape
         post.oshape = new_oshape
+        post.ishape = align(post.ishape, inner.oshape)
         normal = post @ inner @ pre
         return normal
 

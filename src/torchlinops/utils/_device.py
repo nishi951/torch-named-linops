@@ -21,6 +21,7 @@ __all__ = [
     "ModuleMemoryMap",
     "memory_aware_to",
     "memory_aware_deepcopy",
+    "resolve_device",
 ]
 
 T = TypeVar("T")

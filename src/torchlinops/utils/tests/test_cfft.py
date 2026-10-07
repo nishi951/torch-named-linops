@@ -1,7 +1,6 @@
 """Tests for centered FFT utility functions."""
 
 import torch
-import pytest
 
 from torchlinops.utils._fft import cfft, cifft, cfft2, cifft2, cfftn, cifftn
 

@@ -2,7 +2,8 @@ import pytest
 import torch
 import torch.nn as nn
 
-from torchlinops import NUFFT, Dense, Diagonal, Dim, Stack, split_linop
+from torchlinops import NUFFT, Dense, Diagonal, Dim, Stack, split_linop, SamplingNUFFT
+
 from torchlinops.utils import (
     MemReporter,
     memory_aware_deepcopy,
@@ -113,13 +114,18 @@ def make_linop(trj, dcf, mps, nufft_width, nufft_oversamp, nufft_mode):
     )
     for p in range(P):
         # DCF
-        Dp = Diagonal(dcf[p], ioshape=Dim("CTK"), broadcast_dims=Dim("C"))
-        Fp = NUFFT(
+        Dp = Diagonal(dcf[p], ioshape=Dim("CK"), broadcast_dims=Dim("C"))
+        if nufft_mode == "sampling":
+            NufftCls = SamplingNUFFT
+        elif nufft_mode == "interpolate":
+            NufftCls = NUFFT
+        else:
+            raise ValueError(f"Unrecognized nufft_mode: {nufft_mode}")
+        Fp = NufftCls(
             trj[p],
             im_size,
-            output_shape=Dim("TK"),
+            output_shape=Dim("K"),
             oversamp=nufft_oversamp,
-            mode=nufft_mode,
         )
         Ap = (Dp ** (1 / 2)) @ Fp @ S
         linops.append(Ap)

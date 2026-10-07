@@ -8,12 +8,9 @@ dependencies = [
     "triton>=3.0; sys_platform != 'darwin'",
     "jaxtyping>=0.2.36",
     "setuptools>=75.6.0", # For triton
-    "torch>=2.5.1",
+    "torch>=2.6.0",
     "torchvision>=0.20.1",
     "torchaudio>=2.5.1",
-    # "torch>=2.5.1",
-    # "torchvision>=0.20.1",
-    # "torchaudio>=2.5.1",
     "einops>=0.8.0",
     "tqdm>=4.67.1",
     "scipy>=1.15.2",
