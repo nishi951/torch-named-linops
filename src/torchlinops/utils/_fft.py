@@ -1,6 +1,8 @@
 import torch.fft as fft
 from torch import Tensor
 
+from ._roll import fftshift, ifftshift
+
 __all__ = ["cfft", "cifft", "cfft2", "cifft2", "cfftn", "cifftn"]
 
 
@@ -26,9 +28,9 @@ def cfftn(x, dim=None, norm="ortho"):
         This is required to make ifft() the exact inverse. Default is "backward"
         (no normalization).
     """
-    x = fft.ifftshift(x, dim=dim)
+    x = ifftshift(x, dim=dim)
     x = fft.fftn(x, dim=dim, norm=norm)
-    x = fft.fftshift(x, dim=dim)
+    x = fftshift(x, dim=dim)
     return x
 
 
@@ -54,9 +56,9 @@ def cifftn(x, dim=None, norm="ortho"):
         is required to make ifft() the exact inverse. Default is "backward"
         (normalize by 1/n).
     """
-    x = fft.ifftshift(x, dim=dim)
+    x = ifftshift(x, dim=dim)
     x = fft.ifftn(x, dim=dim, norm=norm)
-    x = fft.fftshift(x, dim=dim)
+    x = fftshift(x, dim=dim)
     return x
 
 

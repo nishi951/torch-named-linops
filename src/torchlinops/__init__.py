@@ -20,10 +20,9 @@ Example:
     >>> z = A.H(y)  # Apply the adjoint
 """
 
+from . import config, testing
 from .alg import *
 from .linops import *
 from .nameddim import *
-
-from . import config, testing
 
 __version__ = "0.7.4"
