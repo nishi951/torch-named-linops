@@ -85,3 +85,89 @@ def test_chain_contains_no_centered_fft():
     )
     assert fast.fft.centered is False
     assert not any(getattr(linop, "centered", False) for linop in fast.linops)
+
+
+# The parity that drives the fold is that of PADDED_SIZE (the FFT grid the
+# sandwich shifts), not grid_size: grid_size parity only affects the shared Pad
+# placement and is invisible to the index/phase identity. Both are swept here.
+# oversamp * grid must be an exact integer (see make_spec docstring).
+@pytest.mark.parametrize(
+    "grid_size, oversamp",
+    [
+        ((16, 16, 24), 1.25),  # padded (20,20,30): all even -> parity sign
+        ((12, 16, 24), 1.25),  # padded (15,20,30): one odd axis -> complex phase
+        ((20, 12, 12), 1.25),  # padded (25,15,15): all odd axes
+        ((15, 15, 15), 1.2),  # odd grid_size, even padded: guards shared-Pad path
+    ],
+    ids=["padded-even", "padded-mixed", "padded-odd", "grid-odd"],
+)
+def test_forward_and_adjoint_match_grid_parity(grid_size, oversamp):
+    spec = make_spec(
+        batch=(1,), grid_size=grid_size, locs_batch_size=(3, 5), oversamp=oversamp
+    )
+    common = dict(output_shape=("R", "K"), oversamp=spec["oversamp"])
+    slow = SamplingNUFFT(spec["locs"].clone(), spec["grid_size"], **common)
+    fast = FastSamplingNUFFT(spec["locs"].clone(), spec["grid_size"], **common)
+    torch.manual_seed(0)
+    x = torch.rand(*spec["batch"], *spec["grid_size"], dtype=torch.complex64) + 0.5j
+    y = torch.rand(*spec["batch"], *spec["locs"].shape[:-1], dtype=torch.complex64)
+
+    torch.testing.assert_close(fast(x), slow(x), rtol=1e-3, atol=1e-4)
+    torch.testing.assert_close(fast.H(y), slow.H(y), rtol=1e-3, atol=1e-4)
+
+
+def test_phase_is_unit_modulus():
+    _, phase = FastSamplingNUFFT.fold_centering(
+        torch.randint(0, 8, (100, 3), dtype=torch.int64), (8, 10, 12)
+    )
+    # gather idx must stay in-bounds for Sampling's range validation
+    torch.testing.assert_close(phase.abs(), torch.ones_like(phase.real))
+
+
+from torchlinops.testing import BaseNamedLinopTests  # noqa: E402
+
+
+class TestFastSamplingNUFFT(BaseNamedLinopTests):
+    """Shared linop-behavior suite: adjoint consistency, normal, split, backprop."""
+
+    equality_check = "approx"
+    isclose_kwargs: dict = {"rtol": 1e-3}
+
+    instances = ["even_padded_3d", "odd_padded_3d"]
+
+    @pytest.fixture(scope="class", params=instances)
+    def linop_input_output(self, request):
+        spec = request.getfixturevalue(request.param)
+        grid_size = spec["grid_size"]
+        locs_batch = spec["locs"].shape[:-1]
+        linop = FastSamplingNUFFT(
+            spec["locs"].clone(),
+            grid_size,
+            output_shape=("R", "K"),
+            oversamp=spec["oversamp"],
+        )
+        ishape = (*spec["batch"], *grid_size)
+        oshape = (*spec["batch"], *locs_batch)
+        x = 0.5 * torch.rand(ishape, dtype=torch.complex64) + 0.5
+        y = 0.5 * torch.rand(oshape, dtype=torch.complex64) + 0.5
+        return linop, x, y
+
+    @pytest.fixture(scope="class")
+    def even_padded_3d(self):
+        return make_spec()  # grid (16,16,24) -> padded (20,20,30)
+
+    @pytest.fixture(scope="class")
+    def odd_padded_3d(self):
+        # The odd axis lives in the PADDED grid: grid (12,16,24) -> padded (15,20,30)
+        return make_spec(grid_size=(12, 16, 24))
+
+    def test_size(self, linop_input_output):
+        A, _, _ = linop_input_output
+        assert A.size("R") == 3
+        assert A.size("K") == 5
+
+    def test_split_preserves_class_and_results(self, linop_input_output):
+        A, x, _ = linop_input_output
+        op = type(A).split(A, {})
+        assert type(op) is type(A)
+        assert torch.isclose(A(x), op(x), rtol=1e-5).all()
