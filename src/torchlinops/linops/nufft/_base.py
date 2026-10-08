@@ -57,6 +57,8 @@ class NUFFTBase(Chain):
 
         """
         # Useful parameters to save
+        if isinstance(locs, nn.Parameter):
+            locs = locs.data  # Avoid registering a new parameter
         self.locs = locs
         self.grid_size = grid_size
         self.options = default_to_dict(self.default_options, options)
