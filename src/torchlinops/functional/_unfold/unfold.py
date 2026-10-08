@@ -204,7 +204,6 @@ def _unfold1d(
     x_size = cast(x_size, tl.uint64)
     x_block_dim = cast(x_block_dim, tl.uint64)
 
-    # in_size = x_size
     nblocks = x_nblocks
     block_dim = x_block_dim
 
@@ -295,18 +294,9 @@ def _unfold2d(
     y_block_dim = cast(y_block_dim, tl.uint64)
 
     # global sizes
-    # in_size = x_size * y_size
     nblocks = x_nblocks * y_nblocks
     block_dim = x_block_dim * y_block_dim
 
-    # in_blk_ptr = tl.make_block_ptr(
-    #     in_ptr,
-    #     shape=(nbatch, x_size, y_size),
-    #     strides=(in_size, y_size, 1),
-    #     offsets=(N, Bx * x_stride, By * y_stride),
-    #     block_shape=(1, X_BLOCK_SIZE, Y_BLOCK_SIZE),
-    #     order=(0, 1, 2),
-    # )
     base_offset = (N * x_size + Bx * x_stride) * y_size + By * y_stride
 
     x_base_range = tl.arange(0, X_BLOCK_SIZE)
@@ -324,7 +314,6 @@ def _unfold2d(
                     # Loop over blocks within block
                     for u in range(x_BLOCKS_per_block):
                         for v in range(y_BLOCKS_per_block):
-                            # block_offset = u * X_BLOCK_SIZE + v * Y_BLOCK_SIZE
                             x_range = x_base_range + u * X_BLOCK_SIZE
                             y_range = y_base_range + v * Y_BLOCK_SIZE
                             x_mask = x_range < x_block_dim
@@ -341,25 +330,10 @@ def _unfold2d(
                             in_range = x_range[:, None] * y_size + y_range[None, :]
                             blk = tl.load(in_ptr + in_offset + in_range, mask=blk_mask)
 
-                            # blk = load_subblock2d(
-                            #     in_blk_ptr, u, v, X_BLOCK_SIZE, Y_BLOCK_SIZE
-                            # )
                             out_offset = (
                                 N * nblocks * block_dim + x_blk_offset + y_blk_offset
                             )
                             tl.store(out_ptr + out_offset + out_range, blk, out_mask)
-        #         in_blk_ptr = tl.advance(in_blk_ptr, (0, 0, y_stride))
-        #     in_blk_ptr = in_blk_ptr_x
-        # in_blk_ptr = tl.advance(in_blk_ptr, (0, x_stride, 0))
-
-
-# @triton.jit  # pragma: no cover
-# def load_subblock2d(in_blk_ptr, x_idx, y_idx, X_BLOCK_SIZE, Y_BLOCK_SIZE):
-#     return tl.load(
-#         in_blk_ptr.advance((0, x_idx * X_BLOCK_SIZE, y_idx * Y_BLOCK_SIZE)),
-#         boundary_check=(1, 2),
-#         padding_option="zero",
-#     )
 
 
 @triton.heuristics(
@@ -443,19 +417,8 @@ def _unfold3d(
     y_block_dim = cast(y_block_dim, tl.uint64)
     z_block_dim = cast(z_block_dim, tl.uint64)
 
-    # global sizes
-    # in_size = x_size * y_size * z_size
     nblocks = x_nblocks * y_nblocks * z_nblocks
     block_dim = x_block_dim * y_block_dim * z_block_dim
-
-    # in_blk_ptr = tl.make_block_ptr(
-    #     in_ptr,
-    #     shape=(nbatch, x_size, y_size, z_size),
-    #     strides=(in_size, y_size * z_size, z_size, 1),
-    #     offsets=(N, Bx * x_stride, By * y_stride, Bz * z_stride),
-    #     block_shape=(1, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE),
-    #     order=(0, 1, 2, 3),
-    # )
 
     base_offset = (
         (N * x_size + Bx * x_stride) * y_size + By * y_stride
@@ -513,15 +476,6 @@ def _unfold3d(
                                             in_ptr + in_offset + in_range, mask=blk_mask
                                         )
 
-                                        # blk = load_subblock3d(
-                                        #     in_blk_ptr,
-                                        #     u,
-                                        #     v,
-                                        #     w,
-                                        #     X_BLOCK_SIZE,
-                                        #     Y_BLOCK_SIZE,
-                                        #     Z_BLOCK_SIZE,
-                                        # )
                                         out_offset = (
                                             N * nblocks * block_dim
                                             + x_blk_offset
@@ -533,24 +487,6 @@ def _unfold3d(
                                             blk,
                                             out_mask,
                                         )
-        #                 in_blk_ptr = tl.advance(in_blk_ptr, (0, 0, 0, z_stride))
-        #             in_blk_ptr = in_blk_ptr_y
-        #         in_blk_ptr = tl.advance(in_blk_ptr, (0, 0, y_stride, 0))
-        #     in_blk_ptr = in_blk_ptr_x
-        # in_blk_ptr = tl.advance(in_blk_ptr, (0, x_stride, 0, 0))
-
-
-@triton.jit  # pragma: no cover
-def load_subblock3d(
-    in_blk_ptr, x_idx, y_idx, z_idx, X_BLOCK_SIZE, Y_BLOCK_SIZE, Z_BLOCK_SIZE
-):
-    return tl.load(
-        in_blk_ptr.advance(
-            (0, x_idx * X_BLOCK_SIZE, y_idx * Y_BLOCK_SIZE, z_idx * Z_BLOCK_SIZE)
-        ),
-        boundary_check=(1, 2, 3),
-        padding_option="zero",
-    )
 
 
 if TRITON_ENABLED:  # pragma: no cover
