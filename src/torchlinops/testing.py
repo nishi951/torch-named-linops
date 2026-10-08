@@ -29,7 +29,6 @@ class BaseNamedLinopTests(ABC):
         3. A tensor with the same shape as the linop's outputs
         Ideally these are randomized in some fashion
         """
-        pass
 
     def test_input_mutation(self, linop_input_output):
         """Should be the first test so that later tests don't pre-mutate the input/output."""

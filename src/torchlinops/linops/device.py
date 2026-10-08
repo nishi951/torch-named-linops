@@ -1,20 +1,20 @@
-from collections.abc import Callable
+import logging
 from copy import copy
 from dataclasses import dataclass, field
-from typing import Any, NamedTuple, Optional
-import logging
+from typing import Any
 
 import torch
-from torch.cuda import Stream, default_stream, Event, current_stream
+from torch.cuda import Event, Stream, current_stream, default_stream
 
-import torchlinops.config as config
+from torchlinops import config
 from torchlinops.utils import INDENT, default_to
 
-from ..nameddim import NamedShape as NS, Shape
+from ..nameddim import NamedShape as NS
+from ..nameddim import Shape
 from .identity import Identity
 from .namedlinop import NamedLinop
 
-__all__ = ["ToDevice", "DeviceSpec"]
+__all__ = ["DeviceSpec", "ToDevice"]
 
 logger = logging.getLogger("torchlinops")
 
@@ -45,9 +45,9 @@ class DeviceSpec:
 
     device: Any = field(default_factory=lambda: torch.device("cpu"))
     """Device for the streams."""
-    compute_stream: Optional[Stream] = None
+    compute_stream: Stream | None = None
     """Stream used for computation."""
-    transfer_stream: Optional[Stream] = None
+    transfer_stream: Stream | None = None
     """Stream used for transfers from this device."""
 
     def __post_init__(self):
@@ -101,7 +101,7 @@ class ToDevice(NamedLinop):
         self,
         idevice: DeviceSpec | torch.device | None,
         odevice: DeviceSpec | torch.device | None,
-        ioshape: Optional[Shape] = None,
+        ioshape: Shape | None = None,
     ):
         """
         Parameters
@@ -142,7 +142,7 @@ class ToDevice(NamedLinop):
         x,
         ispec: DeviceSpec,
         ospec: DeviceSpec,
-        wait_for_event: Optional[Event] = None,
+        wait_for_event: Event | None = None,
     ):
         """Transfer a tensor between devices.
 
@@ -249,7 +249,7 @@ def _gpu2gpu_transfer(
     x,
     target_stream,
     transfer_stream=None,
-    wait_for_event: Optional[Event] = None,
+    wait_for_event: Event | None = None,
 ):  # pragma: no cover
     """Perform efficient gpu-gpu transfer with a dedicated transfer stream.
 

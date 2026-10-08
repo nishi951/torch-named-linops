@@ -28,7 +28,6 @@ def _(mo):
     `split` (for multi-GPU tiling), and `size` (to report dimension
     sizes).
     """)
-    return
 
 
 @app.cell
@@ -36,7 +35,6 @@ def _(mo):
     mo.md("""
     ## Setup
     """)
-    return
 
 
 @app.cell
@@ -55,7 +53,7 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md("""
+    mo.md(r"""
     ## Example 1: Diagonal Scaling
 
     The simplest useful operator multiplies each element by a weight vector.
@@ -66,7 +64,6 @@ def _(mo):
     methods receive the linop instance as their first argument — this is how
     they access `self.weight` without being regular methods.
     """)
-    return
 
 
 @app.cell
@@ -78,7 +75,7 @@ def _(NS, NamedLinop, Tensor, torch):
             # For a diagonal operator the input and output shapes are the same,
             # so we pass ioshape for both.
             super().__init__(NS(ioshape, ioshape))
-            import torch.nn as nn
+            from torch import nn
 
             self.weight = nn.Parameter(weight, requires_grad=False)
 
@@ -105,7 +102,6 @@ def _(mo):
     mo.md("""
     Let's create an instance and try it out.
     """)
-    return
 
 
 @app.cell
@@ -127,10 +123,9 @@ def _(mo):
     ## Testing the Adjoint
 
     A correct adjoint must satisfy the identity
-    $\langle y, A x \rangle = \langle A^H y, x \rangle$ for all $x, y$.
+    $\\langle y, A x \rangle = \\langle A^H y, x \rangle$ for all $x, y$.
     The helper `is_adjoint` checks this numerically.
     """)
-    return
 
 
 @app.cell
@@ -139,7 +134,6 @@ def _(D, N, is_adjoint, torch):
     y_test = torch.randn(N, dtype=torch.complex64)
     passed = is_adjoint(D, x_test, y_test)
     print(f"Adjoint test passed: {passed}")
-    return
 
 
 @app.cell
@@ -151,7 +145,6 @@ def _(mo):
     fixed index mapping. Its adjoint is the *inverse* permutation (which is
     also its transpose, since permutation matrices are orthogonal).
     """)
-    return
 
 
 @app.cell
@@ -161,7 +154,7 @@ def _(NS, NamedLinop, Tensor, torch):
 
         def __init__(self, perm: Tensor, ishape, oshape):
             super().__init__(NS(ishape, oshape))
-            import torch.nn as nn
+            from torch import nn
 
             # Store perm and its inverse as buffers so they travel with the module.
             self.perm = nn.Parameter(perm, requires_grad=False)
@@ -193,7 +186,6 @@ def _(mo):
     mo.md("""
     Create a random permutation and verify it.
     """)
-    return
 
 
 @app.cell
@@ -216,7 +208,6 @@ def _(M, P, is_adjoint, torch):
     y_test2 = torch.randn(M)
     passed2 = is_adjoint(P, x_test2, y_test2)
     print(f"Permutation adjoint test passed: {passed2}")
-    return
 
 
 @app.cell
@@ -229,7 +220,6 @@ def _(mo):
     `Dense` matrix operator to form $A = D M$ where $D$ is diagonal
     scaling and $M$ is a dense matrix.
     """)
-    return
 
 
 @app.cell
@@ -259,7 +249,6 @@ def _(mo):
     The composed operator automatically supports adjoint and normal
     operations.
     """)
-    return
 
 
 @app.cell
@@ -273,7 +262,6 @@ def _(A, K, N, is_adjoint, torch):
     x_t = torch.randn(N, dtype=torch.complex64)
     y_t = torch.randn(K, dtype=torch.complex64)
     print(f"Composed adjoint test passed: {is_adjoint(A, x_t, y_t)}")
-    return
 
 
 @app.cell
@@ -291,7 +279,6 @@ def _(mo):
     4. Use `is_adjoint` to verify correctness.
     5. Compose freely with other operators using `@`.
     """)
-    return
 
 
 if __name__ == "__main__":

@@ -4,24 +4,23 @@ import logging
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Literal, Optional, TypeVar
+from typing import Literal, TypeVar
 from warnings import warn
 
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 __all__ = [
-    "cdata",
-    "tensor_memory_span",
-    "get_device",
-    "device_ordinal",
-    "same_storage",
     "MemReporter",
     "ModuleMemoryMap",
-    "memory_aware_to",
+    "cdata",
+    "device_ordinal",
+    "get_device",
     "memory_aware_deepcopy",
+    "memory_aware_to",
     "resolve_device",
+    "same_storage",
+    "tensor_memory_span",
 ]
 
 T = TypeVar("T")
@@ -106,7 +105,7 @@ class ModuleMemoryMap:
         default_factory=lambda: defaultdict(dict)
     )
 
-    def register(self, t: Tensor, new_t: Optional[Tensor] = None):
+    def register(self, t: Tensor, new_t: Tensor | None = None):
         device = t.device if new_t is None else new_t.device
         self.tensor_map[get_key(t)][device] = t
         self.tensor_cdata_index[cdata(t)].append(t)
@@ -432,7 +431,7 @@ class MemReporter:
         else:
             return f"{size_B / (base**3):.2f}", f"{prefix[2]}B"
 
-    def _collect_tensors(self, module: Optional[nn.Module] = None):
+    def _collect_tensors(self, module: nn.Module | None = None):
         """Collect all tensor objects tracked by python
 
         NOTICE:
@@ -490,7 +489,6 @@ class MemReporter:
                     # Other options that we didn't deal with...
                     # Independent
                     new_roots.append(root)
-                    pass
 
             if not counted:
                 new_roots.append(name)
@@ -499,7 +497,7 @@ class MemReporter:
             roots = new_roots
         return roots
 
-    def report(self, module: Optional[nn.Module] = None):
+    def report(self, module: nn.Module | None = None):
         self._collect_tensors(module)
         for dev, names in self.device_map.items():
             total_size = 0

@@ -2,7 +2,7 @@ from functools import wraps
 from types import SimpleNamespace
 from typing import Any
 
-__all__ = ["fake_triton", "fake_tl"]
+__all__ = ["fake_tl", "fake_triton"]
 
 
 # Replace all triton decorators with not implemented

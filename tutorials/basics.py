@@ -21,7 +21,6 @@ def _(mo):
     - Compute adjoints (`.H`) and normal operators (`.N`)
     - Solve a linear system with `conjugate_gradients`
     """)
-    return
 
 
 @app.cell
@@ -29,7 +28,6 @@ def _(mo):
     mo.md("""
     ## Setup
     """)
-    return
 
 
 @app.cell
@@ -63,7 +61,6 @@ def _(mo):
     and gives each axis a name. The `Dim()` helper turns a compact string
     into a tuple of dimension names by splitting on uppercase letters:
     """)
-    return
 
 
 @app.cell
@@ -73,7 +70,6 @@ def _(Dim):
 
     # You can also write dimension names as a plain tuple:
     print("('M', 'N') works too:", ("M", "N"))
-    return
 
 
 @app.cell
@@ -82,7 +78,6 @@ def _(mo):
     Let's create a 4×3 matrix and wrap it as a Dense operator whose
     input dimension is `N` (size 3) and output dimension is `M` (size 4).
     """)
-    return
 
 
 @app.cell
@@ -101,7 +96,6 @@ def _(mo):
     A named linop is callable just like a function. Calling `A(x)` applies
     the forward operation — in this case, a matrix-vector multiply.
     """)
-    return
 
 
 @app.cell
@@ -112,18 +106,16 @@ def _(A, W, torch):
     _y_manual = W @ _x
     # We can verify this matches a plain matrix-vector multiply:
     print("W @ x matches A(x):", torch.allclose(_y, _y_manual))
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""
+    mo.md(r"""
     ## The Diagonal Operator
 
     `Diagonal` represents element-wise multiplication by a weight vector:
     $D(x) = w \odot x$. Input and output shapes are the same.
     """)
-    return
 
 
 @app.cell
@@ -135,7 +127,6 @@ def _(Diagonal, Dim, torch):
     print("D(x):", D(_x))
     print("w * x:", w * _x)
     print("Match:", torch.allclose(D(_x), w * _x))
-    return
 
 
 @app.cell
@@ -147,7 +138,6 @@ def _(mo):
     Composing two operators creates a `Chain` that applies them right-to-left:
     `(B @ A)(x)` means `B(A(x))`.
     """)
-    return
 
 
 @app.cell
@@ -177,7 +167,6 @@ def _(mo):
     For a Dense operator wrapping matrix $W$, the adjoint applies $W^H$
     (conjugate transpose).
     """)
-    return
 
 
 @app.cell
@@ -194,9 +183,8 @@ def _(Dense, Dim, W1, torch):
 def _(mo):
     mo.md("""
     We can verify the adjoint relationship numerically using the
-    `is_adjoint` utility: $\langle y, A x \rangle = \langle A^H y, x \rangle$
+    `is_adjoint` utility: $\\langle y, A x \rangle = \\langle A^H y, x \rangle$
     """)
-    return
 
 
 @app.cell
@@ -204,7 +192,6 @@ def _(A_2, is_adjoint, torch):
     _x = torch.randn(3)
     _y = torch.randn(4)
     print("Adjoint test passed:", is_adjoint(A_2, _x, _y).item())
-    return
 
 
 @app.cell
@@ -216,7 +203,6 @@ def _(mo):
     positive semi-definite, making it suitable for iterative solvers like
     conjugate gradients.
     """)
-    return
 
 
 @app.cell
@@ -229,7 +215,6 @@ def _(Dense, Dim, W1, torch):
     print(
         "A.N(x) matches A.H(A(x)):", torch.allclose(AN(_x), A_3.H(A_3(_x)), atol=1e-06)
     )
-    return
 
 
 @app.cell
@@ -242,7 +227,6 @@ def _(mo):
 
     Let's set up a small system and recover the solution.
     """)
-    return
 
 
 @app.cell
@@ -263,7 +247,6 @@ def _(mo):
     First, estimate the largest eigenvalue of $A^H A$ with the power method
     to gauge the condition of the system:
     """)
-    return
 
 
 @app.cell
@@ -272,7 +255,6 @@ def _(A_4, N, power_method, torch):
         A_4.N, torch.randn(N), max_iters=30, tqdm_kwargs=dict(leave=False)
     )
     print(f"Largest eigenvalue of A.N: {eigval.item():.4f}")
-    return
 
 
 @app.cell
@@ -280,7 +262,6 @@ def _(mo):
     mo.md("""
     Now solve $A^H A x = A^H b$ using conjugate gradients:
     """)
-    return
 
 
 @app.cell
@@ -290,7 +271,6 @@ def _(A_4, b, conjugate_gradients, torch, x_true):
     print(f"x_true: {x_true}")
     print(f"x_cg:   {x_cg}")
     print(f"Relative error: {torch.norm(x_cg - x_true) / torch.norm(x_true):.2e}")
-    return
 
 
 @app.cell
@@ -311,7 +291,6 @@ def _(mo):
     These primitives compose to build complex linear systems
     while keeping dimension bookkeeping clear and automatic.
     """)
-    return
 
 
 if __name__ == "__main__":

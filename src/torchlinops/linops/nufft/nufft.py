@@ -1,36 +1,22 @@
-from copy import copy
 from functools import lru_cache
-from itertools import product
 from math import prod
-from typing import Literal, Optional
+from typing import Literal
 
 import torch
-import torch.nn as nn
-from jaxtyping import Float, Shaped
+from jaxtyping import Shaped
 from torch import Tensor
 
-from torchlinops.utils import cfftn, default_to
 from torchlinops import config
 
-from ...nameddim import (
-    ELLIPSES,
-    Shape,
-    get_nd_shape,
-)
-from ...nameddim import (
-    NamedDimension as ND,
-)
 from ...nameddim import (
     NamedShape as NS,
 )
 from ..diagonal import Diagonal
 from ..fft import FFT
-from ..identity import Identity
 from ..interp import Interpolate
 from ..pad_last import Pad
 from ..scalar import Scalar
 from ._base import NUFFTBase
-from .utils import scale_int
 
 __all__ = ["NUFFT"]
 

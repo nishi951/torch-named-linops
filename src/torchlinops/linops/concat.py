@@ -1,28 +1,27 @@
 import logging
 from copy import copy
-from typing import Optional
 
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
-import torchlinops.config as config
+from torchlinops import config
 from torchlinops.utils import INDENT
 
 from ..nameddim import (
-    ANY,
     ELLIPSES,
-    NamedDimension as ND,
-    NamedShape as NS,
-    iscompatible,
     isequal,
     max_shape,
     standardize_shapes,
 )
+from ..nameddim import (
+    NamedDimension as ND,
+)
+from ..nameddim import (
+    NamedShape as NS,
+)
 from .add import Add
-from .device import ToDevice
 from .identity import Zero
-from .namedlinop import NamedLinop, SyncContext
+from .namedlinop import NamedLinop
 from .schedule import parallel_execute
 
 __all__ = ["Concat"]
@@ -88,10 +87,10 @@ class Concat(NamedLinop):
     def __init__(
         self,
         *linops,
-        idim: Optional[ND | str] = None,
-        odim: Optional[ND | str] = None,
+        idim: ND | str | None = None,
+        odim: ND | str | None = None,
         threaded: bool = True,
-        num_workers: Optional[int] = None,
+        num_workers: int | None = None,
         accumulate: bool = False,
         **kwargs,
     ):
@@ -250,7 +249,7 @@ class Concat(NamedLinop):
             return concat.spinoff(output_linops, idim=concat.idim, odim=concat.odim)
 
     @staticmethod
-    def subslice(batch: list[slice], dim_idx: Optional[int], slices, num_linops):
+    def subslice(batch: list[slice], dim_idx: int | None, slices, num_linops):
         """Given a slice over some dims of a concat linop,
         return a mapping from the linop index to the relevant sub-slice for that linop.
         """

@@ -11,7 +11,8 @@ try:  # pragma: no cover
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_tl as tl, fake_triton as triton
+    from torchlinops.utils import fake_tl as tl
+    from torchlinops.utils import fake_triton as triton
 
     TRITON_ENABLED = False
 
@@ -138,7 +139,9 @@ def _grid(
 
 
 def _get_grid():  # pragma: no cover
-    grid = lambda meta: (ceil(meta["npts"] / meta["pts_per_grid"]) * meta["nbatch"],)  # noqa: E731
+    def grid(meta):
+        return (ceil(meta["npts"] / meta["pts_per_grid"]) * meta["nbatch"],)
+
     return grid
 
 

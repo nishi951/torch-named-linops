@@ -1,13 +1,12 @@
+from collections.abc import Sequence
 from copy import copy, deepcopy
-from typing import Optional, Sequence
 
-import torch.nn as nn
 from einops import einsum
-from torch import Tensor
+from torch import Tensor, nn
 
-import torchlinops.config as config
+from torchlinops import config
 
-from ..nameddim import ELLIPSES, AnyDim, Shape, is_any, align
+from ..nameddim import AnyDim, Shape, align
 from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
@@ -60,10 +59,10 @@ class Dense(NamedLinop):
     def __init__(
         self,
         weight: Tensor,
-        weightshape: Optional[Shape] = None,
-        ishape: Optional[Shape] = None,
-        oshape: Optional[Shape] = None,
-        broadcast_dims: Optional[list] = None,
+        weightshape: Shape | None = None,
+        ishape: Shape | None = None,
+        oshape: Shape | None = None,
+        broadcast_dims: list | None = None,
     ):
         """
         Parameters
@@ -124,7 +123,7 @@ class Dense(NamedLinop):
         cls,
         weight: Tensor,
         einstr: str,
-        broadcast_dims: Optional[list] = None,
+        broadcast_dims: list | None = None,
     ) -> "Dense":
         """Construct a Dense linop from a weight tensor and einsum-style string.
 

@@ -8,7 +8,7 @@ from itertools import product
 import torch
 from torch import Tensor
 
-__all__ = ["roll", "fftshift", "ifftshift"]
+__all__ = ["fftshift", "ifftshift", "roll"]
 
 
 def roll_fused(x: Tensor, shifts: tuple[int, ...], dims: tuple[int, ...]):

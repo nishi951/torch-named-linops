@@ -1,13 +1,13 @@
 from copy import copy
 from typing import Optional
 
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to
 
-from ..nameddim import NamedShape as NS, Shape
+from ..nameddim import NamedShape as NS
+from ..nameddim import Shape
 from .namedlinop import NamedLinop
 
 __all__ = ["ArrayToBlocks", "BlocksToArray"]
@@ -25,10 +25,10 @@ class ArrayToBlocks(NamedLinop):
         grid_size: tuple[int, ...],
         block_size: tuple[int, ...],
         stride: tuple[int, ...],
-        mask: Optional[Tensor] = None,
-        batch_shape: Optional[Shape] = None,
-        array_shape: Optional[Shape] = None,
-        blocks_shape: Optional[Shape] = None,
+        mask: Tensor | None = None,
+        batch_shape: Shape | None = None,
+        array_shape: Shape | None = None,
+        blocks_shape: Shape | None = None,
     ):
         """
         Parameters
@@ -121,7 +121,7 @@ class BlocksToArray(NamedLinop):
         grid_size: tuple[int, ...],
         block_size: tuple[int, ...],
         stride: tuple[int, ...],
-        mask: Optional[Tensor] = None,
+        mask: Tensor | None = None,
         batch_shape: Optional = None,
         blocks_shape: Optional = None,
         array_shape: Optional = None,

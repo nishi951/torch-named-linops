@@ -1,13 +1,13 @@
-from typing import Optional
-
 import torch.nn.functional as F
 
 from torchlinops.utils import default_to
 
-from ..nameddim import NamedDimension as ND, NamedShape as NS, Shape, get_nd_shape
+from ..nameddim import NamedDimension as ND
+from ..nameddim import NamedShape as NS
+from ..nameddim import Shape, get_nd_shape
 from .namedlinop import NamedLinop
 
-__all__ = ["PadLast", "Pad", "Crop"]
+__all__ = ["Crop", "Pad", "PadLast"]
 
 
 class Pad(NamedLinop):
@@ -23,9 +23,9 @@ class Pad(NamedLinop):
         self,
         pad_im_size: tuple[int, ...],
         im_size: tuple[int, ...],
-        in_shape: Optional[Shape] = None,
-        out_shape: Optional[Shape] = None,
-        batch_shape: Optional[Shape] = None,
+        in_shape: Shape | None = None,
+        out_shape: Shape | None = None,
+        batch_shape: Shape | None = None,
     ):
         """
         Parameters

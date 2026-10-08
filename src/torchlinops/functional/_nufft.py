@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from jaxtyping import Float
 from torch import Tensor
 
-import torchlinops.config as config
+from torchlinops import config
 from torchlinops.linops.nufft import NUFFT
 from torchlinops.linops.pad_last import Pad, crop_slice_from_pad, pad_to_size
 from torchlinops.utils import cfftn, cifftn

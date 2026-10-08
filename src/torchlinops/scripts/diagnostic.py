@@ -4,10 +4,11 @@
 Run with: uv run torchlinops-diag
 """
 
-import sys
 import subprocess
-import torch
+import sys
+
 import numpy as np
+import torch
 
 
 def _run(cmd):

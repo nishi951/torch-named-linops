@@ -1,13 +1,11 @@
-from typing import Optional
-
-import torch.nn as nn
 from jaxtyping import Float
-from torch import Tensor
+from torch import Tensor, nn
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to, default_to_dict
 
-from ..nameddim import ELLIPSES, NamedShape as NS, Shape
+from ..nameddim import ELLIPSES, Shape
+from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
 __all__ = ["Interpolate"]
@@ -34,15 +32,15 @@ class Interpolate(NamedLinop):
         self,
         locs: Float[Tensor, "... D"],
         grid_size: tuple[int, ...],
-        batch_shape: Optional[Shape] = None,
-        locs_batch_shape: Optional[Shape] = None,
-        grid_shape: Optional[Shape] = None,
+        batch_shape: Shape | None = None,
+        locs_batch_shape: Shape | None = None,
+        grid_shape: Shape | None = None,
         # Interp params
         width: float = 4.0,
         kernel: str = "kaiser_bessel",
         norm: int = 1,
         pad_mode: str = "circular",
-        kernel_params: Optional[dict] = None,
+        kernel_params: dict | None = None,
     ):
         """
         Parameters

@@ -1,10 +1,8 @@
-from copy import copy
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
+from torch import Tensor, nn
 
 from ..functional._interp._circ_pad import circular_pad
 from ..nameddim import NamedDimension as ND
@@ -45,9 +43,9 @@ class Convolution(NamedLinop):
     def __init__(
         self,
         kernel: Tensor,
-        batch_shape: Optional[Shape] = None,
-        in_grid_shape: Optional[Shape] = None,
-        out_grid_shape: Optional[Shape] = None,
+        batch_shape: Shape | None = None,
+        in_grid_shape: Shape | None = None,
+        out_grid_shape: Shape | None = None,
         padding_mode: Literal["zeros", "circular"] = "zeros",
         **options,
     ):
@@ -322,7 +320,7 @@ def cross_correlation(f: Tensor, g: Tensor) -> Tensor:
 
     Cross correlation (for complex values) is defined as
 
-    (f \\star g)(t) = \int_{-\inf}^\inf \conj(f(t - \tau)) g(t) dt
+    (f \\star g)(t) = \\int_{-\\inf}^\\inf \\conj(f(t - \tau)) g(t) dt
 
     Note that it is not commutative.
 

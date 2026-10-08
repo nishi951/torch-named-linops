@@ -2,7 +2,7 @@ import itertools
 
 from tqdm import tqdm
 
-__all__ = ["ceildiv", "batch_iterator", "batch_tqdm", "dict_product"]
+__all__ = ["batch_iterator", "batch_tqdm", "ceildiv", "dict_product"]
 
 
 def ceildiv(dividend, divisor):

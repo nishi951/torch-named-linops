@@ -1,5 +1,4 @@
 from itertools import product
-from typing import Optional
 
 import torch
 from jaxtyping import Bool, Float, Shaped
@@ -13,7 +12,8 @@ try:  # pragma: no cover
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_tl as tl, fake_triton as triton
+    from torchlinops.utils import fake_tl as tl
+    from torchlinops.utils import fake_triton as triton
 
     TRITON_ENABLED = False
 
@@ -31,9 +31,9 @@ MAX_TENSOR_POW_OF_2 = 20
 def unfold(
     x: Shaped[Tensor, "..."],
     block_size: tuple,
-    stride: Optional[tuple] = None,
-    mask: Optional[Bool[Tensor, "..."]] = None,
-    output: Optional[Tensor] = None,
+    stride: tuple | None = None,
+    mask: Bool[Tensor, "..."] | None = None,
+    output: Tensor | None = None,
 ) -> Tensor:
     """Wrapper that dispatches complex and real tensors
     Also precomputes some shapes
@@ -77,7 +77,7 @@ def _unfold(
     im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
-    output: Optional[Tensor] = None,
+    output: Tensor | None = None,
     **kwargs,
 ) -> Shaped[Tensor, "B ..."]:
     """Implementation of unfold"""
@@ -133,20 +133,24 @@ def _unfold(
 
 def _get_grid(ndim: int, nbatch, nblocks: tuple[int, ...]):  # pragma: no cover
     if ndim == 1:
-        grid = lambda meta: (  # noqa: E731
-            nbatch * triton.cdiv(nblocks[0], meta["x_blocks_per_grid"]),
-        )
+
+        def grid(meta):
+            return (nbatch * triton.cdiv(nblocks[0], meta["x_blocks_per_grid"]),)
     elif ndim == 2:
-        grid = lambda meta: (  # noqa: E731
-            nbatch * triton.cdiv(nblocks[0], meta["x_blocks_per_grid"]),
-            triton.cdiv(nblocks[1], meta["y_blocks_per_grid"]),
-        )
+
+        def grid(meta):
+            return (
+                nbatch * triton.cdiv(nblocks[0], meta["x_blocks_per_grid"]),
+                triton.cdiv(nblocks[1], meta["y_blocks_per_grid"]),
+            )
     elif ndim == 3:
-        grid = lambda meta: (  # noqa: E731
-            nbatch * triton.cdiv(nblocks[0], meta["x_blocks_per_grid"]),
-            triton.cdiv(nblocks[1], meta["y_blocks_per_grid"]),
-            triton.cdiv(nblocks[2], meta["z_blocks_per_grid"]),
-        )
+
+        def grid(meta):
+            return (
+                nbatch * triton.cdiv(nblocks[0], meta["x_blocks_per_grid"]),
+                triton.cdiv(nblocks[1], meta["y_blocks_per_grid"]),
+                triton.cdiv(nblocks[2], meta["z_blocks_per_grid"]),
+            )
     else:
         raise ValueError(f"Invalid ndim = {ndim}")
     return grid
@@ -536,7 +540,7 @@ def _unfold_torch(
     im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
-    out: Optional[Tensor] = None,
+    out: Tensor | None = None,
 ) -> Float[Tensor, "B I ..."]:
     """Fallback option
 
@@ -564,8 +568,8 @@ def _unfold_torch(
 def _prep_unfold(
     x,
     block_size: tuple,
-    stride: Optional[tuple] = None,
-    mask: Optional[Bool[Tensor, "..."]] = None,
+    stride: tuple | None = None,
+    mask: Bool[Tensor, "..."] | None = None,
 ):
     is_complex = torch.is_complex(x)
     # Infer some shapes

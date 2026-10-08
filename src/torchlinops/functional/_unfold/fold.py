@@ -1,5 +1,4 @@
 from itertools import product
-from typing import Optional
 
 import torch
 from jaxtyping import Bool, Shaped
@@ -13,7 +12,8 @@ try:  # pragma: no cover
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_tl as tl, fake_triton as triton
+    from torchlinops.utils import fake_tl as tl
+    from torchlinops.utils import fake_triton as triton
 
     TRITON_ENABLED = False
 
@@ -34,8 +34,8 @@ def fold(
     im_size: tuple,
     block_size: tuple,
     stride: tuple,
-    mask: Optional[Bool[Tensor, "..."]] = None,
-    output: Optional[Tensor] = None,
+    mask: Bool[Tensor, "..."] | None = None,
+    output: Tensor | None = None,
 ) -> Tensor:
     """Accumulate an array of blocks into a full array
 
@@ -71,7 +71,7 @@ def _fold(
     im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
-    output: Optional[Tensor] = None,
+    output: Tensor | None = None,
     **kwargs,
 ):
     """Implementation of fold"""
@@ -120,20 +120,24 @@ def _fold(
 
 def _get_grid(ndim: int, nbatch, im_size):  # pragma: no cover
     if ndim == 1:
-        grid = lambda meta: (  # noqa: E731
-            nbatch * triton.cdiv(im_size[0], meta["X_BLOCK_SIZE"]),
-        )
+
+        def grid(meta):
+            return (nbatch * triton.cdiv(im_size[0], meta["X_BLOCK_SIZE"]),)
     elif ndim == 2:
-        grid = lambda meta: (  # noqa: E731
-            nbatch * triton.cdiv(im_size[0], meta["X_BLOCK_SIZE"]),
-            triton.cdiv(im_size[1], meta["Y_BLOCK_SIZE"]),
-        )
+
+        def grid(meta):
+            return (
+                nbatch * triton.cdiv(im_size[0], meta["X_BLOCK_SIZE"]),
+                triton.cdiv(im_size[1], meta["Y_BLOCK_SIZE"]),
+            )
     elif ndim == 3:
-        grid = lambda meta: (  # noqa: E731
-            nbatch * triton.cdiv(im_size[0], meta["X_BLOCK_SIZE"]),
-            triton.cdiv(im_size[1], meta["Y_BLOCK_SIZE"]),
-            triton.cdiv(im_size[2], meta["Z_BLOCK_SIZE"]),
-        )
+
+        def grid(meta):
+            return (
+                nbatch * triton.cdiv(im_size[0], meta["X_BLOCK_SIZE"]),
+                triton.cdiv(im_size[1], meta["Y_BLOCK_SIZE"]),
+                triton.cdiv(im_size[2], meta["Z_BLOCK_SIZE"]),
+            )
     else:
         raise ValueError(f"Invalid ndim = {ndim}")
     return grid
@@ -494,7 +498,7 @@ def _fold_torch(
     im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
-    out: Optional[Tensor] = None,
+    out: Tensor | None = None,
 ) -> Shaped[Tensor, "B I ..."]:
     """Fallback option
 

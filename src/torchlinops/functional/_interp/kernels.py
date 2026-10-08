@@ -1,4 +1,3 @@
-import platform
 from collections.abc import Callable
 from functools import partial
 from typing import Literal
@@ -13,15 +12,16 @@ try:  # pragma: no cover
 
     TRITON_ENABLED = True
 except ImportError:
-    from torchlinops.utils import fake_tl as tl, fake_triton as triton
+    from torchlinops.utils import fake_tl as tl
+    from torchlinops.utils import fake_triton as triton
 
     TRITON_ENABLED = False
 
 __all__ = [
     "kaiser_bessel",
     "kaiser_bessel_torch",
-    "spline_torch",
     "spline",
+    "spline_torch",
 ]
 
 

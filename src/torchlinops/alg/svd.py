@@ -1,10 +1,8 @@
-from typing import Optional, Tuple
-
 import torch
 from torch import Tensor
 
-from torchlinops.linops.dense import Dense
 from torchlinops.alg.powermethod import power_method
+from torchlinops.linops.dense import Dense
 from torchlinops.utils import default_to_dict
 
 __all__ = ["singular_value_decomposition"]
@@ -17,9 +15,9 @@ def singular_value_decomposition(
     max_iters: int = 50,
     tol: float = 1e-5,
     eps: float = 0.0,
-    dim: Optional[int | Tuple[int, ...]] = None,
-    tqdm_kwargs: Optional[dict] = None,
-) -> Tuple[Tensor, Tensor, Tensor]:
+    dim: int | tuple[int, ...] | None = None,
+    tqdm_kwargs: dict | None = None,
+) -> tuple[Tensor, Tensor, Tensor]:
     """Compute compact SVD of a "tall" linop using power method with deflation.
 
     For a tall linear operator A (m x n with m >= n), computes the singular

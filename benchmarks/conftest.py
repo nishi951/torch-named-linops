@@ -1,14 +1,12 @@
 """Pytest configuration and session-scoped benchmark collector."""
 
 import json
-import os
 import platform
 import shutil
 import subprocess  # nosec
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import pytest
 import torch
@@ -39,14 +37,14 @@ class BenchmarkSession:
         name: str,
         fn,
         device: str = "cpu",
-        min_run_time: Optional[float] = None,
+        min_run_time: float | None = None,
         label: str = "",
         sub_label: str = "",
         description: str = "",
         library: str = "torchlinops",
         data_gen_fn=None,
         size_name: str = "",
-        problem_size: Optional[int] = None,
+        problem_size: int | None = None,
         size_label: str = "",
     ):
         """Run a benchmark and store the result.

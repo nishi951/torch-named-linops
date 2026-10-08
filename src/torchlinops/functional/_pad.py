@@ -4,7 +4,7 @@ from torch import Tensor
 
 from torchlinops.linops.pad_last import Pad, crop_slice_from_pad, pad_to_size
 
-__all__ = ["center_pad", "center_crop"]
+__all__ = ["center_crop", "center_pad"]
 
 
 def center_pad(x: Tensor, im_size: tuple[int, ...], pad_im_size: tuple[int, ...]):

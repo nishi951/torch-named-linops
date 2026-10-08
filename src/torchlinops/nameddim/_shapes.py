@@ -1,8 +1,6 @@
-from typing import Literal, Optional, Tuple
-
 from ._nameddim import NamedDimension as ND
 
-__all__ = ["fake_dims", "get_nd_shape", "N2K", "K2N"]
+__all__ = ["K2N", "N2K", "fake_dims", "get_nd_shape"]
 
 
 def get_nd_shape(dim: int, kspace=False):
@@ -41,7 +39,7 @@ def get_nd_shape(dim: int, kspace=False):
     return im_dim
 
 
-def fake_dims(letter: str, n: int) -> Tuple:
+def fake_dims(letter: str, n: int) -> tuple:
     """Helper function for generating fake dimension names"""
     return tuple(f"{letter}_{i}" for i in range(n))
 
@@ -65,7 +63,7 @@ def is_spatial_dim(d: ND):
     return "x" in d.name or "y" in d.name or "z" in d.name
 
 
-def N2K(tup: Tuple[ND]):
+def N2K(tup: tuple[ND]):
     """Convert image-space dimension names to k-space dimension names.
 
     For each spatial dimension in *tup*, replaces the ``'N'`` character in
@@ -92,7 +90,7 @@ def N2K(tup: Tuple[ND]):
     return tuple(out)
 
 
-def K2N(tup: Tuple[ND]):
+def K2N(tup: tuple[ND]):
     """Convert k-space dimension names to image-space dimension names.
 
     For each spatial dimension in *tup*, replaces the ``'K'`` character in

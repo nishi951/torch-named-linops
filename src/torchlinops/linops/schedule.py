@@ -7,7 +7,6 @@ of their direct children.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 import torch
 from torch import Tensor
@@ -111,7 +110,7 @@ def _execute(linops, inputs, context, reduce_fn, threaded, num_workers):
         results[idx] = linop(x, context)
 
     num_workers = num_workers if num_workers is not None else len(linops)
-    results: list[Optional[Tensor]] = [None] * len(linops)
+    results: list[Tensor | None] = [None] * len(linops)
 
     idxs = range(len(linops))
     with ThreadPoolExecutor(

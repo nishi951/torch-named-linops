@@ -1,8 +1,8 @@
 from functools import lru_cache
-from typing import Literal, Optional
+from typing import Literal
 
 import torch
-from jaxtyping import Float, Shaped
+from jaxtyping import Shaped
 from torch import Tensor
 
 from torchlinops import config
@@ -11,7 +11,6 @@ from ..fft import FFT
 from ..pad_last import Pad
 from ..sampling import Sampling
 from ._base import NUFFTBase
-from .utils import scale_int
 
 __all__ = ["SamplingNUFFT"]
 

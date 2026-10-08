@@ -1,11 +1,11 @@
 from copy import copy
-from typing import Optional
 
-import torch.fft as fft
+from torch import fft
 
-from torchlinops.utils import default_to, cfftn, cifftn
+from torchlinops.utils import cfftn, cifftn, default_to
 
-from ..nameddim import NamedShape as NS, Shape, get_nd_shape
+from ..nameddim import NamedShape as NS
+from ..nameddim import Shape, get_nd_shape
 from .identity import Identity
 from .namedlinop import NamedLinop
 
@@ -26,8 +26,8 @@ class FFT(NamedLinop):
     def __init__(
         self,
         ndim: int,
-        batch_shape: Optional[Shape] = None,
-        grid_shapes: Optional[tuple[Shape, Shape]] = None,
+        batch_shape: Shape | None = None,
+        grid_shapes: tuple[Shape, Shape] | None = None,
         centered: bool = False,
     ):
         """

@@ -1,9 +1,8 @@
-from collections import OrderedDict
-from copy import copy
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from collections.abc import Iterable, Mapping, Sequence
 
-from ._matching import iscompatible, is_any, coalesce
-from ._nameddim import ANY, ELLIPSES, NamedDimension as ND
+from ._matching import coalesce, is_any, iscompatible
+from ._nameddim import ELLIPSES
+from ._nameddim import NamedDimension as ND
 
 __all__ = ["NamedDimCollection"]
 
@@ -116,7 +115,7 @@ class NamedDimCollection:
         data = self.idx[shape_name]
         if isinstance(data, Mapping):
             return {self._dims[k]: v for k, v in data.items()}
-        elif isinstance(data, Tuple):
+        elif isinstance(data, tuple):
             return tuple(self._dims[i] for i in self.idx[shape_name])
         else:
             return self._dims[self.idx[shape_name]]
@@ -134,7 +133,7 @@ class NamedDimCollection:
         """
         if shape_name in self.idx:
             raise ValueError(f"{shape_name} already in index of shape: {self}")
-        if isinstance(data, Tuple) or isinstance(data, List):
+        if isinstance(data, tuple) or isinstance(data, list):
             data = coalesce(data, lambda x: x == ELLIPSES)
             indexed_shape = []
             for d in data:
@@ -217,7 +216,7 @@ class NamedDimCollection:
         data = self.idx[oldshape_name]
         if isinstance(data, Mapping):
             raise ValueError(f"Cannot update mapping key {olddim} to wildcard {newdim}")
-        elif isinstance(data, Tuple):
+        elif isinstance(data, tuple):
             data = list(data)
             data[i] = n
             data = tuple(data)
@@ -259,7 +258,7 @@ class NamedDimCollection:
             for k in data:
                 if is_any(self._dims[k]):
                     data[n] = data.pop(k)
-        elif isinstance(data, Tuple):
+        elif isinstance(data, tuple):
             # Less fancy way to replace a tuple entry
             data = list(data)
             data[i] = n
@@ -286,7 +285,7 @@ class NamedDimCollection:
             oldval = data.pop(k)
             for n in ns:
                 data[n] = oldval
-        elif isinstance(data, Tuple):
+        elif isinstance(data, tuple):
             data = list(data)
             # this actually works
             # LHS: splice out data[i]

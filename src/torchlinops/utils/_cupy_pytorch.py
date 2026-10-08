@@ -14,7 +14,7 @@ except ImportError:
     cupy_enabled = False
 
 
-__all__ = ["to_pytorch", "from_pytorch", "get_device"]
+__all__ = ["from_pytorch", "get_device", "to_pytorch"]
 
 
 def get_device(arr) -> torch.device:

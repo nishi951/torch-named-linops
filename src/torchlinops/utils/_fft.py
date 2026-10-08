@@ -1,9 +1,8 @@
-import torch.fft as fft
-from torch import Tensor
+from torch import Tensor, fft
 
 from ._roll import fftshift, ifftshift
 
-__all__ = ["cfft", "cifft", "cfft2", "cifft2", "cfftn", "cifftn"]
+__all__ = ["cfft", "cfft2", "cfftn", "cifft", "cifft2", "cifftn"]
 
 
 def cfftn(x, dim=None, norm="ortho"):

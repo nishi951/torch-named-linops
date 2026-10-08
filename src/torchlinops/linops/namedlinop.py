@@ -5,16 +5,16 @@ from collections.abc import Mapping
 from copy import copy, deepcopy
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Optional, final
+from typing import Optional, final
 
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 from torch.cuda import Stream
 
 import torchlinops
-import torchlinops.config as config
-from torchlinops.nameddim import NamedDimension as ND, NamedShape, Shape
+from torchlinops import config
+from torchlinops.nameddim import NamedDimension as ND
+from torchlinops.nameddim import NamedShape, Shape
 from torchlinops.utils import (
     INDENT,
     memory_aware_deepcopy,
@@ -56,8 +56,8 @@ class NamedLinop(nn.Module):
     def __init__(
         self,
         shape: NamedShape,
-        name: Optional[str] = None,
-        stream: Optional[Stream] = None,
+        name: str | None = None,
+        stream: Stream | None = None,
         **kwargs,
     ):
         """
