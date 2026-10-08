@@ -2,6 +2,7 @@
 
 Run with: uv run torchlinops-diag
 """
+# pragma: exclude file
 
 import subprocess
 import sys

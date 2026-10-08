@@ -10,7 +10,7 @@ try:  # pragma: no cover
     import triton.language as tl
 
     TRITON_ENABLED = True
-except ImportError:
+except ImportError:  # pragma: no cover
     from torchlinops.utils import fake_tl as tl
     from torchlinops.utils import fake_triton as triton
 
