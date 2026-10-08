@@ -19,8 +19,7 @@ import numpy as np
 import pytest
 import torch
 
-import torchlinops.config as config
-from torchlinops import NUFFT, ArrayToBlocks, BlocksToArray, Interpolate
+from torchlinops import NUFFT, ArrayToBlocks, BlocksToArray, Interpolate, config
 from torchlinops.functional import (
     array_to_blocks,
     blocks_to_array,

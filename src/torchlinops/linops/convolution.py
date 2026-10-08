@@ -1,10 +1,8 @@
-from copy import copy
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
+from torch import Tensor, nn
 
 from ..functional._interp._circ_pad import circular_pad
 from ..nameddim import NamedDimension as ND
@@ -45,9 +43,9 @@ class Convolution(NamedLinop):
     def __init__(
         self,
         kernel: Tensor,
-        batch_shape: Optional[Shape] = None,
-        in_grid_shape: Optional[Shape] = None,
-        out_grid_shape: Optional[Shape] = None,
+        batch_shape: Shape | None = None,
+        in_grid_shape: Shape | None = None,
+        out_grid_shape: Shape | None = None,
         padding_mode: Literal["zeros", "circular"] = "zeros",
         **options,
     ):
@@ -85,7 +83,7 @@ class Convolution(NamedLinop):
             slice(first, -last if last > 0 else None) for first, last in _pad
         )
         _pad.reverse()
-        self._pad = sum(_pad, start=tuple())
+        self._pad = sum(_pad, start=())
 
         # Set up shapes
         if batch_shape is None:
@@ -322,7 +320,7 @@ def cross_correlation(f: Tensor, g: Tensor) -> Tensor:
 
     Cross correlation (for complex values) is defined as
 
-    (f \\star g)(t) = \int_{-\inf}^\inf \conj(f(t - \tau)) g(t) dt
+    (f \\star g)(t) = \\int_{-\\inf}^\\inf \\conj(f(t - \tau)) g(t) dt
 
     Note that it is not commutative.
 
@@ -346,7 +344,7 @@ def cross_correlation(f: Tensor, g: Tensor) -> Tensor:
     f = f[None, None]
     g = g[None, None]
     conv_fn = (F.conv1d, F.conv2d, F.conv3d)[ndim - 1]  # really a correlation function
-    full_pad = sum(((d - 1, d - 1) for d in reversed(g.shape)), start=tuple())
+    full_pad = sum(((d - 1, d - 1) for d in reversed(g.shape)), start=())
     g_padded = F.pad(g, pad=full_pad)
     out = conv_fn(g_padded, f.conj(), padding=0)  # no further padding required
     return out[0, 0]
@@ -374,7 +372,7 @@ def pad_to_odd(weight: Tensor, ndim: int):
     pad_last.reverse()
 
     _pad = [(first, last) for first, last in zip(pad_first, pad_last)]
-    _pad = sum(_pad, start=tuple())
+    _pad = sum(_pad, start=())
 
     return F.pad(weight, pad=_pad, value=0)
 

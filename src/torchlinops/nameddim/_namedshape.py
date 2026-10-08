@@ -19,7 +19,7 @@ class NamedShape(NamedDimCollection):
     def __init__(
         self,
         ishape: Optional["Shape | NamedShape"],
-        oshape: Optional[Shape] = None,
+        oshape: Shape | None = None,
         **other_shapes,
     ):
         """Construct a NamedShape from input and output dimension names.

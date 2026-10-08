@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Literal
+from typing import ClassVar, Literal
 
 import pytest
 import torch
@@ -17,18 +17,18 @@ class BaseNamedLinopTests(ABC):
     """
 
     equality_check: Literal["exact", "approx"] = "exact"
-    isclose_kwargs: dict = {}
+    isclose_kwargs: ClassVar[dict] = {}
 
     @pytest.fixture
+    @classmethod
     @abstractmethod
-    def linop_input_output(self):
+    def linop_input_output(cls):
         """Create and return:
         1. A linop to test
         2. A tensor with the same shape as the linop's inputs
         3. A tensor with the same shape as the linop's outputs
         Ideally these are randomized in some fashion
         """
-        pass
 
     def test_input_mutation(self, linop_input_output):
         """Should be the first test so that later tests don't pre-mutate the input/output."""
@@ -78,12 +78,12 @@ class BaseNamedLinopTests(ABC):
         self.test_normal((A.H, y, y))
 
     def test_normal_level2(self, linop_input_output):
-        A, x, y = linop_input_output
+        A, x, _y = linop_input_output
         self.test_adjoint((A.N, x, x))
         self.test_normal((A.N, x, x))
 
     def test_split(self, linop_input_output):
-        A, x, y = linop_input_output
+        A, _x, _y = linop_input_output
         for dim in set(A.ishape + A.oshape):
             tile = {dim: slice(0, 2)}
             try:
@@ -93,25 +93,25 @@ class BaseNamedLinopTests(ABC):
                 pass
 
     def test_size(self, linop_input_output):
-        A, x, y = linop_input_output
+        A, _x, _y = linop_input_output
         for dim in A.dims:
             size = A.size(dim)
             assert size is None or isinstance(size, int)
 
     def test_adj_fn(self, linop_input_output):
-        A, x, y = linop_input_output
+        A, _x, y = linop_input_output
         AHx = A.H(y)
         adj_fn_result = A.adj_fn(A, y)
         assert torch.isclose(AHx, adj_fn_result, **self.isclose_kwargs).all()
 
     def test_normal_fn(self, linop_input_output):
-        A, x, y = linop_input_output
+        A, x, _y = linop_input_output
         ANx = A.N(x)
         normal_fn_result = A.normal_fn(A, x.clone())
         assert torch.isclose(ANx, normal_fn_result, **self.isclose_kwargs).all()
 
     def test_backprop(self, linop_input_output):
-        A, x, y = linop_input_output
+        A, x, _y = linop_input_output
 
         x = x.clone().requires_grad_(True)
         out = A(x)

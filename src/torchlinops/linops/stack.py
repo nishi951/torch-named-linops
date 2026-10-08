@@ -1,19 +1,17 @@
-from collections.abc import Mapping
-from copy import copy
-from typing import Optional
 import logging
+from copy import copy
 
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
-import torchlinops.config as config
+from torchlinops import config
 from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
 
-from ..nameddim import NamedDimension as ND, NamedShape as NS, isequal
+from ..nameddim import NamedDimension as ND
+from ..nameddim import NamedShape as NS
+from ..nameddim import isequal
 from .add import Add
-from .device import ToDevice
 from .identity import Zero
 from .namedlinop import NamedLinop
 from .schedule import parallel_execute
@@ -88,10 +86,10 @@ class Stack(NamedLinop):
     def __init__(
         self,
         *linops: NamedLinop,
-        idim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
-        odim_and_idx: tuple[Optional[ND | str], Optional[int]] = (None, None),
+        idim_and_idx: tuple[ND | str | None, int | None] = (None, None),
+        odim_and_idx: tuple[ND | str | None, int | None] = (None, None),
         threaded: bool = True,
-        num_workers: Optional[int] = None,
+        num_workers: int | None = None,
         accumulate: bool = False,
         **kwargs,
     ):
@@ -245,7 +243,7 @@ class Stack(NamedLinop):
         if len(linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
             return Zero(stack.ishape, stack.oshape)
-        linop_idxs = sorted(list(linop_idxs))
+        linop_idxs = sorted(linop_idxs)
         output_linops = []
 
         # Slice each sub-linop
@@ -275,7 +273,7 @@ class Stack(NamedLinop):
         if len(linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
             return 0.0  # TODO is this ok
-        linop_idxs = sorted(list(linop_idxs))
+        linop_idxs = sorted(linop_idxs)
         output_linop_data = []
         # Remove stack dims from slice batch
         if self.idim_idx is not None:

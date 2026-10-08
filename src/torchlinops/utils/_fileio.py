@@ -3,7 +3,7 @@ import logging
 import shutil
 import sys
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import yaml
 
@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 
-def mkdir(root_path, action: Optional[Literal["o", "l", "a"]] = None):
+def mkdir(root_path, action: Literal["o", "l", "a"] | None = None):
     """
     root_path should be a pathlib.Path
     """

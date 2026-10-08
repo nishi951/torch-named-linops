@@ -17,7 +17,8 @@ class TestPad(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         P = Pad((20, 20), (10, 10), Dim("XY"))
         x = torch.randn(10, 10, dtype=torch.complex64)
         y = torch.randn(20, 20, dtype=torch.complex64)

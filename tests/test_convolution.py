@@ -11,7 +11,8 @@ class TestConvolution1D(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         dtype = request.param
         weight = torch.randn(5, dtype=dtype)  # (out_c, in_c, kx)
         conv = Convolution(
@@ -29,7 +30,8 @@ class TestConvolution2D(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         dtype = request.param
         weight = torch.randn(3, 3, dtype=dtype)  # (kx, ky)
         conv = Convolution(
@@ -47,7 +49,8 @@ class TestConvolution3D(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         dtype = request.param
         weight = torch.randn(3, 3, 3, dtype=dtype)  # (out_c, in_c, kx, ky, kz)
         conv = Convolution(
@@ -131,7 +134,8 @@ class TestConvolutionBatched(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         weight = torch.randn(3, 3)
         conv = Convolution(
             weight,
@@ -149,7 +153,8 @@ class TestConvolutionCircular(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         weight = torch.randn(3, 3, 3)
         conv = Convolution(
             weight,
@@ -167,7 +172,8 @@ class TestFFTConvolution1D(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         dtype = request.param
         weight = torch.randn(5, dtype=dtype)
         fft_conv = FFTConvolution(
@@ -186,7 +192,8 @@ class TestFFTConvolution2D(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         dtype = request.param
         weight = torch.randn(3, 3, dtype=dtype)
         fft_conv = FFTConvolution(
@@ -205,7 +212,8 @@ class TestFFTConvolution3D(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class", params=[torch.float32, torch.complex64])
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         dtype = request.param
         weight = torch.randn(3, 3, 3, dtype=dtype)
         fft_conv = FFTConvolution(
@@ -224,7 +232,8 @@ class TestFFTConvolutionBatched(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         weight = torch.randn(3, 3)
         fft_conv = FFTConvolution(
             weight,

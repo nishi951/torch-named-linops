@@ -1,10 +1,8 @@
-#!/usr/bin/env python
 """Generate benchmark documentation from the latest benchmark results."""
 
 import json
 from pathlib import Path
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 

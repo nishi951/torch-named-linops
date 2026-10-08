@@ -26,7 +26,8 @@ class TestArrayToBlocks(BaseNamedLinopTests):
         scope="class",
         params=product(instances, devices),
     )
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         spec, dev = request.param
         spec = request.getfixturevalue(spec)
         device = torch.device(dev)
@@ -52,7 +53,8 @@ class TestArrayToBlocks(BaseNamedLinopTests):
         return linop, x, y
 
     @pytest.fixture(scope="class")
-    def small3d(self, request):
+    @classmethod
+    def small3d(cls, request):
         spec = {
             "N": (1,),
             "shape": (15, 15, 15),

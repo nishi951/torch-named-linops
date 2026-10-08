@@ -27,7 +27,8 @@ class TestInterp(BaseNamedLinopTests):
         scope="class",
         params=product(instances, devices),
     )
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         spec, dev = request.param
         spec = request.getfixturevalue(spec)
         device = torch.device(dev)
@@ -50,6 +51,7 @@ class TestInterp(BaseNamedLinopTests):
         return linop, x, y
 
     @pytest.fixture(scope="class")
+    @classmethod
     def small3d(self, request):
         N = (1, 1)
         grid_size = (10, 8, 9)

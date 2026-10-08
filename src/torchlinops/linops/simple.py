@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from torch import Tensor
 
@@ -29,10 +29,10 @@ class SimpleLinop(NamedLinop):
         self,
         forward: Callable[[Tensor], Tensor],
         adjoint: Callable[[Tensor], Tensor],
-        normal: Optional[Callable[[Tensor], Tensor]] = None,
+        normal: Callable[[Tensor], Tensor] | None = None,
         ishape: Shape = ("...",),
-        oshape: Optional[Shape] = None,
-        name: Optional[str] = None,
+        oshape: Shape | None = None,
+        name: str | None = None,
     ):
         """
         Parameters

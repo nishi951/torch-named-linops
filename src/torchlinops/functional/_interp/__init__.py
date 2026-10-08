@@ -1,3 +1,3 @@
 from .grid import *
-from .ungrid import *
 from .kernels import *
+from .ungrid import *

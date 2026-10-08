@@ -1,12 +1,9 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from math import ceil
-from typing import Optional
-from warnings import warn
 
 import numpy as np
 import torch
-from torch.cuda import Stream
 
 from torchlinops.utils import (
     ModuleMemoryMap,
@@ -23,7 +20,7 @@ from .concat import Concat
 from .device import ToDevice
 from .namedlinop import NamedLinop
 
-__all__ = ["split_linop", "create_batched_linop", "BatchSpec", "ResolvedBatchSpec"]
+__all__ = ["BatchSpec", "ResolvedBatchSpec", "create_batched_linop", "split_linop"]
 
 Batch = tuple[int, slice]
 # Represents a single batch at index 0 over the full extent
@@ -205,11 +202,11 @@ class TilingStrategy:
     def schedule(self, linops: np.ndarray, **options):
         """Schedule linops alongside each other using Concat and Add."""
         # Resolve concurrency options
-        copt = dict(
-            threaded=options.get("threaded", _THREADED_DEFAULT),
-            num_workers=options.get("num_workers", _NUM_WORKERS_DEFAULT),
-            accumulate=options.get("accumulate", _ACCUMULATE_DEFAULT),
-        )
+        copt = {
+            "threaded": options.get("threaded", _THREADED_DEFAULT),
+            "num_workers": options.get("num_workers", _NUM_WORKERS_DEFAULT),
+            "accumulate": options.get("accumulate", _ACCUMULATE_DEFAULT),
+        }
 
         for dim in reversed(self.axes):
             # Manual axis reduction because I made Concat and Add too nice
@@ -363,7 +360,7 @@ _ACCUMULATE_DEFAULT = False
 def create_batched_linop(
     linop,
     batch_specs: BatchSpec | list[BatchSpec],
-    default_device: Optional[torch.device] = None,
+    default_device: torch.device | None = None,
     _mmap=None,
     **options,
 ):
@@ -402,11 +399,11 @@ def create_batched_linop(
         according to the batch specs.
     """
     # Resolve concurrency options
-    copt = dict(
-        threaded=options.get("threaded", _THREADED_DEFAULT),
-        num_workers=options.get("num_workers", _NUM_WORKERS_DEFAULT),
-        accumulate=options.get("accumulate", _ACCUMULATE_DEFAULT),
-    )
+    copt = {
+        "threaded": options.get("threaded", _THREADED_DEFAULT),
+        "num_workers": options.get("num_workers", _NUM_WORKERS_DEFAULT),
+        "accumulate": options.get("accumulate", _ACCUMULATE_DEFAULT),
+    }
     if default_device is None:
         default_device = torch.device("cpu")
     if isinstance(batch_specs, BatchSpec):
@@ -565,7 +562,7 @@ def fuzzy_broadcast_to(arr: np.ndarray, target_shape):
             if source_dim == target_dim or source_dim == 1:
                 repeats.append(1)
             elif source_dim < target_dim:
-                repeats.append(int(ceil(target_dim / source_dim)))
+                repeats.append(ceil(target_dim / source_dim))
             else:
                 repeats.append(1)
         arr = tile_along_axes(arr, repeats)
@@ -642,7 +639,7 @@ def make_batch_iterators(
     return batch_iterators
 
 
-def flatten_recursive(nested_list, max_depth: Optional[int] = None):
+def flatten_recursive(nested_list, max_depth: int | None = None):
     """Flatten a nested list, optionally to a maximum depth
 
     Examples

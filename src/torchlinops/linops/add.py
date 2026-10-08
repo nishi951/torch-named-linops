@@ -1,15 +1,13 @@
 import logging
 from copy import copy
-from typing import Optional
 
 import torch
-import torch.nn as nn
+from torch import nn
 
-import torchlinops.config as config
+from torchlinops import config
 
 from ..nameddim import NamedShape as NS
 from ..nameddim import isequal, max_shape, resolve_wildcards, standardize_shapes
-from .device import ToDevice
 from .namedlinop import NamedLinop
 from .schedule import parallel_execute
 
@@ -52,7 +50,7 @@ class Add(NamedLinop):
         self,
         *linops,
         threaded: bool = True,
-        num_workers: Optional[int] = None,
+        num_workers: int | None = None,
         accumulate: bool = False,
         **kwargs,
     ):

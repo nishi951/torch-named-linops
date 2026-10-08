@@ -4,24 +4,23 @@ import logging
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Literal, Optional, TypeVar
+from typing import Literal, TypeVar
 from warnings import warn
 
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 __all__ = [
-    "cdata",
-    "tensor_memory_span",
-    "get_device",
-    "device_ordinal",
-    "same_storage",
     "MemReporter",
     "ModuleMemoryMap",
-    "memory_aware_to",
+    "cdata",
+    "device_ordinal",
+    "get_device",
     "memory_aware_deepcopy",
+    "memory_aware_to",
     "resolve_device",
+    "same_storage",
+    "tensor_memory_span",
 ]
 
 T = TypeVar("T")
@@ -106,7 +105,7 @@ class ModuleMemoryMap:
         default_factory=lambda: defaultdict(dict)
     )
 
-    def register(self, t: Tensor, new_t: Optional[Tensor] = None):
+    def register(self, t: Tensor, new_t: Tensor | None = None):
         device = t.device if new_t is None else new_t.device
         self.tensor_map[get_key(t)][device] = t
         self.tensor_cdata_index[cdata(t)].append(t)
@@ -218,7 +217,7 @@ class ModuleMemoryMap:
         """Deepcopy a module, without unnecessary memory overhead."""
         # storage_map = create_shared_buffer_map(module, copy=True)
         self.register_module(module)
-        for cdata_t in self.tensor_cdata_index.keys():
+        for cdata_t in self.tensor_cdata_index:
             self.allocate_new_storage(cdata_t)
         # Make copies of every buffer
         self.storage_map = deepcopy(self.storage_map)
@@ -228,9 +227,9 @@ class ModuleMemoryMap:
             cls = type(m)
             new = cls.__new__(cls)
             new.__dict__ = m.__dict__.copy()
-            new._parameters = dict()
-            new._buffers = dict()
-            new._modules = dict()
+            new._parameters = {}
+            new._buffers = {}
+            new._modules = {}
 
             for name, t in m._parameters.items():
                 if t is not None:
@@ -366,8 +365,8 @@ def device_ordinal(device: torch.device):
 
 def same_storage(x, y):
     """Determine if tensors share the same storage or not"""
-    x_ptrs = set(e.data_ptr() for e in x.view(-1))
-    y_ptrs = set(e.data_ptr() for e in y.view(-1))
+    x_ptrs = {e.data_ptr() for e in x.view(-1)}
+    y_ptrs = {e.data_ptr() for e in y.view(-1)}
     return (x_ptrs <= y_ptrs) or (y_ptrs <= x_ptrs)
 
 
@@ -432,7 +431,7 @@ class MemReporter:
         else:
             return f"{size_B / (base**3):.2f}", f"{prefix[2]}B"
 
-    def _collect_tensors(self, module: Optional[nn.Module] = None):
+    def _collect_tensors(self, module: nn.Module | None = None):
         """Collect all tensor objects tracked by python
 
         NOTICE:
@@ -490,7 +489,6 @@ class MemReporter:
                     # Other options that we didn't deal with...
                     # Independent
                     new_roots.append(root)
-                    pass
 
             if not counted:
                 new_roots.append(name)
@@ -499,7 +497,7 @@ class MemReporter:
             roots = new_roots
         return roots
 
-    def report(self, module: Optional[nn.Module] = None):
+    def report(self, module: nn.Module | None = None):
         self._collect_tensors(module)
         for dev, names in self.device_map.items():
             total_size = 0

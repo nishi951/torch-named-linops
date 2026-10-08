@@ -1,12 +1,11 @@
 from copy import copy
-from typing import Optional
 
 import torch
 
 from torchlinops.utils import default_to
 
-from .diagonal import Diagonal
 from ..nameddim import Shape
+from .diagonal import Diagonal
 
 __all__ = ["Scalar"]
 
@@ -18,7 +17,7 @@ class Scalar(Diagonal):
     trivially splittable (the same scalar applies to every tile).
     """
 
-    def __init__(self, weight, ioshape: Optional[Shape] = None):
+    def __init__(self, weight, ioshape: Shape | None = None):
         """
         Parameters
         ----------

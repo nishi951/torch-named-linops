@@ -1,12 +1,11 @@
 from copy import copy
-from typing import Optional
 
 import torch
-import torch.nn as nn
 from einops import repeat
-from torch import Tensor
+from torch import Tensor, nn
 
-from ..nameddim import NamedShape as NS, Shape, is_any
+from ..nameddim import NamedShape as NS
+from ..nameddim import Shape, is_any
 from .namedlinop import NamedLinop
 
 __all__ = ["Diagonal"]
@@ -33,8 +32,8 @@ class Diagonal(NamedLinop):
     def __init__(
         self,
         weight: torch.Tensor,
-        ioshape: Optional[Shape] = None,
-        broadcast_dims: Optional[Shape] = None,
+        ioshape: Shape | None = None,
+        broadcast_dims: Shape | None = None,
     ):
         """
         Parameters
@@ -65,7 +64,7 @@ class Diagonal(NamedLinop):
         weight: Tensor,
         weight_shape: Shape,
         ioshape: Shape,
-        shape_kwargs: Optional[dict] = None,
+        shape_kwargs: dict | None = None,
     ):
         """Construct a ``Diagonal`` by expanding *weight* to match *ioshape* via einops.
 

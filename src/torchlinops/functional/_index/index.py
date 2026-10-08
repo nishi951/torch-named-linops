@@ -3,12 +3,12 @@ from jaxtyping import Bool, Integer, Shaped
 from torch import Tensor
 
 __all__ = [
+    "canonicalize_idx",
+    "ensure_tensor_indexing",
     "index",
     "index_adjoint",
     "mask2idx",
-    "canonicalize_idx",
     "slice2range",
-    "ensure_tensor_indexing",
 ]
 
 IndexOrSlice = Integer[Tensor, "..."] | slice
@@ -68,7 +68,7 @@ def multi_index(x: torch.Tensor, ndims: int, idx: torch.Tensor, raveled: bool = 
     out_shape = idx.shape
     idx_flat = torch.flatten(idx)
     y = torch.index_select(x_flat, -1, idx_flat)
-    y = y.reshape((tuple(x.shape[:-ndims]) + tuple(out_shape)))
+    y = y.reshape(tuple(x.shape[:-ndims]) + tuple(out_shape))
     return y
 
 
@@ -268,7 +268,7 @@ def ensure_tensor_indexing(
             range_tensor = _unsqueeze_last(range_tensor, len(tshape) - d - 1)
             out.append(range_tensor)
         else:
-            raise ValueError(
+            raise TypeError(
                 f"idx must contain only tensors or slice() objects but got {i}"
             )
     return tuple(out)

@@ -22,7 +22,8 @@ class TestNUFFT(BaseNamedLinopTests):
     isclose_kwargs: dict = {"rtol": 1e-3}
 
     @pytest.fixture(scope="class", params=instances)
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         spec = request.param
         spec = request.getfixturevalue(spec)
         width = spec["width"]
@@ -56,6 +57,7 @@ class TestNUFFT(BaseNamedLinopTests):
         return linop, x, y
 
     @pytest.fixture(scope="class")
+    @classmethod
     def small3d(self, request):
         N = (2, 1)
         # grid_size = (16, 16, 24)

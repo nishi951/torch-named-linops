@@ -6,11 +6,12 @@ from copy import copy
 
 from torchlinops.utils import end_pad_with_zeros
 
-from ..nameddim import NamedShape as NS, Shape
-from .namedlinop import NamedLinop
+from ..nameddim import NamedShape as NS
+from ..nameddim import Shape
 from .identity import Identity
+from .namedlinop import NamedLinop
 
-__all__ = ["Truncate", "PadDim"]
+__all__ = ["PadDim", "Truncate"]
 
 
 class Truncate(NamedLinop):

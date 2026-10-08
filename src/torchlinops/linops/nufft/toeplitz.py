@@ -1,6 +1,5 @@
 from itertools import product
 from math import prod
-from typing import Optional
 
 import torch
 
@@ -17,8 +16,8 @@ from .utils import scale_int
 
 def toeplitz_psf(
     nufft: NUFFT,
-    inner: Optional[NamedLinop] = None,
-    dtype: Optional[torch.dtype] = None,
+    inner: NamedLinop | None = None,
+    dtype: torch.dtype | None = None,
     oversamp: float = 2.0,
 ) -> NamedLinop:
     """Compute the Toeplitz point spread function (PSF) for a NUFFT operator.

@@ -1,18 +1,16 @@
 import logging
 from collections.abc import Mapping
 from copy import copy
-from typing import Optional
 
 import torch
-import torch.nn as nn
+from torch import nn
 
-import torchlinops.config as config
+from torchlinops import config
 from torchlinops.utils import INDENT
 
 from ..nameddim import NamedDimension as ND
 from ..nameddim import NamedShape as NS
 from ..nameddim import isequal, resolve_wildcards
-from .device import ToDevice
 from .namedlinop import NamedLinop
 
 logger = logging.getLogger("torchlinops")
@@ -37,7 +35,7 @@ class Chain(NamedLinop):
 
     is_container = True
 
-    def __init__(self, *linops, name: Optional[str] = None):
+    def __init__(self, *linops, name: str | None = None):
         """
         Parameters
         ----------
@@ -155,7 +153,7 @@ class Chain(NamedLinop):
         return set().union(*[linop.dims for linop in self.linops])
 
     def adjoint(self):
-        linops = list(linop.adjoint() for linop in reversed(self.linops))
+        linops = [linop.adjoint() for linop in reversed(self.linops)]
         adj = copy(self)
         adj.linops = nn.ModuleList(linops)
         return adj

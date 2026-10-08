@@ -77,7 +77,7 @@ def interpolate(
     kernel="kaiser_bessel",
     norm: int = 1,
     pad_mode: str = "circular",
-    kernel_params: dict = None,
+    kernel_params: dict | None = None,
 ):
     """Interpolate from a regular grid to scattered locations (ungridding).
 
@@ -143,7 +143,7 @@ class InterpolateAdjointFn(Function):
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        vals, locs, grid_size, width, kernel, norm, pad_mode, kernel_params = inputs
+        _vals, locs, _grid_size, width, kernel, norm, pad_mode, kernel_params = inputs
 
         # Save for backward pass
         ctx.width = width
@@ -189,7 +189,7 @@ def interpolate_adjoint(
     kernel: str = "kaiser_bessel",
     norm: int = 1,
     pad_mode: str = "circular",
-    kernel_params: dict = None,
+    kernel_params: dict | None = None,
 ):
     """Adjoint of interpolation (gridding) from scattered locations to a regular grid.
 

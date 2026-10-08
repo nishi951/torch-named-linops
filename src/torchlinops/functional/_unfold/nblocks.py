@@ -1,12 +1,10 @@
-from typing import Optional
-
 __all__ = ["get_nblocks"]
 
 
 def get_nblocks(
     im_size: tuple[int, ...],
     block_size: tuple[int, ...],
-    block_stride: Optional[tuple[int, ...]] = None,
+    block_stride: tuple[int, ...] | None = None,
 ) -> tuple[int, ...]:
     """Given an image and a block size, returns the number of valid blocks in each direction.
 

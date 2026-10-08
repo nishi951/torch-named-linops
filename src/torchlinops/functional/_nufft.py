@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from jaxtyping import Float
 from torch import Tensor
 
-import torchlinops.config as config
+from torchlinops import config
 from torchlinops.linops.nufft import NUFFT
 from torchlinops.linops.pad_last import Pad, crop_slice_from_pad, pad_to_size
 from torchlinops.utils import cfftn, cifftn
@@ -57,7 +57,7 @@ def nufft(
         params.locs,
         width,
         kernel="kaiser_bessel",
-        kernel_params=dict(beta=params.beta),
+        kernel_params={"beta": params.beta},
     )
     x = x / params.scale_factor
     return x
@@ -105,7 +105,7 @@ def nufft_adjoint(
         params.padded_size,
         width,
         kernel="kaiser_bessel",
-        kernel_params=dict(beta=params.beta),
+        kernel_params={"beta": params.beta},
     )
     x = cifftn(x, dim=params.dim, norm="ortho")
     x = Pad.adj_fn(params.pad_ns, x)

@@ -1,11 +1,12 @@
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
 
 import torch
 from torch import Tensor
 from tqdm import tqdm
 
-from torchlinops.utils import default_to_dict, inner as zdot
+from torchlinops.utils import default_to_dict
+from torchlinops.utils import inner as zdot
 
 __all__ = ["conjugate_gradients"]
 
@@ -13,12 +14,12 @@ __all__ = ["conjugate_gradients"]
 def conjugate_gradients(
     A: Callable,
     y: Tensor,
-    x0: Optional[Tensor] = None,
+    x0: Tensor | None = None,
     max_num_iters: int = 20,
     gtol: float = 1e-3,
     ltol: float = 1e-5,
     disable_tracking: bool = False,
-    tqdm_kwargs: Optional[dict] = None,
+    tqdm_kwargs: dict | None = None,
 ) -> Tensor | None:
     """Solve $Ax = y$ with the conjugate gradient method.
 
@@ -58,7 +59,7 @@ def conjugate_gradients(
         x = torch.zeros_like(y)
     else:
         x = x0.clone()
-    tqdm_kwargs = default_to_dict(dict(desc="CG", leave=False), tqdm_kwargs)
+    tqdm_kwargs = default_to_dict({"desc": "CG", "leave": False}, tqdm_kwargs)
 
     # Initialize run
     run = CGRun(ltol, gtol, A, y, disable=disable_tracking)
@@ -122,7 +123,7 @@ class CGRun:
     gtol: float
     A: Callable
     y: Tensor
-    x_out: Optional[Tensor] = None
+    x_out: Tensor | None = None
 
     # Convergence
     prev_loss: float = None

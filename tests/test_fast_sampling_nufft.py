@@ -136,7 +136,8 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
     instances = ["even_padded_3d", "odd_padded_3d"]
 
     @pytest.fixture(scope="class", params=instances)
-    def linop_input_output(self, request):
+    @classmethod
+    def linop_input_output(cls, request):
         spec = request.getfixturevalue(request.param)
         grid_size = spec["grid_size"]
         locs_batch = spec["locs"].shape[:-1]
@@ -153,10 +154,12 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
         return linop, x, y
 
     @pytest.fixture(scope="class")
+    @classmethod
     def even_padded_3d(self):
         return make_spec()  # grid (16,16,24) -> padded (20,20,30)
 
     @pytest.fixture(scope="class")
+    @classmethod
     def odd_padded_3d(self):
         # The odd axis lives in the PADDED grid: grid (12,16,24) -> padded (15,20,30)
         return make_spec(grid_size=(12, 16, 24))

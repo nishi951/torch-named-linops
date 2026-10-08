@@ -11,7 +11,8 @@ class TestAdd(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         A = Dense(
             torch.randn((5, 5), dtype=torch.complex64), ("M", "N"), ("N",), ("M",)
         )

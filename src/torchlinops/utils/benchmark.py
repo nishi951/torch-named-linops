@@ -5,7 +5,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -14,7 +14,7 @@ from ._log import Indenter
 
 logger = logging.getLogger("torchmri.utils")
 
-__all__ = ["benchmark", "benchmark_and_summarize", "BenchmarkResult"]
+__all__ = ["BenchmarkResult", "benchmark", "benchmark_and_summarize"]
 
 
 @dataclass
@@ -33,7 +33,7 @@ class BenchmarkResult:
 
     times: list[float] = field(default_factory=list)
     number_per_run: int = 1
-    peak_mem_bytes: Optional[int] = None
+    peak_mem_bytes: int | None = None
 
     @property
     def mean(self) -> float:
@@ -60,7 +60,7 @@ def benchmark_and_summarize(
     num_iters: int = 10,
     ignore_first: int = 0,
     backend: Literal["torch", "cupy"] = "torch",
-    name: str = None,
+    name: str | None = None,
     **kwargs,
 ):
     """Convenience function"""
@@ -121,7 +121,7 @@ class TorchHandler:
     def __init__(
         self,
         device: str = "cuda",
-        memory_snapshot_file: Optional[Path] = None,
+        memory_snapshot_file: Path | None = None,
     ):
         self.device = device
         self.memory_snapshot_file = memory_snapshot_file
@@ -150,10 +150,7 @@ class TorchHandler:
         gc.enable()
         logger.info(f"Max memory allocated: {self.result['max_mem_bytes']}")
         if self.memory_snapshot_file is not None and self.device == "cuda":
-            try:
-                torch.cuda.memory._dump_snapshot(f"{str(self.memory_snapshot_file)}")
-            except Exception as e:
-                logger.error(f"Failed to capture memory snapshot {e}")
+            torch.cuda.memory._dump_snapshot(f"{self.memory_snapshot_file!s}")
             torch.cuda.memory._record_memory_history(enabled=None)
 
     def trial_start(self, event=None, i=None):

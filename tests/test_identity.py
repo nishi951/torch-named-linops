@@ -10,7 +10,8 @@ class TestIdentity(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         return (
             Identity(ishape=("N", "M"), oshape=("N", "M")),
             torch.randn(4, 5),
@@ -47,7 +48,8 @@ class TestZero(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         return (
             Zero(ishape=("N", "M"), oshape=("N", "M")),
             torch.randn(4, 5, dtype=torch.complex64),
@@ -75,7 +77,8 @@ class TestShapeSpec(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         return (
             ShapeSpec(ishape=("N", "M"), oshape=("K", "L")),
             torch.randn(4, 5, dtype=torch.complex64),

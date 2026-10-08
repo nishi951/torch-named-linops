@@ -11,7 +11,8 @@ class TestStackVertical(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         P, Q = 3, 4
         A = Dense(
             torch.randn(P, Q, dtype=torch.complex64), ("P", "Q"), Dim("Q"), Dim("P")
@@ -30,7 +31,8 @@ class TestStackHorizontal(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         P, Q = 3, 4
         A = Dense(
             torch.randn(P, Q, dtype=torch.complex64), ("P", "Q"), Dim("Q"), Dim("P")
@@ -52,7 +54,8 @@ class TestStackDiagonal(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4, atol=1e-4)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         P, Q = 3, 4
         A = Dense(
             torch.randn(P, Q, dtype=torch.complex64), ("P", "Q"), Dim("Q"), Dim("P")

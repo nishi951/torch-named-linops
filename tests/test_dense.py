@@ -10,7 +10,8 @@ class TestDense(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         M, N = 9, 3
         weight = torch.randn(M, N, dtype=torch.complex64)
         A = Dense(weight, ("M", "N"), ("N",), ("M",))
@@ -24,7 +25,8 @@ class TestDenseBatched(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         B, M, N = 10, 3, 7
         weight = torch.randn(B, M, N, dtype=torch.complex64)
         A = Dense(weight, ("B", "M", "N"), ("B", "N"), ("B", "M"))

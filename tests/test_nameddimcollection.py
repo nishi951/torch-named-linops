@@ -68,7 +68,7 @@ def test_ndc_singleton_update_non_nd_raises():
     ndc = NamedDimCollection()
     ndc._add("single", "A")
     # Passing a tuple instead of a single ND should raise
-    with pytest.raises(ValueError, match="non-singleton"):
+    with pytest.raises(TypeError, match="non-singleton"):
         ndc["single"] = ("B", "C")
 
 

@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from collections.abc import Callable
 
 import torch
 from torch import Tensor
@@ -15,8 +15,8 @@ def power_method(
     max_iters: int = 50,
     eps: float = 0.0,
     tol: float = 1e-5,
-    dim: Optional[int | Tuple] = None,
-    tqdm_kwargs: Optional[dict] = None,
+    dim: int | tuple | None = None,
+    tqdm_kwargs: dict | None = None,
 ) -> tuple[Tensor, Tensor]:
     """Estimate the largest eigenvalue (in magnitude) of $A$ via the power method.
 
@@ -50,7 +50,7 @@ def power_method(
         The estimated eigenvalue $\\|A(v)\\|$.
     """
     # Default values
-    tqdm_kwargs = default_to_dict(dict(desc="Power Method"), tqdm_kwargs)
+    tqdm_kwargs = default_to_dict({"desc": "Power Method"}, tqdm_kwargs)
     v = v_init.clone()
 
     # Initialize

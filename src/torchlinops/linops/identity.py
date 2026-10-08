@@ -2,13 +2,12 @@ import time
 from copy import copy
 
 import torch
-from torch import zeros_like
-from torch import Tensor
+from torch import Tensor, zeros_like
 
 from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
-__all__ = ["Identity", "Zero", "ShapeSpec", "Sleep"]
+__all__ = ["Identity", "ShapeSpec", "Sleep", "Zero"]
 
 
 class Identity(NamedLinop):
@@ -60,15 +59,15 @@ class Zero(NamedLinop):
         super().__init__(NS(ishape, oshape))
 
     @staticmethod
-    def fn(self, x, /):
+    def fn(identity, x, /):
         return zeros_like(x)
 
     @staticmethod
-    def adj_fn(self, x, /):
+    def adj_fn(identity, x, /):
         return zeros_like(x)
 
     @staticmethod
-    def normal_fn(self, x, /):
+    def normal_fn(identity, x, /):
         return zeros_like(x)
 
     @staticmethod

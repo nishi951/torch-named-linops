@@ -1,18 +1,18 @@
 from collections.abc import Mapping
 from copy import copy, deepcopy
-from typing import Optional
 from warnings import warn
 
 from einops import rearrange, reduce, repeat
 
+from ..nameddim import NamedShape as NS
+from ..nameddim import Shape
 from .identity import Identity
-from ..nameddim import NamedShape as NS, Shape
 from .namedlinop import NamedLinop
 
 __all__ = [
     "Rearrange",
-    "SumReduce",
     "Repeat",
+    "SumReduce",
 ]
 
 
@@ -29,7 +29,7 @@ class Rearrange(NamedLinop):
         opattern,
         ishape: Shape,
         oshape: Shape,
-        axes_lengths: Optional[Mapping] = None,
+        axes_lengths: Mapping | None = None,
     ):
         """
         Parameters
@@ -98,7 +98,7 @@ class Rearrange(NamedLinop):
 
     def size(self, dim: str):
         """Rearranging does not determine any dimensions"""
-        return None
+        return
 
     def normal(self, inner=None):
         if inner is None:
@@ -143,7 +143,7 @@ class SumReduce(NamedLinop):
 
     def size(self, dim: str):
         """Reducing does not determine any dimensions"""
-        return None
+        return
 
     def adjoint(self):
         broadcast_dims = [d for d in self.ishape if d not in self.oshape]
@@ -207,7 +207,7 @@ class Repeat(NamedLinop):
         n_repeats: Mapping,
         ishape: Shape,
         oshape: Shape,
-        broadcast_dims: Optional[list] = None,
+        broadcast_dims: list | None = None,
     ):
         """
         Parameters

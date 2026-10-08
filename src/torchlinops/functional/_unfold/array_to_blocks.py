@@ -1,7 +1,5 @@
 """Differentiable Block/Unblock functions"""
 
-from typing import Optional
-
 import torch
 from jaxtyping import Bool
 from torch import Tensor
@@ -32,7 +30,7 @@ class ArrayToBlocksFn(Function):
     @staticmethod
     def setup_context(ctx, inputs, output):
         # Unpack input and output
-        input, block_shape, stride, mask, out = inputs
+        input, block_shape, stride, mask, _out = inputs
 
         # Save for backward pass
         ctx.im_size = tuple(input.shape[-len(block_shape) :])
@@ -59,9 +57,9 @@ class ArrayToBlocksFn(Function):
 def array_to_blocks(
     input,
     block_shape: tuple[int, ...],
-    stride: Optional[tuple[int, ...]] = None,
-    mask: Optional[Bool[Tensor, "..."]] = None,
-    out: Optional[Tensor] = None,
+    stride: tuple[int, ...] | None = None,
+    mask: Bool[Tensor, "..."] | None = None,
+    out: Tensor | None = None,
 ):
     """Wrapper for default arguments"""
     return ArrayToBlocksFn.apply(input, block_shape, stride, mask, out)
@@ -85,7 +83,7 @@ class BlocksToArrayFn(Function):
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        input, im_size, block_shape, stride, mask, out = inputs
+        _input, _im_size, block_shape, stride, mask, _out = inputs
 
         # Save for backward pass
         ctx.block_shape = block_shape
@@ -114,9 +112,9 @@ def blocks_to_array(
     input,
     im_size: tuple,
     block_shape: tuple,
-    stride: Optional[tuple] = None,
-    mask: Optional[Bool[Tensor, "..."]] = None,
-    out: Optional[Tensor] = None,
+    stride: tuple | None = None,
+    mask: Bool[Tensor, "..."] | None = None,
+    out: Tensor | None = None,
 ):
     """Wrapper for default arguments"""
     return BlocksToArrayFn.apply(input, im_size, block_shape, stride, mask, out)
@@ -125,8 +123,8 @@ def blocks_to_array(
 def get_norm_weights(
     im_size: tuple[int, ...],
     block_shape: tuple[int, ...],
-    stride: Optional[tuple[int, ...]] = None,
-    mask: Optional[Bool[Tensor, "..."]] = None,
+    stride: tuple[int, ...] | None = None,
+    mask: Bool[Tensor, "..."] | None = None,
     device: torch.device = "cpu",
 ):
     """Compute normalizing weights

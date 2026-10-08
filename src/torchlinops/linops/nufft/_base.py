@@ -1,26 +1,19 @@
 """NUFFT Base class"""
 
 from copy import copy
-from typing import Optional
 
 import torch
-import torch.nn as nn
-from jaxtyping import Float, Shaped
-
-from torch import Tensor
+from jaxtyping import Float
+from torch import Tensor, nn
 
 from torchlinops.utils import default_to, default_to_dict
 
 from ...nameddim import (
-    ELLIPSES,
-    Shape,
-    get_nd_shape,
-)
-from ...nameddim import (
     NamedDimension as ND,
 )
 from ...nameddim import (
-    NamedShape as NS,
+    Shape,
+    get_nd_shape,
 )
 from ..chain import Chain
 from ..namedlinop import NamedLinop
@@ -36,9 +29,9 @@ class NUFFTBase(Chain):
         locs: Float[Tensor, "... D"],
         grid_size: tuple[int, ...],
         output_shape: Shape,
-        input_shape: Optional[Shape] = None,
-        input_kshape: Optional[Shape] = None,
-        batch_shape: Optional[Shape] = None,
+        input_shape: Shape | None = None,
+        input_kshape: Shape | None = None,
+        batch_shape: Shape | None = None,
         **options,
     ):
         """
@@ -80,7 +73,6 @@ class NUFFTBase(Chain):
 
     def post_init_hook(self):
         """Post-setup actions for after __init__ is called."""
-        pass
 
     # Init helper methods
     def _init_shapes(
@@ -105,7 +97,7 @@ class NUFFTBase(Chain):
         adj = copy(self)
         adj._shape = adj._shape.H
 
-        linops = list(linop.adjoint() for linop in reversed(self.linops))
+        linops = [linop.adjoint() for linop in reversed(self.linops)]
         adj.linops = nn.ModuleList(linops)
         return adj
 

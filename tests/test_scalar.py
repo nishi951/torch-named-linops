@@ -14,7 +14,8 @@ class TestScalar(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         A = Scalar(weight=2.0 + 0j, ioshape=("N",))
         x = torch.randn(8, dtype=torch.complex64)
         y = torch.randn(8, dtype=torch.complex64)

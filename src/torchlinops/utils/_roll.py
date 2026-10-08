@@ -8,7 +8,7 @@ from itertools import product
 import torch
 from torch import Tensor
 
-__all__ = ["roll", "fftshift", "ifftshift"]
+__all__ = ["fftshift", "ifftshift", "roll"]
 
 
 def roll_fused(x: Tensor, shifts: tuple[int, ...], dims: tuple[int, ...]):
@@ -81,8 +81,8 @@ class Roll(torch.autograd.Function):
 
 def roll(
     x: Tensor,
-    shifts: int | tuple[int, ...] = tuple(),
-    dims: int | tuple[int, ...] = tuple(),
+    shifts: int | tuple[int, ...] = (),
+    dims: int | tuple[int, ...] = (),
 ):
     """Convenience wrapper"""
     if isinstance(shifts, int):

@@ -12,7 +12,8 @@ class TestConcatHorizontal(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         N, P, Q = 1, 3, 4
         A = Dense(
             torch.randn(N, P, Q, dtype=torch.complex64),
@@ -37,7 +38,8 @@ class TestConcatVertical(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         N, P, Q = 1, 3, 4
         A = Dense(
             torch.randn(N, P, Q, dtype=torch.complex64),
@@ -62,7 +64,8 @@ class TestConcatDiagonal(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-5, atol=1e-5)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         N, P, Q = 1, 3, 4
         A = Dense(
             torch.randn(N, P, Q, dtype=torch.complex64),

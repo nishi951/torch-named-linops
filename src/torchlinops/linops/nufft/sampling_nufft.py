@@ -1,8 +1,8 @@
 from functools import lru_cache
-from typing import Literal, Optional
+from typing import ClassVar, Literal
 
 import torch
-from jaxtyping import Float, Shaped
+from jaxtyping import Shaped
 from torch import Tensor
 
 from torchlinops import config
@@ -11,7 +11,6 @@ from ..fft import FFT
 from ..pad_last import Pad
 from ..sampling import Sampling
 from ._base import NUFFTBase
-from .utils import scale_int
 
 __all__ = ["SamplingNUFFT"]
 
@@ -27,7 +26,7 @@ class SamplingNUFFT(NUFFTBase):
 
     """
 
-    default_options = {"oversamp": 1.25}
+    default_options: ClassVar[dict] = {"oversamp": 1.25}
 
     def build(self):
         ndim = len(self.grid_size)

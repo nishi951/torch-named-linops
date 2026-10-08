@@ -1,14 +1,12 @@
-from jaxtyping import Integer
-from typing import Optional
-
 import torch
-import torch.nn as nn
-from torch import Tensor
+from jaxtyping import Integer
+from torch import Tensor, nn
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to
 
-from ..nameddim import ELLIPSES, NamedShape as NS, Shape
+from ..nameddim import ELLIPSES, Shape
+from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
 __all__ = ["Sampling"]
@@ -28,9 +26,9 @@ class Sampling(NamedLinop):
         self,
         idx: tuple[Integer[Tensor, "..."], ...],
         input_size: tuple[int, ...],
-        output_shape: Optional[Shape] = None,
-        input_shape: Optional[Shape] = None,
-        batch_shape: Optional[Shape] = None,
+        output_shape: Shape | None = None,
+        input_shape: Shape | None = None,
+        batch_shape: Shape | None = None,
     ):
         """
         Parameters

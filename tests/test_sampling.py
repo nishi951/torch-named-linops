@@ -12,7 +12,8 @@ class TestSampling(BaseNamedLinopTests):
     isclose_kwargs = dict(rtol=1e-4)
 
     @pytest.fixture(scope="class")
-    def linop_input_output(self):
+    @classmethod
+    def linop_input_output(cls):
         N = 64
         ndim = 2
         R, K = 13, 17

@@ -30,7 +30,7 @@ classifiers = [
 dev = [
     "bandit>=1.9.2",
     "isort>=6.0.1",
-    "marimo>=0.21.1",
+    "marimo>=0.25.1",
     "markdown-pytest>=0.3.2",
     "matplotlib>=3.10.1",
     "zensical",

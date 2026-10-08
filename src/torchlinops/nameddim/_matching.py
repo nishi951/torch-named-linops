@@ -1,6 +1,7 @@
 from collections import defaultdict
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any
 from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES
@@ -10,8 +11,8 @@ __all__ = [
     "align",
     "coalesce",
     "is_any",
-    "isequal",
     "iscompatible",
+    "isequal",
     "max_shape",
     "partition",
     "resolve_wildcards",
@@ -29,7 +30,7 @@ def is_any(dim):
     return hasattr(dim, "name") and dim.name == ANY
 
 
-def partition(seq: Sequence, val: Any) -> Tuple[Sequence, Sequence, Sequence]:
+def partition(seq: Sequence, val: Any) -> tuple[Sequence, Sequence, Sequence]:
     """Split a sequence on the first occurence of some value
 
     Examples
@@ -59,7 +60,7 @@ def isequal(
     shape2: Sequence,
     shape1_consume_all: bool = False,
     shape2_consume_all: bool = False,
-) -> tuple[bool, Optional[dict[int, list]]]:
+) -> tuple[bool, dict[int, list] | None]:
     """Test if two sequences with ellipses are length-compatible and value-compatible.
 
     Implemented with bottom-up DP
@@ -122,11 +123,13 @@ def isequal(
     for i in range(1, len(shape1) + 1):
         for j in range(1, len(shape2) + 1):
             if ptrs[i - 1][j - 1]:
-                if shape1[i - 1] == ELLIPSES or shape2[j - 1] == ELLIPSES:
-                    val = (-1, -1)
-                elif shape1[i - 1] == shape2[j - 1]:
-                    val = (-1, -1)
-                elif is_any(shape1[i - 1]) or is_any(shape2[j - 1]):
+                if (
+                    shape1[i - 1] == ELLIPSES
+                    or shape2[j - 1] == ELLIPSES
+                    or shape1[i - 1] == shape2[j - 1]
+                    or is_any(shape1[i - 1])
+                    or is_any(shape2[j - 1])
+                ):
                     val = (-1, -1)
                 else:
                     val = None
@@ -262,7 +265,7 @@ def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
     return tuple(resolved)
 
 
-def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, Optional[dict]]:
+def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, dict | None]:
     """Whether the two shapes are length-compatible.
 
     Greedily consume shape1, but not shape2

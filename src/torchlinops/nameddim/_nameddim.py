@@ -1,15 +1,15 @@
 from copy import copy
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
-__all__ = ["NamedDimension", "ELLIPSES", "ANY", "Dim", "AnyDim"]
+__all__ = ["ANY", "ELLIPSES", "AnyDim", "Dim", "NamedDimension"]
 
 # Special dim names
 ELLIPSES = "..."
 ANY = "()"
 
 
-def Dim(s: Optional[str] = None) -> tuple[str]:
+def Dim(s: str | None = None) -> tuple[str]:
     """Convenience function for splitting a string into a tuple of dimension names.
 
     Parses a compact dimension string into individual dimension names using
@@ -45,7 +45,7 @@ def Dim(s: Optional[str] = None) -> tuple[str]:
     ('(1)', 'A', '(23)')
     """
     if s is None or len(s) == 0:
-        return tuple()
+        return ()
     parts = []
     current = s[0]
     i = 0
@@ -146,7 +146,7 @@ class NamedDimension:
                 return cls(dim[0], int(dim[1]))
         elif dim == ELLIPSES:
             return cls(ELLIPSES)
-        elif isinstance(dim, Tuple) or isinstance(dim, List):
+        elif isinstance(dim, (tuple, list)):
             return type(dim)(cls.infer(d) for d in dim)
         return cls(dim)
 
@@ -183,7 +183,7 @@ class NamedDimension:
         return hash(repr(self))
 
 
-def AnyDim(i: Optional[int] = None) -> NamedDimension:
+def AnyDim(i: int | None = None) -> NamedDimension:
     """Create an ANY dimension with optional ordinal.
 
     Parameters

@@ -6,7 +6,7 @@ app = marimo.App()
 
 @app.cell
 def _(mo):
-    mo.md("""
+    mo.md(r"""
     # MRI Reconstruction
 
     This guide demonstrates how to perform MRI reconstruction using torchlinops with three key components:
@@ -36,7 +36,6 @@ def _(mo):
 
     where $A = E F S$ is the combined forward operator.
     """)
-    return
 
 
 @app.cell
@@ -44,15 +43,14 @@ def _(mo):
     mo.md("""
     ## Setup and Imports
     """)
-    return
 
 
 @app.cell
 def _():
-    import marimo as mo
     import sys
     import warnings
 
+    import marimo as mo
     import matplotlib.pyplot as plt
     import torch
 
@@ -99,7 +97,6 @@ def _(mo):
 
     We define the helper functions here for generating trajectories, sensitivities, and density compensation weights.
     """)
-    return
 
 
 @app.cell
@@ -274,7 +271,6 @@ def _(mo):
 
     We create a simple circular phantom image for testing.
     """)
-    return
 
 
 @app.cell
@@ -304,7 +300,6 @@ def _(mo):
 
     Generate k-space trajectory and create the NUFFT operator for non-Cartesian sampling.
     """)
-    return
 
 
 @app.cell
@@ -367,7 +362,6 @@ def _(mo):
 
     Generate multi-coil sensitivity maps and create the coil encoding operator.
     """)
-    return
 
 
 @app.cell
@@ -409,7 +403,6 @@ def _(mo):
 
     Compute density compensation weights for radial trajectories.
     """)
-    return
 
 
 @app.cell
@@ -464,7 +457,6 @@ def _(mo):
 
     Simulate k-space data from ground truth image using exact DFT.
     """)
-    return
 
 
 @app.cell
@@ -492,7 +484,6 @@ def _(mo):
 
     Solve the least-squares problem using conjugate gradients.
     """)
-    return
 
 
 @app.cell
@@ -513,7 +504,7 @@ def _(
 
     # Normalize for numerical purposes
     _, eigenval = power_method(
-        A.N, torch.ones_like(x_true), tqdm_kwargs=dict(leave=False)
+        A.N, torch.ones_like(x_true), tqdm_kwargs={"leave": False}
     )
     A = ((1 / (1.01 * eigenval)) ** 0.5) * A
 
@@ -531,7 +522,7 @@ def _(
 
     # Solve A^H A x = A^H y using conjugate gradients
     x_recon = conjugate_gradients(
-        A=A.N, y=rhs, max_num_iters=50, gtol=1e-4, tqdm_kwargs=dict(leave=False)
+        A=A.N, y=rhs, max_num_iters=50, gtol=1e-4, tqdm_kwargs={"leave": False}
     )
 
     # Rescale recon to scale of x_true
@@ -583,7 +574,6 @@ def _(mo):
 
     Summary of reconstruction parameters and achieved error.
     """)
-    return
 
 
 @app.cell
@@ -609,7 +599,6 @@ def _(
     print(f"Undersampling factor: {(image_size[0] * image_size[1]) / len(locs):.2f}×")
     print(f"Noise level: {noise_level}")
     print(f"Relative reconstruction error: {recon_error:.4f}")
-    return
 
 
 if __name__ == "__main__":

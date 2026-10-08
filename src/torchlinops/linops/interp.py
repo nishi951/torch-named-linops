@@ -1,13 +1,11 @@
-from typing import Optional
-
-import torch.nn as nn
 from jaxtyping import Float
-from torch import Tensor
+from torch import Tensor, nn
 
 import torchlinops.functional as F
 from torchlinops.utils import default_to, default_to_dict
 
-from ..nameddim import ELLIPSES, NamedShape as NS, Shape
+from ..nameddim import ELLIPSES, Shape
+from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
 __all__ = ["Interpolate"]
@@ -34,15 +32,15 @@ class Interpolate(NamedLinop):
         self,
         locs: Float[Tensor, "... D"],
         grid_size: tuple[int, ...],
-        batch_shape: Optional[Shape] = None,
-        locs_batch_shape: Optional[Shape] = None,
-        grid_shape: Optional[Shape] = None,
+        batch_shape: Shape | None = None,
+        locs_batch_shape: Shape | None = None,
+        grid_shape: Shape | None = None,
         # Interp params
         width: float = 4.0,
         kernel: str = "kaiser_bessel",
         norm: int = 1,
         pad_mode: str = "circular",
-        kernel_params: Optional[dict] = None,
+        kernel_params: dict | None = None,
     ):
         """
         Parameters
@@ -67,11 +65,10 @@ class Interpolate(NamedLinop):
         pad_mode : str
             The type of padding to apply.
         """
-        if locs_batch_shape is not None:
-            if len(locs_batch_shape) > len(locs.shape) - 1:
-                raise ValueError(
-                    f"locs_batch_shape has length longer than batch dim of locs. locs_batch_shape: {locs_batch_shape}, locs: {locs.shape}"
-                )
+        if locs_batch_shape is not None and len(locs_batch_shape) > len(locs.shape) - 1:
+            raise ValueError(
+                f"locs_batch_shape has length longer than batch dim of locs. locs_batch_shape: {locs_batch_shape}, locs: {locs.shape}"
+            )
         batch_shape = default_to(("...",), batch_shape)
         locs_batch_shape = default_to(("...",), locs_batch_shape)
         grid_shape = default_to(("...",), grid_shape)
@@ -84,7 +81,7 @@ class Interpolate(NamedLinop):
         self.grid_size = grid_size
 
         # Do this here instead of repeating it in both fn() and adjoint_fn()
-        kernel_params = default_to_dict(dict(beta=1.0), kernel_params)
+        kernel_params = default_to_dict({"beta": 1.0}, kernel_params)
         self.interp_params = {
             "width": width,
             "kernel": kernel,
@@ -121,9 +118,7 @@ class Interpolate(NamedLinop):
             return locs
 
         N = len(self._shape.locs_batch_shape)
-        locs_slc = []
-        for oslc in obatch[-N:]:
-            locs_slc.append(oslc)
+        locs_slc = list(obatch[-N:])
         locs_slc.append(slice(None))
         return locs[tuple(locs_slc)]
 
