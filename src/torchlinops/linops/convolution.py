@@ -83,7 +83,7 @@ class Convolution(NamedLinop):
             slice(first, -last if last > 0 else None) for first, last in _pad
         )
         _pad.reverse()
-        self._pad = sum(_pad, start=tuple())
+        self._pad = sum(_pad, start=())
 
         # Set up shapes
         if batch_shape is None:
@@ -344,7 +344,7 @@ def cross_correlation(f: Tensor, g: Tensor) -> Tensor:
     f = f[None, None]
     g = g[None, None]
     conv_fn = (F.conv1d, F.conv2d, F.conv3d)[ndim - 1]  # really a correlation function
-    full_pad = sum(((d - 1, d - 1) for d in reversed(g.shape)), start=tuple())
+    full_pad = sum(((d - 1, d - 1) for d in reversed(g.shape)), start=())
     g_padded = F.pad(g, pad=full_pad)
     out = conv_fn(g_padded, f.conj(), padding=0)  # no further padding required
     return out[0, 0]
@@ -372,7 +372,7 @@ def pad_to_odd(weight: Tensor, ndim: int):
     pad_last.reverse()
 
     _pad = [(first, last) for first, last in zip(pad_first, pad_last)]
-    _pad = sum(_pad, start=tuple())
+    _pad = sum(_pad, start=())
 
     return F.pad(weight, pad=_pad, value=0)
 

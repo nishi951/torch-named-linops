@@ -57,7 +57,7 @@ class NamedDimCollection:
     @property
     def shapes(self) -> dict:
         """The shapes in this collection."""
-        return {shape_name: self._lookup(shape_name) for shape_name in self.idx.keys()}
+        return {shape_name: self._lookup(shape_name) for shape_name in self.idx}
 
     def __getattr__(self, key):
         """Enables attribute-style access of shapes from their names.
@@ -133,7 +133,7 @@ class NamedDimCollection:
         """
         if shape_name in self.idx:
             raise ValueError(f"{shape_name} already in index of shape: {self}")
-        if isinstance(data, tuple) or isinstance(data, list):
+        if isinstance(data, (tuple, list)):
             data = coalesce(data, lambda x: x == ELLIPSES)
             indexed_shape = []
             for d in data:
@@ -159,7 +159,7 @@ class NamedDimCollection:
         oldshape = self._lookup(oldshape_name)
         if isinstance(oldshape, ND | str):  # Updating a Singleton
             if not isinstance(newshape, ND | str):
-                raise ValueError(
+                raise TypeError(
                     f"Trying to update singleton shape {oldshape_name} with non-singleton {newshape}"
                 )
             self._dims[self._index(oldshape)] = ND.infer(newshape)
@@ -215,7 +215,9 @@ class NamedDimCollection:
         n = self._dims.index(newdim)
         data = self.idx[oldshape_name]
         if isinstance(data, Mapping):
-            raise ValueError(f"Cannot update mapping key {olddim} to wildcard {newdim}")
+            raise TypeError(
+                f"Cannot update Mapping key {olddim} to wildcard {newdim} because data is of type {type(data)}"
+            )
         elif isinstance(data, tuple):
             data = list(data)
             data[i] = n

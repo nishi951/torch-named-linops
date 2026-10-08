@@ -219,8 +219,8 @@ class Concat(NamedLinop):
     @staticmethod
     def split(concat, tile):
         """Split concat linop, making a new concat linop if necessary"""
-        ibatch = list(tile.get(dim, slice(None)) for dim in concat.ishape)
-        obatch = list(tile.get(dim, slice(None)) for dim in concat.oshape)
+        ibatch = [tile.get(dim, slice(None)) for dim in concat.ishape]
+        obatch = [tile.get(dim, slice(None)) for dim in concat.oshape]
         ibatches = concat.subslice(
             ibatch, concat.idim_idx, concat.islices, len(concat.linops)
         )
@@ -229,7 +229,7 @@ class Concat(NamedLinop):
         )
 
         output_linop_idxs = ibatches.keys() & obatches.keys()
-        output_linop_idxs = sorted(list(output_linop_idxs))
+        output_linop_idxs = sorted(output_linop_idxs)
         if len(output_linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
             return Zero(concat.ishape, concat.oshape)
@@ -240,7 +240,7 @@ class Concat(NamedLinop):
             sub_tile = {dim: tile.get(dim, slice(None)) for dim in linop.dims}
             return type(linop).split(linop, sub_tile)
         else:
-            output_linop_idxs = sorted(list(output_linop_idxs))
+            output_linop_idxs = sorted(output_linop_idxs)
             output_linops = []
             for i in output_linop_idxs:
                 linop = concat.linops[i]

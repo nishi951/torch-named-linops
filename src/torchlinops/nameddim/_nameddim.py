@@ -45,7 +45,7 @@ def Dim(s: str | None = None) -> tuple[str]:
     ('(1)', 'A', '(23)')
     """
     if s is None or len(s) == 0:
-        return tuple()
+        return ()
     parts = []
     current = s[0]
     i = 0
@@ -146,7 +146,7 @@ class NamedDimension:
                 return cls(dim[0], int(dim[1]))
         elif dim == ELLIPSES:
             return cls(ELLIPSES)
-        elif isinstance(dim, tuple) or isinstance(dim, list):
+        elif isinstance(dim, (tuple, list)):
             return type(dim)(cls.infer(d) for d in dim)
         return cls(dim)
 

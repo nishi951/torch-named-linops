@@ -1,3 +1,4 @@
+import itertools
 from collections.abc import Iterable
 
 __all__ = ["batch_iterator"]
@@ -8,4 +9,4 @@ def batch_iterator(total: int, batch_size: int | None) -> Iterable[tuple[int, in
     if batch_size is None:
         return [(0, total)]
     delim = list(range(0, total, batch_size)) + [total]
-    return zip(delim[:-1], delim[1:])
+    return itertools.pairwise(delim)

@@ -217,7 +217,7 @@ class ModuleMemoryMap:
         """Deepcopy a module, without unnecessary memory overhead."""
         # storage_map = create_shared_buffer_map(module, copy=True)
         self.register_module(module)
-        for cdata_t in self.tensor_cdata_index.keys():
+        for cdata_t in self.tensor_cdata_index:
             self.allocate_new_storage(cdata_t)
         # Make copies of every buffer
         self.storage_map = deepcopy(self.storage_map)
@@ -227,9 +227,9 @@ class ModuleMemoryMap:
             cls = type(m)
             new = cls.__new__(cls)
             new.__dict__ = m.__dict__.copy()
-            new._parameters = dict()
-            new._buffers = dict()
-            new._modules = dict()
+            new._parameters = {}
+            new._buffers = {}
+            new._modules = {}
 
             for name, t in m._parameters.items():
                 if t is not None:
@@ -365,8 +365,8 @@ def device_ordinal(device: torch.device):
 
 def same_storage(x, y):
     """Determine if tensors share the same storage or not"""
-    x_ptrs = set(e.data_ptr() for e in x.view(-1))
-    y_ptrs = set(e.data_ptr() for e in y.view(-1))
+    x_ptrs = {e.data_ptr() for e in x.view(-1)}
+    y_ptrs = {e.data_ptr() for e in y.view(-1)}
     return (x_ptrs <= y_ptrs) or (y_ptrs <= x_ptrs)
 
 

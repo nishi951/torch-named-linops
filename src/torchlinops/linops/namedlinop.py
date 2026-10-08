@@ -283,9 +283,9 @@ class NamedLinop(nn.Module):
                         _adjoint = self.adjoint()
                         _adjoint._adjoint = [self]
                         self._adjoint = [_adjoint]
-                    except AttributeError as e:
+                    except AttributeError:
                         traceback.print_exc()
-                        raise e
+                        raise
                     logger.debug(
                         f"{type(self).__name__}: Making new adjoint {_adjoint._shape}"
                     )
@@ -341,9 +341,9 @@ class NamedLinop(nn.Module):
                     try:
                         _normal = self.normal()
                         self._normal = [_normal]
-                    except AttributeError as e:
+                    except AttributeError:
                         traceback.print_exc()
-                        raise e
+                        raise
                 return self._normal[0]
             return self.normal()
         except AttributeError as e:
@@ -425,13 +425,13 @@ class NamedLinop(nn.Module):
         return torchlinops.Add(left, self)
 
     def __mul__(self, right) -> "NamedLinop":
-        if isinstance(right, (int, float)) or isinstance(right, torch.Tensor):
+        if isinstance(right, (int, float, torch.Tensor)):
             right = torchlinops.Scalar(weight=right, ioshape=self.ishape)
             return self.compose(right)
         return NotImplemented
 
     def __rmul__(self, left) -> "NamedLinop":
-        if isinstance(left, (int, float)) or isinstance(left, torch.Tensor):
+        if isinstance(left, (int, float, torch.Tensor)):
             left = torchlinops.Scalar(weight=left, ioshape=self.oshape)
             return left.compose(self)
         return NotImplemented
@@ -456,7 +456,7 @@ class NamedLinop(nn.Module):
 
     def __rmatmul__(self, left) -> "NamedLinop":
         if not isinstance(left, NamedLinop):
-            raise ValueError(
+            raise TypeError(
                 f"__rmatmul__ of linop {type(self)} with non-linop of type {type(left)} is undefined."
             )
         return left.compose(self)

@@ -153,7 +153,7 @@ class Chain(NamedLinop):
         return set().union(*[linop.dims for linop in self.linops])
 
     def adjoint(self):
-        linops = list(linop.adjoint() for linop in reversed(self.linops))
+        linops = [linop.adjoint() for linop in reversed(self.linops)]
         adj = copy(self)
         adj.linops = nn.ModuleList(linops)
         return adj

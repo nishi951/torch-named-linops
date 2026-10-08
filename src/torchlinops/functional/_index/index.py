@@ -268,7 +268,7 @@ def ensure_tensor_indexing(
             range_tensor = _unsqueeze_last(range_tensor, len(tshape) - d - 1)
             out.append(range_tensor)
         else:
-            raise ValueError(
+            raise TypeError(
                 f"idx must contain only tensors or slice() objects but got {i}"
             )
     return tuple(out)

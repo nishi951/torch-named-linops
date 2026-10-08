@@ -72,7 +72,7 @@ def singular_value_decomposition(
     >>> U, S, Vh = singular_value_decomposition(A, x_init, num_singular_values=3)
     >>> # Verify: A @ x ≈ U @ diag(S) @ Vh @ x for reconstruction
     """
-    tqdm_kwargs = default_to_dict(dict(desc="SVD"), tqdm_kwargs)
+    tqdm_kwargs = default_to_dict({"desc": "SVD"}, tqdm_kwargs)
 
     ishape = A.ishape
 

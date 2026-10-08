@@ -193,7 +193,7 @@ class Dense(NamedLinop):
     def weightshape(self) -> Shape:
         weightshape = self._shape.weightshape
         if not isinstance(weightshape, Sequence):
-            raise ValueError(
+            raise TypeError(
                 f"Expected weightshape to be a sequence but got {type(weightshape)}: {weightshape}"
             )
         return weightshape

@@ -76,17 +76,16 @@ def _fold(
 ):
     """Implementation of fold"""
     # Check dtype if output buffer is provided
-    if output is not None:
-        if not output.dtype == x.dtype:
-            raise ValueError(
-                f"Output and input dtypes must match but got output {output.dtype} != input {x.dtype}"
-            )
+    if output is not None and not output.dtype == x.dtype:
+        raise ValueError(
+            f"Output and input dtypes must match but got output {output.dtype} != input {x.dtype}"
+        )
 
     if x.shape[-2 * ndim :] != (*nblocks, *block_size):
         raise RuntimeError(
             f"Fold expected input with full size {(*nblocks, *block_size)} but got {x.shape}"
         )
-    if x.is_cuda and ndim in FOLD.keys():  # pragma: no cover
+    if x.is_cuda and ndim in FOLD:  # pragma: no cover
         x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
             if output is None:

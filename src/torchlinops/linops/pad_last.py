@@ -1,3 +1,6 @@
+import functools
+import operator
+
 import torch.nn.functional as F
 
 from torchlinops.utils import default_to
@@ -182,7 +185,7 @@ def pad_to_size(grid_size, padded_size):
             pad_right = tp // 2
         pad.append([pad_left, pad_right])
     pad.reverse()
-    return sum(pad, start=[])
+    return functools.reduce(operator.iadd, pad, [])
 
 
 def crop_slice_from_pad(pad):

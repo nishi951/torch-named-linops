@@ -243,7 +243,7 @@ class Stack(NamedLinop):
         if len(linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
             return Zero(stack.ishape, stack.oshape)
-        linop_idxs = sorted(list(linop_idxs))
+        linop_idxs = sorted(linop_idxs)
         output_linops = []
 
         # Slice each sub-linop
@@ -273,7 +273,7 @@ class Stack(NamedLinop):
         if len(linop_idxs) == 0:
             # No linops satisfy this slice (diagonal stacking)
             return 0.0  # TODO is this ok
-        linop_idxs = sorted(list(linop_idxs))
+        linop_idxs = sorted(linop_idxs)
         output_linop_data = []
         # Remove stack dims from slice batch
         if self.idim_idx is not None:

@@ -25,6 +25,8 @@ shape_inference : bool
     Default is False.
 """
 
+from typing import ClassVar
+
 import torchlinops
 
 # Global config variables
@@ -63,7 +65,7 @@ class ConfigContext:
     >>> # original value restored
     """
 
-    VALID_KEYS = {
+    VALID_KEYS: ClassVar[set] = {
         "reduce_identity_in_normal",
         "cache_adjoint_normal",
         "log_device_transfers",
@@ -78,7 +80,7 @@ class ConfigContext:
                 )
         self._changes = kwargs
 
-    def __enter__(self) -> "ConfigContext":
+    def __enter__(self):
         self._saved: dict[str, bool] = {}
         for key, value in self._changes.items():
             self._saved[key] = getattr(torchlinops.config, key)

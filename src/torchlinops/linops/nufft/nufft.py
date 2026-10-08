@@ -1,6 +1,6 @@
 from functools import lru_cache
 from math import prod
-from typing import Literal
+from typing import ClassVar, Literal
 
 import torch
 from jaxtyping import Shaped
@@ -42,7 +42,7 @@ class NUFFT(NUFFTBase):
             Data type for the toeplitz embedding. Probably should be torch.complex64
     """
 
-    default_options = {
+    default_options: ClassVar[dict] = {
         "oversamp": 1.25,
         "width": 4.0,
         "toeplitz": False,
@@ -113,7 +113,7 @@ class NUFFT(NUFFTBase):
             grid_shape=grid_shape,
             width=width,
             kernel="kaiser_bessel",
-            kernel_params=dict(beta=beta),
+            kernel_params={"beta": beta},
         )
         # Create scaling
         scale_factor = width**ndim * (prod(grid_size) / prod(padded_size)) ** 0.5

@@ -202,11 +202,11 @@ class TilingStrategy:
     def schedule(self, linops: np.ndarray, **options):
         """Schedule linops alongside each other using Concat and Add."""
         # Resolve concurrency options
-        copt = dict(
-            threaded=options.get("threaded", _THREADED_DEFAULT),
-            num_workers=options.get("num_workers", _NUM_WORKERS_DEFAULT),
-            accumulate=options.get("accumulate", _ACCUMULATE_DEFAULT),
-        )
+        copt = {
+            "threaded": options.get("threaded", _THREADED_DEFAULT),
+            "num_workers": options.get("num_workers", _NUM_WORKERS_DEFAULT),
+            "accumulate": options.get("accumulate", _ACCUMULATE_DEFAULT),
+        }
 
         for dim in reversed(self.axes):
             # Manual axis reduction because I made Concat and Add too nice
@@ -399,11 +399,11 @@ def create_batched_linop(
         according to the batch specs.
     """
     # Resolve concurrency options
-    copt = dict(
-        threaded=options.get("threaded", _THREADED_DEFAULT),
-        num_workers=options.get("num_workers", _NUM_WORKERS_DEFAULT),
-        accumulate=options.get("accumulate", _ACCUMULATE_DEFAULT),
-    )
+    copt = {
+        "threaded": options.get("threaded", _THREADED_DEFAULT),
+        "num_workers": options.get("num_workers", _NUM_WORKERS_DEFAULT),
+        "accumulate": options.get("accumulate", _ACCUMULATE_DEFAULT),
+    }
     if default_device is None:
         default_device = torch.device("cpu")
     if isinstance(batch_specs, BatchSpec):
@@ -562,7 +562,7 @@ def fuzzy_broadcast_to(arr: np.ndarray, target_shape):
             if source_dim == target_dim or source_dim == 1:
                 repeats.append(1)
             elif source_dim < target_dim:
-                repeats.append(int(ceil(target_dim / source_dim)))
+                repeats.append(ceil(target_dim / source_dim))
             else:
                 repeats.append(1)
         arr = tile_along_axes(arr, repeats)

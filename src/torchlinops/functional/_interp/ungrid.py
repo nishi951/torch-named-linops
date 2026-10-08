@@ -42,7 +42,7 @@ def ungrid(
     kernel: str = "kaiser_bessel",
     norm: int = 1,
     pad_mode: Literal["zero", "circular"] = "circular",
-    kernel_params: dict = None,
+    kernel_params: dict | None = None,
 ):
     """Interpolate from on-grid values to off-grid locations.
 
@@ -84,7 +84,7 @@ def _ungrid(
     kernel_params,
     **kwargs,
 ):
-    if vals.is_cuda and ndim in UNGRID.keys():  # pragma: no cover
+    if vals.is_cuda and ndim in UNGRID:  # pragma: no cover
         # Ensure contiguity
         vals = vals.contiguous()
         locs = locs.contiguous()
@@ -142,7 +142,7 @@ def _get_grid():
 
 def get_block_width(kernel_width: tuple[float, ...], ndim: int, is_complex: bool):
     """Get necessary block width based on dimension and dtype of input"""
-    block_width = list(triton.next_power_of_2(ceil(w + 1)) for w in kernel_width)
+    block_width = [triton.next_power_of_2(ceil(w + 1)) for w in kernel_width]
     test_block_width = block_width[:]  # Shallow copy
     if is_complex:
         test_block_width[-1] *= 2
@@ -275,7 +275,6 @@ def _ungrid2d(
     pts_per_grid,  # Determined via heuristic
     beta=1.0,  # For kernel=kaiser_bessel
 ):
-    """ """
     size = x_size * y_size
 
     pid_0 = tl.program_id(0)
@@ -338,7 +337,7 @@ def _ungrid2d(
                 )
                 # Split and process separately
                 grid_real, grid_imag = tl.split(grid_cplx)
-                mask_real, mask_imag = tl.split(grid_mask_cplx)
+                _mask_real, _mask_imag = tl.split(grid_mask_cplx)
                 out_real = tl.sum(weights * grid_real)
                 out_imag = tl.sum(weights * grid_imag)
                 tl.store(out_ptr + 2 * (out_batch_offset + p), out_real)
@@ -397,7 +396,6 @@ def _ungrid3d(
     pts_per_grid,  # Determined via heuristic
     beta=1.0,  # For kernel=kaiser_bessel
 ):
-    """ """
     size = x_size * y_size * z_size
 
     pid_0 = tl.program_id(0)

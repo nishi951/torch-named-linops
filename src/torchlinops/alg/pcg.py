@@ -59,7 +59,7 @@ def conjugate_gradients(
         x = torch.zeros_like(y)
     else:
         x = x0.clone()
-    tqdm_kwargs = default_to_dict(dict(desc="CG", leave=False), tqdm_kwargs)
+    tqdm_kwargs = default_to_dict({"desc": "CG", "leave": False}, tqdm_kwargs)
 
     # Initialize run
     run = CGRun(ltol, gtol, A, y, disable=disable_tracking)

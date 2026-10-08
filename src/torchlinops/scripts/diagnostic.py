@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Print comprehensive CUDA/PyTorch system configuration.
 
 Run with: uv run torchlinops-diag
@@ -12,11 +11,8 @@ import torch
 
 
 def _run(cmd):
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-        return result.stdout.strip() if result.returncode == 0 else None
-    except Exception:
-        return None
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def main():
@@ -113,16 +109,10 @@ def main():
     for name, ver in deps.items():
         print(f"{name}: {ver}")
 
-    try:
-        import importlib.metadata
+    import importlib.metadata
 
-        for pkg in ["einops", "scipy", "numba"]:
-            try:
-                print(f"{pkg}: {importlib.metadata.version(pkg)}")
-            except Exception:
-                pass
-    except Exception:
-        pass
+    for pkg in ["einops", "scipy", "numba"]:
+        print(f"{pkg}: {importlib.metadata.version(pkg)}")
 
     print("\n" + "=" * 60)
 

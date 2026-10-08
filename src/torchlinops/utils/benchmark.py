@@ -60,7 +60,7 @@ def benchmark_and_summarize(
     num_iters: int = 10,
     ignore_first: int = 0,
     backend: Literal["torch", "cupy"] = "torch",
-    name: str = None,
+    name: str | None = None,
     **kwargs,
 ):
     """Convenience function"""
@@ -150,10 +150,7 @@ class TorchHandler:
         gc.enable()
         logger.info(f"Max memory allocated: {self.result['max_mem_bytes']}")
         if self.memory_snapshot_file is not None and self.device == "cuda":
-            try:
-                torch.cuda.memory._dump_snapshot(f"{self.memory_snapshot_file!s}")
-            except Exception as e:
-                logger.error(f"Failed to capture memory snapshot {e}")
+            torch.cuda.memory._dump_snapshot(f"{self.memory_snapshot_file!s}")
             torch.cuda.memory._record_memory_history(enabled=None)
 
     def trial_start(self, event=None, i=None):

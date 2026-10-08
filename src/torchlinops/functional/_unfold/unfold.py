@@ -82,16 +82,15 @@ def _unfold(
 ) -> Shaped[Tensor, "B ..."]:
     """Implementation of unfold"""
     # Check dtype if output buffer is provided
-    if output is not None:
-        if not output.dtype == x.dtype:
-            raise ValueError(
-                f"Output and input dtypes must match but got output {output.dtype} != input {x.dtype}"
-            )
+    if output is not None and not output.dtype == x.dtype:
+        raise ValueError(
+            f"Output and input dtypes must match but got output {output.dtype} != input {x.dtype}"
+        )
     if tuple(x.shape[-ndim:]) != tuple(im_size):
         raise RuntimeError(
             f"Unfold expected input with full size {im_size} but got {x.shape}"
         )
-    if x.is_cuda and ndim in UNFOLD.keys():  # pragma: no cover
+    if x.is_cuda and ndim in UNFOLD:  # pragma: no cover
         x = x.contiguous()  # Ensure contiguity
         with torch.cuda.device(x.device):
             if output is None:
@@ -393,7 +392,6 @@ def _unfold3d(
     y_BLOCKS_per_block: int,
     z_BLOCKS_per_block: int,
 ):
-    """"""
     pid_0 = tl.program_id(0)
     pid_1 = tl.program_id(1)
     pid_2 = tl.program_id(2)

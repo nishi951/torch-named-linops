@@ -59,15 +59,15 @@ class Zero(NamedLinop):
         super().__init__(NS(ishape, oshape))
 
     @staticmethod
-    def fn(self, x, /):
+    def fn(identity, x, /):
         return zeros_like(x)
 
     @staticmethod
-    def adj_fn(self, x, /):
+    def adj_fn(identity, x, /):
         return zeros_like(x)
 
     @staticmethod
-    def normal_fn(self, x, /):
+    def normal_fn(identity, x, /):
         return zeros_like(x)
 
     @staticmethod

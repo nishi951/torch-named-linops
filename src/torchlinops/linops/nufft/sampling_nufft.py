@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Literal
+from typing import ClassVar, Literal
 
 import torch
 from jaxtyping import Shaped
@@ -26,7 +26,7 @@ class SamplingNUFFT(NUFFTBase):
 
     """
 
-    default_options = {"oversamp": 1.25}
+    default_options: ClassVar[dict] = {"oversamp": 1.25}
 
     def build(self):
         ndim = len(self.grid_size)

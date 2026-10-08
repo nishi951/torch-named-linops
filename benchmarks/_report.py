@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Generate benchmark documentation from the latest benchmark results."""
 
 import json

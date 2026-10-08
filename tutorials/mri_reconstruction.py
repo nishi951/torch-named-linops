@@ -504,7 +504,7 @@ def _(
 
     # Normalize for numerical purposes
     _, eigenval = power_method(
-        A.N, torch.ones_like(x_true), tqdm_kwargs=dict(leave=False)
+        A.N, torch.ones_like(x_true), tqdm_kwargs={"leave": False}
     )
     A = ((1 / (1.01 * eigenval)) ** 0.5) * A
 
@@ -522,7 +522,7 @@ def _(
 
     # Solve A^H A x = A^H y using conjugate gradients
     x_recon = conjugate_gradients(
-        A=A.N, y=rhs, max_num_iters=50, gtol=1e-4, tqdm_kwargs=dict(leave=False)
+        A=A.N, y=rhs, max_num_iters=50, gtol=1e-4, tqdm_kwargs={"leave": False}
     )
 
     # Rescale recon to scale of x_true

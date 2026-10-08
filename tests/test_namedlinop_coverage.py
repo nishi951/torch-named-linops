@@ -68,7 +68,7 @@ def test_matmul_invalid():
 
 def test_rmatmul_invalid():
     A = Identity(ishape=("N",), oshape=("N",))
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         42.0 @ A
 
 

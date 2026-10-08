@@ -40,7 +40,7 @@ def batch_iterator(total, batch_size):
     """
     assert total > 0, f"batch_iterator called with {total} elements"
     delim = list(range(0, total, batch_size)) + [total]
-    return zip(delim[:-1], delim[1:])
+    return itertools.pairwise(delim)
 
 
 def batch_tqdm(total, batch_size, **tqdm_kwargs):

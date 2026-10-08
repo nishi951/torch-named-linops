@@ -252,7 +252,7 @@ def _(mo):
 @app.cell
 def _(A_4, N, power_method, torch):
     _, eigval = power_method(
-        A_4.N, torch.randn(N), max_iters=30, tqdm_kwargs=dict(leave=False)
+        A_4.N, torch.randn(N), max_iters=30, tqdm_kwargs={"leave": False}
     )
     print(f"Largest eigenvalue of A.N: {eigval.item():.4f}")
 

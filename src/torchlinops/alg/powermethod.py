@@ -50,7 +50,7 @@ def power_method(
         The estimated eigenvalue $\\|A(v)\\|$.
     """
     # Default values
-    tqdm_kwargs = default_to_dict(dict(desc="Power Method"), tqdm_kwargs)
+    tqdm_kwargs = default_to_dict({"desc": "Power Method"}, tqdm_kwargs)
     v = v_init.clone()
 
     # Initialize

@@ -9,11 +9,11 @@ from torch import Tensor, nn
 from torchlinops.utils import default_to, default_to_dict
 
 from ...nameddim import (
-    Shape,
-    get_nd_shape,
+    NamedDimension as ND,
 )
 from ...nameddim import (
-    NamedDimension as ND,
+    Shape,
+    get_nd_shape,
 )
 from ..chain import Chain
 from ..namedlinop import NamedLinop
@@ -97,7 +97,7 @@ class NUFFTBase(Chain):
         adj = copy(self)
         adj._shape = adj._shape.H
 
-        linops = list(linop.adjoint() for linop in reversed(self.linops))
+        linops = [linop.adjoint() for linop in reversed(self.linops)]
         adj.linops = nn.ModuleList(linops)
         return adj
 

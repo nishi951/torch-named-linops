@@ -81,8 +81,8 @@ class Roll(torch.autograd.Function):
 
 def roll(
     x: Tensor,
-    shifts: int | tuple[int, ...] = tuple(),
-    dims: int | tuple[int, ...] = tuple(),
+    shifts: int | tuple[int, ...] = (),
+    dims: int | tuple[int, ...] = (),
 ):
     """Convenience wrapper"""
     if isinstance(shifts, int):

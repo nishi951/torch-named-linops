@@ -65,11 +65,10 @@ class Interpolate(NamedLinop):
         pad_mode : str
             The type of padding to apply.
         """
-        if locs_batch_shape is not None:
-            if len(locs_batch_shape) > len(locs.shape) - 1:
-                raise ValueError(
-                    f"locs_batch_shape has length longer than batch dim of locs. locs_batch_shape: {locs_batch_shape}, locs: {locs.shape}"
-                )
+        if locs_batch_shape is not None and len(locs_batch_shape) > len(locs.shape) - 1:
+            raise ValueError(
+                f"locs_batch_shape has length longer than batch dim of locs. locs_batch_shape: {locs_batch_shape}, locs: {locs.shape}"
+            )
         batch_shape = default_to(("...",), batch_shape)
         locs_batch_shape = default_to(("...",), locs_batch_shape)
         grid_shape = default_to(("...",), grid_shape)
@@ -82,7 +81,7 @@ class Interpolate(NamedLinop):
         self.grid_size = grid_size
 
         # Do this here instead of repeating it in both fn() and adjoint_fn()
-        kernel_params = default_to_dict(dict(beta=1.0), kernel_params)
+        kernel_params = default_to_dict({"beta": 1.0}, kernel_params)
         self.interp_params = {
             "width": width,
             "kernel": kernel,
@@ -119,9 +118,7 @@ class Interpolate(NamedLinop):
             return locs
 
         N = len(self._shape.locs_batch_shape)
-        locs_slc = []
-        for oslc in obatch[-N:]:
-            locs_slc.append(oslc)
+        locs_slc = list(obatch[-N:])
         locs_slc.append(slice(None))
         return locs[tuple(locs_slc)]
 

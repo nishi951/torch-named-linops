@@ -119,8 +119,8 @@ def l_inf_opt(degree, lower=0, upper=1, verbose=True):
 
     if verbose:
         print("L-infinity optimized polynomial.")
-        print("> Degree:   %d" % degree)
-        print("> Spectrum: [%0.2f, %0.2f]" % (lower, upper))
+        print("> Degree:   {degree}")
+        print(f"> Spectrum: [{lower:0.2f}, {upper:0.2f}]")
 
     T = chebpoly.get_nth_chebyshev_polynomial(degree + 1)
 
@@ -130,7 +130,7 @@ def l_inf_opt(degree, lower=0, upper=1, verbose=True):
     P = simplify((1 - P) / y)
 
     if verbose:
-        print("> Resulting polynomial: %s" % repr(P))
+        print(f"> Resulting polynomial: {P}")
 
     if degree > 0:
         points = stationary_points(P, y, Interval(lower, upper))
@@ -178,10 +178,10 @@ def l_2_opt(degree, lower=0, upper=1, weight=1, verbose=True):
     """
     if verbose:
         print("L-2 optimized polynomial.")
-        print("> Degree:   %d" % degree)
-        print("> Spectrum: [%0.2f, %0.2f]" % (lower, upper))
+        print(f"> Degree:   {degree}")
+        print(f"> Spectrum: [{lower:0.2f}, {upper:0.2f}]")
 
-    c = symbols("c0:%d" % (degree + 1))
+    c = symbols(f"c0:{degree + 1}")
     x = symbols("x")
 
     p = sum([(c[k] * x**k) for k in range(degree + 1)])
@@ -206,7 +206,7 @@ def l_2_opt(degree, lower=0, upper=1, weight=1, verbose=True):
 
     poly = sum([(res[k] * x**k) for k in range(degree + 1)])
     if verbose:
-        print("> Resulting polynomial: %s" % repr(poly))
+        print(f"> Resulting polynomial: {poly}")
 
     if degree > 0:
         points = stationary_points(poly, x, Interval(lower, upper))

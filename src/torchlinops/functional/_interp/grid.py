@@ -43,7 +43,7 @@ def grid(
     kernel: str = "kaiser_bessel",
     norm: int = 1,
     pad_mode: Literal["zero", "circular"] = "circular",
-    kernel_params: dict = None,
+    kernel_params: dict | None = None,
 ):
     """Interpolate from off-grid values to on-grid locations.
 
@@ -89,7 +89,7 @@ def _grid(
     kernel_params,
     **kwargs,
 ):
-    if vals.is_cuda and ndim in GRID.keys():  # pragma: no cover
+    if vals.is_cuda and ndim in GRID:  # pragma: no cover
         # Ensure contiguity
         vals = vals.contiguous()
         locs = locs.contiguous()
@@ -149,7 +149,7 @@ def get_block_width(
     kernel_width: tuple[float, ...], ndim: int, is_complex: bool
 ):  # pragma: no cover
     """Get necessary block width based on dimension and dtype of input"""
-    block_width = list(triton.next_power_of_2(ceil(w + 1)) for w in kernel_width)
+    block_width = [triton.next_power_of_2(ceil(w + 1)) for w in kernel_width]
     test_block_width = block_width[:]  # Shallow copy
     if is_complex:
         test_block_width[-1] *= 2
@@ -280,7 +280,6 @@ def _grid2d(
     pts_per_grid,  # Determined via heuristic
     beta=1.0,  # For kernel=kaiser_bessel
 ):
-    """ """
     size = x_size * y_size
 
     pid_0 = tl.program_id(0)
@@ -405,7 +404,6 @@ def _grid3d(
     pts_per_grid,  # Determined via heuristic
     beta=1.0,  # For kernel=kaiser_bessel
 ):
-    """ """
     size = x_size * y_size * z_size
 
     pid_0 = tl.program_id(0)

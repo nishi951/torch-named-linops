@@ -30,7 +30,7 @@ class ArrayToBlocksFn(Function):
     @staticmethod
     def setup_context(ctx, inputs, output):
         # Unpack input and output
-        input, block_shape, stride, mask, out = inputs
+        input, block_shape, stride, mask, _out = inputs
 
         # Save for backward pass
         ctx.im_size = tuple(input.shape[-len(block_shape) :])
@@ -83,7 +83,7 @@ class BlocksToArrayFn(Function):
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        input, im_size, block_shape, stride, mask, out = inputs
+        _input, _im_size, block_shape, stride, mask, _out = inputs
 
         # Save for backward pass
         ctx.block_shape = block_shape

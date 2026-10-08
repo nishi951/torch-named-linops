@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Build tutorials from marimo notebooks.
 
@@ -18,9 +17,6 @@ import re
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 # Configuration
 TUTORIALS_DIR = Path("tutorials")
@@ -44,7 +40,7 @@ def run_marimo_export_session(notebook_path: Path) -> Path:
     ]
     print(f"  Running: {' '.join(cmd)}")
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         print(f"  Warning: marimo export session failed: {result.stderr}")
 
@@ -70,7 +66,7 @@ def run_marimo_export_md(notebook_path: Path, output_path: Path) -> bool:
     ]
     print(f"  Running: {' '.join(cmd)}")
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         print(f"  Warning: marimo export md failed: {result.stderr}")
         return False

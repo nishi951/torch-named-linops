@@ -18,12 +18,12 @@ class BreakpointLinop(NamedLinop):
 
     @staticmethod
     def fn(linop, x, /):
-        breakpoint()
+        breakpoint()  # noqa: T100
         return x
 
     @staticmethod
     def adj_fn(linop, x, /):
-        breakpoint()
+        breakpoint()  # noqa: T100
         return x
 
     @staticmethod
