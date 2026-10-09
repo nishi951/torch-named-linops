@@ -228,6 +228,65 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
 from torchlinops.linops.nufft.toeplitz import toeplitz_psf  # noqa: E402
 
 
+def test_grid_placement_chain_structure():
+    """grid placement: phase lives on the uncentered grid, before the gather."""
+    spec = make_spec()
+    op = FastSamplingNUFFT(
+        spec["locs"].clone(),
+        spec["grid_size"],
+        output_shape=("R", "K"),
+        oversamp=spec["oversamp"],
+        phase_placement="grid",
+    )
+    ndim = len(spec["grid_size"])
+    assert op.fft.centered is False
+    assert len(op.linops) == 2 + ndim + 1  # pad, fft, D rams, sampling
+    assert op.linops[-1] is op.interp
+    assert len(op.grid_phase) == ndim
+    assert not hasattr(op, "phase_diag")
+    for d, diag in enumerate(op.grid_phase):
+        n = spec["padded_size"][d]
+        ref = torch.exp(
+            -2j * torch.pi * torch.arange(n, dtype=torch.float32) * ((n + 1) // 2) / n
+        )
+        torch.testing.assert_close(diag.weight.view(-1), ref)
+        assert diag.weight.shape[d] == n
+
+
+def test_grid_placement_matches_sampling_nufft():
+    """Grid placement computes the same operator as SamplingNUFFT, fwd+adj."""
+    torch.manual_seed(0)
+    grid_size = (6, 4, 8)
+    nloc = (9, 10)  # 90 samples < 192 voxels; explicit "grid" exercises the branch
+    idx = torch.stack([torch.randint(0, p, nloc) for p in grid_size], dim=-1)
+    locs = (idx - torch.tensor(grid_size) // 2).float()
+    common = dict(output_shape=("R", "K"), oversamp=1)
+    slow = SamplingNUFFT(locs.clone(), grid_size, **common)
+    fast = FastSamplingNUFFT(locs.clone(), grid_size, phase_placement="grid", **common)
+    assert fast.phase_placement_resolved == "grid"
+    x_img = torch.rand(1, *grid_size, dtype=torch.complex64) + 0.5j
+    y_ref = torch.rand(1, *nloc, dtype=torch.complex64)
+    torch.testing.assert_close(fast(x_img), slow(x_img), rtol=1e-3, atol=1e-4)
+    torch.testing.assert_close(fast.H(y_ref), slow.H(y_ref), rtol=1e-3, atol=1e-4)
+
+
+def test_grid_placement_matches_sampling_nufft_dense():
+    """Auto-resolved grid placement (nlocs > voxels) computes the same operator."""
+    torch.manual_seed(0)
+    grid_size = (4, 4, 4)
+    nloc = (12, 15)  # 180 samples > 64 voxels -> "auto" resolves to "grid"
+    idx = torch.stack([torch.randint(0, p, nloc) for p in grid_size], dim=-1)
+    locs = (idx - torch.tensor(grid_size) // 2).float()
+    common = dict(output_shape=("R", "K"), oversamp=1)
+    slow = SamplingNUFFT(locs.clone(), grid_size, **common)
+    fast = FastSamplingNUFFT(locs.clone(), grid_size, **common)  # auto
+    assert fast.phase_placement_resolved == "grid"
+    x_img = torch.rand(1, *grid_size, dtype=torch.complex64) + 0.5j
+    y_ref = torch.rand(1, *nloc, dtype=torch.complex64)
+    torch.testing.assert_close(fast(x_img), slow(x_img), rtol=1e-3, atol=1e-4)
+    torch.testing.assert_close(fast.H(y_ref), slow.H(y_ref), rtol=1e-3, atol=1e-4)
+
+
 def test_toeplitz_psf_raises_for_fast_sampling_nufft():
     spec = make_spec(batch=(1,), locs_batch_size=(4, 6))
     op = FastSamplingNUFFT(
