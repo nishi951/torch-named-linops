@@ -49,7 +49,10 @@ class FastSamplingNUFFT(SamplingNUFFT):
     - ``"grid"`` — per-axis broadcast ``Diagonal``s on the uncentered fftn
       grid before ``Sampling``: ``O(prod padded_size)`` multiplies
       forward+backward, ``O(sum N_d)`` storage.
-    - ``"auto"`` (default) — ``"grid"`` iff ``nlocs > prod(padded_size)``;
+    - ``"auto"`` (default) — ``"grid"`` iff the per-batch-element sample count
+      (leading ``locs`` dims not named in ``batch_shape``) exceeds
+      ``prod(padded_size)``; falls back to the full ``locs`` leading product
+      when the positional alignment with ``output_shape`` is ambiguous;
       resolved at build time, recorded as ``self.phase_placement_resolved``.
 
     Both placements compute the same operator: the unit-modulus phase
@@ -72,7 +75,7 @@ class FastSamplingNUFFT(SamplingNUFFT):
         phase_placement : str
             One of ``"samples"``, ``"grid"``, ``"auto"``.
         nlocs : int
-            Number of gathered sample points, ``prod(locs.shape[:-1])``.
+            Number of gathered sample points, ``FastSamplingNUFFT.sample_count``.
         padded_size : tuple[int, ...]
             Oversampled grid size, one entry per spatial axis.
 
@@ -97,12 +100,36 @@ class FastSamplingNUFFT(SamplingNUFFT):
             f"{phase_placement!r}"
         )
 
+    @staticmethod
+    def sample_count(locs: Tensor, output_shape, batch_shape) -> int:
+        """Per-batch-element sample count for the ``auto`` criterion.
+
+        Counts the leading locs dims whose dim name is NOT declared in
+        ``batch_shape``. The batch extent cancels on both sides of the
+        samples-vs-voxels comparison, so batch dims must stay out of the
+        count; a shared dim (e.g. coil ``C`` in ``output_shape`` and
+        ``batch_shape``) otherwise inflates the samples side.
+
+        Falls back to counting ALL leading locs dims when the positional
+        alignment ``locs.shape[:-1] == output_shape`` breaks (ambiguity),
+        i.e. the pre-#210-followup behavior.
+        """
+        leading = locs.shape[:-1]
+        if len(output_shape) != len(leading):
+            return math.prod(leading)
+        batch_names = {str(d) for d in batch_shape}
+        count = 1
+        for size, dim in zip(leading, output_shape):
+            if str(dim) not in batch_names:
+                count *= int(size)
+        return count
+
     def build(self):
         ndim = len(self.grid_size)
         padded_size = tuple(int(i * self.options["oversamp"]) for i in self.grid_size)
         self.phase_placement_resolved = self.resolve_phase_placement(
             self.options["phase_placement"],
-            math.prod(self.locs.shape[:-1]),
+            self.sample_count(self.locs, self.output_shape, self.batch_shape),
             padded_size,
         )
 

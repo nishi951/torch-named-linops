@@ -189,6 +189,42 @@ def test_auto_resolves_dense_to_grid():
     assert op.phase_placement_resolved == "grid"
 
 
+def test_auto_criterion_excludes_batch_shared_dims():
+    """A locs dim shared with batch_shape must not inflate the sample count."""
+    # locs shape (100, 200, 3): raw product 20000 > 12000 voxels would say
+    # "grid"; excluding the batch-shared C dim gives 200 per element -> samples
+    torch.manual_seed(0)
+    p = (20, 20, 30)
+    idx = torch.stack([torch.randint(0, m, (100, 200)) for m in p], dim=-1)
+    locs = (idx - torch.tensor(p) // 2).float()
+    op = FastSamplingNUFFT(
+        locs,
+        (16, 16, 24),
+        output_shape=("C", "K"),
+        batch_shape=("C",),
+        oversamp=1.25,
+    )
+    assert op.phase_placement_resolved == "samples"
+
+
+def test_sample_count_fallback_on_ambiguous_alignment():
+    class _Fake:
+        shape = torch.Size((10, 10, 3))
+
+    fake = _Fake()
+    # output_shape shorter than leading dims -> ambiguity -> full product
+    assert FastSamplingNUFFT.sample_count(fake, ("K",), ("...",)) == 100
+    # normative alignment: dims not in batch_shape count
+    assert (
+        FastSamplingNUFFT.sample_count(torch.zeros(3, 5, 3), ("R", "K"), ("...",)) == 15
+    )
+    # shared dim excluded
+    assert (
+        FastSamplingNUFFT.sample_count(torch.zeros(100, 200, 3), ("C", "K"), ("C",))
+        == 200
+    )
+
+
 from torchlinops.testing import BaseNamedLinopTests  # noqa: E402
 
 
