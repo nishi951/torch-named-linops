@@ -3,7 +3,9 @@
 See GitHub issue #207.
 """
 
+import math
 from functools import lru_cache
+from typing import ClassVar
 
 import torch
 from jaxtyping import Integer
@@ -40,9 +42,55 @@ class FastSamplingNUFFT(SamplingNUFFT):
     complex64 rounding); inherits ``prep_locs``, ``device``, and options.
     """
 
+    default_options: ClassVar[dict] = {
+        **SamplingNUFFT.default_options,
+        "phase_placement": "auto",
+    }
+
+    @staticmethod
+    def resolve_phase_placement(
+        phase_placement: str, nlocs: int, padded_size: tuple[int, ...]
+    ) -> str:
+        """Resolve the ``phase_placement`` option to a concrete placement.
+
+        Parameters
+        ----------
+        phase_placement : str
+            One of ``"samples"``, ``"grid"``, ``"auto"``.
+        nlocs : int
+            Number of gathered sample points, ``prod(locs.shape[:-1])``.
+        padded_size : tuple[int, ...]
+            Oversampled grid size, one entry per spatial axis.
+
+        Returns
+        -------
+        str
+            ``"grid"`` iff ``nlocs > prod(padded_size)`` when ``"auto"``
+            (ties resolve to ``"samples"``); otherwise the literal
+            ``"samples"``/``"grid"``.
+
+        Raises
+        ------
+        ValueError
+            If ``phase_placement`` is unrecognized.
+        """
+        if phase_placement == "auto":
+            return "grid" if nlocs > math.prod(padded_size) else "samples"
+        if phase_placement in ("samples", "grid"):
+            return phase_placement
+        raise ValueError(
+            f"phase_placement must be 'samples', 'grid', or 'auto' but got "
+            f"{phase_placement!r}"
+        )
+
     def build(self):
         ndim = len(self.grid_size)
         padded_size = tuple(int(i * self.options["oversamp"]) for i in self.grid_size)
+        self.phase_placement_resolved = self.resolve_phase_placement(
+            self.options["phase_placement"],
+            math.prod(self.locs.shape[:-1]),
+            padded_size,
+        )
 
         # Inherited, cached locs preparation: l_p = centered gather indices
         if config.cache_nufft_parameters:

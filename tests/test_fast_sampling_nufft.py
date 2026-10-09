@@ -124,6 +124,55 @@ def test_phase_is_unit_modulus():
     torch.testing.assert_close(phase.abs(), torch.ones_like(phase.real))
 
 
+def test_resolve_phase_placement():
+    # fewer samples than voxels -> samples
+    assert (
+        FastSamplingNUFFT.resolve_phase_placement("auto", 15, (20, 20, 30)) == "samples"
+    )
+    # more samples than voxels -> grid
+    assert FastSamplingNUFFT.resolve_phase_placement("auto", 1000, (8, 8, 8)) == "grid"
+    # exact tie -> samples (equal cost either way; preserves status quo)
+    assert (
+        FastSamplingNUFFT.resolve_phase_placement("auto", 512, (8, 8, 8)) == "samples"
+    )
+    # literals pass through unchanged
+    assert (
+        FastSamplingNUFFT.resolve_phase_placement("samples", 15, (20, 20, 30))
+        == "samples"
+    )
+    assert FastSamplingNUFFT.resolve_phase_placement("grid", 15, (20, 20, 30)) == "grid"
+    # unknown value rejected
+    with pytest.raises(ValueError):
+        FastSamplingNUFFT.resolve_phase_placement("bogus", 15, (20, 20, 30))
+
+
+def test_phase_placement_default_and_attribute():
+    spec = make_spec()
+    op = FastSamplingNUFFT(
+        spec["locs"].clone(),
+        spec["grid_size"],
+        output_shape=("R", "K"),
+        oversamp=spec["oversamp"],
+    )
+    assert op.options["phase_placement"] == "auto"
+    # 15 locs < 12000 voxels -> samples
+    assert op.phase_placement_resolved == "samples"
+
+
+def test_auto_resolves_dense_to_grid():
+    # 180 samples > 4*4*4 = 64 voxels -> auto picks grid
+    spec = make_spec(
+        batch=(1,), grid_size=(4, 4, 4), locs_batch_size=(12, 15), oversamp=1
+    )
+    op = FastSamplingNUFFT(
+        spec["locs"].clone(),
+        spec["grid_size"],
+        output_shape=("R", "K"),
+        oversamp=1,
+    )
+    assert op.phase_placement_resolved == "grid"
+
+
 from torchlinops.testing import BaseNamedLinopTests  # noqa: E402
 
 
