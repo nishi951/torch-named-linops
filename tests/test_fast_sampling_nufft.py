@@ -62,11 +62,21 @@ def make_spec(
     }
 
 
-def test_forward_matches_sampling_nufft():
+@pytest.mark.parametrize("phase_placement", ["samples", "grid", "auto"])
+def test_forward_matches_sampling_nufft(phase_placement):
     spec = make_spec()
     common = dict(output_shape=("R", "K"), oversamp=spec["oversamp"])
     slow = SamplingNUFFT(spec["locs"].clone(), spec["grid_size"], **common)
-    fast = FastSamplingNUFFT(spec["locs"].clone(), spec["grid_size"], **common)
+    fast = FastSamplingNUFFT(
+        spec["locs"].clone(),
+        spec["grid_size"],
+        phase_placement=phase_placement,
+        **common,
+    )
+    if phase_placement == "auto":
+        assert fast.phase_placement_resolved == "samples"  # 15 locs < 12000 voxels
+    else:
+        assert fast.phase_placement_resolved == phase_placement
     x = torch.rand(*spec["batch"], *spec["grid_size"], dtype=torch.complex64) + 0.5j
     y_fast = fast(x)
     y_slow = slow(x)
@@ -91,6 +101,7 @@ def test_chain_contains_no_centered_fft():
 # sandwich shifts), not grid_size: grid_size parity only affects the shared Pad
 # placement and is invisible to the index/phase identity. Both are swept here.
 # oversamp * grid must be an exact integer (see make_spec docstring).
+@pytest.mark.parametrize("phase_placement", ["samples", "grid", "auto"])
 @pytest.mark.parametrize(
     "grid_size, oversamp",
     [
@@ -101,13 +112,18 @@ def test_chain_contains_no_centered_fft():
     ],
     ids=["padded-even", "padded-mixed", "padded-odd", "grid-odd"],
 )
-def test_forward_and_adjoint_match_grid_parity(grid_size, oversamp):
+def test_forward_and_adjoint_match_grid_parity(grid_size, oversamp, phase_placement):
     spec = make_spec(
         batch=(1,), grid_size=grid_size, locs_batch_size=(3, 5), oversamp=oversamp
     )
     common = dict(output_shape=("R", "K"), oversamp=spec["oversamp"])
     slow = SamplingNUFFT(spec["locs"].clone(), spec["grid_size"], **common)
-    fast = FastSamplingNUFFT(spec["locs"].clone(), spec["grid_size"], **common)
+    fast = FastSamplingNUFFT(
+        spec["locs"].clone(),
+        spec["grid_size"],
+        phase_placement=phase_placement,
+        **common,
+    )
     torch.manual_seed(0)
     x = torch.rand(*spec["batch"], *spec["grid_size"], dtype=torch.complex64) + 0.5j
     y = torch.rand(*spec["batch"], *spec["locs"].shape[:-1], dtype=torch.complex64)
@@ -182,7 +198,12 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
     equality_check = "approx"
     isclose_kwargs: dict = {"rtol": 1e-3}
 
-    instances = ["even_padded_3d", "odd_padded_3d"]
+    instances = [
+        "even_padded_3d",
+        "odd_padded_3d",
+        "even_padded_3d_grid",
+        "odd_padded_3d_grid",
+    ]
 
     @pytest.fixture(scope="class", params=instances)
     @classmethod
@@ -195,6 +216,7 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
             grid_size,
             output_shape=("R", "K"),
             oversamp=spec["oversamp"],
+            phase_placement=spec["phase_placement"],
         )
         ishape = (*spec["batch"], *grid_size)
         oshape = (*spec["batch"], *locs_batch)
@@ -205,13 +227,29 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
     @pytest.fixture(scope="class")
     @classmethod
     def even_padded_3d(self):
-        return make_spec()  # grid (16,16,24) -> padded (20,20,30)
+        return {**make_spec(), "phase_placement": "samples"}
 
     @pytest.fixture(scope="class")
     @classmethod
     def odd_padded_3d(self):
         # The odd axis lives in the PADDED grid: grid (12,16,24) -> padded (15,20,30)
-        return make_spec(grid_size=(12, 16, 24))
+        return {
+            **make_spec(grid_size=(12, 16, 24)),
+            "phase_placement": "samples",
+        }
+
+    @pytest.fixture(scope="class")
+    @classmethod
+    def even_padded_3d_grid(self):
+        return {**make_spec(), "phase_placement": "grid"}
+
+    @pytest.fixture(scope="class")
+    @classmethod
+    def odd_padded_3d_grid(self):
+        return {
+            **make_spec(grid_size=(12, 16, 24)),
+            "phase_placement": "grid",
+        }
 
     def test_size(self, linop_input_output):
         A, _, _ = linop_input_output
