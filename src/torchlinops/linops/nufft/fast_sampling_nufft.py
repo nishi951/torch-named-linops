@@ -215,10 +215,10 @@ class FastSamplingNUFFT(SamplingNUFFT):
     def post_init_hook(self):
         self.pad = self.linops[0]
         self.fft = self.linops[1]
-        # Always point interp at the actual Sampling linop: the inherited
-        # NUFFTBase hook assumes linops[2] is Sampling, which is not true for
-        # either of our chains (samples: linops[2] is Sampling but linops[-1]
-        # is the phase Diagonal; grid: linops[2] is a ramp Diagonal).
+        # Point interp at the actual Sampling linop: SamplingNUFFT's
+        # post_init_hook assumes linops[2] is Sampling, while linops[-1] is
+        # the Sampling linop only for the "grid" chain (in "samples" it is
+        # the phase Diagonal).
         if self.phase_placement_resolved == "samples":
             self.interp = self.linops[2]
             self.phase_diag = self.linops[3]
