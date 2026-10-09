@@ -240,7 +240,7 @@ def test_grid_placement_chain_structure():
     )
     ndim = len(spec["grid_size"])
     assert op.fft.centered is False
-    assert len(op.linops) == 2 + ndim + 1  # pad, fft, D rams, sampling
+    assert len(op.linops) == 2 + ndim + 1  # pad, fft, D ramps, sampling
     assert op.linops[-1] is op.interp
     assert len(op.grid_phase) == ndim
     assert not hasattr(op, "phase_diag")
@@ -251,6 +251,24 @@ def test_grid_placement_chain_structure():
         )
         torch.testing.assert_close(diag.weight.view(-1), ref)
         assert diag.weight.shape[d] == n
+
+
+def test_interp_and_device_track_sampling_linop():
+    """interp must point at the Sampling linop in both placements (NUFFTBase.device)."""
+    for placement in ("samples", "grid"):
+        spec = make_spec()
+        op = FastSamplingNUFFT(
+            spec["locs"].clone(),
+            spec["grid_size"],
+            output_shape=("R", "K"),
+            oversamp=spec["oversamp"],
+            phase_placement=placement,
+        )
+        from torchlinops.linops.sampling import Sampling
+
+        assert isinstance(op.interp, Sampling)
+        assert op.interp.idx[0].device.type
+        assert op.device.type
 
 
 def test_grid_placement_matches_sampling_nufft():

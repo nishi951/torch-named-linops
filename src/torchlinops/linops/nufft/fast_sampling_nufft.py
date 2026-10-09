@@ -216,13 +216,15 @@ class FastSamplingNUFFT(SamplingNUFFT):
         self.pad = self.linops[0]
         self.fft = self.linops[1]
         # Always point interp at the actual Sampling linop: the inherited
-        # NUFFTBase hook assumes linops[2] is Sampling, which is only true for
-        # the "samples" chain.
-        self.interp = self.linops[-1]
+        # NUFFTBase hook assumes linops[2] is Sampling, which is not true for
+        # either of our chains (samples: linops[2] is Sampling but linops[-1]
+        # is the phase Diagonal; grid: linops[2] is a ramp Diagonal).
         if self.phase_placement_resolved == "samples":
+            self.interp = self.linops[2]
             self.phase_diag = self.linops[3]
         else:
             self.grid_phase = nn.ModuleList(self.linops[2:-1])
+            self.interp = self.linops[-1]
 
     @staticmethod
     @lru_cache(maxsize=64)
