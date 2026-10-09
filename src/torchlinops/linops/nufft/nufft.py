@@ -101,7 +101,7 @@ class NUFFT(NUFFTBase):
                 f"Nan/Inf values detected in apodization weight (width={width}, oversamp={oversamp})."
             )
         batched_input_shape = NS(self.batch_shape) + NS(self.input_shape)
-        apodize = Diagonal(weight, batched_input_shape.ishape)
+        apodize = Diagonal(weight.to(locs_prepared.device), batched_input_shape.ishape)
         apodize.name = "Apodize"
 
         # Create Interpolator
