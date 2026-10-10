@@ -137,8 +137,3 @@ class SamplingNUFFT(NUFFTBase):
                 raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
         out = out.to(torch.int64)
         return out
-
-    @property
-    def device(self):
-        """Tracks device of the sampling linop."""
-        return self.interp.idx[0].device

@@ -49,10 +49,8 @@ class FastSamplingNUFFT(SamplingNUFFT):
     - ``"grid"`` — per-axis broadcast ``Diagonal``s on the uncentered fftn
       grid before ``Sampling``: ``O(prod padded_size)`` multiplies
       forward+backward, ``O(sum N_d)`` storage.
-    - ``"auto"`` (default) — ``"grid"`` iff the per-batch-element sample count
-      (leading ``locs`` dims not named in ``batch_shape``) exceeds
-      ``prod(padded_size)``; falls back to the full ``locs`` leading product
-      when the positional alignment with ``output_shape`` is ambiguous;
+    - ``"auto"`` (default) — ``"grid"`` iff the sample count
+      exceeds ``prod(padded_size)``.
       resolved at build time, recorded as ``self.phase_placement_resolved``.
 
     Both placements compute the same operator: the unit-modulus phase
@@ -75,7 +73,7 @@ class FastSamplingNUFFT(SamplingNUFFT):
         phase_placement : str
             One of ``"samples"``, ``"grid"``, ``"auto"``.
         nlocs : int
-            Number of gathered sample points, ``FastSamplingNUFFT.sample_count``.
+            Number of gathered sample points.
         padded_size : tuple[int, ...]
             Oversampled grid size, one entry per spatial axis.
 
@@ -233,9 +231,6 @@ class FastSamplingNUFFT(SamplingNUFFT):
 
         Returns
         -------
-        idx : Tensor
-            int64 tensor, same shape as ``locs_prepared``: gather indices into
-            the *uncentered* ``fftn`` output grid.
         phase : Tensor
             complex64 tensor of shape ``locs_prepared.shape[:-1]``: per-sample
             unit-modulus phase ``S(k)``.
@@ -253,4 +248,5 @@ class FastSamplingNUFFT(SamplingNUFFT):
 
     @staticmethod
     def ifftshift_locs(locs_prepared, size):
+        """Return Uncentered gather indices `idx = (l_p - N//2) mod N`"""
         return torch.remainder(locs_prepared - size // 2, size)

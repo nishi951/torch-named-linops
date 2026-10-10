@@ -88,6 +88,19 @@ def test_forward_matches_sampling_nufft(phase_placement):
     torch.testing.assert_close(y_fast, y_slow, rtol=1e-3, atol=1e-4)
 
 
+def test_chain_contains_no_centered_fft():
+    """The regression this class exists to fix: no shift sandwich in the chain."""
+    spec = make_spec()
+    fast = FastSamplingNUFFT(
+        spec["locs"].clone(),
+        spec["grid_size"],
+        output_shape=("R", "K"),
+        oversamp=spec["oversamp"],
+    )
+    assert fast[1].centered is False
+    assert not any(getattr(linop, "centered", False) for linop in fast.linops)
+
+
 # The parity that drives the fold is that of PADDED_SIZE (the FFT grid the
 # sandwich shifts), not grid_size: grid_size parity only affects the shared Pad
 # placement and is invisible to the index/phase identity. Both are swept here.

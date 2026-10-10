@@ -165,5 +165,6 @@ class NUFFTBase(Chain):
         return self._device
 
     def to(self, device, *args, **kwargs):
-        self._device = device
+        if isinstance(device, torch.device) or isinstance(device, str):
+            self._device = device
         return super().to(device, *args, **kwargs)
