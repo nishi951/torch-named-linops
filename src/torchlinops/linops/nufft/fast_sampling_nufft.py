@@ -100,36 +100,12 @@ class FastSamplingNUFFT(SamplingNUFFT):
             f"{phase_placement!r}"
         )
 
-    @staticmethod
-    def sample_count(locs: Tensor, output_shape, batch_shape) -> int:
-        """Per-batch-element sample count for the ``auto`` criterion.
-
-        Counts the leading locs dims whose dim name is NOT declared in
-        ``batch_shape``. The batch extent cancels on both sides of the
-        samples-vs-voxels comparison, so batch dims must stay out of the
-        count; a shared dim (e.g. coil ``C`` in ``output_shape`` and
-        ``batch_shape``) otherwise inflates the samples side.
-
-        Falls back to counting ALL leading locs dims when the positional
-        alignment ``locs.shape[:-1] == output_shape`` breaks (ambiguity),
-        i.e. the pre-#210-followup behavior.
-        """
-        leading = locs.shape[:-1]
-        if len(output_shape) != len(leading):
-            return math.prod(leading)
-        batch_names = {str(d) for d in batch_shape}
-        count = 1
-        for size, dim in zip(leading, output_shape):
-            if str(dim) not in batch_names:
-                count *= int(size)
-        return count
-
     def build(self):
         ndim = len(self.grid_size)
         padded_size = tuple(int(i * self.options["oversamp"]) for i in self.grid_size)
         self.phase_placement_resolved = self.resolve_phase_placement(
             self.options["phase_placement"],
-            self.sample_count(self.locs, self.output_shape, self.batch_shape),
+            math.prod(self.locs.shape[:-1]),
             padded_size,
         )
 
@@ -162,7 +138,7 @@ class FastSamplingNUFFT(SamplingNUFFT):
         size = torch.tensor(
             padded_size, dtype=locs_prepared.dtype, device=locs_prepared.device
         )
-        idx = torch.remainder(locs_prepared - size // 2, size)
+        idx = FastSamplingNUFFT.ifftshift_locs(locs_prepared, size)
         sampling = Sampling.from_stacked_idx(
             idx,
             dim=-1,
@@ -176,9 +152,9 @@ class FastSamplingNUFFT(SamplingNUFFT):
             # Cached fold: per-sample centering phase on the gathered output;
             # broadcasts over batch dims. Unit modulus -> adjoint/normal exact.
             if config.cache_nufft_parameters:
-                _, phase = FastSamplingNUFFT.fold_centering(locs_prepared, padded_size)
+                phase = FastSamplingNUFFT.fold_centering(locs_prepared, padded_size)
             else:
-                _, phase = FastSamplingNUFFT.fold_centering.__wrapped__(
+                phase = FastSamplingNUFFT.fold_centering.__wrapped__(
                     locs_prepared, padded_size
                 )
             oshape = NS(self.batch_shape) + NS(self.output_shape)
@@ -239,26 +215,12 @@ class FastSamplingNUFFT(SamplingNUFFT):
             diags.append(diag)
         return diags
 
-    def post_init_hook(self):
-        self.pad = self.linops[0]
-        self.fft = self.linops[1]
-        # Point interp at the actual Sampling linop: SamplingNUFFT's
-        # post_init_hook assumes linops[2] is Sampling, while linops[-1] is
-        # the Sampling linop only for the "grid" chain (in "samples" it is
-        # the phase Diagonal).
-        if self.phase_placement_resolved == "samples":
-            self.interp = self.linops[2]
-            self.phase_diag = self.linops[3]
-        else:
-            self.grid_phase = nn.ModuleList(self.linops[2:-1])
-            self.interp = self.linops[-1]
-
     @staticmethod
     @lru_cache(maxsize=64)
     def fold_centering(
         locs_prepared: Integer[Tensor, "... D"],
         padded_size: tuple[int, ...],
-    ) -> tuple[Tensor, Tensor]:
+    ) -> Tensor:
         """Fold the centered-FFT sandwich into plain-FFT gather indices + phase.
 
         Parameters
@@ -281,10 +243,14 @@ class FastSamplingNUFFT(SamplingNUFFT):
         size = torch.tensor(
             padded_size, dtype=locs_prepared.dtype, device=locs_prepared.device
         )
-        idx = torch.remainder(locs_prepared - size // 2, size)
+        idx = FastSamplingNUFFT.ifftshift_locs(locs_prepared, size)
         rolls = (size + 1) // 2
         angle = (
             idx.to(torch.float32) * rolls.to(torch.float32) / size.to(torch.float32)
         ).sum(dim=-1)
         phase = torch.exp(-2j * torch.pi * angle)
-        return idx, phase
+        return phase
+
+    @staticmethod
+    def ifftshift_locs(locs_prepared, size):
+        return torch.remainder(locs_prepared - size // 2, size)

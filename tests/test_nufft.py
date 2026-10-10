@@ -320,7 +320,9 @@ def test_locs_cache_shared_by_object_identity():
     assert info().currsize - before == 1  # fresh object: miss
     n2 = NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
     assert info().currsize - before == 1  # same object: hit, no new entry
-    assert n1.interp.locs.data_ptr() == n2.interp.locs.data_ptr()
+    n1_interp = n1[3]
+    n2_interp = n2[3]
+    assert n1_interp.locs.data_ptr() == n2_interp.locs.data_ptr()
     NUFFT(_cache_test_locs(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
     assert info().currsize - before == 2  # another fresh object: miss
 
@@ -386,3 +388,19 @@ def test_options_override_defaults():
     assert linop.options["oversamp"] == 1.5
     assert linop.options["width"] == 3.0
     assert linop.options["toeplitz"] is False  # untouched default survives
+
+
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="GPU is required but not available"
+)
+def test_apodize_moved_to_same_device_as_locs():
+    linop = NUFFT(
+        _cache_test_locs().to("cuda"),
+        _CACHE_GRID,
+        output_shape=("K",),
+        oversamp=1.5,
+        width=3.0,
+    )
+    assert linop.locs.device.type == "cuda"
+    assert linop.locs.device == linop[0].weight.device

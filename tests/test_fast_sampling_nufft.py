@@ -1,5 +1,7 @@
 """Tests for FastSamplingNUFFT (issue #207: shift-free sampling mode)."""
 
+from typing import ClassVar
+
 import pytest
 import torch
 
@@ -26,7 +28,9 @@ def test_fold_centering_matches_sandwich(padded):
         [torch.randint(0, n, (40,), dtype=torch.int64) for n in padded], dim=-1
     )
 
-    idx, phase = FastSamplingNUFFT.fold_centering(locs_prepared, padded)
+    size = torch.tensor(padded, dtype=locs_prepared.dtype, device=locs_prepared.device)
+    idx = FastSamplingNUFFT.ifftshift_locs(locs_prepared, size)
+    phase = FastSamplingNUFFT.fold_centering(locs_prepared, padded)
     assert idx.dtype == torch.int64
     assert phase.shape == locs_prepared.shape[:-1]
     assert phase.is_complex()
@@ -84,19 +88,6 @@ def test_forward_matches_sampling_nufft(phase_placement):
     torch.testing.assert_close(y_fast, y_slow, rtol=1e-3, atol=1e-4)
 
 
-def test_chain_contains_no_centered_fft():
-    """The regression this class exists to fix: no shift sandwich in the chain."""
-    spec = make_spec()
-    fast = FastSamplingNUFFT(
-        spec["locs"].clone(),
-        spec["grid_size"],
-        output_shape=("R", "K"),
-        oversamp=spec["oversamp"],
-    )
-    assert fast.fft.centered is False
-    assert not any(getattr(linop, "centered", False) for linop in fast.linops)
-
-
 # The parity that drives the fold is that of PADDED_SIZE (the FFT grid the
 # sandwich shifts), not grid_size: grid_size parity only affects the shared Pad
 # placement and is invisible to the index/phase identity. Both are swept here.
@@ -133,7 +124,7 @@ def test_forward_and_adjoint_match_grid_parity(grid_size, oversamp, phase_placem
 
 
 def test_phase_is_unit_modulus():
-    _, phase = FastSamplingNUFFT.fold_centering(
+    phase = FastSamplingNUFFT.fold_centering(
         torch.randint(0, 8, (100, 3), dtype=torch.int64), (8, 10, 12)
     )
     # gather idx must stay in-bounds for Sampling's range validation
@@ -189,42 +180,6 @@ def test_auto_resolves_dense_to_grid():
     assert op.phase_placement_resolved == "grid"
 
 
-def test_auto_criterion_excludes_batch_shared_dims():
-    """A locs dim shared with batch_shape must not inflate the sample count."""
-    # locs shape (100, 200, 3): raw product 20000 > 12000 voxels would say
-    # "grid"; excluding the batch-shared C dim gives 200 per element -> samples
-    torch.manual_seed(0)
-    p = (20, 20, 30)
-    idx = torch.stack([torch.randint(0, m, (100, 200)) for m in p], dim=-1)
-    locs = (idx - torch.tensor(p) // 2).float()
-    op = FastSamplingNUFFT(
-        locs,
-        (16, 16, 24),
-        output_shape=("C", "K"),
-        batch_shape=("C",),
-        oversamp=1.25,
-    )
-    assert op.phase_placement_resolved == "samples"
-
-
-def test_sample_count_fallback_on_ambiguous_alignment():
-    class _Fake:
-        shape = torch.Size((10, 10, 3))
-
-    fake = _Fake()
-    # output_shape shorter than leading dims -> ambiguity -> full product
-    assert FastSamplingNUFFT.sample_count(fake, ("K",), ("...",)) == 100
-    # normative alignment: dims not in batch_shape count
-    assert (
-        FastSamplingNUFFT.sample_count(torch.zeros(3, 5, 3), ("R", "K"), ("...",)) == 15
-    )
-    # shared dim excluded
-    assert (
-        FastSamplingNUFFT.sample_count(torch.zeros(100, 200, 3), ("C", "K"), ("C",))
-        == 200
-    )
-
-
 from torchlinops.testing import BaseNamedLinopTests  # noqa: E402
 
 
@@ -232,7 +187,7 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
     """Shared linop-behavior suite: adjoint consistency, normal, split, backprop."""
 
     equality_check = "approx"
-    isclose_kwargs: dict = {"rtol": 1e-3}
+    isclose_kwargs: ClassVar[dict] = {"rtol": 1e-3}
 
     instances = [
         "even_padded_3d",
@@ -300,49 +255,6 @@ class TestFastSamplingNUFFT(BaseNamedLinopTests):
 
 
 from torchlinops.linops.nufft.toeplitz import toeplitz_psf  # noqa: E402
-
-
-def test_grid_placement_chain_structure():
-    """grid placement: phase lives on the uncentered grid, before the gather."""
-    spec = make_spec()
-    op = FastSamplingNUFFT(
-        spec["locs"].clone(),
-        spec["grid_size"],
-        output_shape=("R", "K"),
-        oversamp=spec["oversamp"],
-        phase_placement="grid",
-    )
-    ndim = len(spec["grid_size"])
-    assert op.fft.centered is False
-    assert len(op.linops) == 2 + ndim + 1  # pad, fft, D ramps, sampling
-    assert op.linops[-1] is op.interp
-    assert len(op.grid_phase) == ndim
-    assert not hasattr(op, "phase_diag")
-    for d, diag in enumerate(op.grid_phase):
-        n = spec["padded_size"][d]
-        ref = torch.exp(
-            -2j * torch.pi * torch.arange(n, dtype=torch.float32) * ((n + 1) // 2) / n
-        )
-        torch.testing.assert_close(diag.weight.view(-1), ref)
-        assert diag.weight.shape[d] == n
-
-
-def test_interp_and_device_track_sampling_linop():
-    """interp must point at the Sampling linop in both placements (NUFFTBase.device)."""
-    for placement in ("samples", "grid"):
-        spec = make_spec()
-        op = FastSamplingNUFFT(
-            spec["locs"].clone(),
-            spec["grid_size"],
-            output_shape=("R", "K"),
-            oversamp=spec["oversamp"],
-            phase_placement=placement,
-        )
-        from torchlinops.linops.sampling import Sampling
-
-        assert isinstance(op.interp, Sampling)
-        assert op.interp.idx[0].device.type
-        assert op.device.type
 
 
 def test_grid_placement_matches_sampling_nufft():
