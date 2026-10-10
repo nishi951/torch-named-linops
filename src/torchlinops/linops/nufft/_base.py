@@ -77,7 +77,6 @@ class NUFFTBase(Chain):
 
     def post_init_hook(self):
         """Post-setup actions for after __init__ is called."""
-        pass
 
     # Init helper methods
     def _init_shapes(
@@ -165,6 +164,6 @@ class NUFFTBase(Chain):
         return self._device
 
     def to(self, device, *args, **kwargs):
-        if isinstance(device, torch.device) or isinstance(device, str):
+        if isinstance(device, (torch.device, str)):
             self._device = device
         return super().to(device, *args, **kwargs)
