@@ -53,24 +53,21 @@ def toeplitz_psf(
 
     # Initialize variables
     dtype = default_to(torch.complex64, dtype)
-    device = nufft.device
-    grid_size = nufft.pad.im_size
-    new_grid_size = scale_int(grid_size, oversamp)
-    ndim = len(grid_size)
-    width = nufft.pad.pad_im_size
-    new_width = scale_int(width, oversamp)
-    new_locs = rescale_locs(
-        nufft.interp.locs.clone(),
-        c0=tuple(w // 2 for w in width),
-        w0=width,
-        c1=tuple(w // 2 for w in new_width),
-        w1=new_width,
-    )
-    # new_locs is already scaled/shifted into the prepared interpolation
-    # coordinate system, so the reconstructed NUFFT must not re-prep locs
+    new_grid_size = scale_int(nufft.grid_size, oversamp)
+    new_padded_size = scale_int(nufft.padded_size, oversamp)
+    c0 = tuple(w // 2 for w in nufft.padded_size)
+    c1 = tuple(w // 2 for w in new_padded_size)
+    ndim = len(nufft.grid_size)
+
     os_options = {**nufft.options, "skip_prep_locs": True}
     nufft_os = NUFFT(
-        new_locs,
+        rescale_locs(
+            nufft.prep_locs(nufft.locs, nufft.grid_size, nufft.padded_size),
+            c0,
+            nufft.padded_size,
+            c1,
+            new_padded_size,
+        ),
         grid_size=new_grid_size,
         output_shape=nufft.output_shape,
         input_shape=nufft.input_shape,
@@ -94,10 +91,10 @@ def toeplitz_psf(
     )
 
     # Create empty kernel
-    kernel = torch.zeros(*kernel_size, dtype=dtype, device=device)
+    kernel = torch.zeros(*kernel_size, dtype=dtype, device=nufft.device)
 
     # Allocate input
-    allones = torch.zeros(*input_size, dtype=dtype, device=device)
+    allones = torch.zeros(*input_size, dtype=dtype, device=nufft.device)
     scale_factor = oversamp**ndim / (prod(new_grid_size) ** 0.5)
 
     # Compute kernel by iterating through all possible input-output pairs
@@ -126,7 +123,7 @@ def psf_sizing(nufft, inner: NamedLinop, toeplitz_oversamp: float = 2.0):
         inner.ishape[:-n_output_dims],
         inner.oshape[:-n_output_dims],
     )
-    io_kshape = nufft.fft._shape.output_grid_shape
+    io_kshape = nufft.input_kshape
     ishape = batch_ishape + io_kshape
     oshape = batch_oshape + io_kshape
     if batch_ishape == (ELLIPSES,):  # Special case
@@ -143,7 +140,7 @@ def psf_sizing(nufft, inner: NamedLinop, toeplitz_oversamp: float = 2.0):
     batch_sizes = tuple(a if a is not None else 1 for a in batch_sizes)
 
     # Get kernel size
-    im_size = nufft.pad.im_size
+    im_size = nufft.grid_size
     kernel_ksize = scale_int(im_size, toeplitz_oversamp)
     kernel_size = batch_sizes + batch_sizes + kernel_ksize
 

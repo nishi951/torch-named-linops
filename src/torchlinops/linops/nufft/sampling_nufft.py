@@ -72,11 +72,6 @@ class SamplingNUFFT(NUFFTBase):
         linops = [pad, fft, interp]
         return linops
 
-    def post_init_hook(self):
-        self.pad = self.linops[0]
-        self.fft = self.linops[1]
-        self.interp = self.linops[2]
-
     @staticmethod
     @lru_cache(maxsize=64)
     def prep_locs(
@@ -142,8 +137,3 @@ class SamplingNUFFT(NUFFTBase):
                 raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
         out = out.to(torch.int64)
         return out
-
-    @property
-    def device(self):
-        """Tracks device of the sampling linop."""
-        return self.interp.idx[0].device
