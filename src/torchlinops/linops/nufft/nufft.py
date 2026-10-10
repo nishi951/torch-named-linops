@@ -56,10 +56,14 @@ class NUFFT(NUFFTBase):
             )
         super().__init__(*args, **kwargs)
 
+    @property
+    def padded_size(self):
+        return tuple(int(i * self.options["oversamp"]) for i in self.grid_size)
+
     def build(self):
         grid_size = self.grid_size
         ndim = len(self.grid_size)
-        padded_size = tuple(int(i * self.options["oversamp"]) for i in grid_size)
+        padded_size = self.padded_size
         if self.options.get("skip_prep_locs"):
             locs_prepared = self.locs
         else:
@@ -84,9 +88,6 @@ class NUFFT(NUFFTBase):
             grid_shapes=(pad.out_im_shape, self.input_kshape),
         )
 
-        # Create Interpolator
-        grid_shape = fft._shape.output_grid_shape
-
         # Create Apodization
         width, oversamp = self.options["width"], self.options["oversamp"]
         beta = self.beta(width, oversamp)
@@ -110,7 +111,7 @@ class NUFFT(NUFFTBase):
             padded_size,
             batch_shape=self.batch_shape,
             locs_batch_shape=self.output_shape,
-            grid_shape=grid_shape,
+            grid_shape=self.input_kshape,
             width=width,
             kernel="kaiser_bessel",
             kernel_params={"beta": beta},
@@ -120,11 +121,6 @@ class NUFFT(NUFFTBase):
         scale = Scalar(weight=1.0 / scale_factor, ioshape=interp.oshape)
         linops = [apodize, pad, fft, interp, scale]
         return linops
-
-    def post_init_hook(self):
-        self.pad = self.linops[1]
-        self.fft = self.linops[2]
-        self.interp = self.linops[3]
 
     @staticmethod
     @lru_cache(maxsize=64)
@@ -191,13 +187,6 @@ class NUFFT(NUFFTBase):
             else:
                 raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
         return out
-
-    @property
-    def device(self):
-        """Tracks device of interpolating/sampling linop
-        Useful for toeplitz
-        """
-        return self.interp.locs.device
 
     @staticmethod
     @lru_cache(maxsize=64)

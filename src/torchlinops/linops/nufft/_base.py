@@ -16,6 +16,7 @@ from ...nameddim import (
     get_nd_shape,
 )
 from ..chain import Chain
+from ..fft import FFT
 from ..namedlinop import NamedLinop
 from ..pad_last import Pad
 from .utils import scale_int
@@ -60,6 +61,7 @@ class NUFFTBase(Chain):
         if isinstance(locs, nn.Parameter):
             locs = locs.data  # Avoid registering a new parameter
         self.locs = locs
+        self._device = self.locs.device
         self.grid_size = grid_size
         self.options = default_to_dict(self.default_options, options)
         self._init_shapes(
@@ -116,7 +118,13 @@ class NUFFTBase(Chain):
                 in_shape=self.input_shape,
                 batch_shape=self.batch_shape,
             )
-            fft = self.fft
+
+            fft = FFT(
+                ndim=len(self.grid_size),
+                centered=True,
+                batch_shape=self.batch_shape,
+                grid_shapes=(pad.out_im_shape, self.input_kshape),
+            )
             return pad.normal(fft.normal(toep_kernel))
         return super().normal(inner)
 
@@ -153,4 +161,9 @@ class NUFFTBase(Chain):
         """Tracks device of interpolating/sampling linop
         Useful for toeplitz
         """
-        raise NotImplementedError()
+        return self._device
+
+    def to(self, device, *args, **kwargs):
+        if isinstance(device, (torch.device, str)):
+            self._device = device
+        return super().to(device, *args, **kwargs)
