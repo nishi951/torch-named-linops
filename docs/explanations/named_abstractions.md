@@ -2,6 +2,8 @@
 
 This page describes the core abstraction stack that underpins `torch-named-linops`, from the atomic `NamedDimension` up through `NamedLinop` itself.
 
+For how these dims are updated as you build, update, compose, adjoint, and normalize operators, see [How Named Dimensions Propagate](named_dims_propagation.md).
+
 ## NamedDimension
 
 `NamedDimension` is the atomic unit of shape specification. It is a frozen dataclass with two fields:
@@ -12,8 +14,8 @@ This page describes the core abstraction stack that underpins `torch-named-linop
 ```python
 from torchlinops.nameddim import NamedDimension as ND
 
-h = ND("H")       # H (i=0, not printed)
-h1 = ND("H", 1)   # H1
+h = ND("H")  # H (i=0, not printed)
+h1 = ND("H", 1)  # H1
 ```
 
 ### String interoperability
@@ -21,9 +23,9 @@ h1 = ND("H", 1)   # H1
 `NamedDimension` is designed to be interchangeable with plain strings in most contexts. Its `__eq__` and `__hash__` are based on `repr()`, so:
 
 ```python
-ND("A") == "A"          # True
-ND("A", 1) == "A1"      # True
-{ND("A"): 10}["A"]      # Works -- same hash
+ND("A") == "A"  # True
+ND("A", 1) == "A1"  # True
+{ND("A"): 10}["A"]  # Works -- same hash
 ```
 
 This means you can use plain strings like `"Nx"` when constructing shapes, and they will be automatically converted to `NamedDimension` objects via the `ND.infer()` classmethod.
@@ -35,9 +37,9 @@ For compact shape specification, the `Dim()` function parses a single string int
 ```python
 from torchlinops import Dim
 
-Dim("ABCD")       # ('A', 'B', 'C', 'D')
-Dim("NxNyNz")     # ('Nx', 'Ny', 'Nz')
-Dim("A1B2Kx1Ky2") # ('A1', 'B2', 'Kx1', 'Ky2')
+Dim("ABCD")  # ('A', 'B', 'C', 'D')
+Dim("NxNyNz")  # ('Nx', 'Ny', 'Nz')
+Dim("A1B2Kx1Ky2")  # ('A1', 'B2', 'Kx1', 'Ky2')
 ```
 
 ### Special dimensions
@@ -55,7 +57,7 @@ When forming the normal operator $A^H A$, the output dimensions must be distinct
 
 ```python
 a = ND("A")
-a.next_unused(("A", "B"))   # A1 (since "A" is taken)
+a.next_unused(("A", "B"))  # A1 (since "A" is taken)
 a.next_unused(("A", "A1"))  # A2
 ```
 
@@ -93,9 +95,9 @@ Shapes can be read and written as attributes:
 from torchlinops.nameddim import NamedDimCollection
 
 c = NamedDimCollection(shape1=("A", "B"), shape2=("B", "C"))
-c.shape1          # (A, B)
+c.shape1  # (A, B)
 c.shape1 = ("D", "E")  # Renames A->D, B->E across ALL shapes
-c.shape2          # (E, C)  -- B was renamed to E here too
+c.shape2  # (E, C)  -- B was renamed to E here too
 ```
 
 Shape updates use the `iscompatible()` matcher to verify that the new shape is length-compatible with the old one (accounting for `...` and `()` wildcards).
@@ -117,13 +119,13 @@ Additional shapes can be stored for operator-specific metadata (e.g., `batch_sha
 from torchlinops.nameddim import NamedShape as NS
 
 # Full specification
-s = NS(("Nx", "Ny"), ("Kx", "Ky"))   # (Nx, Ny) -> (Kx, Ky)
+s = NS(("Nx", "Ny"), ("Kx", "Ky"))  # (Nx, Ny) -> (Kx, Ky)
 
 # Diagonal shortcut: oshape = ishape
-s = NS(("A", "B"))                     # (A, B) -> (A, B)
+s = NS(("A", "B"))  # (A, B) -> (A, B)
 
 # Pass-through: accepts another NamedShape
-s2 = NS(s)                             # copies s
+s2 = NS(s)  # copies s
 ```
 
 ### Adjoint shape: `.H`
@@ -132,7 +134,7 @@ The adjoint swaps input and output:
 
 ```python
 s = NS(("Nx", "Ny"), ("Kx", "Ky"))
-s.H   # (Kx, Ky) -> (Nx, Ny)
+s.H  # (Kx, Ky) -> (Nx, Ny)
 ```
 
 ### Normal shape: `.N`
@@ -141,7 +143,7 @@ The normal operator $A^H A$ maps from `ishape` back to `ishape`. But since the i
 
 ```python
 s = NS(("A", "B"), ("C", "D"))
-s.N   # (A, B) -> (A1, B1)
+s.N  # (A, B) -> (A1, B1)
 ```
 
 The output dims `A1`, `B1` are the first unused variants of the input dims `A`, `B`.
@@ -153,7 +155,7 @@ Shapes can be added to concatenate their components, which is useful when combin
 ```python
 batch = NS(("Batch",), ("Batch",))
 spatial = NS(("Nx", "Ny"), ("Kx", "Ky"))
-full = batch + spatial   # (Batch, Nx, Ny) -> (Batch, Kx, Ky)
+full = batch + spatial  # (Batch, Nx, Ny) -> (Batch, Kx, Ky)
 ```
 
 ---
@@ -167,10 +169,10 @@ full = batch + spatial   # (Batch, Nx, Ny) -> (Batch, Kx, Ky)
 Each linop holds a `NamedShape` (via the private `_shape` attribute) and exposes it through properties:
 
 ```python
-A.ishape   # Input dimensions
-A.oshape   # Output dimensions
-A.shape    # The full NamedShape
-A.dims     # Set of all dimensions (ishape union oshape)
+A.ishape  # Input dimensions
+A.oshape  # Output dimensions
+A.shape  # The full NamedShape
+A.dims  # Set of all dimensions (ishape union oshape)
 ```
 
 Setting `ishape` or `oshape` mutates the underlying `NamedShape`, which propagates changes to any shared dimensions.
@@ -185,10 +187,12 @@ def fn(linop, x: Tensor, /) -> Tensor:
     """Forward: y = A(x)"""
     ...
 
+
 @staticmethod
 def adj_fn(linop, x: Tensor, /) -> Tensor:
     """Adjoint: x = A^H(y)"""
     ...
+
 
 @staticmethod
 def normal_fn(linop, x: Tensor, /) -> Tensor:
@@ -210,8 +214,8 @@ Why static methods? Because `adjoint()` creates the adjoint by simply **swapping
 Accessing `.H` or `.N` creates the derived operator on first access and caches it:
 
 ```python
-A.H   # Creates adjoint on first call, returns cached version thereafter
-A.N   # Creates normal on first call, returns cached version thereafter
+A.H  # Creates adjoint on first call, returns cached version thereafter
+A.N  # Creates normal on first call, returns cached version thereafter
 ```
 
 The cache is stored as a single-element list (e.g. `self._adjoint = [adj]`) rather than as a direct attribute. This prevents `nn.Module.__setattr__` from registering the derived operator as a submodule, which would cause parameter duplication and circular references.

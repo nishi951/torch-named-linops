@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from math import ceil
+from warnings import warn
 
 import numpy as np
 import torch
@@ -124,6 +125,34 @@ class TilingStrategy:
             for t in zip(*np.nonzero(a != b))
         ]
 
+    def _validate_bounds(self, linop):
+        """Validate tile bounds against the linop's actual dimension extents.
+
+        Over-covering a dim (last edge beyond the dim's size) raises; so does
+        tiling a dim whose size cannot be determined. Under-covering is allowed
+        and truncates the operator on that dim (the composite acts only on the
+        covered coordinates).
+        """
+        for dim in self.axes:
+            size = linop.size(dim)
+            if size is None:
+                raise ValueError(
+                    f"Cannot tile dim {dim}: linop does not report its size. "
+                    f"Bounds: {self.bounds}. Linop: {linop}"
+                )
+            edges = self.bounds[dim]
+            if edges[-1] > size:
+                raise ValueError(
+                    f"TilingStrategy bounds on dim {dim} exceed its size: "
+                    f"last edge {edges[-1]} > {size}"
+                )
+            if edges[-1] < size or edges[0] > 0:
+                warn(
+                    f"TilingStrategy bounds on dim {dim} cover subset of full input size {size}: "
+                    f"edges cover [{edges[0]}, {edges[-1]}] less than [0, {size}] "
+                    f"-- this truncates the linop."
+                )
+
     def split(self, linop, mmap=None, return_mmap=False):
         """Apply the schedule to a linop, returning tiled linops alongside device movement linops.
 
@@ -136,6 +165,9 @@ class TilingStrategy:
         return_mmap : bool
             If True, also return the memory map used.
         """
+        # Validate bounds coverage against the linop before slicing
+        self._validate_bounds(linop)
+
         # Create memory map
         if mmap is None:
             mmap = ModuleMemoryMap()
