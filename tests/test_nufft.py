@@ -8,6 +8,7 @@ import torch
 from torchlinops import NUFFT, Interpolate, Pad
 from torchlinops.functional import nufft, nufft_adjoint
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
+from torchlinops.linops.nufft.toeplitz import toeplitz_psf
 from torchlinops.testing import BaseNamedLinopTests
 
 
@@ -352,6 +353,43 @@ def test_skip_prep_locs_bypasses_cache():
         prepared, _CACHE_GRID, output_shape=("K",), skip_prep_locs=True, **_CACHE_OPTS
     )
     assert NUFFT.prep_locs.cache_info().currsize == before
+
+
+def _psf_kernel(psf):
+    """Extract the Fourier-domain kernel weight from a toeplitz_psf result."""
+    return psf.weight if hasattr(psf, "weight") else psf.linops[0].weight
+
+
+def test_toeplitz_psf_skip_prep_locs_matches_normal_nufft():
+    """Regression test: ``toeplitz_psf`` must not re-prepare already-prepared locs.
+
+    A NUFFT built from pre-prepared locs with ``skip_prep_locs=True`` is the
+    identical operator to the normal NUFFT on the same trajectory, so its
+    Toeplitz PSF (and hence ``.N``) must match. Guards against the bug where
+    ``toeplitz_psf`` ran ``prep_locs`` on locs that were already prepared,
+    silently corrupting the kernel for ``skip_prep_locs=True`` NUFFTs.
+    """
+    torch.manual_seed(0)
+    grid_size = (16, 16)
+    locs = 2 * torch.pi * torch.rand(300, 2)
+    A = NUFFT(locs, grid_size, output_shape=("K",), toeplitz=True)
+    padded_size = tuple(int(s * A.options["oversamp"]) for s in grid_size)
+    prepared = NUFFT.prep_locs.__wrapped__(locs, grid_size, padded_size)
+    B = NUFFT(
+        prepared, grid_size, output_shape=("K",), toeplitz=True, skip_prep_locs=True
+    )
+
+    # Sanity: the two linops are the identical operator
+    x = torch.randn(*grid_size, dtype=torch.complex64)
+    assert torch.allclose(A(x), B(x), atol=1e-5)
+
+    # The regression: PSF kernels (and normals) must agree
+    w_A = _psf_kernel(toeplitz_psf(A))
+    w_B = _psf_kernel(toeplitz_psf(B))
+    assert torch.allclose(w_A, w_B, atol=1e-6)
+
+    y = torch.randn(*grid_size, dtype=torch.complex64)
+    assert torch.allclose(A.N(y), B.N(y), atol=1e-4)
 
 
 def test_results_independent_of_cache_state():
