@@ -7,6 +7,7 @@ import torch
 
 from torchlinops import FastSamplingNUFFT
 from torchlinops.utils import cfftn
+from torchlinops.linops.nufft.utils import ifftshift_locs
 
 
 @pytest.mark.parametrize(
@@ -29,7 +30,7 @@ def test_fold_centering_matches_sandwich(padded):
     )
 
     size = torch.tensor(padded, dtype=locs_prepared.dtype, device=locs_prepared.device)
-    idx = FastSamplingNUFFT.ifftshift_locs(locs_prepared, size)
+    idx = ifftshift_locs(locs_prepared, size)
     phase = FastSamplingNUFFT.fold_centering(locs_prepared, padded)
     assert idx.dtype == torch.int64
     assert phase.shape == locs_prepared.shape[:-1]

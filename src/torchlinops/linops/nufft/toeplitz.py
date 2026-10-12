@@ -61,13 +61,7 @@ def toeplitz_psf(
 
     os_options = {**nufft.options, "skip_prep_locs": True}
     nufft_os = NUFFT(
-        rescale_locs(
-            nufft.prep_locs(nufft.locs, nufft.grid_size, nufft.padded_size),
-            c0,
-            nufft.padded_size,
-            c1,
-            new_padded_size,
-        ),
+        rescale_locs(nufft.locs_prepared, c0, nufft.padded_size, c1, new_padded_size),
         grid_size=new_grid_size,
         output_shape=nufft.output_shape,
         input_shape=nufft.input_shape,

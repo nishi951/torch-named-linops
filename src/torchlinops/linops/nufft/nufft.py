@@ -17,6 +17,7 @@ from ..interp import Interpolate
 from ..pad_last import Pad
 from ..scalar import Scalar
 from ._base import NUFFTBase
+from .utils import clamp
 
 __all__ = ["NUFFT"]
 
@@ -73,6 +74,7 @@ class NUFFT(NUFFTBase):
                 locs_prepared = self.prep_locs.__wrapped__(
                     self.locs, self.grid_size, padded_size
                 )
+        self.locs_prepared = locs_prepared
         pad = Pad(
             padded_size,
             self.grid_size,
@@ -177,15 +179,16 @@ class NUFFT(NUFFTBase):
         """
         # Clone to prevent in-place scaling from modifying the original
         out = locs.clone()
-        for i in range(-len(grid_size), 0):
-            out[..., i] *= padded_size[i] / grid_size[i]
-            out[..., i] += padded_size[i] // 2
-            if pad_mode == "zero":
-                out[..., i] = torch.clamp(out[..., i], 0, padded_size[i] - 1)
-            elif pad_mode == "circular":
-                out[..., i] = torch.remainder(out[..., i], torch.tensor(padded_size[i]))
-            else:
-                raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
+        padded_size = torch.as_tensor(padded_size, device=out.device)
+        grid_size = torch.as_tensor(grid_size, device=out.device)
+        out = out * padded_size / grid_size
+        out += padded_size // 2
+        if pad_mode == "zero":
+            out = clamp(out, 0, padded_size - 1)
+        elif pad_mode == "circular":
+            out = torch.remainder(out, padded_size)
+        else:
+            raise ValueError(f"Unrecognized padding mode during prep: {pad_mode}")
         return out
 
     @staticmethod

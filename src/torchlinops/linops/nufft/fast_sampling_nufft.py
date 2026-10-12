@@ -19,6 +19,7 @@ from ..fft import FFT
 from ..pad_last import Pad
 from ..sampling import Sampling
 from .sampling_nufft import SamplingNUFFT
+from .utils import ifftshift_locs
 
 __all__ = ["FastSamplingNUFFT"]
 
@@ -136,7 +137,7 @@ class FastSamplingNUFFT(SamplingNUFFT):
         size = torch.tensor(
             padded_size, dtype=locs_prepared.dtype, device=locs_prepared.device
         )
-        idx = FastSamplingNUFFT.ifftshift_locs(locs_prepared, size)
+        idx = ifftshift_locs(locs_prepared, size)
         sampling = Sampling.from_stacked_idx(
             idx,
             dim=-1,
@@ -238,15 +239,10 @@ class FastSamplingNUFFT(SamplingNUFFT):
         size = torch.tensor(
             padded_size, dtype=locs_prepared.dtype, device=locs_prepared.device
         )
-        idx = FastSamplingNUFFT.ifftshift_locs(locs_prepared, size)
+        idx = ifftshift_locs(locs_prepared, size)
         rolls = (size + 1) // 2
         angle = (
             idx.to(torch.float32) * rolls.to(torch.float32) / size.to(torch.float32)
         ).sum(dim=-1)
         phase = torch.exp(-2j * torch.pi * angle)
         return phase
-
-    @staticmethod
-    def ifftshift_locs(locs_prepared, size):
-        """Return Uncentered gather indices `idx = (l_p - N//2) mod N`"""
-        return torch.remainder(locs_prepared - size // 2, size)
