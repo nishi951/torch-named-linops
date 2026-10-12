@@ -6,7 +6,7 @@ The modern API for this is `TilingStrategy`: a declarative description of *how* 
 
 ## Tiling with `TilingStrategy`
 
-A `TilingStrategy` describes the tiling with **bounds** — a mapping from dimension names to the *edges* of each tile along that dimension. Bounds don't have to be uniform, but they must span the full dimension:
+A `TilingStrategy` describes the tiling with **bounds** — a mapping from dimension names to the *edges* of each tile along that dimension. Bounds don't have to be uniform (ragged tilings are fine), but they must exactly partition every tiled dimension: strictly increasing edges starting at `0` and ending at the dimension's size.
 
 ```python
 import torch
@@ -43,9 +43,9 @@ True
 
 1. **split** — slice the operator into one tile per entry of the tile grid. Tiles keep the same dimension *names* as the parent; only the concrete sizes differ.
 2. **wrap** — insert `ToDevice` transfers per tile: data moves from the tile's *input* device to its *compute* device, and results from there to its *output* device.
-3. **schedule** — reassemble the tiles with `Concat`/`Add` into a single linop that behaves like the original (including `.H`, as verified above).
+3. **schedule** — reassemble the tiles with `Concat`/`Add` into a single linop that behaves like the original (including `.H`, as verified in the multi-level example below).
 
-Because bounds are explicit edges, ragged tilings are fine: `bounds={"N": [0, 3, 8]}` makes tiles of sizes 3 and 5. The first edge starts coverage, and the last edge may fall short of the dimension's size — in that case the resulting operator is *truncated* on that dim: input-side dims act on the covered (first) coordinates of the input, and output-side dims produce only the covered slice of the output. Edges that overshoot the dimension's size raise a `ValueError` at split time, so coverage is never silently clamped:
+Because bounds are explicit edges, ragged tilings are fine: `bounds={"N": [0, 3, 8]}` makes tiles of sizes 3 and 5. Bounds are validated against the linop at split time — anything that does not exactly partition the dimension raises a `ValueError`, so coverage is never silently clamped or silently truncated:
 
 ```python
 strategy = TilingStrategy(bounds={"M": [0, 3, 9]}, devices=[CPU])
@@ -57,13 +57,11 @@ except ValueError as e:
 ```
 
 ```
-TilingStrategy bounds on dim M exceed its size: last edge 9 > 3
+TilingStrategy found invalid bounds on edges [0, 3, 9] Must have all values in [0, 3], monotonic, with first and last values equalling 0 and 3
 ```
 
-(A tiling that covers less than the full dim is a *different operator* than the parent — that's the intent — but it still behaves like a name-preserving slice of it.)
-
-!!! warning "Partial bounds create a different operator than the parent"
-    If the last edge of a bound falls short of the dimension's size — or starts after `0` — the resulting operator is *different* from the parent: input-side dims act on the covered (first) coordinates of the input, and output-side dims return only the covered slice. The composite is a valid, internally consistent operator, but it prints with the same dimension *names* as the parent, so check the warning for what was actually covered: splitting with a partial bound emits a `UserWarning` naming the dim and the covered range (`edges cover [0, 3] less than [0, 8] -- this truncates the linop.`). Fully-covered tilings warn nothing; partially-covered ones are intentionally allowed, and the warning is your confirmation (or your cue to fix the edges if you expected full coverage).
+!!! note "Why bounds must exactly partition the dimension"
+    The composite operator reassembled by `schedule` promises the original `ishape`/`oshape`, and that promise holds only if the tiles together cover every dimension exactly once. A partial bound would silently produce a *different* (truncated) operator that still prints with the parent's dimension names, and overshooting edges used to be silently clamped away by tensor slicing. Both are now errors at split time: every bound must start at `0`, end exactly at the dimension's size, and be strictly increasing in between — and tiling a dim whose size the linop does not report also raises.
 
 ### Reassembly semantics
 
