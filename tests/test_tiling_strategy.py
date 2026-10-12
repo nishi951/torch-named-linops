@@ -54,11 +54,35 @@ class TestBoundsValidation:
             strategy.split(linop)
 
     def test_under_cover_output_dim_raises(self):
-        """Under-covered output dims produce a truncated (but internally consistent) operator."""
+        """Under-covered output dims raise at split time."""
         linop = _make_dense(B=1, M=6, N=8)
         strategy = TilingStrategy({"M": [1, 4], "N": [0, 8]}, [CPU])
         with pytest.raises(ValueError):
             batched = strategy.apply(linop)
+
+    def test_non_monotonic_bounds_raise_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [0, 5, 3, 8]}, [CPU])
+        with pytest.raises(ValueError, match="monotonic"):
+            strategy.split(linop)
+
+    def test_decreasing_bounds_raise_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [8, 0]}, [CPU])
+        with pytest.raises(ValueError, match="monotonic"):
+            strategy.split(linop)
+
+    def test_duplicate_edges_raise_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [0, 4, 4, 8]}, [CPU])
+        with pytest.raises(ValueError, match="monotonic"):
+            strategy.split(linop)
+
+    def test_negative_edges_raise_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [-2, 4, 8]}, [CPU])
+        with pytest.raises(ValueError, match="invalid bounds"):
+            strategy.split(linop)
 
     def test_over_cover_raises_at_each_recursion_level(self):
         """create_batched_linop_v2 validates reused strategies against each tile's extents."""
