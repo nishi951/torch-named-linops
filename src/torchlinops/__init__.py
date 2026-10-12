@@ -20,7 +20,8 @@ Example:
     >>> z = A.H(y)  # Apply the adjoint
 """
 
-from . import config, testing
+from . import config as config
+from . import testing as testing
 from .alg import *
 from .linops import *
 from .nameddim import *

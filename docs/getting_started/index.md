@@ -1,19 +1,107 @@
 # Getting Started
 
-## Understanding `Dim()`
+## Installation
 
-Before diving in, a quick note on `Dim()`. It is a convenience function for creating named dimension tuples from a compact string:
+Install from PyPI with [uv](https://docs.astral.sh/uv/) or pip:
+
+```console
+$ uv add torch-named-linops
+# or
+$ pip install torch-named-linops
+```
+
+To install from source (e.g. for development), clone the repository and install in editable mode:
+
+```console
+$ git clone https://github.com/nishi951/torch-named-linops
+$ uv add --editable path/to/torch-named-linops
+# or
+$ pip install -e path/to/torch-named-linops
+```
+
+See [Installation](installation.md) for development extras (`[dev]`, `[sigpy]`, `[all]`) and notes on cupy/nccl compatibility.
+
+## A simple example
+
+Operators can infer their shapes automatically. Create a dense matrix-vector multiply with no shapes specified at all:
+
+```python
+import torch
+from torchlinops import Dense
+
+w = torch.randn(3, 7)  # A (M=3, N=7) matrix
+A = Dense(w)  # Shapes inferred from the weight tensor
+print(A)
+```
+
+```
+Dense(((1),) -> ((),))
+```
+
+Apply it to a vector — `A(x)` and `A @ x` are equivalent:
+
+```python
+x = torch.randn(7)  # Input must have size N
+y = A(x)
+y2 = A @ x
+print(torch.allclose(w @ x, y), torch.allclose(y, y2))
+```
+
+```
+True True
+```
+
+Compute the adjoint and the normal ($A^H A$) operators:
+
+```python
+b = torch.randn(3)
+c = A.H(b)
+print(A.H)
+
+u = torch.randn(7)
+v = A.N(u)
+print(A.N)
+```
+
+```
+Dense(((),) -> ((1),))
+Dense(((1),) -> ((2),))
+```
+
+### Anonymous dimensions
+
+You may notice the printed shapes look like `((1),) -> ((),)`. When shapes are inferred, dimensions get *anonymous* names: `()` means "one unnamed dimension" and parenthesized numbers like `(1)`, `(2)` distinguish different anonymous dimensions from each other. Every operator still tracks these dims and keeps them consistent — they just don't have helpful names yet. This is often good enough for a quick start.
+
+## Naming your dimensions
+
+Anonymous dims compose and match freely against anything, but names pay off as soon as you compose operators, read error messages, or split operators along dimensions. The `Dim()` convenience function creates a tuple of dimension names from a compact string:
 
 ```python
 from torchlinops import Dim
 
-Dim("MN")     # -> ("M", "N")  — each uppercase letter starts a new dimension
-Dim("NxNy")   # -> ("Nx", "Ny") — uppercase + lowercase letters form one name
-Dim("M")      # -> ("M",)
-Dim("")        # -> ()          — empty string for scalar/batch dims
+Dim("MN")  # -> ("M", "N")  — each uppercase letter starts a new dimension
+Dim("NxNy")  # -> ("Nx", "Ny") — uppercase + lowercase letters form one name
+Dim("M")  # -> ("M",)
+Dim("")  # -> ()           — empty string for scalar/batch dims
 ```
 
 You can also pass a plain tuple `("M", "N")` anywhere `Dim("MN")` is accepted. Both forms are equivalent.
+
+For example, the dense operator above with fully named dimensions:
+
+```python
+import torch
+from torchlinops import Dense, Dim
+
+M, N = 3, 7
+w = torch.randn(M, N)
+A = Dense(w, Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
+print(A)
+```
+
+```
+Dense((N,) -> (M,))
+```
 
 !!! tip "weightshape vs ishape/oshape"
     When creating operators like `Dense`, you'll encounter both:
@@ -27,169 +115,41 @@ You can also pass a plain tuple `("M", "N")` anywhere `Dim("MN")` is accepted. B
     #                   ↑ matrix dims (M=3, N=7)       ↑ input (7)  ↑ output (3)
     ```
 
-## A simple example
-Start by importing some stuff:
-```python
-import torch
-from torchlinops import Dense, FFT, Dim
-```
-
-Create a simple dense matrix-vector multiply.
-```python
-M, N = (3, 7)
-w = torch.randn(M, N)
-A = Dense(w, Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
-print(A)
-```
-
-Create a test input and verify that everything checks out:
-```python
-# Input to A should have size N
-x = torch.randn(N)
-y_ref = w @ x
-y = A(x) 
-y2 = A @ x # Alternative syntax
-print("y_ref matches y:", torch.allclose(y_ref, y))
-print("y_ref_matches_y2: ", torch.allclose(y_ref, y2))
-```
-
-Compute the adjoint and apply it:
-```python
-b = torch.randn(M)
-c = A.H(b)
-print(A.H)
-```
-
-Compute the normal operator and apply it:
-```python
-u = torch.randn(N)
-v = A.N(u)
-print(A.N)
-```
-
 ## Composing linops
+
 Linops can be composed with the `@` operator, creating a `Chain`.
 
 !!! note "A note on printing linops"
     When several linops are chained together, they are printed from top to bottom in the order of execution, as this matches the behavior of `nn.Sequential`.
 
-
 ```python
+import torch
+from torchlinops import Dense, FFT, Dim
+
+M, N, K = 3, 7, 5
+w = torch.randn(M, N)
 D = Dense(w, Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
-F = FFT(ndim=1, grid_shapes=(Dim("M"), Dim("K")), batch_shape=Dim())
+F = FFT(ndim=1, grid_shapes=(Dim("M"), Dim("K")))
 A = F @ D
 x = torch.randn(N)
-y = A(x)
+y = A(x)  # FFT(w @ x)
 print(A)
 ```
 
-## Advanced: `torchlinops.config`
-### Reducing `Identity` inside normal
-```python
-from torchlinops import config
-config.reduce_identity_in_normal = False
-print(A.N) # Contains Identity in the middle since FFT.H @ FFT = Id
-```
-
-```python
-config.reduce_identity_in_normal = True
-print(A.N) # No longer contains Identity
-```
-
-!!! info "What does `reduce_identity_in_normal` do?"
-    When computing the normal operator $A^H A$, some operators have the property that $F^H F = I$ (e.g., FFT with orthonormal normalization). By default, the library simplifies these to `Identity` operators in the normal chain.
-
-    - **`True`** (default): Simplifies `FFT.H @ FFT` to `Identity` in the normal operator, producing a more compact operator graph.
-    - **`False`**: Keeps the full chain, which can be useful for debugging or when you need to inspect the exact computation.
-
-    Note that you must call `reset_adjoint_and_normal()` after changing this setting to clear the cached operators.
-
-### Temporarily modifying config
-
-Use `config.using()` as a context manager to temporarily modify config values:
-
-```python
-from torchlinops import config
-
-with config.using(reduce_identity_in_normal=False):
-    # reduce_identity_in_normal is False here
-    print(A.N)
-# original value restored
-```
-
-You can modify multiple values at once:
-
-```python
-with config.using(reduce_identity_in_normal=False, log_device_transfers=False):
-    # multiple values temporarily changed
-    pass
-```
-
-### Shape inference
-
-When composing linops, you can enable automatic shape inference to reduce boilerplate. This is especially useful for chains where intermediate shapes can be inferred from the composition structure.
-
-```python
-from torchlinops import FFT, Sampling, Diagonal, config
-from torchlinops.linops.chain import Chain
-
-# Create operators with unspecified or partially-specified shapes
-F = FFT(ndim=2, batch_shape=("C",))  # oshape: (C, Kx, Ky)
-S = Sampling(idx, input_size=(64, 64), batch_shape=("C",), output_shape=("K",))  # ishape: (C, ...)
-D = Diagonal(weights)                   # ioshape: (...)
-
-# Without shape inference, you must specify all shapes manually
-# With shape inference, shapes propagate automatically
-with config.using(shape_inference=True):
-    model = Chain(F, S, D)
-    print(model)
-```
-
-Output:
 ```
 Chain(
-  FFT(('C', 'Nx', 'Ny') -> ('C', 'Kx', 'Ky'))
-  Sampling(('C', 'Kx', 'Ky') -> ('C', 'K'))
-  Diagonal(('C', 'K') -> ('C', 'K'))
+    Dense((N,) -> (M,))
+    FFT((..., M) -> (..., K))
 )
 ```
 
-Notice how `Sampling`'s input shape was resolved from `(C, ...)` to `(C, Kx, Ky)`, and `Diagonal`'s shape was resolved from `(...)` to `(C, K)`.
+Note that the output dim of `Dense` (`M`) matches the input grid dim of `FFT`. Names must line up for operators to compose: the chain checks at construction time that each operator's output shape equals the next operator's input shape. `(...)` is a wildcard batch dimension — here it matched zero batch dims.
 
-Shape inference also works with `Add` for regularization patterns:
+Most operators omitting shape arguments fall back to sensible defaults: `FFT(ndim=1)` names its grids `Nx` and `Kx` automatically (`(..., Nx) -> (..., Kx)`), and batch dimensions default to `...`. Specify `grid_shapes=(...)` and `batch_shape=...` explicitly when you need to control the naming, e.g. to match other operators' dimensions.
 
-```python
-from torchlinops import Identity
+## Where to go next
 
-# Common pattern: A^H A + lambda * I
-with config.using(shape_inference=True):
-    normal = model.N + 0.01 * Identity()  # Identity's shape inferred from model.N
-    print(normal)
-```
-
-Output:
-```
-Add(
-  Chain(...)  # model.N with shape (('C', 'Nx', 'Ny'),) -> (('C', 'Nx1', 'Ny1'),)
-  Scalar(Identity(('C', 'Nx', 'Ny') -> ('C', 'Nx', 'Ny')))
-)
-```
-
-!!! note "Shape inference behavior"
-    - Wildcards (`...` and `()`) in shapes are resolved using compatibility checking
-    - Partially-specified shapes like `("C", "...")` are resolved to match concrete shapes
-    - Shape inference is **disabled by default** and must be explicitly enabled
-    - Existing validation still applies — incompatible shapes will raise errors
-
-## Splitting linops
-
-Linops can be split across sub-problems (e.g., for multi-GPU processing) using `split_linop`. See [Multi-GPU Execution](../explanations/multi_gpu.md) for the full explanation.
-
-```python
-from torchlinops import split_linop
-# splits = split_linop(A, ...)  # Splits A into sub-operators
-```
-
-## Creating a custom linop
-
-You can create your own `NamedLinop` by subclassing it and implementing `fn()` and `adj_fn()` as static methods. See the [Custom Linops How-To Guide](../howto/custom_linops.md) for the full requirements and a complete example.
+- **[Splitting and batching linops](splitting.md)** — chunk large operators along named dimensions, e.g. to process data too big for one GPU.
+- **[Creating custom linops](../howto/custom_linops.md)** — subclass `NamedLinop` to add your own operator (see also the [custom linops tutorial](../tutorials/custom_linop.md)).
+- **[Configuration options](../explanations/config.md)** — global toggles like `reduce_identity_in_normal`, `cache_adjoint_normal`, and opt-in shape inference in `Chain`/`Add`.
+- **[How named dimensions propagate](../explanations/named_dims_propagation.md)** — how shapes are inferred, renamed, and incremented as you build, compose, adjoint, and normalize operators.

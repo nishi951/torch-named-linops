@@ -10,7 +10,8 @@ A flexible linear operator abstraction implemented in PyTorch.
 **[Documentation](https://nishi951.github.io/torch-named-linops/)**
 
 ``` sh
-$ pip install torch-named-linops
+uv add torch-named-linops
+pip install torch-named-linops
 ```
 
 ## Quick Example
@@ -25,14 +26,14 @@ A = Dense(W, Dim("MN"), ishape=Dim("N"), oshape=Dim("M"))
 
 # Apply, take adjoint, compose
 x = torch.randn(7)
-y = A(x)             # Forward: y = W @ x
-z = A.H(y)           # Adjoint: z = W^H @ y
-w = A.N(x)           # Normal:  w = W^H @ W @ x
+y = A(x)  # Forward: y = W @ x
+z = A.H(y)  # Adjoint: z = W^H @ y
+w = A.N(x)  # Normal:  w = W^H @ W @ x
 
 # Compose operators with @
 d = torch.randn(3)
 B = Diagonal(d, ioshape=Dim("M"))
-C = B @ A             # Chain: C(x) = diag(d) @ W @ x
+C = B @ A  # Chain: C(x) = diag(d) @ W @ x
 ```
 
 Or use the simplified API - no dimension names needed:
@@ -125,8 +126,8 @@ just tutorials
 ```
 
 ## Other Packages
-This package was heavily inspired by a few other influential packages. In no particular order:
-- [einops](https://einops.rocks): named dimensions/naming things in general.
+This package was heavily inspired by other works. In no particular order:
+- [einops](https://einops.rocks): named dimensions.
 - [sigpy](https://github.com/mikgroup/sigpy): the linop abstraction and the idea of having dedicated adjoint and normal properties. Also inspired the NUFFT, Interpolate, and ArrayToBlocks/BlocksToArray operators.
 - [torch_linops](https://github.com/cvxgrp/torch_linops): another linop abstraction. Geared more towards optimization.
 

@@ -150,7 +150,9 @@ def test_sampling_locs_cache_shared_by_object_identity():
         locs, spec["grid_size"], output_shape=("K",), oversamp=spec["oversamp"]
     )
     assert info().currsize - before == 1  # same object: hit
-    assert n1.interp.idx[0].data_ptr() == n2.interp.idx[0].data_ptr()
+    n1_interp = n1[2]
+    n2_interp = n2[2]
+    assert n1_interp.idx[0].data_ptr() == n2_interp.idx[0].data_ptr()
     fresh = make_spec(batch=(1,), locs_batch_size=(4, 6))["locs"]
     SamplingNUFFT(
         fresh, spec["grid_size"], output_shape=("K",), oversamp=spec["oversamp"]

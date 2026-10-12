@@ -59,7 +59,6 @@ all = [{include-group="dev"}, {include-group="sigpy"}]
 [tool.ruff.lint]
 ignore = [
     "F403", # from ___ import *
-    "F401", # unused imports
     "F541", # f-string without placeholders
     "F722", # Allow jaxtyping annotations syntax (e.g. Float[Tensor, "B ..."])
 ]

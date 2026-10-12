@@ -1,3 +1,4 @@
+import itertools
 from dataclasses import dataclass
 from enum import IntEnum
 from math import ceil
@@ -124,6 +125,34 @@ class TilingStrategy:
             for t in zip(*np.nonzero(a != b))
         ]
 
+    def _validate_bounds(self, linop):
+        """Validate tile bounds against the linop's actual dimension extents.
+
+        Bounds must exactly partition each tiled dimension: strictly
+        increasing edges starting at 0 and ending at the dim's size.
+        Anything else raises; so does tiling a dim whose size cannot be
+        determined.
+        """
+        for dim in self.axes:
+            size = linop.size(dim)
+            if size is None:
+                raise ValueError(
+                    f"Cannot tile dim {dim}: linop does not report its size. "
+                    f"Bounds: {self.bounds}. Linop: {linop}"
+                )
+            edges = self.bounds[dim]
+            edges_t = torch.as_tensor(edges)
+            if (
+                edges[-1] != size
+                or edges[0] != 0
+                or (edges_t < 0).any()
+                or not all(i < j for i, j in itertools.pairwise(edges))
+            ):
+                raise ValueError(
+                    f"TilingStrategy found invalid bounds on edges {edges} "
+                    f"Must have all values in [0, {size}], monotonic, with first and last values equalling 0 and {size}"
+                )
+
     def split(self, linop, mmap=None, return_mmap=False):
         """Apply the schedule to a linop, returning tiled linops alongside device movement linops.
 
@@ -136,6 +165,9 @@ class TilingStrategy:
         return_mmap : bool
             If True, also return the memory map used.
         """
+        # Validate bounds coverage against the linop before slicing
+        self._validate_bounds(linop)
+
         # Create memory map
         if mmap is None:
             mmap = ModuleMemoryMap()

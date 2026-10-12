@@ -16,7 +16,6 @@ import json
 import re
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 # Configuration
 TUTORIALS_DIR = Path("tutorials")

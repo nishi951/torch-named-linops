@@ -9,14 +9,16 @@ Tests the declarative API for device placement/batching:
 - Equivalence with create_batched_linop + BatchSpec
 """
 
+import warnings
+
 import numpy as np
 import pytest
 import torch
 
 from torchlinops import BatchSpec, Dense, create_batched_linop
 from torchlinops.linops.split import (
-    TilingStrategy,
     DeviceRole,
+    TilingStrategy,
     create_batched_linop_v2,
 )
 
@@ -27,6 +29,78 @@ def _make_dense(B=10, M=6, N=8, seed=42):
     g = torch.Generator().manual_seed(seed)
     weight = torch.randn(B, M, N, generator=g).to(torch.complex64)
     return Dense(weight, ("B", "M", "N"), ("B", "N"), ("B", "M"))
+
+
+class TestBoundsValidation:
+    """Bounds must be anchored to the linop's actual dimension extents at split time."""
+
+    def test_over_cover_output_dim_raises_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"M": [0, 3, 9], "N": [0, 8]}, [CPU])
+        with pytest.raises(ValueError):
+            strategy.split(linop)
+
+    def test_over_cover_input_dim_raises_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [0, 4, 12]}, [CPU])
+        with pytest.raises(ValueError):
+            strategy.apply(linop)
+
+    def test_unknown_size_dim_raises_at_split(self):
+        linop = Dense(torch.randn(5, 3), ("M", "N"), ("N",), ("M",))
+        # "B" is not a dim of this linop; its size cannot be determined
+        strategy = TilingStrategy({"B": [0, 4]}, [CPU])
+        with pytest.raises(ValueError, match="size"):
+            strategy.split(linop)
+
+    def test_under_cover_output_dim_raises(self):
+        """Under-covered output dims raise at split time."""
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"M": [1, 4], "N": [0, 8]}, [CPU])
+        with pytest.raises(ValueError):
+            batched = strategy.apply(linop)
+
+    def test_non_monotonic_bounds_raise_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [0, 5, 3, 8]}, [CPU])
+        with pytest.raises(ValueError, match="monotonic"):
+            strategy.split(linop)
+
+    def test_decreasing_bounds_raise_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [8, 0]}, [CPU])
+        with pytest.raises(ValueError, match="monotonic"):
+            strategy.split(linop)
+
+    def test_duplicate_edges_raise_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [0, 4, 4, 8]}, [CPU])
+        with pytest.raises(ValueError, match="monotonic"):
+            strategy.split(linop)
+
+    def test_negative_edges_raise_at_split(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [-2, 4, 8]}, [CPU])
+        with pytest.raises(ValueError, match="invalid bounds"):
+            strategy.split(linop)
+
+    def test_over_cover_raises_at_each_recursion_level(self):
+        """create_batched_linop_v2 validates reused strategies against each tile's extents."""
+        linop = _make_dense(B=1, M=6, N=8)
+        s1 = TilingStrategy({"N": [0, 4, 8]}, [CPU])
+        s1.place_all(CPU)
+        s2 = TilingStrategy({"N": [0, 2, 5]}, [CPU])  # tile N size is 4; 5 > 4
+        s2.place_all(CPU)
+        with pytest.raises(ValueError):
+            create_batched_linop_v2(linop, [s1, s2])
+
+    def test_full_coverage_does_not_warn(self):
+        linop = _make_dense(B=1, M=6, N=8)
+        strategy = TilingStrategy({"N": [0, 4, 8]}, [CPU])
+        strategy.place_all(CPU)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            strategy.apply(linop)  # No warning raised, no error either
 
 
 # ---------------------------------------------------------------- construction
@@ -307,7 +381,7 @@ class TestApply:
         assert torch.allclose(batched(x), linop(x), rtol=1e-5, atol=1e-6)
 
     def test_apply_ragged_tiles(self):
-        strategy = TilingStrategy({"N": [0, 3, 8]}, [CPU])
+        strategy = TilingStrategy({"N": [0, 3, 7]}, [CPU])
         strategy.place_all(CPU)
         linop = _make_dense(B=10, M=6, N=7)
         batched = strategy.apply(linop)

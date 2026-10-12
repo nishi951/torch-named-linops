@@ -61,6 +61,7 @@ repo = "fontawesome/brands/github"
 "Getting Started" = [
     "getting_started/index.md",
     "getting_started/installation.md",
+    "getting_started/splitting.md",
 ]
 
 [[project.nav]]
@@ -84,6 +85,8 @@ repo = "fontawesome/brands/github"
 "Explanations" = [
     "explanations/index.md",
     { "Named Abstractions" = "explanations/named_abstractions.md" },
+    { "How Named Dimensions Propagate" = "explanations/named_dims_propagation.md" },
+    { "Configuration Options" = "explanations/config.md" },
     { "Why This Package?" = "explanations/why_this_package.md" },
     { "Design Notes" = "explanations/design_notes.md" },
     { "Copying Linops" = "explanations/copying_linops.md" },
