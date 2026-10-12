@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from math import ceil
-from warnings import warn
 
 import numpy as np
 import torch
@@ -141,16 +140,10 @@ class TilingStrategy:
                     f"Bounds: {self.bounds}. Linop: {linop}"
                 )
             edges = self.bounds[dim]
-            if edges[-1] > size:
+            if edges[-1] != size or edges[0] != 0 or (torch.as_tensor(edges) < 0).any():
                 raise ValueError(
-                    f"TilingStrategy bounds on dim {dim} exceed its size: "
-                    f"last edge {edges[-1]} > {size}"
-                )
-            if edges[-1] < size or edges[0] > 0:
-                warn(
-                    f"TilingStrategy bounds on dim {dim} cover subset of full input size {size}: "
-                    f"edges cover [{edges[0]}, {edges[-1]}] less than [0, {size}] "
-                    f"-- this truncates the linop."
+                    f"TilingStrategy found invalid bounds on edges {edges}"
+                    f"Must have all values in [0, {size}], with first and last values equalling 0 and {size}"
                 )
 
     def split(self, linop, mmap=None, return_mmap=False):

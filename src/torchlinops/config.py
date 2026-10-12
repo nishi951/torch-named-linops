@@ -68,6 +68,7 @@ class ConfigContext:
     VALID_KEYS: ClassVar[set] = {
         "reduce_identity_in_normal",
         "cache_adjoint_normal",
+        "cache_nufft_parameters",
         "log_device_transfers",
         "shape_inference",
     }
