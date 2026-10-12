@@ -1,6 +1,5 @@
 import logging
 from copy import copy
-from warnings import warn
 
 import torch
 from torch import Tensor, nn
@@ -177,9 +176,9 @@ class Concat(NamedLinop):
     ):
         """Unifies forward and adjoint functionality for stacked linops"""
         if idim_idx is not None:  # Diagonal, Horizontal
-            if islices[-1] > x.shape[idim_idx]:
+            if islices[-1] != x.shape[idim_idx]:
                 raise ValueError(
-                    f"Concat Linop expecting input dim less than or equal to size {islices[-1]} got input of size {x.shape} with size {x.shape[idim_idx]} at dim {idim_idx}"
+                    f"Concat expects input of size at least {islices[-1]} (covered extent) at dim {idim_idx}, but got {x.shape[idim_idx]}"
                 )
             xs = x.tensor_split(islices, dim=idim_idx)[:-1]  # Omit final slice
         else:  # Vertical

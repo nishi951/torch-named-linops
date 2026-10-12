@@ -140,10 +140,15 @@ class TilingStrategy:
                     f"Bounds: {self.bounds}. Linop: {linop}"
                 )
             edges = self.bounds[dim]
-            if edges[-1] != size or edges[0] != 0 or (torch.as_tensor(edges) < 0).any():
+            if (
+                edges[-1] != size
+                or edges[0] != 0
+                or (torch.as_tensor(edges) < 0).any()
+                or not (edges[:-1] < edges[1:]).all()
+            ):
                 raise ValueError(
                     f"TilingStrategy found invalid bounds on edges {edges}"
-                    f"Must have all values in [0, {size}], with first and last values equalling 0 and {size}"
+                    f"Must have all values in [0, {size}], monotonic, with first and last values equalling 0 and {size}"
                 )
 
     def split(self, linop, mmap=None, return_mmap=False):

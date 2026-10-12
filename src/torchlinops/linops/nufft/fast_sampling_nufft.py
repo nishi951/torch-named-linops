@@ -9,7 +9,7 @@ from typing import ClassVar
 
 import torch
 from jaxtyping import Integer
-from torch import Tensor, nn
+from torch import Tensor
 
 from torchlinops import config
 
