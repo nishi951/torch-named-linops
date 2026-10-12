@@ -1,3 +1,4 @@
+import itertools
 from dataclasses import dataclass
 from enum import IntEnum
 from math import ceil
@@ -127,10 +128,10 @@ class TilingStrategy:
     def _validate_bounds(self, linop):
         """Validate tile bounds against the linop's actual dimension extents.
 
-        Over-covering a dim (last edge beyond the dim's size) raises; so does
-        tiling a dim whose size cannot be determined. Under-covering is allowed
-        and truncates the operator on that dim (the composite acts only on the
-        covered coordinates).
+        Bounds must exactly partition each tiled dimension: strictly
+        increasing edges starting at 0 and ending at the dim's size.
+        Anything else raises; so does tiling a dim whose size cannot be
+        determined.
         """
         for dim in self.axes:
             size = linop.size(dim)
@@ -140,14 +141,15 @@ class TilingStrategy:
                     f"Bounds: {self.bounds}. Linop: {linop}"
                 )
             edges = self.bounds[dim]
+            edges_t = torch.as_tensor(edges)
             if (
                 edges[-1] != size
                 or edges[0] != 0
-                or (torch.as_tensor(edges) < 0).any()
-                or not (edges[:-1] < edges[1:]).all()
+                or (edges_t < 0).any()
+                or not all(i < j for i, j in itertools.pairwise(edges))
             ):
                 raise ValueError(
-                    f"TilingStrategy found invalid bounds on edges {edges}"
+                    f"TilingStrategy found invalid bounds on edges {edges} "
                     f"Must have all values in [0, {size}], monotonic, with first and last values equalling 0 and {size}"
                 )
 
