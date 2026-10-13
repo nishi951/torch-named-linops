@@ -32,17 +32,19 @@ def _log_transfer(msg):
 
 
 @lru_cache(maxsize=1024)
-def _check_input_shape_impl(ishape, xshape, sizes, type_name):
+def _check_input_shape_impl(ishape, xshape, sizes):
     """Return None if an input with shape *xshape* is valid for *ishape*, else an error message.
 
     All verdict-relevant state is passed explicitly (no ``self``), so this
-    cache is shared across instances: any change to the ishape structure, a
-    concrete dim size (e.g. after split), or the input shape produces a new
-    key and a fresh verdict. *sizes* holds one entry per *ishape* dim.
+    cache is shared across instances and linop types: any change to the
+    ishape structure, a concrete dim size (e.g. after split), or the input
+    shape produces a new key and a fresh verdict. *sizes* holds one entry
+    per *ishape* dim. The returned message carries no linop type prefix;
+    the caller raises with ``type(self).__name__`` prepended.
     """
     iscompat, assignments = iscompatible(ishape, xshape)
     if not iscompat:
-        return f"{type_name} received incompatible input of shape {xshape}, expected compatible with {ishape}"
+        return f"received incompatible input of shape {xshape}, expected compatible with {ishape}"
     if assignments is not None:
         for dim_i, xdims_i in assignments.items():
             dim = ishape[dim_i]
@@ -51,7 +53,7 @@ def _check_input_shape_impl(ishape, xshape, sizes, type_name):
                 size = sizes[dim_i]
                 if size is not None and size != xdims[0]:
                     return (
-                        f"{type_name} expected dim {dim} with size {size} but received x with shape {xdims[0]} "
+                        f"expected dim {dim} with size {size} but received x with shape {xdims[0]} "
                         f"linop.ishape {ishape}, x.shape {xshape}"
                     )
     return None
@@ -299,18 +301,16 @@ class NamedLinop(nn.Module):
     def check_input_shape(self, x):
         """See if an input x is a valid input to the linop
 
-        Verdicts depend only on (ishape, x.shape, ishape dim sizes, linop
-        type), so they are shared across instances through a module-level
+        Verdicts depend only on (ishape, x.shape, ishape dim sizes), so they
+        are shared across instances and linop types through a module-level
         cache keyed on exactly that. Dim sizes are recomputed on every call
         so verdicts stay valid across splits or other operations that change
         a linop's concrete sizes.
         """
         sizes = tuple(self.size(dim) for dim in self.ishape)
-        error_msg = _check_input_shape_impl(
-            tuple(self.ishape), tuple(x.shape), sizes, type(self).__name__
-        )
+        error_msg = _check_input_shape_impl(tuple(self.ishape), tuple(x.shape), sizes)
         if error_msg is not None:
-            raise ValueError(error_msg)
+            raise ValueError(f"{type(self).__name__} {error_msg}")
 
     @property
     def H(self) -> "NamedLinop":
