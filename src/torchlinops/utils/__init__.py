@@ -7,4 +7,3 @@ from ._fft import *
 from ._log import *
 from ._pad import *
 from ._triton import *
-from ._weak_lru_cache import *

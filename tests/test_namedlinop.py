@@ -167,3 +167,19 @@ def test_namedlinop_check_input_shape_respects_split_size_changes():
         A2, {"N": slice(0, 1)}
     )  # size(N): 1 -> remains covered, size(Q): 2 -> 2 (sliced)
     A3.check_input_shape(torch.randn(1, 2, dtype=torch.complex64))
+
+
+def test_namedlinop_check_input_shape_inplace_rename_recomputes():
+    """A cached verdict must not survive an in-place ishape rename that keeps sizes identical."""
+    A = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    x = torch.randn(5, 4, dtype=torch.complex64)
+    with pytest.raises(ValueError, match="expected dim N with size 1"):
+        A.check_input_shape(x)  # warm the verdict
+    A.ishape = ("M", "Q")  # in-place rename; size(M) stays 1, sizes stay (1, 4)
+    with pytest.raises(ValueError, match="expected dim M with size 1"):
+        A.check_input_shape(x)
