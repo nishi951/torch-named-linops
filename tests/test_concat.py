@@ -191,3 +191,60 @@ def test_concat_getitem_slice():
     sub = C_3[0:2]
     assert isinstance(sub, Concat)
     assert len(sub) == 2
+
+
+def _make_concat_pair(N, P, Q):
+    A = Dense(
+        torch.randn(N, P, Q, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    B = Dense(
+        torch.randn(N, P, Q, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    return A, B
+
+
+def test_concat_vertical_size_mismatch():
+    """Vertical concat forward should reject mis-sized inputs with a clear error (issue 219)."""
+    N, P, Q = 1, 3, 4
+    A, B = _make_concat_pair(N, P, Q)
+    C = Concat(A, B, odim="P")
+    x = torch.randn(N, Q + 1, dtype=torch.complex64)  # Q should be 4, got 5
+    with pytest.raises(ValueError):
+        C(x)
+
+
+def test_concat_horizontal_adjoint_size_mismatch():
+    """Adjoint of a horizontal concat should reject mis-sized inputs with a clear error (issue 219)."""
+    N, P, Q = 1, 3, 4
+    A, B = _make_concat_pair(N, P, Q)
+    Ch = Concat(A, B, idim="Q")
+    x = torch.randn(N, P + 1, dtype=torch.complex64)  # P should be 3
+    with pytest.raises(ValueError):
+        Ch.H(x)
+
+
+def test_concat_vertical_broadcast_size_mismatch():
+    """Size-1 inputs must not silently broadcast against batched weights (issue 219)."""
+    N, P, Q = 2, 3, 4
+    A, B = _make_concat_pair(N, P, Q)  # batched N=2
+    C = Concat(A, B, odim="P")
+    x = torch.randn(1, Q, dtype=torch.complex64)
+    with pytest.raises(ValueError):
+        C(x)
+
+
+def test_concat_vertical_adjoint_valid_regression():
+    """Correct vertical concat forward and adjoint should still pass (regression, issue 219)."""
+    N, P, Q = 1, 3, 4
+    A, B = _make_concat_pair(N, P, Q)
+    C = Concat(A, B, odim="P")
+    y = C(torch.randn(N, Q, dtype=torch.complex64))
+    ya = C.H(torch.randn(N, 2 * P, dtype=torch.complex64))
+    assert y.shape == (N, 2 * P)
+    assert ya.shape == (N, Q)

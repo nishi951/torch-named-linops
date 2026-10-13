@@ -1,6 +1,5 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from copy import deepcopy
 from typing import Any
 from warnings import warn
 
@@ -72,6 +71,14 @@ def isequal(
     shape1_consume_all, shape2_consume_all: bool
         Whether to consume all elements of the sequence greedily.
         This usually means maximizing matches with ELLIPSES tokens.
+        These flags do not change whether the two shapes are
+        considered compatible; they only affect the assignment
+        mapping returned. Without ``consume_all``, the backward
+        traversal stops as soon as either sequence is exhausted,
+        leaving any leftover tokens in the other sequence unassigned.
+        With ``consume_all``, traversal continues until both
+        sequences are fully consumed, so ELLIPSES tokens absorb as
+        many extra tokens as possible.
 
     Returns
     -------
@@ -110,6 +117,34 @@ def isequal(
     # Think about this one...
     >>> isequal(("...", "A", "C", "..."), ("...", "A"))[0]
     True
+
+    # consume_all affects the assignment mapping, not compatibility.
+
+    # By default, "A" matches only the last "A" token in shape2:
+    >>> isequal(("A",), ("...", "A"))[0]
+    True
+    >>> sorted(isequal(("A",), ("...", "A"))[1].items())
+    [(0, [1])]
+
+    # With shape1_consume_all, "A" also absorbs the "..." token:
+    >>> sorted(isequal(("A",), ("...", "A"), shape1_consume_all=True)[1].items())
+    [(0, [0, 1])]
+
+    # Similarly, by default only shape1's "A" is assigned:
+    >>> sorted(isequal(("...", "A"), ("A",))[1].items())
+    [(1, [0])]
+
+    # With shape2_consume_all, shape2's ellipses is assigned too:
+    >>> sorted(isequal(("...", "A"), ("A",), shape2_consume_all=True)[1].items())
+    [(0, [0]), (1, [0])]
+
+    # Leftover tokens on the non-consuming side are not assigned:
+    >>> sorted(isequal(("...",), ("...", "A"))[1].items())
+    [(0, [1])]
+
+    # But with both flags set, shape1's ellipses absorbs everything:
+    >>> sorted(isequal(("...",), ("...", "A"), shape1_consume_all=True, shape2_consume_all=True)[1].items())
+    [(0, [0, 1])]
     """
     # Rows = shape1
     # Cols = shape2
@@ -287,8 +322,8 @@ def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, dict | None]
             f"Strings detected in iscompatible call - are you sure this is what you want? {shape1}, {shape2}"
         )
 
-    shape1 = [ANY if s != ELLIPSES else ELLIPSES for s in deepcopy(shape1)]
-    shape2 = [ANY if s != ELLIPSES else ELLIPSES for s in deepcopy(shape2)]
+    shape1 = [ANY if s != ELLIPSES else ELLIPSES for s in shape1]
+    shape2 = [ANY if s != ELLIPSES else ELLIPSES for s in shape2]
     return isequal(shape1, shape2, shape1_consume_all=True)
 
 
