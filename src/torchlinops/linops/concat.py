@@ -181,14 +181,10 @@ class Concat(NamedLinop):
                     f"Concat expects input of size exactly {islices[-1]} (covered extent) at dim {idim_idx}, but got {x.shape[idim_idx]}"
                 )
             xs = x.tensor_split(islices, dim=idim_idx)[:-1]  # Omit final slice
+            for linop, _x in zip(linops, xs):
+                linop.check_input_shape(_x)
         else:  # Vertical
-            for linop in linops:
-                try:
-                    linop.check_input_shape(x)
-                except ValueError as e:
-                    raise ValueError(
-                        f"Concat linop {linop.name} not compatible with input tensor of shape {x.shape}"
-                    ) from e
+            linops[0].check_input_shape(x)
             xs = [x] * len(oslices)
 
         if odim_idx is not None:  # Diagonal, Vertical

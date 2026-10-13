@@ -196,7 +196,10 @@ class Stack(NamedLinop):
                 )
             xs = x.tensor_split(len(linops), idim_idx)
             xs = [xi.squeeze(idim_idx) for xi in xs]
+            for linop, _x in zip(linops, xs):
+                linop.check_input_shape(_x)
         else:  # Vertical
+            linops[0].check_input_shape(x)
             xs = [x] * len(linops)
 
         if odim_idx is not None:  # Diagonal, Vertical
