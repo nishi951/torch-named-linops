@@ -182,6 +182,13 @@ class Concat(NamedLinop):
                 )
             xs = x.tensor_split(islices, dim=idim_idx)[:-1]  # Omit final slice
         else:  # Vertical
+            for linop in linops:
+                try:
+                    linop.check_input_shape(x)
+                except ValueError as e:
+                    raise ValueError(
+                        f"Concat linop {linop.name} not compatible with input tensor of shape {x.shape}"
+                    ) from e
             xs = [x] * len(oslices)
 
         if odim_idx is not None:  # Diagonal, Vertical

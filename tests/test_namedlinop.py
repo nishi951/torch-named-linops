@@ -1,5 +1,6 @@
 import copy
 
+import pytest
 import torch
 
 from torchlinops import NS, NamedLinop, Dense, Diagonal, Identity
@@ -98,3 +99,51 @@ def test_flatten_base_case():
     """NamedLinop.flatten() should return [self] for a non-chain linop."""
     A = Identity(("N",))
     assert A.flatten() == [A]
+
+
+def test_namedlinop_check_input_shape_valid():
+    """A compatible input should pass the check without raising."""
+    A = NamedLinop(NS(("A", "B"), ("C",)))
+    A.check_input_shape(torch.randn(2, 3))
+
+
+def test_namedlinop_check_input_shape_incompatible():
+    """Inputs with too few or too many dims should raise a ValueError."""
+    A = NamedLinop(NS(("A", "B"), ("C",)))
+    with pytest.raises(ValueError, match="incompatible input"):
+        A.check_input_shape(torch.randn(2))
+    with pytest.raises(ValueError, match="incompatible input"):
+        A.check_input_shape(torch.randn(1, 2, 3))
+
+
+def test_namedlinop_check_input_shape_ellipses():
+    """Ellipses in ishape should absorb any number of extra leading dims."""
+    A = NamedLinop(NS(("...", "A"), ("...", "C")))
+    A.check_input_shape(torch.randn(2))
+    A.check_input_shape(torch.randn(5, 2))
+    A.check_input_shape(torch.randn(5, 2, 7, 1))
+
+
+def test_namedlinop_check_input_shape_size_mismatch():
+    """A mismatch on a dim with a defined size should raise; matching size should pass."""
+    A = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    A.check_input_shape(torch.randn(1, 4, dtype=torch.complex64))
+    with pytest.raises(ValueError, match="expected dim Q with size 4"):
+        A.check_input_shape(torch.randn(1, 5, dtype=torch.complex64))
+
+
+def test_namedlinop_check_input_shape_size_broadcast_mismatch():
+    """A size-1 input should not pass against a size-2 batch weight (issue 219)."""
+    A = Dense(
+        torch.randn(2, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    with pytest.raises(ValueError, match="expected dim N with size 2"):
+        A.check_input_shape(torch.randn(1, 4, dtype=torch.complex64))

@@ -13,8 +13,8 @@ from torch.cuda import Stream
 
 import torchlinops
 from torchlinops import config
+from torchlinops.nameddim import ELLIPSES, NamedShape, Shape, iscompatible
 from torchlinops.nameddim import NamedDimension as ND
-from torchlinops.nameddim import NamedShape, Shape
 from torchlinops.utils import (
     INDENT,
     memory_aware_deepcopy,
@@ -268,6 +268,26 @@ class NamedLinop(nn.Module):
     def dims(self) -> set:
         """Get the set of dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
+
+    @final
+    def check_input_shape(self, x):
+        """See if an input x is a valid input to the linop"""
+        iscompat, assignments = iscompatible(self.ishape, x.shape)
+        if not iscompat:
+            raise ValueError(
+                f"{type(self).__name__} received incompatible input of shape {x.shape}, expected compatible with {self.ishape}"
+            )
+        if assignments is not None:
+            for dim_i, xdims_i in assignments.items():
+                dim = self.ishape[dim_i]
+                xdims = [x.shape[i] for i in xdims_i]
+                if dim != ELLIPSES:
+                    size = self.size(dim)
+                    if size is not None and size != xdims[0]:
+                        raise ValueError(
+                            f"{type(self).__name__} expected dim {dim} with size {size} but received x with shape {xdims[0]} "
+                            f"linop.ishape {self.ishape}, x.shape {x.shape}"
+                        )
 
     @property
     def H(self) -> "NamedLinop":
