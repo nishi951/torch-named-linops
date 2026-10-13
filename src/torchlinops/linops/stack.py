@@ -199,7 +199,8 @@ class Stack(NamedLinop):
             for linop, _x in zip(linops, xs):
                 linop.check_input_shape(_x)
         else:  # Vertical
-            linops[0].check_input_shape(x)
+            for linop in linops:
+                linop.check_input_shape(x)
             xs = [x] * len(linops)
 
         if odim_idx is not None:  # Diagonal, Vertical

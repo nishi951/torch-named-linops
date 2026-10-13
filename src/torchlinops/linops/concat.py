@@ -184,7 +184,8 @@ class Concat(NamedLinop):
             for linop, _x in zip(linops, xs):
                 linop.check_input_shape(_x)
         else:  # Vertical
-            linops[0].check_input_shape(x)
+            for linop in linops:
+                linop.check_input_shape(x)
             xs = [x] * len(oslices)
 
         if odim_idx is not None:  # Diagonal, Vertical
