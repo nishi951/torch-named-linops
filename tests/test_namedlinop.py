@@ -147,3 +147,23 @@ def test_namedlinop_check_input_shape_size_broadcast_mismatch():
     )
     with pytest.raises(ValueError, match="expected dim N with size 2"):
         A.check_input_shape(torch.randn(1, 4, dtype=torch.complex64))
+
+
+def test_namedlinop_check_input_shape_respects_split_size_changes():
+    """Verdicts cached by check_input_shape must not survive a split that changes dim sizes."""
+    A = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    x4 = torch.randn(1, 4, dtype=torch.complex64)
+    A.check_input_shape(x4)
+    A2 = A.split(A, {"Q": slice(0, 2)})  # size(Q): 4 -> 2
+    A2.check_input_shape(torch.randn(1, 2, dtype=torch.complex64))
+    with pytest.raises(ValueError, match="expected dim Q with size 2"):
+        A2.check_input_shape(x4)
+    A3 = A2.split(
+        A2, {"N": slice(0, 1)}
+    )  # size(N): 1 -> remains covered, size(Q): 2 -> 2 (sliced)
+    A3.check_input_shape(torch.randn(1, 2, dtype=torch.complex64))

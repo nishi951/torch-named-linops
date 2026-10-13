@@ -1,6 +1,5 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from copy import deepcopy
 from typing import Any
 from warnings import warn
 
@@ -323,8 +322,8 @@ def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, dict | None]
             f"Strings detected in iscompatible call - are you sure this is what you want? {shape1}, {shape2}"
         )
 
-    shape1 = [ANY if s != ELLIPSES else ELLIPSES for s in deepcopy(shape1)]
-    shape2 = [ANY if s != ELLIPSES else ELLIPSES for s in deepcopy(shape2)]
+    shape1 = [ANY if s != ELLIPSES else ELLIPSES for s in shape1]
+    shape2 = [ANY if s != ELLIPSES else ELLIPSES for s in shape2]
     return isequal(shape1, shape2, shape1_consume_all=True)
 
 

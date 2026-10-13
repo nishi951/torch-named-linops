@@ -19,6 +19,7 @@ from torchlinops.utils import (
     INDENT,
     memory_aware_deepcopy,
     memory_aware_to,
+    weak_lru_cache,
 )
 
 __all__ = ["NamedLinop"]
@@ -271,23 +272,40 @@ class NamedLinop(nn.Module):
 
     @final
     def check_input_shape(self, x):
-        """See if an input x is a valid input to the linop"""
-        iscompat, assignments = iscompatible(self.ishape, x.shape)
+        """See if an input x is a valid input to the linop
+
+        Verdicts are cached per (x.shape, ishape dim sizes). Dim sizes are
+        recomputed on every call so the cache stays valid across splits or
+        other operations that change a linop's concrete sizes.
+        """
+        sizes = tuple(self.size(dim) for dim in self.ishape)
+        error_msg = self._check_input_shape(x.shape, sizes)
+        if error_msg is not None:
+            raise ValueError(error_msg)
+
+    @weak_lru_cache(maxsize=1024)
+    def _check_input_shape(self, xshape, sizes):
+        """Return None if an input with shape *xshape* is valid, else an error message.
+
+        Cached per instance by :func:`weak_lru_cache`. The *sizes* argument
+        (one entry per ishape dim) participates in the cache key, so verdicts
+        are recomputed whenever concrete dim sizes change (e.g., after split).
+        """
+        iscompat, assignments = iscompatible(self.ishape, xshape)
         if not iscompat:
-            raise ValueError(
-                f"{type(self).__name__} received incompatible input of shape {x.shape}, expected compatible with {self.ishape}"
-            )
+            return f"{type(self).__name__} received incompatible input of shape {xshape}, expected compatible with {self.ishape}"
         if assignments is not None:
             for dim_i, xdims_i in assignments.items():
                 dim = self.ishape[dim_i]
-                xdims = [x.shape[i] for i in xdims_i]
+                xdims = [xshape[i] for i in xdims_i]
                 if dim != ELLIPSES:
-                    size = self.size(dim)
+                    size = sizes[dim_i]
                     if size is not None and size != xdims[0]:
-                        raise ValueError(
+                        return (
                             f"{type(self).__name__} expected dim {dim} with size {size} but received x with shape {xdims[0]} "
-                            f"linop.ishape {self.ishape}, x.shape {x.shape}"
+                            f"linop.ishape {self.ishape}, x.shape {xshape}"
                         )
+        return None
 
     @property
     def H(self) -> "NamedLinop":
