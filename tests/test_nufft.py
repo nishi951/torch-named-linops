@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import sigpy as sp
 import torch
+import torchlinops.config as config
 
 from torchlinops import NUFFT, Interpolate, Pad
 from torchlinops.functional import nufft, nufft_adjoint
@@ -304,16 +305,21 @@ def test_nufft_class_identity():
     assert type(linop) is NUFFT
 
 
-def _enable_and_clear_caches():
-    import torchlinops.config as config
+@pytest.fixture
+def nufft_caches_enabled():
+    """NUFFT parameter caching on for the test; caches wiped before and after.
 
-    config.cache_nufft_parameters = True
-    NUFFT.prep_locs.cache_clear()
-    NUFFT.apodize_weights.cache_clear()
+    Leaves the global flag exactly as found, without retaining cache entries.
+    """
+    with config.using(cache_nufft_parameters=True):
+        NUFFT.prep_locs.cache_clear()
+        NUFFT.apodize_weights.cache_clear()
+        yield
+        NUFFT.prep_locs.cache_clear()
+        NUFFT.apodize_weights.cache_clear()
 
 
-def test_locs_cache_shared_by_object_identity():
-    _enable_and_clear_caches()
+def test_locs_cache_shared_by_object_identity(nufft_caches_enabled):
     info = NUFFT.prep_locs.cache_info
     locs = _cache_test_locs()  # fresh object every call
     before = info().currsize
@@ -328,8 +334,7 @@ def test_locs_cache_shared_by_object_identity():
     assert info().currsize - before == 2  # another fresh object: miss
 
 
-def test_apod_cache_keyed_by_geometry():
-    _enable_and_clear_caches()
+def test_apod_cache_keyed_by_geometry(nufft_caches_enabled):
     g = _CACHE_GRID
     p125 = tuple(int(1.25 * x) for x in g)
     p15 = tuple(int(1.5 * x) for x in g)
@@ -344,8 +349,7 @@ def test_apod_cache_keyed_by_geometry():
     assert w.cache_info().currsize == 2
 
 
-def test_skip_prep_locs_bypasses_cache():
-    _enable_and_clear_caches()
+def test_skip_prep_locs_bypasses_cache(nufft_caches_enabled):
     padded = tuple(int(1.25 * g) for g in _CACHE_GRID)
     prepared = NUFFT.prep_locs.__wrapped__(_cache_test_locs(), _CACHE_GRID, padded)
     before = NUFFT.prep_locs.cache_info().currsize
@@ -392,8 +396,7 @@ def test_toeplitz_psf_skip_prep_locs_matches_normal_nufft():
     assert torch.allclose(A.N(y), B.N(y), atol=1e-4)
 
 
-def test_results_independent_of_cache_state():
-    _enable_and_clear_caches()
+def test_results_independent_of_cache_state(nufft_caches_enabled):
     locs = _cache_test_locs()
     op = NUFFT(locs.clone(), _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
     x = torch.randn(2, *_CACHE_GRID, dtype=torch.complex64)
@@ -404,19 +407,13 @@ def test_results_independent_of_cache_state():
     assert torch.allclose(y1, op2(x), rtol=1e-5)
 
 
-def test_caches_bypassed_when_flag_off():
-    import torchlinops.config as config
-
-    _enable_and_clear_caches()
-    config.cache_nufft_parameters = False
-    try:
+def test_caches_bypassed_when_flag_off(nufft_caches_enabled):
+    with config.using(cache_nufft_parameters=False):
         locs = _cache_test_locs()
         for _ in range(3):
             NUFFT(locs, _CACHE_GRID, output_shape=("K",), **_CACHE_OPTS)
         assert NUFFT.prep_locs.cache_info().currsize == 0
         assert NUFFT.apodize_weights.cache_info().currsize == 0
-    finally:
-        config.cache_nufft_parameters = True
 
 
 def test_options_override_defaults():

@@ -11,7 +11,7 @@ import torchlinops.config as config  # equivalent
 |---|---|---|
 | `reduce_identity_in_normal` | `True` | Drop trivial `Identity` terms from `.N` results |
 | `cache_adjoint_normal` | `True` | Cache `.H` and `.N` results on first access |
-| `cache_nufft_parameters` | `True` | Cache internal NUFFT parameters |
+| `cache_nufft_parameters` | `False` | Cache internal NUFFT parameters |
 | `log_device_transfers` | `True` | Log CUDA events, stream syncs, and device transfers |
 | `shape_inference` | `False` | Resolve wildcards between shapes when building `Chain`s and `Add`s |
 
@@ -190,7 +190,7 @@ Use `linop.reset_adjoint_and_normal()` for spot invalidation, or `config.using(c
 
 ## `cache_nufft_parameters`
 
-`NUFFT` linops cache internal parameter tensors the first time they are called. This speeds up repeated applications but holds on to a few extra tensors; set `config.cache_nufft_parameters = False` to disable caching (e.g. under tight memory pressure or when NUFFT geometry changes between calls).
+By default, `NUFFT` linops rebuild their internal parameter tensors on every construction and retain no extra state. Opt in to caching with `config.using(cache_nufft_parameters=True)` (optional scope) or `config.cache_nufft_parameters = True`: linops then cache parameters the first time they are built, speeding up repeated constructions with identical inputs, but the caches hold strong references to the tensors used as keys (e.g. trajectory locs) until cleared. Exiting a `config.using(cache_nufft_parameters=...)` scope that returns to the off state, or calling `torchlinops.linops.nufft.clear_nufft_parameter_caches()`, releases those entries (see issue #221 for the memory-envelope motivation).
 
 ## `log_device_transfers`
 

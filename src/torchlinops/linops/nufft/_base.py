@@ -1,5 +1,6 @@
 """NUFFT Base class"""
 
+from collections.abc import Iterator
 from copy import copy
 
 import torch
@@ -20,6 +21,8 @@ from ..fft import FFT
 from ..namedlinop import NamedLinop
 from ..pad_last import Pad
 from .utils import scale_int
+
+__all__ = ["NUFFTBase", "clear_nufft_parameter_caches"]
 
 
 class NUFFTBase(Chain):
@@ -167,3 +170,32 @@ class NUFFTBase(Chain):
         if isinstance(device, (torch.device, str)):
             self._device = device
         return super().to(device, *args, **kwargs)
+
+
+def _walk_subclasses(cls: type) -> Iterator[type]:
+    """Yield all unique descendants of a class recursively."""
+    seen: set[type] = set()
+    stack = list(cls.__subclasses__())
+
+    while stack:
+        subcls = stack.pop()
+        if subcls in seen:
+            continue
+        seen.add(subcls)
+        yield subcls
+        stack.extend(subcls.__subclasses__())
+
+
+def clear_caches(cls):
+    """Walk all subclasses of a class and call cache_clear() on the static methods where possible."""
+    for _cls in _walk_subclasses(cls):
+        for member in vars(_cls).values():
+            fn = getattr(member, "__func__", member)  # unwrap staticmethod
+            clear = getattr(fn, "cache_clear", None)
+            if clear is not None:
+                clear()
+
+
+def clear_nufft_parameter_caches():
+    """Convenience wrapper"""
+    clear_caches(NUFFTBase)
