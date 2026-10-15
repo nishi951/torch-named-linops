@@ -12,6 +12,7 @@
             - split
             - adj_split
             - size
+            - check_input_shape
             - dims
             - H
             - adjoint

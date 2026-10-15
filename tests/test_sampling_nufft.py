@@ -2,6 +2,7 @@ from math import prod
 
 import pytest
 import torch
+import torchlinops.config as config
 
 from torchlinops import NUFFT, SamplingNUFFT
 from torchlinops.linops.nufft.toeplitz import toeplitz_psf
@@ -133,11 +134,16 @@ def test_toeplitz_psf_raises_for_sampling_nufft():
         toeplitz_psf(op)
 
 
-def test_sampling_locs_cache_shared_by_object_identity():
-    import torchlinops.config as config
+@pytest.fixture
+def sampling_caches_enabled():
+    """SamplingNUFFT parameter caching on for the test; cache wiped before and after."""
+    with config.using(cache_nufft_parameters=True):
+        SamplingNUFFT.prep_locs.cache_clear()
+        yield
+        SamplingNUFFT.prep_locs.cache_clear()
 
-    config.cache_nufft_parameters = True
-    SamplingNUFFT.prep_locs.cache_clear()
+
+def test_sampling_locs_cache_shared_by_object_identity(sampling_caches_enabled):
     info = SamplingNUFFT.prep_locs.cache_info
     spec = make_spec(batch=(1,), locs_batch_size=(4, 6))
     locs = spec["locs"]

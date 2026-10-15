@@ -4,7 +4,7 @@ import traceback
 from collections.abc import Mapping
 from copy import copy, deepcopy
 from dataclasses import dataclass
-from functools import partial
+from functools import lru_cache, partial
 from typing import Optional, final
 
 import torch
@@ -13,8 +13,8 @@ from torch.cuda import Stream
 
 import torchlinops
 from torchlinops import config
+from torchlinops.nameddim import ELLIPSES, NamedShape, Shape, iscompatible
 from torchlinops.nameddim import NamedDimension as ND
-from torchlinops.nameddim import NamedShape, Shape
 from torchlinops.utils import (
     INDENT,
     memory_aware_deepcopy,
@@ -29,6 +29,49 @@ logger = logging.getLogger("torchlinops")
 def _log_transfer(msg):
     if config.log_device_transfers:
         logger.info(msg)
+
+
+@lru_cache(maxsize=1024)
+def _check_input_shape_impl(ishape, xshape, sizes, broadcast=True):
+    """Return None if an input with shape *xshape* is valid for *ishape*, else an error message.
+
+    All verdict-relevant state is passed explicitly (no ``self``), so this
+    cache is shared across instances and linop types: any change to the
+    ishape structure, a concrete dim size (e.g. after split), or the input
+    shape produces a new key and a fresh verdict. *sizes* holds one entry
+    per *ishape* dim. The returned message carries no linop type prefix;
+    the caller raises with ``type(self).__name__`` prepended.
+
+    Parameters
+    ----------
+    ishape : tuple[NamedDimension]
+        The input shape, as a named dimension tuple.
+    xshape : tuple[int]
+        The (integer-valued) input tensor shape.
+    sizes : tuple[int | None]
+        The result of resolving the ishape tensor against the linop's stored data (see `linop.size`)
+    broadcast : bool, default True
+        If True, sizes equal to 1 can be matched against xshape's that are >= 1.
+    """
+    iscompat, assignments = iscompatible(ishape, xshape)
+    if not iscompat:
+        return f"received incompatible input of shape {xshape}, expected compatible with {ishape}"
+    if assignments is not None:
+        for dim_i, xdims_i in assignments.items():
+            dim = ishape[dim_i]
+            xdims = [xshape[i] for i in xdims_i]
+            if dim != ELLIPSES:
+                size = sizes[dim_i]
+                if (
+                    size is not None
+                    and size != xdims[0]
+                    and not (broadcast and size == 1)
+                ):
+                    return (
+                        f"expected dim {dim} with size {size} but received size {xdims[0]} "
+                        f"linop.ishape {ishape}, x.shape {xshape}"
+                    )
+    return None
 
 
 class NamedLinop(nn.Module):
@@ -268,6 +311,23 @@ class NamedLinop(nn.Module):
     def dims(self) -> set:
         """Get the set of dims that appear in this linop."""
         return set(self.ishape).union(set(self.oshape))
+
+    @final
+    def check_input_shape(self, x, broadcast=True):
+        """See if an input x is a valid input to the linop
+
+        Verdicts depend only on (ishape, x.shape, ishape dim sizes), so they
+        are shared across instances and linop types through a module-level
+        cache keyed on exactly that. Dim sizes are recomputed on every call
+        so verdicts stay valid across splits or other operations that change
+        a linop's concrete sizes.
+        """
+        sizes = tuple(self.size(dim) for dim in self.ishape)
+        error_msg = _check_input_shape_impl(
+            tuple(self.ishape), tuple(x.shape), sizes, broadcast
+        )
+        if error_msg is not None:
+            raise ValueError(f"{type(self).__name__} {error_msg}")
 
     @property
     def H(self) -> "NamedLinop":

@@ -37,7 +37,7 @@ reduce_identity_in_normal: bool = True
 cache_adjoint_normal: bool = True
 
 # If True, NUFFT caches internal parameters
-cache_nufft_parameters: bool = True
+cache_nufft_parameters: bool = False
 
 # If True, log CUDA events creation, stream synchronization, and device transfers
 # in the ToDevice linop and related utilities.
@@ -91,6 +91,12 @@ class ConfigContext:
     def __exit__(self, *args: object) -> None:
         for key, value in self._saved.items():
             setattr(torchlinops.config, key, value)
+            if key == "cache_nufft_parameters" and not value:
+                # Turning off caching of nufft parameters upon exit from a context
+                # should clear the caches.
+                from torchlinops.linops.nufft import clear_nufft_parameter_caches
+
+                clear_nufft_parameter_caches()
 
 
 def using(**kwargs: bool) -> ConfigContext:
@@ -110,6 +116,7 @@ def using(**kwargs: bool) -> ConfigContext:
         Config values to temporarily set. Valid keys are:
         - reduce_identity_in_normal
         - cache_adjoint_normal
+        - cache_nufft_parameters
         - log_device_transfers
         - shape_inference
 
