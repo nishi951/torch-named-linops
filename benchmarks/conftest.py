@@ -5,7 +5,7 @@ import platform
 import shutil
 import subprocess  # nosec
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -178,7 +178,7 @@ class BenchmarkSession:
 def _collect_metadata():
     """Collect environment metadata for the benchmark run."""
     metadata = {
-        "date": datetime.now(tz=timezone.utc).isoformat(),
+        "date": datetime.now(tz=UTC).isoformat(),
         "python_version": platform.python_version(),
         "torch_version": torch.__version__,
         "cuda_version": torch.version.cuda,
@@ -228,7 +228,7 @@ def _write_patch_diff(results_dir: Path):
 def _archive_results(latest_dir: Path, metadata: dict):
     """Copy the latest results to a date-SHA archive directory."""
     sha = metadata.get("commit_sha", "unknown")
-    date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    date = datetime.now(tz=UTC).strftime("%Y-%m-%d")
     archive_name = f"{date}-{sha}"
     archive_dir = latest_dir.parent / archive_name
     if archive_dir.exists():
