@@ -49,10 +49,16 @@ from torchlinops import (
     Truncate,
     Zero,
 )
+from torchlinops.functional import fold, grid, unfold, ungrid
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.linops.nufft import toeplitz_psf
 
-from runner import CellResult, CellSpec, csv_export, execute_cell
+from runner import (
+    CellResult,
+    CellSpec,
+    csv_export_rows,
+    execute_cell,
+)
 
 RESULTS_DIR = Path(__file__).parent / "results"
 DEFAULT_METHODS = ["fwd", "adj", "normal"]
@@ -66,6 +72,13 @@ class Case:
     build: Callable[
         [str, torch.dtype, str], tuple[Callable[[Tensor], Tensor], Tensor, str | None]
     ]
+    inner_build: (
+        Callable[
+            [str, torch.dtype, str],
+            tuple[Callable[[Tensor], Tensor], Tensor, str | None],
+        ]
+        | None
+    ) = None
     methods: list[str] = field(default_factory=lambda: list(DEFAULT_METHODS))
     devices: list[str] = field(default_factory=lambda: ["cuda", "cpu"])
     dtypes: list[torch.dtype] = field(default_factory=lambda: [torch.float32])
@@ -89,6 +102,21 @@ def _call_for_method(
     raise ValueError(f"unknown method {method!r}")
 
 
+def _inner_call_for_method(
+    A, x: Tensor, method: str
+) -> tuple[Callable[[Tensor], Tensor], Tensor]:
+    """Target the bare static fn/adj_fn/normal_fn, bypassing the wrapper."""
+    cls = type(A)
+    if method == "fwd":
+        return (lambda t: cls.fn(A, t)), x
+    if method == "adj":
+        y = A(x)
+        return (lambda t: cls.adj_fn(A, t)), y
+    if method == "normal":
+        return (lambda t: cls.normal_fn(A, t)), x
+    raise ValueError(f"unknown method {method!r}")
+
+
 def _make_case(
     op: str,
     construct: Callable[[str, torch.dtype], tuple[object, Tensor]],
@@ -98,6 +126,7 @@ def _make_case(
     dtypes: list[torch.dtype] | None = None,
     methods: list[str] | None = None,
     deep_dive: bool = False,
+    with_inner: bool = False,
     note: str | None = None,
 ) -> Case:
     def build(device: str, dtype: torch.dtype, method: str):
@@ -105,10 +134,16 @@ def _make_case(
         fn, inp = _call_for_method(A, x, method)
         return fn, inp, note
 
+    def inner_build(device: str, dtype: torch.dtype, method: str):
+        A, x = construct(device, dtype)
+        fn, inp = _inner_call_for_method(A, x, method)
+        return fn, inp, note
+
     return Case(
         op=op,
         category=category,
         build=build,
+        inner_build=inner_build if with_inner else None,
         methods=list(methods or DEFAULT_METHODS),
         devices=list(devices or ["cuda", "cpu"]),
         dtypes=list(dtypes or [torch.float32]),
@@ -323,28 +358,45 @@ CASES: list[Case] = [
     _make_case("ShapeSpec", _shapespec),
     _make_case("Scalar", _scalar),
     _make_case("Sleep", _sleep, methods=["fwd", "adj"]),
-    _make_case("FFT", _fft, dtypes=[torch.complex64], deep_dive=True),
+    _make_case("FFT", _fft, dtypes=[torch.complex64], deep_dive=True, with_inner=True),
     _make_case(
         "Convolution",
         _convolution,
         dtypes=[torch.float32, torch.complex64],
         deep_dive=True,
+        with_inner=True,
     ),
-    _make_case("Interpolate", _interpolate, dtypes=[torch.complex64], deep_dive=True),
-    _make_case("NUFFT", _nufft, dtypes=[torch.complex64], deep_dive=True),
+    _make_case(
+        "Interpolate",
+        _interpolate,
+        dtypes=[torch.complex64],
+        deep_dive=True,
+        with_inner=True,
+    ),
+    _make_case(
+        "NUFFT", _nufft, dtypes=[torch.complex64], deep_dive=True, with_inner=True
+    ),
     _make_case(
         "FastSamplingNUFFT",
         _fast_sampling_nufft,
         dtypes=[torch.complex64],
         deep_dive=True,
+        with_inner=True,
     ),
     _make_case(
         "SamplingNUFFT",
         _sampling_nufft,
         dtypes=[torch.complex64],
         deep_dive=True,
+        with_inner=True,
     ),
-    _make_case("ToeplitzPSF", _toeplitz_psf, dtypes=[torch.complex64], deep_dive=True),
+    _make_case(
+        "ToeplitzPSF",
+        _toeplitz_psf,
+        dtypes=[torch.complex64],
+        deep_dive=True,
+        with_inner=True,
+    ),
     _make_case("Sampling", _sampling),
     _make_case("ArrayToBlocks", _array_to_blocks, dtypes=[torch.complex64]),
     _make_case("BlocksToArray", _blocks_to_array, dtypes=[torch.complex64]),
@@ -366,6 +418,73 @@ CASES: list[Case] = [
 SKIPPED = {
     "BreakpointLinop": "debugging operator invokes pdb; automated run would block"
 }
+
+
+# --- Functional (triton kernel) cases -------------------------------------
+
+
+def _locs(device: str, npts: int = 8) -> Tensor:
+    return get_valid_locs((npts,), (16, 16), 2, 4.0, "cpu", centered=True).to(device)
+
+
+def _functional_unfold(device, dtype, method):
+    x = _rand((2, 8, 8), torch.complex64, device)
+    return (lambda t: unfold(t, (4, 4), (4, 4))), x, "triton unfold"
+
+
+def _functional_fold(device, dtype, method):
+    x = _rand((2, 2, 2, 4, 4), torch.complex64, device)
+    return (lambda t: fold(t, (8, 8), (4, 4), (4, 4))), x, "triton fold"
+
+
+def _functional_grid(device, dtype, method):
+    locs = _locs(device)
+    x = _rand((8,), torch.complex64, device)
+    return (lambda t: grid(t, locs, (16, 16), 4.0)), x, "triton grid"
+
+
+def _functional_ungrid(device, dtype, method):
+    locs = _locs(device)
+    x = _rand((16, 16), torch.complex64, device)
+    return (lambda t: ungrid(t, locs, 4.0)), x, "triton ungrid"
+
+
+CASES.extend(
+    [
+        Case(
+            op="functional.unfold",
+            category="functional",
+            build=_functional_unfold,
+            methods=["fwd"],
+            dtypes=[torch.complex64],
+            deep_dive=True,
+        ),
+        Case(
+            op="functional.fold",
+            category="functional",
+            build=_functional_fold,
+            methods=["fwd"],
+            dtypes=[torch.complex64],
+            deep_dive=True,
+        ),
+        Case(
+            op="functional.grid",
+            category="functional",
+            build=_functional_grid,
+            methods=["fwd"],
+            dtypes=[torch.complex64],
+            deep_dive=True,
+        ),
+        Case(
+            op="functional.ungrid",
+            category="functional",
+            build=_functional_ungrid,
+            methods=["fwd"],
+            dtypes=[torch.complex64],
+            deep_dive=True,
+        ),
+    ]
+)
 
 
 def _cell_to_dict(result: CellResult) -> dict:
@@ -403,41 +522,64 @@ def update_results_json(path: Path, key: str, value) -> None:
 def run_phase_sweep(cases: list[Case], phase: str, out_path: Path) -> list[CellResult]:
     rows: list[CellResult] = []
     for case in cases:
+        if case.category == "functional":
+            levels = ["inner"]
+        elif case.deep_dive and case.inner_build is not None:
+            levels = ["wrapper", "inner"]
+        else:
+            levels = ["wrapper"]
         for method in case.methods:
             for device in case.devices:
                 for dtype in case.dtypes:
-                    for config in CONFIGS:
-                        spec = CellSpec(
-                            op=case.op,
-                            category=case.category,
-                            method=method,
-                            device=device,
-                            dtype=dtype,
-                            level="wrapper",
-                            config=config,
-                        )
-                        try:
-                            target, input_, note = case.build(device, dtype, method)
-                        except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
-                            rows.append(
-                                CellResult(
-                                    spec=spec,
-                                    status="error",
-                                    cell_class="fails_loud",
-                                    traceback_tail=traceback.format_exc().strip()[
-                                        -800:
-                                    ],
-                                    notes=f"case build failed: {type(exc).__name__}: {exc}",
+                    for level in levels:
+                        for config in CONFIGS:
+                            spec = CellSpec(
+                                op=case.op,
+                                category=case.category,
+                                method=method,
+                                device=device,
+                                dtype=dtype,
+                                level=level,
+                                config=config,
+                            )
+                            try:
+                                builder = (
+                                    case.build
+                                    if level == "wrapper"
+                                    else case.inner_build
                                 )
-                            )
-                            continue
-                        result = execute_cell(spec, target, input_)
-                        if note:
-                            result.notes = " | ".join(
-                                filter(None, [note, result.notes])
-                            )
-                        rows.append(result)
+                                target, input_, note = builder(device, dtype, method)
+                            except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+                                rows.append(
+                                    CellResult(
+                                        spec=spec,
+                                        status="error",
+                                        cell_class="fails_loud",
+                                        traceback_tail=traceback.format_exc().strip()[
+                                            -800:
+                                        ],
+                                        notes=(
+                                            "case build failed: "
+                                            f"{type(exc).__name__}: {exc}"
+                                        ),
+                                    )
+                                )
+                                continue
+                            result = execute_cell(spec, target, input_)
+                            notes = [note or "", result.notes]
+                            if result.break_locations:
+                                notes.append(
+                                    f"break: {result.break_locations[0][:160]}"
+                                )
+                            result.notes = " | ".join(filter(None, notes))
+                            rows.append(result)
 
-    update_results_json(out_path, "cells", [_cell_to_dict(r) for r in rows])
-    csv_export(rows, out_path.with_suffix(".csv"))
+    data = json.loads(out_path.read_text()) if out_path.exists() else {}
+    existing = [cell for cell in data.get("cells", []) if cell.get("phase") != phase]
+    data["cells"] = existing + [
+        {**_cell_to_dict(result), "phase": phase} for result in rows
+    ]
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(data, indent=2) + "\n")
+    csv_export_rows(data["cells"], out_path.with_suffix(".csv"))
     return rows

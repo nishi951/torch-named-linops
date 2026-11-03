@@ -202,7 +202,7 @@ def capture_graph_breaks(
     locations: list[str] = []
     try:
         explanation = torch._dynamo.explain(target)(input_)
-        count = int(getattr(explanation, "graph_break_count", 0) or 0)
+        count = max(0, int(getattr(explanation, "graph_break_count", 0) or 0))
         reasons = getattr(explanation, "break_reasons", None) or []
         locations = [str(r).splitlines()[0][:300] for r in reasons if str(r)]
         text = str(explanation)
@@ -223,13 +223,24 @@ def _is_unavailable(spec: CellSpec, exc: BaseException) -> bool:
     return "requires cuda" in msg or "requires triton" in msg
 
 
+def _is_blocked_out_of_scope(tail: str) -> bool:
+    lowered = tail.lower()
+    return any(marker in lowered for marker in ("cupy", "sigpy", "_cupy_pytorch"))
+
+
 def _error_result(spec: CellSpec, exc: BaseException, phase: str) -> CellResult:
     unavailable = _is_unavailable(spec, exc)
     tail = "\n".join(traceback.format_exc().strip().splitlines()[-8:])
+    if unavailable:
+        status, cell_class = "n_a", "n_a"
+    elif _is_blocked_out_of_scope(tail):
+        status, cell_class = "error", "blocked_out_of_scope"
+    else:
+        status, cell_class = "error", "fails_loud"
     return CellResult(
         spec=spec,
-        status="n_a" if unavailable else "error",
-        cell_class="n_a" if unavailable else "fails_loud",
+        status=status,
+        cell_class=cell_class,
         traceback_tail=tail,
         notes=f"raised during {phase}",
     )
@@ -284,3 +295,15 @@ def csv_export(rows: list[CellResult], path: Path) -> None:
             row["break_locations"] = " | ".join(row.get("break_locations") or [])
             row["traceback_tail"] = (row.get("traceback_tail") or "").replace("\n", " ")
             writer.writerow({key: row.get(key) for key in CSV_FIELDS})
+
+
+def csv_export_rows(rows: list[dict], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS + ["phase"])
+        writer.writeheader()
+        for row in rows:
+            row = dict(row)
+            row["break_locations"] = " | ".join(row.get("break_locations") or [])
+            row["traceback_tail"] = (row.get("traceback_tail") or "").replace("\n", " ")
+            writer.writerow({key: row.get(key) for key in CSV_FIELDS + ["phase"]})
