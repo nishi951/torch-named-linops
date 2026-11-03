@@ -543,11 +543,10 @@ def run_phase_sweep(cases: list[Case], phase: str, out_path: Path) -> list[CellR
                                 config=config,
                             )
                             try:
-                                builder = (
-                                    case.build
-                                    if level == "wrapper"
-                                    else case.inner_build
-                                )
+                                if level == "wrapper" or case.inner_build is None:
+                                    builder = case.build
+                                else:
+                                    builder = case.inner_build
                                 target, input_, note = builder(device, dtype, method)
                             except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
                                 rows.append(
