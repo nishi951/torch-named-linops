@@ -12,7 +12,9 @@ Phases:
 import argparse
 from collections import Counter
 
-from cases import CASES, RESULTS_DIR, SKIPPED, run_phase_sweep
+from cases import CASES, RESULTS_DIR, SKIPPED, run_phase_sweep, update_results_json
+from recompile import run_recompile_check
+from runner import CellSpec
 
 PHASES = ["smoke", "deep", "recompile", "autograd", "pipeline", "all"]
 
@@ -44,6 +46,38 @@ def run_deep() -> None:
     print(_summary(rows))
 
 
+def run_recompile() -> None:
+    records = []
+    for case in CASES:
+        if case.category == "functional":
+            levels = ["inner"]
+        elif case.deep_dive and case.inner_build is not None:
+            levels = ["wrapper", "inner"]
+        else:
+            levels = ["wrapper"]
+        for level in levels:
+            spec = CellSpec(
+                op=case.op,
+                category=case.category,
+                method="fwd",
+                device="cuda",
+                dtype=case.dtypes[0],
+                level=level,
+                config="default",
+            )
+            records.append(run_recompile_check(case, spec, "cuda", case.dtypes[0]))
+
+    update_results_json(RESULTS_DIR / "results.json", "recompile", records)
+    supported = sum(1 for record in records if record["supported"])
+    recompiled = sum(
+        1 for record in records if record["supported"] and record["recompiles"]
+    )
+    print(
+        f"{len(records)} recompile checks: {supported} with a shape family, "
+        f"{recompiled} recompiled at least once"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--phase", choices=PHASES, default="smoke")
@@ -53,6 +87,8 @@ def main() -> None:
         run_smoke()
     if args.phase in ("deep", "all"):
         run_deep()
+    if args.phase in ("recompile", "all"):
+        run_recompile()
 
 
 if __name__ == "__main__":
