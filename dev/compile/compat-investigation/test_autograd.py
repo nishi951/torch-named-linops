@@ -27,8 +27,22 @@ def test_corrupted_gradient_is_fails_silent():
     assert result["cell_class"] == "fails_silent", result["cell_class"]
 
 
+def test_non_differentiable_notes_eager_phase():
+    def fn(t: torch.Tensor) -> torch.Tensor:
+        return t.detach() * 2.0
+
+    result = check_grad_agreement(
+        fn, torch.randn(3, device="cuda"), torch.randn(3, device="cuda")
+    )
+
+    assert result["status"] == "error", result["status"]
+    assert "eager backward" in result["notes"], result["notes"]
+
+
 if __name__ == "__main__":
     test_grad_agreement_matmul()
     print("test_grad_agreement_matmul PASS")
     test_corrupted_gradient_is_fails_silent()
     print("test_corrupted_gradient_is_fails_silent PASS")
+    test_non_differentiable_notes_eager_phase()
+    print("test_non_differentiable_notes_eager_phase PASS")

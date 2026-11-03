@@ -12,6 +12,7 @@ Phases:
 import argparse
 from collections import Counter
 
+from autograd_check import run_autograd_check
 from cases import CASES, RESULTS_DIR, SKIPPED, run_phase_sweep, update_results_json
 from recompile import run_recompile_check
 from runner import CellSpec
@@ -78,6 +79,37 @@ def run_recompile() -> None:
     )
 
 
+def run_autograd() -> None:
+    rows = []
+    for case in CASES:
+        if not case.deep_dive:
+            continue
+        if case.category == "functional":
+            levels = ["inner"]
+        elif case.inner_build is not None:
+            levels = ["wrapper", "inner"]
+        else:
+            levels = ["wrapper"]
+        for level in levels:
+            spec = CellSpec(
+                op=case.op,
+                category=case.category,
+                method="grad",
+                device="cuda",
+                dtype=case.dtypes[0],
+                level=level,
+                config="default",
+            )
+            rows.append(run_autograd_check(case, spec, "cuda", case.dtypes[0]))
+
+    update_results_json(RESULTS_DIR / "results.json", "autograd", rows)
+    counts = Counter(row["cell_class"] for row in rows)
+    print(
+        f"{len(rows)} autograd checks: "
+        + ", ".join(f"{name}={n}" for name, n in sorted(counts.items()))
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--phase", choices=PHASES, default="smoke")
@@ -89,6 +121,8 @@ def main() -> None:
         run_deep()
     if args.phase in ("recompile", "all"):
         run_recompile()
+    if args.phase in ("autograd", "all"):
+        run_autograd()
 
 
 if __name__ == "__main__":
