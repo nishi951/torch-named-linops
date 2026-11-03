@@ -10,34 +10,38 @@ Phases:
 """
 
 import argparse
-from dataclasses import asdict
+from collections import Counter
 
-import torch
-
-from runner import CellSpec, execute_cell
+from cases import CASES, RESULTS_DIR, SKIPPED, run_phase_sweep
 
 PHASES = ["smoke", "deep", "recompile", "autograd", "pipeline", "all"]
 
 
-def dense_sanity_cell() -> dict:
-    torch.manual_seed(0)
-    W = torch.randn(7, 3, device="cuda")
-    bias = torch.randn(3, device="cuda")
-    x = torch.randn(7, device="cuda")
-
-    def target(t: torch.Tensor) -> torch.Tensor:
-        return t @ W + bias
-
-    spec = CellSpec(
-        op="Dense",
-        category="linop",
-        method="fwd",
-        device="cuda",
-        dtype=torch.float32,
-        level="wrapper",
-        config="default",
+def _summary(rows) -> str:
+    counts = Counter(row.cell_class for row in rows)
+    return f"{len(rows)} cells: " + ", ".join(
+        f"{name}={count}" for name, count in sorted(counts.items())
     )
-    return asdict(execute_cell(spec, target, x))
+
+
+def run_smoke() -> None:
+    rows = run_phase_sweep(
+        [case for case in CASES if not case.deep_dive],
+        "smoke",
+        RESULTS_DIR / "results.json",
+    )
+    print(_summary(rows))
+    for op, reason in SKIPPED.items():
+        print(f"skipped {op}: {reason}")
+
+
+def run_deep() -> None:
+    rows = run_phase_sweep(
+        [case for case in CASES if case.deep_dive],
+        "deep",
+        RESULTS_DIR / "results.json",
+    )
+    print(_summary(rows))
 
 
 def main() -> None:
@@ -45,8 +49,10 @@ def main() -> None:
     parser.add_argument("--phase", choices=PHASES, default="smoke")
     args = parser.parse_args()
     print(args.phase)
-    if args.phase in ("all", "smoke"):
-        print(dense_sanity_cell())
+    if args.phase in ("smoke", "all"):
+        run_smoke()
+    if args.phase in ("deep", "all"):
+        run_deep()
 
 
 if __name__ == "__main__":

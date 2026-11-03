@@ -216,9 +216,11 @@ def capture_graph_breaks(
 
 def _is_unavailable(spec: CellSpec, exc: BaseException) -> bool:
     msg = f"{type(exc).__name__}: {exc}".lower()
-    if "not implemented" in msg or "not supported" in msg:
+    if spec.device == "cpu" and any(m in msg for m in ("cuda", "gpu", "triton")):
         return True
-    return spec.device == "cpu" and any(m in msg for m in ("cuda", "gpu", "triton"))
+    if "not implemented for" in msg and ("cpu" in msg or "cuda" in msg):
+        return True
+    return "requires cuda" in msg or "requires triton" in msg
 
 
 def _error_result(spec: CellSpec, exc: BaseException, phase: str) -> CellResult:

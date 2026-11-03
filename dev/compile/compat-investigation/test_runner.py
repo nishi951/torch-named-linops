@@ -94,6 +94,39 @@ def test_capture_graph_breaks_writes_log():
     assert isinstance(locations, list)
 
 
+def test_fullgraph_unsupported_is_fails_loud():
+    def target(t: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError(
+            "Unsupported: logging.Logger method not supported for non-export cases"
+        )
+
+    res = execute_cell(_spec(config="fullgraph"), target, torch.randn(3, device="cuda"))
+
+    assert res.status == "error", res.status
+    assert res.cell_class == "fails_loud", res.cell_class
+
+
+def test_cuda_only_op_on_cpu_is_na():
+    def target(t: torch.Tensor) -> torch.Tensor:
+        raise RuntimeError("requires CUDA but no GPU is available")
+
+    spec = _spec()
+    spec.device = "cpu"
+    res = execute_cell(spec, target, torch.randn(3))
+
+    assert res.status == "n_a", res.status
+    assert res.cell_class == "n_a", res.cell_class
+
+
+def test_cupy_blocked_out_of_scope():
+    def target(t: torch.Tensor) -> torch.Tensor:
+        raise RuntimeError("cupy is untraceable: _cupy_pytorch imported")
+
+    res = execute_cell(_spec(), target, torch.randn(3, device="cuda"))
+
+    assert res.cell_class == "blocked_out_of_scope", res.cell_class
+
+
 if __name__ == "__main__":
     test_correct_target_works()
     print("test_correct_target_works PASS")
@@ -105,3 +138,9 @@ if __name__ == "__main__":
     print("test_execute_cell_reports_positive_timings PASS")
     test_capture_graph_breaks_writes_log()
     print("test_capture_graph_breaks_writes_log PASS")
+    test_fullgraph_unsupported_is_fails_loud()
+    print("test_fullgraph_unsupported_is_fails_loud PASS")
+    test_cuda_only_op_on_cpu_is_na()
+    print("test_cuda_only_op_on_cpu_is_na PASS")
+    test_cupy_blocked_out_of_scope()
+    print("test_cupy_blocked_out_of_scope PASS")
