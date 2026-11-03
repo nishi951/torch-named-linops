@@ -6,9 +6,12 @@ A cell is one point of the investigation matrix:
 
 from __future__ import annotations
 
+import csv
+import statistics
 import time
 import traceback
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Callable
 
 import torch
@@ -17,6 +20,29 @@ TOL = 1e-3
 WARMUP = 20
 ITERS = 100
 SLOW_CALL_SECONDS = 0.5
+LOG_DIR = Path(__file__).parent / "logs"
+
+CSV_FIELDS = [
+    "op",
+    "category",
+    "method",
+    "device",
+    "dtype",
+    "level",
+    "config",
+    "status",
+    "cell_class",
+    "graph_breaks",
+    "break_locations",
+    "recompiles",
+    "max_abs_diff",
+    "max_rel_diff",
+    "eager_time",
+    "compile_time",
+    "speedup",
+    "traceback_tail",
+    "notes",
+]
 
 
 @dataclass
@@ -45,6 +71,13 @@ class CellResult:
     speedup: float | None = None
     traceback_tail: str | None = None
     notes: str = ""
+
+
+class CallCounter:
+    """Counts fn invocations made through median_time, for warmup proofs."""
+
+    def __init__(self) -> None:
+        self.count = 0
 
 
 def _to_cpu(x: torch.Tensor) -> torch.Tensor:
@@ -113,19 +146,72 @@ def run_cell(
     )
 
 
+def spec_key(spec: CellSpec) -> str:
+    dtype = str(spec.dtype).replace("torch.", "")
+    return f"{spec.op}-{spec.method}-{spec.device}-{dtype}-{spec.level}-{spec.config}"
+
+
 def _sync(device: str) -> None:
     if device == "cuda":
         torch.cuda.synchronize()
 
 
-def _timed_call(
-    fn: Callable[[], torch.Tensor], device: str
-) -> tuple[torch.Tensor, float]:
+def median_time(
+    fn: Callable[[], torch.Tensor],
+    warmup: int = WARMUP,
+    iters: int = ITERS,
+    device: str = "cuda",
+    counter: CallCounter | None = None,
+) -> float:
+    """Median per-call wall time after warmup; adapts down for slow calls."""
+
+    def call() -> torch.Tensor:
+        if counter is not None:
+            counter.count += 1
+        return fn()
+
     _sync(device)
     start = time.perf_counter()
-    out = fn()
+    call()
     _sync(device)
-    return out, time.perf_counter() - start
+    if time.perf_counter() - start > SLOW_CALL_SECONDS:
+        iters = 10
+
+    for _ in range(max(warmup - 1, 0)):
+        call()
+    _sync(device)
+
+    durations = []
+    for _ in range(iters):
+        _sync(device)
+        start = time.perf_counter()
+        call()
+        _sync(device)
+        durations.append(time.perf_counter() - start)
+    return statistics.median(durations)
+
+
+def capture_graph_breaks(
+    target: Callable[[torch.Tensor], torch.Tensor],
+    input_: torch.Tensor,
+    spec_key: str,
+) -> tuple[int, list[str]]:
+    """Run torch._dynamo.explain, write its report to logs/<spec_key>.log."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    count = 0
+    locations: list[str] = []
+    try:
+        explanation = torch._dynamo.explain(target)(input_)
+        count = int(getattr(explanation, "graph_break_count", 0) or 0)
+        reasons = getattr(explanation, "break_reasons", None) or []
+        locations = [str(r).splitlines()[0][:300] for r in reasons if str(r)]
+        text = str(explanation)
+        if locations:
+            text += "\n\nBreak locations:\n" + "\n".join(locations)
+    except Exception as exc:  # noqa: BLE001 - captured for the report
+        text = f"explain failed: {type(exc).__name__}: {exc}"
+    (LOG_DIR / f"{spec_key}.log").write_text(text + "\n")
+    return count, locations
 
 
 def _is_unavailable(spec: CellSpec, exc: BaseException) -> bool:
@@ -147,24 +233,6 @@ def _error_result(spec: CellSpec, exc: BaseException, phase: str) -> CellResult:
     )
 
 
-def explain_graph_breaks(
-    target: Callable[[torch.Tensor], torch.Tensor],
-    input_: torch.Tensor,
-) -> tuple[int, list[str]]:
-    """Count and locate graph breaks via torch._dynamo.explain (best effort)."""
-    try:
-        explanation = torch._dynamo.explain(target)(input_)
-    except Exception:
-        return 0, []
-    count = int(getattr(explanation, "graph_break_count", 0) or 0)
-    reasons = getattr(explanation, "break_reasons", None) or []
-    locations = []
-    for reason in reasons:
-        line = str(reason).splitlines()[0][:300] if str(reason) else ""
-        locations.append(line)
-    return count, locations
-
-
 def execute_cell(
     spec: CellSpec,
     target: Callable[[torch.Tensor], torch.Tensor],
@@ -172,7 +240,8 @@ def execute_cell(
 ) -> CellResult:
     """Run one matrix cell: eager reference, compiled run, classification."""
     try:
-        ref, eager_time = _timed_call(lambda: target(input_), spec.device)
+        ref = target(input_)
+        eager_time = median_time(lambda: target(input_), device=spec.device)
     except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
         return _error_result(spec, exc, phase="eager")
 
@@ -184,11 +253,12 @@ def execute_cell(
     torch._dynamo.reset()
     try:
         compiled_fn = torch.compile(target, fullgraph=(spec.config == "fullgraph"))
-        out, compile_time = _timed_call(lambda: compiled_fn(input_), spec.device)
+        out = compiled_fn(input_)
+        compile_time = median_time(lambda: compiled_fn(input_), device=spec.device)
     except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
         return _error_result(spec, exc, phase="compiled")
 
-    graph_breaks, break_locations = explain_graph_breaks(target, input_)
+    graph_breaks, break_locations = capture_graph_breaks(target, input_, spec_key(spec))
     return run_cell(
         spec,
         ref,
@@ -198,3 +268,17 @@ def execute_cell(
         graph_breaks=graph_breaks,
         break_locations=break_locations,
     )
+
+
+def csv_export(rows: list[CellResult], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        for result in rows:
+            row = asdict(result)
+            row.update(row.pop("spec"))
+            row["dtype"] = str(row["dtype"])
+            row["break_locations"] = " | ".join(row.get("break_locations") or [])
+            row["traceback_tail"] = (row.get("traceback_tail") or "").replace("\n", " ")
+            writer.writerow({key: row.get(key) for key in CSV_FIELDS})

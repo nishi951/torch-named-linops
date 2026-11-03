@@ -1,8 +1,17 @@
 """Plain-assert verification for the cell runner (scratch code, not pytest)."""
 
+from pathlib import Path
+
 import torch
 
-from runner import CellSpec, execute_cell, run_cell
+from runner import (
+    CallCounter,
+    CellSpec,
+    capture_graph_breaks,
+    execute_cell,
+    median_time,
+    run_cell,
+)
 
 
 def _spec(config: str = "default") -> CellSpec:
@@ -48,8 +57,51 @@ def test_silent_disagreement_detected():
     assert res.speedup is not None and abs(res.speedup - 2.0) < 1e-6, res.speedup
 
 
+def test_timing_helper_counts_warmup_plus_iters():
+    torch.manual_seed(0)
+    x = torch.randn(7, device="cuda")
+    counter = CallCounter()
+
+    median_time(lambda: x + 1.0, warmup=3, iters=5, device="cuda", counter=counter)
+
+    assert counter.count >= 3 + 5, counter.count
+
+
+def test_execute_cell_reports_positive_timings():
+    torch.manual_seed(0)
+    W = torch.randn(7, 3, device="cuda")
+    x = torch.randn(7, device="cuda")
+
+    res = execute_cell(_spec(), lambda t: t @ W, x)
+
+    assert res.eager_time is not None and res.eager_time > 0, res.eager_time
+    assert res.compile_time is not None and res.compile_time > 0, res.compile_time
+
+
+def test_capture_graph_breaks_writes_log():
+    def target(t: torch.Tensor) -> torch.Tensor:
+        if t.shape[0] > 4:
+            return t + 1.0
+        return t - 1.0
+
+    count, locations = capture_graph_breaks(
+        target, torch.randn(8, device="cuda"), "breaking-test"
+    )
+
+    log_path = Path(__file__).parent / "logs" / "breaking-test.log"
+    assert log_path.exists(), log_path
+    assert isinstance(count, int)
+    assert isinstance(locations, list)
+
+
 if __name__ == "__main__":
     test_correct_target_works()
     print("test_correct_target_works PASS")
     test_silent_disagreement_detected()
     print("test_silent_disagreement_detected PASS")
+    test_timing_helper_counts_warmup_plus_iters()
+    print("test_timing_helper_counts_warmup_plus_iters PASS")
+    test_execute_cell_reports_positive_timings()
+    print("test_execute_cell_reports_positive_timings PASS")
+    test_capture_graph_breaks_writes_log()
+    print("test_capture_graph_breaks_writes_log PASS")
