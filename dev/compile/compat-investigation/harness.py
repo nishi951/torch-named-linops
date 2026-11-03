@@ -14,6 +14,7 @@ from collections import Counter
 
 from autograd_check import run_autograd_check
 from cases import CASES, RESULTS_DIR, SKIPPED, run_phase_sweep, update_results_json
+from pipeline import run_pipeline
 from recompile import run_recompile_check
 from runner import CellSpec
 
@@ -110,6 +111,15 @@ def run_autograd() -> None:
     )
 
 
+def run_pipeline_phase() -> None:
+    rows = run_pipeline()
+    counts = Counter(row["cell_class"] for row in rows)
+    print(
+        f"{len(rows)} pipeline rows: "
+        + ", ".join(f"{name}={n}" for name, n in sorted(counts.items()))
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--phase", choices=PHASES, default="smoke")
@@ -123,6 +133,8 @@ def main() -> None:
         run_recompile()
     if args.phase in ("autograd", "all"):
         run_autograd()
+    if args.phase in ("pipeline", "all"):
+        run_pipeline_phase()
 
 
 if __name__ == "__main__":
