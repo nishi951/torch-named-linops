@@ -36,4 +36,4 @@ Either way, add a regression test asserting `.backward()` produces the known adj
 
 ## Value
 
-Makes the functional kernels usable in training loops once compile support lands; also removes the only eager failures in the 720-cell matrix (8 cells), clarifying the compatibility story.
+Makes the functional kernels usable in training loops once compile support lands. This is a separate axis from compilation: the 720-cell compile matrix contains no eager execution failures for these kernels; the eager failures here are the four autograd-phase checks (one per functional kernel) and must not be read as compile regressions.

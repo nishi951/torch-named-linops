@@ -57,6 +57,7 @@ from runner import (
     CellResult,
     CellSpec,
     csv_export_rows,
+    effective_class,
     execute_cell,
 )
 
@@ -354,10 +355,10 @@ CASES: list[Case] = [
     _make_case("DenseSimple", _dense_simple),
     _make_case("Diagonal", _diagonal),
     _make_case("Identity", _identity),
-    _make_case("Zero", _zero, dtypes=[torch.complex64]),
+    _make_case("Zero", _zero),
     _make_case("ShapeSpec", _shapespec),
     _make_case("Scalar", _scalar),
-    _make_case("Sleep", _sleep, methods=["fwd", "adj"]),
+    _make_case("Sleep", _sleep),
     _make_case("FFT", _fft, dtypes=[torch.complex64], deep_dive=True, with_inner=True),
     _make_case(
         "Convolution",
@@ -400,16 +401,16 @@ CASES: list[Case] = [
     _make_case("Sampling", _sampling),
     _make_case("ArrayToBlocks", _array_to_blocks, dtypes=[torch.complex64]),
     _make_case("BlocksToArray", _blocks_to_array, dtypes=[torch.complex64]),
-    _make_case("Pad", _pad, dtypes=[torch.complex64]),
-    _make_case("Truncate", _truncate, dtypes=[torch.complex64]),
-    _make_case("PadDim", _pad_dim, dtypes=[torch.complex64]),
-    _make_case("Rearrange", _rearrange, dtypes=[torch.complex64]),
-    _make_case("SumReduce", _sum_reduce, dtypes=[torch.complex64]),
-    _make_case("Repeat", _repeat, dtypes=[torch.complex64]),
-    _make_case("Add", _add, dtypes=[torch.complex64]),
-    _make_case("Stack", _stack, dtypes=[torch.complex64]),
-    _make_case("Concat", _concat, dtypes=[torch.complex64]),
-    _make_case("Chain", _chain, dtypes=[torch.complex64]),
+    _make_case("Pad", _pad),
+    _make_case("Truncate", _truncate),
+    _make_case("PadDim", _pad_dim),
+    _make_case("Rearrange", _rearrange),
+    _make_case("SumReduce", _sum_reduce),
+    _make_case("Repeat", _repeat),
+    _make_case("Add", _add),
+    _make_case("Stack", _stack),
+    _make_case("Concat", _concat),
+    _make_case("Chain", _chain),
     _make_case("ToDevice", _to_device),
     _make_case("SimpleLinop", _simple_linop),
 ]
@@ -506,10 +507,33 @@ def _cell_to_dict(result: CellResult) -> dict:
         "eager_time": result.eager_time,
         "compile_time": result.compile_time,
         "speedup": result.speedup,
+        "degraded": result.degraded,
+        "effective_class": effective_class(
+            result.status,
+            result.cell_class,
+            result.graph_breaks,
+            result.speedup,
+            result.degraded,
+        ),
         "traceback_tail": result.traceback_tail,
         "notes": result.notes,
     }
     return data
+
+
+def apply_recompiles(cells: list[dict], records: list[dict]) -> None:
+    """Join recompile counts onto the cells they were measured for."""
+    lookup = {
+        (record["op"], record["level"]): record["recompiles"]
+        for record in records
+        if record.get("recompiles") is not None
+    }
+    for cell in cells:
+        if cell.get("config") != "default":
+            continue
+        key = (cell["op"], cell["level"])
+        if key in lookup:
+            cell["recompiles"] = lookup[key]
 
 
 def update_results_json(path: Path, key: str, value) -> None:

@@ -27,6 +27,9 @@ REPORT_COLUMNS = [
 
 
 def effective_class(cell: dict) -> str:
+    stored = cell.get("effective_class")
+    if stored:
+        return stored
     if cell.get("status") == "n_a":
         return "n_a"
     if cell.get("cell_class") != "works":

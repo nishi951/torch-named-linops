@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import statistics
+import warnings
 import time
 import traceback
 from dataclasses import asdict, dataclass, field
@@ -40,6 +41,8 @@ CSV_FIELDS = [
     "eager_time",
     "compile_time",
     "speedup",
+    "degraded",
+    "effective_class",
     "traceback_tail",
     "notes",
 ]
@@ -69,6 +72,7 @@ class CellResult:
     eager_time: float | None = None
     compile_time: float | None = None
     speedup: float | None = None
+    degraded: bool = False
     traceback_tail: str | None = None
     notes: str = ""
 
@@ -87,9 +91,17 @@ def _to_cpu(x: torch.Tensor) -> torch.Tensor:
 def diff_metrics(
     reference_out: torch.Tensor, compiled_out: torch.Tensor
 ) -> tuple[float, float]:
-    """Return (max_abs_diff, max_rel_diff), comparing complex tensors part-wise."""
+    """Return (max_abs_diff, max_rel_diff), comparing complex tensors part-wise.
+
+    Shape disagreement or non-finite values are disagreement by definition
+    (infinite diffs), never a pass.
+    """
     ref = _to_cpu(reference_out)
     out = _to_cpu(compiled_out)
+    if ref.shape != out.shape:
+        return float("inf"), float("inf")
+    if not (torch.isfinite(ref).all() and torch.isfinite(out).all()):
+        return float("inf"), float("inf")
     if ref.is_complex() or out.is_complex():
         ref = ref.to(torch.complex128)
         out = out.to(torch.complex128)
@@ -121,6 +133,7 @@ def run_cell(
     graph_breaks: int = 0,
     break_locations: list[str] | None = None,
     recompiles: int | None = None,
+    degraded: bool = False,
     notes: str = "",
 ) -> CellResult:
     """Classify one completed eager-vs-compiled comparison."""
@@ -141,9 +154,41 @@ def run_cell(
         eager_time=eager_time,
         compile_time=compile_time,
         speedup=speedup,
+        degraded=degraded,
         traceback_tail=None,
         notes=notes,
     )
+
+
+DEGRADATION_MARKERS = (
+    "does not support code generation for complex",
+    "falling back to eager",
+)
+
+
+def detect_degradation(messages: list[str]) -> bool:
+    lowered = " ".join(messages).lower()
+    return any(marker in lowered for marker in DEGRADATION_MARKERS)
+
+
+def effective_class(
+    status: str,
+    cell_class: str,
+    graph_breaks: int,
+    speedup: float | None,
+    degraded: bool,
+) -> str:
+    if status == "n_a":
+        return "n_a"
+    if cell_class != "works":
+        return cell_class
+    if degraded:
+        return "silent_degradation"
+    if graph_breaks > 0:
+        return "works_with_breaks"
+    if speedup is not None and speedup < 0.9:
+        return "compiles_slower"
+    return "works"
 
 
 def spec_key(spec: CellSpec) -> str:
@@ -266,7 +311,10 @@ def execute_cell(
     torch._dynamo.reset()
     try:
         compiled_fn = torch.compile(target, fullgraph=(spec.config == "fullgraph"))
-        out = compiled_fn(input_)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            out = compiled_fn(input_)
+        degraded = detect_degradation([str(w.message) for w in caught])
         compile_time = median_time(lambda: compiled_fn(input_), device=spec.device)
     except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
         return _error_result(spec, exc, phase="compiled")
@@ -280,6 +328,7 @@ def execute_cell(
         compile_time=compile_time,
         graph_breaks=graph_breaks,
         break_locations=break_locations,
+        degraded=degraded,
     )
 
 

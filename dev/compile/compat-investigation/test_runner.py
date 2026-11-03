@@ -8,6 +8,8 @@ from runner import (
     CallCounter,
     CellSpec,
     capture_graph_breaks,
+    detect_degradation,
+    effective_class,
     execute_cell,
     median_time,
     run_cell,
@@ -127,6 +129,45 @@ def test_cupy_blocked_out_of_scope():
     assert res.cell_class == "blocked_out_of_scope", res.cell_class
 
 
+def test_nan_output_is_fails_silent():
+    ref = torch.tensor([1.0, 2.0])
+    out = torch.tensor([1.0, float("nan")])
+    res = run_cell(_spec(), ref, out)
+    assert res.cell_class == "fails_silent", res.cell_class
+
+
+def test_shape_disagreement_is_fails_silent():
+    ref = torch.randn(2)
+    out = ref.reshape(1, 2)
+    res = run_cell(_spec(), ref, out)
+    assert res.cell_class == "fails_silent", res.cell_class
+
+
+def test_shape_mismatch_does_not_raise():
+    ref = torch.randn(2)
+    out = torch.randn(3)
+    res = run_cell(_spec(), ref, out)
+    assert res.cell_class == "fails_silent", res.cell_class
+
+
+def test_effective_class_taxonomy():
+    assert effective_class("ok", "works", 0, 1.2, False) == "works"
+    assert effective_class("ok", "works", 2, 1.2, False) == "works_with_breaks"
+    assert effective_class("ok", "works", 0, 0.5, False) == "compiles_slower"
+    assert effective_class("ok", "works", 0, 1.2, True) == "silent_degradation"
+    assert effective_class("ok", "fails_silent", 0, None, False) == "fails_silent"
+    assert effective_class("n_a", "n_a", 0, None, False) == "n_a"
+
+
+def test_detect_degradation_complex_warning():
+    messages = [
+        "Torchinductor does not support code generation for complex "
+        "operators. Performance may be worse than eager."
+    ]
+    assert detect_degradation(messages) is True
+    assert detect_degradation([]) is False
+
+
 if __name__ == "__main__":
     test_correct_target_works()
     print("test_correct_target_works PASS")
@@ -144,3 +185,13 @@ if __name__ == "__main__":
     print("test_cuda_only_op_on_cpu_is_na PASS")
     test_cupy_blocked_out_of_scope()
     print("test_cupy_blocked_out_of_scope PASS")
+    test_nan_output_is_fails_silent()
+    print("test_nan_output_is_fails_silent PASS")
+    test_shape_disagreement_is_fails_silent()
+    print("test_shape_disagreement_is_fails_silent PASS")
+    test_shape_mismatch_does_not_raise()
+    print("test_shape_mismatch_does_not_raise PASS")
+    test_effective_class_taxonomy()
+    print("test_effective_class_taxonomy PASS")
+    test_detect_degradation_complex_warning()
+    print("test_detect_degradation_complex_warning PASS")

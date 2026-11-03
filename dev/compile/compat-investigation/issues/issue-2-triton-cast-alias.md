@@ -43,7 +43,7 @@ Apply to both unfold and fold; audit `functional/_interp/` for the same pattern.
 
 ## Value
 
-Unblocks CUDA compile for ArrayToBlocks/BlocksToArray and the four functional kernels (currently the only eager crashes in the matrix are unrelated autograd gaps). Also makes their eager-vs-compiled parity testable on GPU.
+Unblocks CUDA compile for ArrayToBlocks/BlocksToArray and `functional.unfold`/`functional.fold`. `functional.grid`/`functional.ungrid` additionally need the wrapper-functionalization fix in issue 3; do not expect this change alone to fix them. Also makes eager-vs-compiled parity testable on GPU for the unfold/fold path.
 
 ## Verification idea
 

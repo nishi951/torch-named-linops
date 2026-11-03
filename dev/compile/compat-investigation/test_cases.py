@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 
-from cases import Case, run_phase_sweep
+from cases import CASES, Case, apply_recompiles, run_phase_sweep
 
 
 def test_functional_case_runs_at_inner_level():
@@ -31,6 +31,42 @@ def test_functional_case_runs_at_inner_level():
     ]
 
 
+COMPLEX_NATIVE = {
+    "FFT",
+    "Interpolate",
+    "NUFFT",
+    "FastSamplingNUFFT",
+    "SamplingNUFFT",
+    "ToeplitzPSF",
+    "ArrayToBlocks",
+    "BlocksToArray",
+}
+
+
+def test_smoke_cases_cover_float32_and_all_methods():
+    for case in CASES:
+        if case.category != "linop":
+            continue
+        assert case.methods == ["fwd", "adj", "normal"], case.op
+        if case.op not in COMPLEX_NATIVE:
+            assert torch.float32 in case.dtypes, case.op
+
+
+def test_apply_recompiles_joins_cells():
+    cells = [
+        {"op": "Dense", "level": "wrapper", "config": "default", "recompiles": None}
+    ]
+    records = [{"op": "Dense", "level": "wrapper", "recompiles": 2}]
+
+    apply_recompiles(cells, records)
+
+    assert cells[0]["recompiles"] == 2, cells[0]
+
+
 if __name__ == "__main__":
     test_functional_case_runs_at_inner_level()
     print("test_functional_case_runs_at_inner_level PASS")
+    test_smoke_cases_cover_float32_and_all_methods()
+    print("test_smoke_cases_cover_float32_and_all_methods PASS")
+    test_apply_recompiles_joins_cells()
+    print("test_apply_recompiles_joins_cells PASS")

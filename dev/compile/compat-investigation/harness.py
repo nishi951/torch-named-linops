@@ -10,10 +10,18 @@ Phases:
 """
 
 import argparse
+import json
 from collections import Counter
 
 from autograd_check import run_autograd_check
-from cases import CASES, RESULTS_DIR, SKIPPED, run_phase_sweep, update_results_json
+from cases import (
+    CASES,
+    RESULTS_DIR,
+    SKIPPED,
+    apply_recompiles,
+    run_phase_sweep,
+    update_results_json,
+)
 from pipeline import run_pipeline
 from recompile import run_recompile_check
 from runner import CellSpec
@@ -69,7 +77,14 @@ def run_recompile() -> None:
             )
             records.append(run_recompile_check(case, spec, "cuda", case.dtypes[0]))
 
-    update_results_json(RESULTS_DIR / "results.json", "recompile", records)
+    results_path = RESULTS_DIR / "results.json"
+    data = json.loads(results_path.read_text()) if results_path.exists() else {}
+    data["recompile"] = records
+    cells = data.get("cells", [])
+    apply_recompiles(cells, records)
+    data["cells"] = cells
+    results_path.write_text(json.dumps(data, indent=2) + "\n")
+
     supported = sum(1 for record in records if record["supported"])
     recompiled = sum(
         1 for record in records if record["supported"] and record["recompiles"]

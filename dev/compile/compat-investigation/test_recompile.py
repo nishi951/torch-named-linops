@@ -34,8 +34,22 @@ def test_recompile_count_is_per_measurement():
     assert first == second >= 1, (first, second)
 
 
+def test_graph_breaking_same_shape_zero_recompiles():
+    def fn(x: torch.Tensor) -> torch.Tensor:
+        y = x + 1.0
+        scale = float(y.sum())  # forces a graph break
+        return x * scale
+
+    x = torch.randn(4, device="cuda")
+    count, _ = measure_recompiles(fn, [x, x.clone()])
+
+    assert count == 0, count
+
+
 if __name__ == "__main__":
     test_two_shapes_recompile()
     print("test_two_shapes_recompile PASS")
     test_recompile_count_is_per_measurement()
     print("test_recompile_count_is_per_measurement PASS")
+    test_graph_breaking_same_shape_zero_recompiles()
+    print("test_graph_breaking_same_shape_zero_recompiles PASS")

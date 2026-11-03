@@ -17,19 +17,19 @@ def measure_recompiles(
 ) -> tuple[int, list[torch.Tensor]]:
     """Run fn compiled once over several shapes; return (recompiles, outputs).
 
-    Counts extra unique graphs Dynamo produced beyond the first. Note:
-    torch._dynamo.utils exposes unique_graphs (not recompilation_reasons)
-    on this torch version.
+    Recompiles = graphs Dynamo built for calls after the first (a graph-breaking
+    first call may build several fragments; those are not recompiles).
     """
     torch._dynamo.reset()
     from torch._dynamo.utils import counters
 
-    before = int(counters["stats"].get("unique_graphs", 0))
     compiled = torch.compile(fn)
-    outputs = [compiled(x) for x in inputs]
-    after = int(counters["stats"].get("unique_graphs", 0))
-    unique_graphs = after - before
-    return max(0, unique_graphs - 1), outputs
+    outputs = [compiled(inputs[0])]
+    after_first = int(counters["stats"].get("unique_graphs", 0))
+    for x in inputs[1:]:
+        outputs.append(compiled(x))
+    after_all = int(counters["stats"].get("unique_graphs", 0))
+    return max(0, after_all - after_first), outputs
 
 
 def _variant(input_: torch.Tensor) -> torch.Tensor | None:
