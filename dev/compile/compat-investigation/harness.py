@@ -10,8 +10,34 @@ Phases:
 """
 
 import argparse
+from dataclasses import asdict
+
+import torch
+
+from runner import CellSpec, execute_cell
 
 PHASES = ["smoke", "deep", "recompile", "autograd", "pipeline", "all"]
+
+
+def dense_sanity_cell() -> dict:
+    torch.manual_seed(0)
+    W = torch.randn(7, 3, device="cuda")
+    bias = torch.randn(3, device="cuda")
+    x = torch.randn(7, device="cuda")
+
+    def target(t: torch.Tensor) -> torch.Tensor:
+        return t @ W + bias
+
+    spec = CellSpec(
+        op="Dense",
+        category="linop",
+        method="fwd",
+        device="cuda",
+        dtype=torch.float32,
+        level="wrapper",
+        config="default",
+    )
+    return asdict(execute_cell(spec, target, x))
 
 
 def main() -> None:
@@ -19,6 +45,8 @@ def main() -> None:
     parser.add_argument("--phase", choices=PHASES, default="smoke")
     args = parser.parse_args()
     print(args.phase)
+    if args.phase in ("all", "smoke"):
+        print(dense_sanity_cell())
 
 
 if __name__ == "__main__":
