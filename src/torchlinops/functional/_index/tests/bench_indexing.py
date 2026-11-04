@@ -1,6 +1,7 @@
 import torch
 
 import torchlinops.functional as F
+from torchlinops.functional._interp import grid
 from torchlinops.utils.benchmark import benchmark_and_summarize
 
 
@@ -27,7 +28,7 @@ def main():
     def index_interp0():
         vals, idx = gen_data()
         locs = torch.stack(idx, dim=-1).float()
-        return F.grid(vals, locs, grid_size=grid_size, width=1.0, kernel="spline")
+        return grid(vals, locs, grid_size=grid_size, width=1.0, kernel="spline")
 
     def index_multi_grid():
         vals, idx = gen_data()
@@ -46,7 +47,7 @@ def main():
     vals, idx = gen_data()
     y1 = F.index_adjoint(vals, idx, grid_size=grid_size)
     locs = torch.stack(idx, dim=-1).float()
-    y2 = F.grid(vals, locs, grid_size=grid_size, width=1.0, kernel="spline")
+    y2 = grid(vals, locs, grid_size=grid_size, width=1.0, kernel="spline")
     idx = torch.stack(idx, dim=-1)
     y3 = multi_grid(vals, idx, final_size=grid_size)
 

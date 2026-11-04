@@ -5,7 +5,7 @@ import torch
 from utils import Indenter, device_ordinal, from_pytorch, to_pytorch
 from utils.benchmark import benchmark
 
-from torchlinops.functional import unfold
+from torchlinops.functional._unfold import unfold
 
 
 def main():

@@ -49,8 +49,9 @@ from torchlinops import (
     Truncate,
     Zero,
 )
-from torchlinops.functional import fold, grid, unfold, ungrid
+from torchlinops.functional._interp import grid, ungrid
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
+from torchlinops.functional._unfold import fold, unfold
 from torchlinops.linops.nufft import toeplitz_psf
 
 from runner import (
