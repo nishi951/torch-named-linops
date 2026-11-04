@@ -16,11 +16,6 @@ __all__ = ["Add"]
 logger = logging.getLogger("torchlinops")
 
 
-def _log_transfer(msg):
-    if config.log_device_transfers:
-        logger.info(msg)
-
-
 class Add(NamedLinop):
     """The sum of one or more linear operators.
 

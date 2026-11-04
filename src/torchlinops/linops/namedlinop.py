@@ -26,11 +26,6 @@ __all__ = ["NamedLinop"]
 logger = logging.getLogger("torchlinops")
 
 
-def _log_transfer(msg):
-    if config.log_device_transfers:
-        logger.info(msg)
-
-
 @lru_cache(maxsize=1024)
 def _check_input_shape_impl(ishape, xshape, sizes, broadcast=True):
     """Return None if an input with shape *xshape* is valid for *ishape*, else an error message.
@@ -346,9 +341,10 @@ class NamedLinop(nn.Module):
                     except AttributeError:
                         traceback.print_exc()
                         raise
-                    logger.debug(
-                        f"{type(self).__name__}: Making new adjoint {_adjoint._shape}"
-                    )
+                    if not torch.compiler.is_compiling():
+                        logger.debug(
+                            f"{type(self).__name__}: Making new adjoint {_adjoint._shape}"
+                        )
                 return self._adjoint[0]
             return self.adjoint()
         except AttributeError as e:
@@ -708,14 +704,22 @@ class SyncContext:
                 and self.parent.linop.is_container
                 and self.parent.start_event is not None
             ):
-                logger.debug(
-                    f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} reusing event {self.parent.start_event}"
-                )
+                if not torch.compiler.is_compiling():
+                    logger.debug(
+                        f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} reusing event {self.parent.start_event}"
+                    )
                 self.start_event = self.parent.start_event
             if self.start_event is None and self.linop.is_container:
                 self.start_event = torch.cuda.current_stream(
                     self.input_device
                 ).record_event()
-                logger.debug(
-                    f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} recorded event {self.start_event} on {self.input_device} stream {torch.cuda.current_stream(self.input_device)}"
-                )
+
+                if not torch.compiler.is_compiling():
+                    logger.debug(
+                        f"{self.linop.__name__} with parent {None if self.parent is None else self.parent.linop.__name__} recorded event {self.start_event} on {self.input_device} stream {torch.cuda.current_stream(self.input_device)}"
+                    )
+
+
+def _log_transfer(msg):
+    if config.log_device_transfers and not torch.compiler.is_compiling():
+        logger.info(msg)

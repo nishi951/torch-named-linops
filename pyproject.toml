@@ -74,6 +74,21 @@ exclude = [
 
 
 [tool.pytest.ini_options]
+# Setting norecursedirs replaces pytest's defaults, so repeat them and add
+# `dev`. The investigation tests under dev/ require CUDA and otherwise fail
+# collection on CPU-only CI.
+norecursedirs = [
+    "*.egg",
+    ".*",
+    "_darcs",
+    "build",
+    "CVS",
+    "dist",
+    "node_modules",
+    "venv",
+    "{arch}",
+    "dev",
+]
 minversion = "6.0"
 addopts = """
 -ra -q \

@@ -4,7 +4,6 @@ from copy import copy
 import torch
 from torch import Tensor, nn
 
-from torchlinops import config
 from torchlinops.functional import slice2range
 from torchlinops.utils import INDENT
 
@@ -22,11 +21,6 @@ _INHERIT = object()
 """Sentinel for spinoff(): inherit the stacking dim/index from the parent linop."""
 
 logger = logging.getLogger("torchlinops")
-
-
-def _log_transfer(msg):
-    if config.log_device_transfers:
-        logger.info(msg)
 
 
 class Stack(NamedLinop):

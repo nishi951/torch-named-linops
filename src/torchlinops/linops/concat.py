@@ -4,7 +4,6 @@ from copy import copy
 import torch
 from torch import Tensor, nn
 
-from torchlinops import config
 from torchlinops.utils import INDENT
 
 from ..nameddim import (
@@ -27,11 +26,6 @@ from .schedule import parallel_execute
 __all__ = ["Concat"]
 
 logger = logging.getLogger("torchlinops")
-
-
-def _log_transfer(msg):
-    if config.log_device_transfers:
-        logger.info(msg)
 
 
 class Concat(NamedLinop):

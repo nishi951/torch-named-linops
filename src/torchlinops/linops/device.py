@@ -6,22 +6,16 @@ from typing import Any
 import torch
 from torch.cuda import Event, Stream, current_stream, default_stream
 
-from torchlinops import config
 from torchlinops.utils import INDENT, default_to
 
 from ..nameddim import NamedShape as NS
 from ..nameddim import Shape
 from .identity import Identity
-from .namedlinop import NamedLinop
+from .namedlinop import NamedLinop, _log_transfer
 
 __all__ = ["DeviceSpec", "ToDevice"]
 
 logger = logging.getLogger("torchlinops")
-
-
-def _log_transfer(msg):
-    if config.log_device_transfers:
-        logger.info(msg)
 
 
 @dataclass
@@ -277,10 +271,12 @@ def _gpu2gpu_transfer(
 
         if wait_for_event is not None:
             # Used when this is run as the first step in a Chain
-            logger.debug(f"Waiting on parent event: {wait_for_event}")
+            if not torch.compiler.is_compiling():
+                logger.debug(f"Waiting on parent event: {wait_for_event}")
             transfer_stream.wait_event(wait_for_event)
         else:
-            logger.debug(f"Waiting on current device's stream: {x.device}")
+            if not torch.compiler.is_compiling():
+                logger.debug(f"Waiting on current device's stream: {x.device}")
             # Used when this is run as a later step in a Chain
             # Sometimes this is not what we want because there might be a lot of work on the default stream
             # that we want to parallelize with this transfer.

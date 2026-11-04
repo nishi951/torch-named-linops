@@ -16,11 +16,6 @@ from .namedlinop import NamedLinop
 logger = logging.getLogger("torchlinops")
 
 
-def _log_transfer(msg):
-    if config.log_device_transfers:
-        logger.info(msg)
-
-
 class Chain(NamedLinop):
     """Composition (sequential application) of named linear operators.
 
