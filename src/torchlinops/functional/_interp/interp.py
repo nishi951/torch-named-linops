@@ -91,6 +91,7 @@ def interpolate(
     locs : Float[Tensor, "... D"]
         Non-uniform target locations, with coordinates in the range
         ``[0, N-1]`` for each spatial dimension of size ``N``.
+        No gradient backpropagation.
     width : float or tuple of float
         Interpolation kernel width (in grid units) for each spatial
         dimension. A scalar applies the same width to all dimensions.
@@ -109,7 +110,9 @@ def interpolate(
     Tensor
         Interpolated values at the non-uniform locations.
     """
-    return InterpolateFn.apply(vals, locs, width, kernel, norm, pad_mode, kernel_params)
+    return InterpolateFn.apply(
+        vals, locs.detach(), width, kernel, norm, pad_mode, kernel_params
+    )
 
 
 class InterpolateAdjointFn(Function):
@@ -200,6 +203,7 @@ def interpolate_adjoint(
     locs : Float[Tensor, "... D"]
         Non-uniform source locations, with coordinates in the range
         ``[0, N-1]`` for each spatial dimension of size ``N``.
+        No gradient backpropagation.
     grid_size : tuple of int
         Output grid size for each spatial dimension.
     width : float or tuple of float
@@ -222,7 +226,7 @@ def interpolate_adjoint(
     """
     return InterpolateAdjointFn.apply(
         vals,
-        locs,
+        locs.detach(),
         grid_size,
         width,
         kernel,

@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops import NUFFT, ArrayToBlocks, BlocksToArray, Chain, Dense, Identity
-from torchlinops.functional import grid, ungrid
+from torchlinops.functional import grid, interpolate, interpolate_adjoint, ungrid
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 
 try:
@@ -142,6 +142,26 @@ def test_functional_interp_complex_compiles(op):
 
     compiled = torch.compile(fn, fullgraph=True)
     torch.testing.assert_close(compiled(x), fn(x))
+
+
+@pytest.mark.gpu
+@TRITON_GPU_REQUIRED
+@pytest.mark.parametrize("mode", ["forward", "adjoint"])
+def test_interp_locs_grad_does_not_propagate_compiled(mode):
+    locs = get_valid_locs((8,), (16, 16), 2, 4.0, "cpu", centered=True).cuda()
+    locs.requires_grad_(True)
+
+    if mode == "forward":
+        x = torch.randn(16, 16, dtype=torch.complex64, device="cuda")
+        fn = lambda t: interpolate(t, locs, 4.0)
+    else:
+        x = torch.randn(8, dtype=torch.complex64, device="cuda")
+        fn = lambda t: interpolate_adjoint(t, locs, (16, 16), 4.0)
+
+    compiled = torch.compile(fn, fullgraph=True)
+    out = compiled(x)
+    assert out.requires_grad is False
+    torch.testing.assert_close(out, fn(x))
 
 
 @pytest.mark.gpu
