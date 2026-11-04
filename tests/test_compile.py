@@ -2,7 +2,8 @@ import pytest
 import torch
 
 from torchlinops import NUFFT, ArrayToBlocks, BlocksToArray, Chain, Dense, Identity
-from torchlinops.functional import grid, interpolate, interpolate_adjoint, ungrid
+from torchlinops.functional import interpolate, interpolate_adjoint
+from torchlinops.functional._interp import grid, ungrid
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 
 try:
