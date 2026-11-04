@@ -6,22 +6,16 @@ from typing import Any
 import torch
 from torch.cuda import Event, Stream, current_stream, default_stream
 
-from torchlinops import config
 from torchlinops.utils import INDENT, default_to
 
 from ..nameddim import NamedShape as NS
 from ..nameddim import Shape
 from .identity import Identity
-from .namedlinop import NamedLinop
+from .namedlinop import NamedLinop, _log_transfer
 
 __all__ = ["DeviceSpec", "ToDevice"]
 
 logger = logging.getLogger("torchlinops")
-
-
-def _log_transfer(msg):
-    if config.log_device_transfers:
-        logger.info(msg)
 
 
 @dataclass
