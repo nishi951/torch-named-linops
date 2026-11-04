@@ -54,3 +54,10 @@ def test_weights_torch_invalid_norm():
 def test_apply_default_kernel_params_invalid():
     with pytest.raises(ValueError):
         _apply_default_kernel_params("unknown_kernel", {})
+
+
+def test_apply_default_kernel_params_does_not_mutate_input():
+    kernel_params = {}
+    result = _apply_default_kernel_params("kaiser_bessel", kernel_params)
+    assert kernel_params == {}
+    assert result == {"beta": 1.0}

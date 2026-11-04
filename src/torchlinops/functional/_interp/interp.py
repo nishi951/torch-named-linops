@@ -23,9 +23,7 @@ class InterpolateFn(Function):
         pad_mode: str,
         kernel_params: dict,
     ) -> Tensor:
-        output = ungrid(vals, locs, width, kernel, norm, pad_mode, kernel_params)
-        output.requires_grad_(vals.requires_grad)
-        return output
+        return ungrid(vals, locs, width, kernel, norm, pad_mode, kernel_params)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
@@ -128,7 +126,7 @@ class InterpolateAdjointFn(Function):
         pad_mode: str,
         kernel_params: dict,
     ) -> Tensor:
-        output = grid(
+        return grid(
             vals,
             locs,
             grid_size,
@@ -138,8 +136,6 @@ class InterpolateAdjointFn(Function):
             pad_mode,
             kernel_params,
         )
-        output.requires_grad_(vals.requires_grad)
-        return output
 
     @staticmethod
     def setup_context(ctx, inputs, output):
