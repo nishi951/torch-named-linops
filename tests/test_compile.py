@@ -11,11 +11,22 @@ except ImportError:  # pragma: no cover - triton is unavailable on macOS
     tl = None
 
 
+TRITON_GPU_REQUIRED = pytest.mark.skipif(
+    not torch.cuda.is_available() or triton is None,
+    reason="GPU and Triton are required",
+)
+
+
 if triton is not None:
 
     @triton.jit
     def _to_cast_scalar(x, out):
         value = x.to(tl.int64)
+        tl.store(out, value)
+
+    @triton.jit
+    def _tl_cast_scalar(x, out):
+        value = tl.cast(x, tl.int64)
         tl.store(out, value)
 
 
@@ -52,12 +63,12 @@ def test_identity_adjoint_compiles():
 
 
 @pytest.mark.gpu
-@pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="GPU is required but not available"
-)
+@TRITON_GPU_REQUIRED
 @pytest.mark.parametrize(
     "grid_size, block_size, stride",
     [
+        pytest.param((8,), (4,), (4,), id="1d-regular"),
+        pytest.param((1,), (1,), (1,), id="1d-size-1"),
         pytest.param((8, 8), (4, 4), (4, 4), id="regular"),
         # Triton specializes scalar kernel arguments equal to 1. Exercise that
         # path so the scalar_cast workaround is not lost under torch.compile.
@@ -72,12 +83,12 @@ def test_compiled_array_to_blocks_matches_eager(grid_size, block_size, stride):
 
 
 @pytest.mark.gpu
-@pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="GPU is required but not available"
-)
+@TRITON_GPU_REQUIRED
 @pytest.mark.parametrize(
     "grid_size, block_size, stride",
     [
+        pytest.param((8,), (4,), (4,), id="1d-regular"),
+        pytest.param((1,), (1,), (1,), id="1d-size-1"),
         pytest.param((8, 8), (4, 4), (4, 4), id="regular"),
         pytest.param((1, 8, 8), (1, 4, 4), (1, 4, 4), id="size-1"),
     ],
@@ -92,10 +103,7 @@ def test_compiled_blocks_to_array_matches_eager(grid_size, block_size, stride):
 
 
 @pytest.mark.gpu
-@pytest.mark.skipif(
-    not torch.cuda.is_available() or triton is None,
-    reason="GPU and Triton are required",
-)
+@TRITON_GPU_REQUIRED
 def test_to_cast_fails_when_scalar_arg_is_one():
     """Documents why kernels use tl.cast instead of the .to() method.
 
@@ -104,11 +112,15 @@ def test_to_cast_fails_when_scalar_arg_is_one():
     compilation. tl.cast handles the constexpr and materializes the target dtype.
     """
     out = torch.zeros(1, dtype=torch.int64, device="cuda")
-    with pytest.raises(
-        triton.compiler.errors.CompilationError, match="has no attribute 'to'"
-    ):
+    with pytest.raises(triton.compiler.errors.CompilationError, match="to"):
         _to_cast_scalar[(1,)](1, out)
 
-    # The same kernel works when the argument is not specialized.
+    # The same .to() kernel works when the argument is not specialized.
     _to_cast_scalar[(1,)](2, out)
+    assert out.item() == 2
+
+    # tl.cast handles both the specialized value and a normal value.
+    _tl_cast_scalar[(1,)](1, out)
+    assert out.item() == 1
+    _tl_cast_scalar[(1,)](2, out)
     assert out.item() == 2
