@@ -5,6 +5,7 @@ import pytest
 import torch
 
 from torchlinops import Interpolate
+from torchlinops.functional import interpolate, interpolate_adjoint
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.testing import BaseNamedLinopTests
 
@@ -84,3 +85,21 @@ def test_interp_slc():
     linop_split = linop.split(linop, tile)
     assert linop_split.locs.shape == (8, 4, 1, 3)
     assert (linop_split.locs == linop.locs[tuple(obatch)]).all()
+
+
+def test_interpolate_requires_grad_only_for_vals():
+    """locs gradients are not implemented, so only vals should propagate grad."""
+    locs = get_valid_locs((8,), (16, 16), 2, 4.0, "cpu", centered=True)
+    locs.requires_grad_(True)
+
+    vals = torch.randn(16, 16, dtype=torch.complex64)
+    assert not interpolate(vals, locs, 4.0).requires_grad
+
+    vals.requires_grad_(True)
+    assert interpolate(vals, locs, 4.0).requires_grad
+
+    grad_output = torch.randn(8, dtype=torch.complex64)
+    assert not interpolate_adjoint(grad_output, locs, (16, 16), 4.0).requires_grad
+
+    grad_output.requires_grad_(True)
+    assert interpolate_adjoint(grad_output, locs, (16, 16), 4.0).requires_grad

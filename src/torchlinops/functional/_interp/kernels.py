@@ -243,6 +243,9 @@ def spline(x):
 
 
 def _apply_default_kernel_params(kernel: str, kernel_params: dict):
+    # Copy instead of mutating: the dict may be captured by an autograd.Function
+    # and mutated again during backward, which torch.compile cannot trace.
+    kernel_params = dict(kernel_params)
     if kernel == "kaiser_bessel":
         kernel_params["beta"] = kernel_params.get("beta", 1.0)
     elif kernel == "spline":

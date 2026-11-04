@@ -88,16 +88,23 @@ def _ungrid(
         # Ensure contiguity
         vals = vals.contiguous()
         locs = locs.contiguous()
-        # Preallocate output
-        output = torch.zeros(
-            nbatch,
-            *locs_batch_shape,
-            dtype=vals.dtype,
-            device=vals.device,
-        )
         if is_complex:
             vals = torch.view_as_real(vals).contiguous()
-            output = torch.view_as_real(output).contiguous()
+            output = torch.zeros(
+                nbatch,
+                *locs_batch_shape,
+                2,
+                dtype=vals.dtype,
+                device=vals.device,
+            )
+        else:
+            # Preallocate output
+            output = torch.zeros(
+                nbatch,
+                *locs_batch_shape,
+                dtype=vals.dtype,
+                device=vals.device,
+            )
         grid = _get_grid()  # TODO
         BLOCK_WIDTH = get_block_width(width, ndim, is_complex)
         with torch.cuda.device(vals.device):
