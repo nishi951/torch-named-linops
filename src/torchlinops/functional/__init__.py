@@ -5,6 +5,4 @@ from ._interp.ungrid import *
 from ._nufft import *
 from ._pad import *
 from ._unfold.array_to_blocks import *
-from ._unfold.fold import *
 from ._unfold.nblocks import *
-from ._unfold.unfold import *

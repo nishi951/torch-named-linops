@@ -4,7 +4,7 @@ import pytest
 import sigpy as sp
 import torch
 
-from torchlinops.functional import unfold
+from torchlinops.functional._unfold import unfold
 from torchlinops.utils import from_pytorch, to_pytorch
 
 # Small, large x 1d, 2d, 3d

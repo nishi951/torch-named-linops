@@ -2,7 +2,7 @@ import pytest
 import torch
 from einops import rearrange
 
-from torchlinops.functional import fold, unfold
+from torchlinops.functional._unfold import fold, unfold
 from torchlinops.functional._unfold.array_to_blocks import get_norm_weights
 from torchlinops.functional._unfold.nblocks import get_nblocks
 

@@ -3,7 +3,7 @@ from math import prod
 import pytest
 import torch
 
-from torchlinops.functional import fold, unfold
+from torchlinops.functional._unfold import fold, unfold
 from torchlinops.functional._unfold.nblocks import get_nblocks
 from torchlinops.utils import cdata
 
