@@ -1,7 +1,9 @@
 import pytest
 import torch
 
-from torchlinops import ArrayToBlocks, BlocksToArray, Chain, Dense, Identity
+from torchlinops import NUFFT, ArrayToBlocks, BlocksToArray, Chain, Dense, Identity
+from torchlinops.functional import grid, interpolate, interpolate_adjoint, ungrid
+from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 
 try:
     import triton
@@ -124,3 +126,56 @@ def test_to_cast_fails_when_scalar_arg_is_one():
     assert out.item() == 1
     _tl_cast_scalar[(1,)](2, out)
     assert out.item() == 2
+
+
+@pytest.mark.gpu
+@TRITON_GPU_REQUIRED
+@pytest.mark.parametrize("op", ["grid", "ungrid"])
+def test_functional_interp_complex_compiles(op):
+    locs = get_valid_locs((8,), (16, 16), 2, 4.0, "cpu", centered=True).cuda()
+    if op == "ungrid":
+        x = torch.randn(16, 16, dtype=torch.complex64, device="cuda")
+        fn = lambda t: ungrid(t, locs, 4.0)
+    else:
+        x = torch.randn(8, dtype=torch.complex64, device="cuda")
+        fn = lambda t: grid(t, locs, (16, 16), 4.0)
+
+    compiled = torch.compile(fn, fullgraph=True)
+    torch.testing.assert_close(compiled(x), fn(x))
+
+
+@pytest.mark.gpu
+@TRITON_GPU_REQUIRED
+@pytest.mark.parametrize("mode", ["forward", "adjoint"])
+def test_interp_locs_grad_does_not_propagate_compiled(mode):
+    locs = get_valid_locs((8,), (16, 16), 2, 4.0, "cpu", centered=True).cuda()
+    locs.requires_grad_(True)
+
+    if mode == "forward":
+        x = torch.randn(16, 16, dtype=torch.complex64, device="cuda")
+        fn = lambda t: interpolate(t, locs, 4.0)
+    else:
+        x = torch.randn(8, dtype=torch.complex64, device="cuda")
+        fn = lambda t: interpolate_adjoint(t, locs, (16, 16), 4.0)
+
+    compiled = torch.compile(fn, fullgraph=True)
+    out = compiled(x)
+    assert out.requires_grad is False
+    torch.testing.assert_close(out, fn(x))
+
+
+@pytest.mark.gpu
+@TRITON_GPU_REQUIRED
+def test_nufft_complex_compiles_forward_and_backward():
+    locs = get_valid_locs((8,), (16, 16), 2, 4.0, "cpu", centered=True).cuda()
+    op = NUFFT(locs.clone(), (16, 16), output_shape=("R",), width=4.0, oversamp=1.25)
+
+    x = torch.randn(16, 16, dtype=torch.complex64, device="cuda")
+    compiled = torch.compile(lambda t: op(t), fullgraph=True)
+    torch.testing.assert_close(compiled(x), op(x))
+
+    x_compiled = x.clone().requires_grad_(True)
+    x_eager = x.clone().requires_grad_(True)
+    compiled(x_compiled).abs().sum().backward()
+    op(x_eager).abs().sum().backward()
+    torch.testing.assert_close(x_compiled.grad, x_eager.grad)
