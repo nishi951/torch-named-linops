@@ -8,8 +8,6 @@ try:  # pragma: no cover
     import triton
     import triton.language as tl
 
-    from .casting import scalar_cast as cast
-
     TRITON_ENABLED = True
 except ImportError:
     from torchlinops.utils import fake_tl as tl
@@ -199,9 +197,9 @@ def _unfold1d(
         return
 
     # Convert types
-    x_nblocks = cast(x_nblocks, tl.uint64)
-    x_size = cast(x_size, tl.uint64)
-    x_block_dim = cast(x_block_dim, tl.uint64)
+    x_nblocks = tl.cast(x_nblocks, tl.uint64)
+    x_size = tl.cast(x_size, tl.uint64)
+    x_block_dim = tl.cast(x_block_dim, tl.uint64)
 
     nblocks = x_nblocks
     block_dim = x_block_dim
@@ -285,12 +283,12 @@ def _unfold2d(
         return
 
     # Convert types
-    x_nblocks = cast(x_nblocks, tl.uint64)
-    y_nblocks = cast(y_nblocks, tl.uint64)
-    x_size = cast(x_size, tl.uint64)
-    y_size = cast(y_size, tl.uint64)
-    x_block_dim = cast(x_block_dim, tl.uint64)
-    y_block_dim = cast(y_block_dim, tl.uint64)
+    x_nblocks = tl.cast(x_nblocks, tl.uint64)
+    y_nblocks = tl.cast(y_nblocks, tl.uint64)
+    x_size = tl.cast(x_size, tl.uint64)
+    y_size = tl.cast(y_size, tl.uint64)
+    x_block_dim = tl.cast(x_block_dim, tl.uint64)
+    y_block_dim = tl.cast(y_block_dim, tl.uint64)
 
     # global sizes
     nblocks = x_nblocks * y_nblocks
@@ -405,15 +403,15 @@ def _unfold3d(
         return
 
     # Convert types
-    x_nblocks = cast(x_nblocks, tl.uint64)
-    y_nblocks = cast(y_nblocks, tl.uint64)
-    z_nblocks = cast(z_nblocks, tl.uint64)
-    x_size = cast(x_size, tl.uint64)
-    y_size = cast(y_size, tl.uint64)
-    z_size = cast(z_size, tl.uint64)
-    x_block_dim = cast(x_block_dim, tl.uint64)
-    y_block_dim = cast(y_block_dim, tl.uint64)
-    z_block_dim = cast(z_block_dim, tl.uint64)
+    x_nblocks = tl.cast(x_nblocks, tl.uint64)
+    y_nblocks = tl.cast(y_nblocks, tl.uint64)
+    z_nblocks = tl.cast(z_nblocks, tl.uint64)
+    x_size = tl.cast(x_size, tl.uint64)
+    y_size = tl.cast(y_size, tl.uint64)
+    z_size = tl.cast(z_size, tl.uint64)
+    x_block_dim = tl.cast(x_block_dim, tl.uint64)
+    y_block_dim = tl.cast(y_block_dim, tl.uint64)
+    z_block_dim = tl.cast(z_block_dim, tl.uint64)
 
     nblocks = x_nblocks * y_nblocks * z_nblocks
     block_dim = x_block_dim * y_block_dim * z_block_dim
