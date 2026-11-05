@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 
 from benchmarks._compiled_cases import (
@@ -7,6 +9,7 @@ from benchmarks._compiled_cases import (
     iter_specs,
     levels_for,
 )
+from benchmarks.conftest import remove_owned_latest_files
 
 
 def test_registry_covers_all_linops_and_functional_kernels():
@@ -52,3 +55,19 @@ def test_functional_cases_are_inner_only():
     specs = [s for s in iter_specs("reduced") if s.category == "functional"]
     assert specs
     assert {s.level for s in specs} == {"inner"}
+
+
+def test_case_by_op_includes_functional_kernels():
+    from benchmarks._compiled_cases import CASE_BY_OP
+
+    assert "functional.unfold" in CASE_BY_OP
+
+
+def test_compiled_session_preserves_eager_files(tmp_path: Path):
+    (tmp_path / "results.json").write_text("eager")
+    (tmp_path / "compiled-reduced.json").write_text("old")
+
+    remove_owned_latest_files(tmp_path, ["compiled-reduced.json"])
+
+    assert (tmp_path / "results.json").read_text() == "eager"
+    assert not (tmp_path / "compiled-reduced.json").exists()
