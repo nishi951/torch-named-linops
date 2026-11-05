@@ -73,3 +73,45 @@ def test_b2a(dev, dtype, spec, request):
         spec["stride"],
     )
     assert torch.allclose(x.grad, gradx)
+
+
+def test_a2b_forward_does_not_call_requires_grad(monkeypatch):
+    x = torch.randn(1, 4, 4, requires_grad=True)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError(
+            "ArrayToBlocksFn.forward must not call requires_grad_ on its output"
+        )
+
+    monkeypatch.setattr(torch.Tensor, "requires_grad_", forbidden)
+
+    y = F.array_to_blocks(x, (2, 2), (2, 2))
+
+    assert y.requires_grad is True
+
+
+def test_b2a_forward_does_not_call_requires_grad(monkeypatch):
+    x = torch.randn(1, 2, 2, 2, 2, requires_grad=True)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError(
+            "BlocksToArrayFn.forward must not call requires_grad_ on its output"
+        )
+
+    monkeypatch.setattr(torch.Tensor, "requires_grad_", forbidden)
+
+    y = F.blocks_to_array(x, (4, 4), (2, 2), (2, 2))
+
+    assert y.requires_grad is True
+
+
+@pytest.mark.parametrize("op", ["a2b", "b2a"])
+def test_forward_grad_flag_follows_input(op):
+    if op == "a2b":
+        x = torch.randn(1, 4, 4)
+        y = F.array_to_blocks(x, (2, 2), (2, 2))
+    else:
+        x = torch.randn(1, 2, 2, 2, 2)
+        y = F.blocks_to_array(x, (4, 4), (2, 2), (2, 2))
+
+    assert y.requires_grad is False
