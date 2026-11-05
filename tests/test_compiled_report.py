@@ -129,3 +129,37 @@ def test_full_page_states_phase_coverage():
     assert "CUDA-only" in md
     assert "forward-only" in md
     assert "deep-dive-only" in md
+
+
+def test_compiled_markdown_links_speedup_chart():
+    data = _payload("reduced")
+    data["rows"][0]["device"] = "cpu"
+
+    md = build_compiled_markdown(data, "reduced")
+
+    assert "assets/speedup_cpu.png" in md
+
+
+def test_compiled_markdown_links_wrapper_vs_inner_chart():
+    data = _payload("reduced")
+    data["rows"][0]["device"] = "cpu"
+    data["rows"].append(
+        {
+            **data["rows"][0],
+            "level": "inner",
+            "speedup": 1.5,
+        }
+    )
+
+    md = build_compiled_markdown(data, "reduced")
+
+    assert "assets/speedup_wrapper_vs_inner_cpu.png" in md
+
+
+def test_compiled_markdown_omits_charts_without_timed_rows():
+    data = _payload("reduced")
+    data["rows"][0]["config"] = "fullgraph"
+
+    md = build_compiled_markdown(data, "reduced")
+
+    assert "assets/speedup_" not in md

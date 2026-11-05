@@ -217,6 +217,53 @@ def _build_speedup_section(rows: list[dict]) -> list[str]:
     return lines
 
 
+def _has_speedup_chart(rows: list[dict], device: str) -> bool:
+    return any(
+        row.get("device") == device
+        and row.get("config") == "default"
+        and row.get("level") == "wrapper"
+        and row.get("speedup") is not None
+        for row in rows
+    )
+
+
+def _has_wrapper_vs_inner_chart(rows: list[dict], device: str) -> bool:
+    grouped: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    for row in rows:
+        if (
+            row.get("device") == device
+            and row.get("config") == "default"
+            and row.get("speedup") is not None
+        ):
+            key = (
+                row.get("op", ""),
+                row.get("method", ""),
+                row.get("dtype", ""),
+            )
+            grouped[key].add(row.get("level", ""))
+    return any({"wrapper", "inner"} <= levels for levels in grouped.values())
+
+
+def _build_chart_section(rows: list[dict]) -> list[str]:
+    sections: list[str] = []
+    for device, label in (("cpu", "CPU"), ("cuda", "GPU")):
+        charts: list[str] = []
+        if _has_speedup_chart(rows, device):
+            charts.append(f"![Compiled speedup — {label}](assets/speedup_{device}.png)")
+        if _has_wrapper_vs_inner_chart(rows, device):
+            charts.append(
+                "![Wrapper vs inner compile unit — "
+                f"{label}](assets/speedup_wrapper_vs_inner_{device}.png)"
+            )
+        if charts:
+            sections += [f"### {label}", ""]
+            for chart in charts:
+                sections += [chart, ""]
+    if not sections:
+        return []
+    return ["## Charts", "", *sections]
+
+
 def _build_summary_section(rows: list[dict]) -> list[str]:
     lines = ["## Summary", ""]
     if not rows:
@@ -388,6 +435,7 @@ def build_compiled_markdown(data: dict | None, level: str | None) -> str:
     lines.extend(_build_compatibility_section(rows))
     lines.extend(_build_break_details_section(rows))
     lines.extend(_build_speedup_section(rows))
+    lines.extend(_build_chart_section(rows))
     lines.extend(_build_summary_section(rows))
     lines.extend(_build_functional_section(rows))
     if level == "full":

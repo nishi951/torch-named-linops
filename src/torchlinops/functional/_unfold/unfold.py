@@ -60,6 +60,18 @@ def unfold(
     if is_complex:
         y = y.reshape(*y.shape[:-1], y.shape[-1] // 2, 2)
         y = torch.view_as_complex(y)
+        if mask is None:
+            # Work around a Dynamo fake-tensor limitation: view_as_complex
+            # produces a complex view over real storage, and Dynamo's meta
+            # conversion tries to reconstruct that view with view_as_complex on
+            # the real base, which requires the base's last dimension to be 2.
+            # Materialize the result so downstream compiled calls (e.g. A.H)
+            # work. This costs one output-sized copy for complex calls, but
+            # keeps eager and compiled outputs dense and consistent. It can be
+            # removed once Dynamo handles complex views over real storage.
+            # Masked indexing below already materializes the result, so it does
+            # not need the extra clone.
+            y = y.clone()
     if mask is not None:
         y = y[..., mask]
     return y

@@ -115,3 +115,20 @@ def test_forward_grad_flag_follows_input(op):
         y = F.blocks_to_array(x, (4, 4), (2, 2), (2, 2))
 
     assert y.requires_grad is False
+
+
+@pytest.mark.parametrize("op", ["a2b", "b2a"])
+def test_complex_output_is_dense_for_downstream_compile(op):
+    if op == "a2b":
+        x = torch.randn(1, 4, 4, dtype=torch.complex64)
+        y = F.array_to_blocks(x, (2, 2), (2, 2))
+    else:
+        x = torch.randn(1, 2, 2, 2, 2, dtype=torch.complex64)
+        y = F.blocks_to_array(x, (4, 4), (2, 2), (2, 2))
+
+    assert y.is_complex()
+    assert y._base is None
+
+    torch._dynamo.reset()
+    compiled = torch.compile(lambda t: t.clone())
+    torch.testing.assert_close(compiled(y), y)
