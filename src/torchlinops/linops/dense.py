@@ -6,7 +6,7 @@ from torch import Tensor, nn
 
 from torchlinops import config
 
-from ..nameddim import AnyDim, Shape, align
+from ..nameddim import ELLIPSES, AnyDim, Shape, align, iscompatible
 from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
@@ -111,12 +111,23 @@ class Dense(NamedLinop):
                 )
             weightshape, ishape, oshape = self._infer_dense_shapes(weight)
 
+        if sum(dim == ELLIPSES for dim in weightshape) > 1:
+            raise ValueError(
+                f"weightshape may contain at most one ellipsis, got {weightshape}"
+            )
+
         super().__init__(NS(ishape, oshape))
         self.weight = nn.Parameter(weight, requires_grad=False)
         self._shape.weightshape = weightshape
 
         broadcast_dims = broadcast_dims if broadcast_dims is not None else []
         self._shape.broadcast_dims = broadcast_dims
+
+        iscompat, _ = iscompatible(self.weightshape, self.weight.shape)
+        if not iscompat:
+            raise ValueError(
+                f"weightshape {self.weightshape} and actual weight shape (self.weight.shape) are not compatible."
+            )
 
     @classmethod
     def from_einstr(
@@ -404,10 +415,19 @@ class Dense(NamedLinop):
         return weight[tuple(weightbatch)]
 
     def size(self, dim: str):
-        if dim in self.broadcast_dims:
+        if dim in self.broadcast_dims or dim == ELLIPSES:
             return None
-        if dim in self.weightshape:
-            return self.weight.shape[self.weightshape.index(dim)]
+        # Guaranteed only one ellipsis axis
+        # However it may span multiple weight axes
+        ellipsis_axes_count = self.weight.ndim - len(self.weightshape)
+        seen_ellipsis = False
+        for axis, weight_dim in enumerate(self.weightshape):
+            if weight_dim == ELLIPSES:
+                seen_ellipsis = True
+            elif weight_dim == dim:
+                if seen_ellipsis:
+                    axis += ellipsis_axes_count
+                return self.weight.shape[axis]
         return None
 
 
