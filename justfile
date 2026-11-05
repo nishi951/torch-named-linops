@@ -21,16 +21,24 @@ dev: docs serve
 test:
     uv run pytest
 
-# Run CPU benchmarks only
+# Run CPU benchmarks (eager + reduced compiled)
 bench-cpu:
     uv run pytest benchmarks/ -m "benchmark and not gpu"
 
-# Run all benchmarks (CPU + GPU)
+# Run all benchmarks (eager + reduced compiled, CPU + GPU)
 bench-gpu:
     uv run pytest benchmarks/ -m benchmark
 
 # Run all benchmarks (alias for bench-gpu)
 bench: bench-gpu
+
+# Run the full compiled matrix (slow)
+bench-compiled:
+    uv run pytest benchmarks/test_compiled_benchmarks.py -m benchmark --compiled-level full
+
+# Run only the reduced compiled matrix
+bench-compiled-reduced:
+    uv run pytest benchmarks/test_compiled_benchmarks.py -m benchmark --compiled-level reduced
 
 # Generate benchmark report for docs
 bench-report:
