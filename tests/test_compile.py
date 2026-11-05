@@ -1,7 +1,16 @@
 import pytest
 import torch
 
-from torchlinops import NUFFT, ArrayToBlocks, BlocksToArray, Chain, Dense, Identity
+from torchlinops import (
+    NUFFT,
+    ArrayToBlocks,
+    BlocksToArray,
+    Chain,
+    Concat,
+    Dense,
+    Identity,
+    Stack,
+)
 from torchlinops.functional import interpolate, interpolate_adjoint
 from torchlinops.functional._interp import grid, ungrid
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
@@ -63,6 +72,64 @@ def test_identity_adjoint_compiles():
     out = compiled(x)
 
     torch.testing.assert_close(out, linop.H(x))
+
+
+def test_concat_dense_compiles_cpu():
+    """Regression coverage for #230: Concat traces Dense.size during compile."""
+    A = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    B = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    linop = Concat(A, B, idim="Q")
+    x = torch.randn(1, 8, dtype=torch.complex64)
+
+    compiled = torch.compile(lambda t: linop(t))
+
+    torch.testing.assert_close(compiled(x), linop(x))
+
+
+def test_stack_dense_compiles_cpu():
+    """Regression coverage for #230: Stack traces Dense.size during compile."""
+    A = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    B = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    linop = Stack(A, B, odim_and_idx=("Q", 1))
+    x = torch.randn(1, 4, dtype=torch.complex64)
+
+    compiled = torch.compile(lambda t: linop(t))
+
+    torch.testing.assert_close(compiled(x), linop(x))
+
+
+def test_dense_multi_axis_ellipsis_size_compiles():
+    """Dense.size must resolve axes after a multi-axis ellipsis under Dynamo."""
+    weight = torch.randn(2, 7, 5, 3)
+    linop = Dense(weight, ("...", "M", "N"), ("...", "M"), ("...", "N"))
+    x = torch.randn(4)
+
+    def fn(t):
+        return t + linop.size("M") + linop.size("N")
+
+    compiled = torch.compile(fn, fullgraph=True)
+
+    torch.testing.assert_close(compiled(x), x + 5 + 3)
 
 
 @pytest.mark.gpu
