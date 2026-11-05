@@ -90,6 +90,7 @@ norecursedirs = [
     "dev",
 ]
 minversion = "6.0"
+pythonpath = ["."]
 addopts = """
 -ra -q \
 -m 'not slow and not benchmark'
