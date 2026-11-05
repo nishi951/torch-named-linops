@@ -220,3 +220,7 @@ locations via `torch._dynamo.explain`. Break counts are PyTorch-version
 dependent and are intended as a monitoring signal, not a pass/fail criterion on
 their own. The page prefers the newest full-level data; if only a reduced run
 exists, it labels the page and notes that the full-only phases were not run.
+
+Full-level phase coverage is deliberately narrower than the sweep: phases run
+CUDA-only, recompilation is forward-only, autograd is deep-dive-only, and each
+phase uses the case's first dtype.

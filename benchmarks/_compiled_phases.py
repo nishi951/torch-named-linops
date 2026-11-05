@@ -238,7 +238,7 @@ def _row(op: str, level: str, config: str, dtype: torch.dtype, **fields) -> dict
         "dtype": str(dtype),
         "status": "ok",
         "cell_class": "works",
-        "graph_breaks": 0,
+        "graph_breaks": None,
         "break_locations": [],
         "recompiles": None,
         "max_abs_diff": None,
@@ -303,7 +303,12 @@ def _run_chain(name: str, device: str = "cuda") -> list[dict]:
             continue
 
         max_abs, max_rel = diff_metrics(eager_x, out)
-        breaks, locations = capture_graph_breaks(step, x0, f"pipeline-{name}-{config}")
+        if config == "default":
+            breaks, locations = capture_graph_breaks(
+                step, x0, f"pipeline-{name}-{config}"
+            )
+        else:
+            breaks, locations = None, []
         rows.append(
             _row(
                 f"pipeline.{name}",
@@ -371,5 +376,21 @@ def _run_chain(name: str, device: str = "cuda") -> list[dict]:
 def run_pipeline_phase(device: str = "cuda") -> list[dict]:
     rows: list[dict] = []
     for name in CHAINS:
-        rows.extend(_run_chain(name, device=device))
+        try:
+            rows.extend(_run_chain(name, device=device))
+        except Exception:  # noqa: BLE001 - recorded, not swallowed
+            rows.append(
+                _row(
+                    f"pipeline.{name}",
+                    "loop",
+                    "build",
+                    torch.float32,
+                    device=device,
+                    status="error",
+                    cell_class="fails_loud",
+                    graph_breaks=None,
+                    traceback_tail=traceback.format_exc().strip()[-2000:],
+                    notes="pipeline construction or eager run failed",
+                )
+            )
     return rows

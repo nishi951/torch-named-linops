@@ -82,3 +82,50 @@ def test_load_compiled_results_falls_back_to_reduced(tmp_path: Path):
 
 def test_load_compiled_results_missing(tmp_path: Path):
     assert load_compiled_results(tmp_path) == (None, None)
+
+
+def test_load_compiled_results_skips_malformed_full(tmp_path: Path):
+    (tmp_path / "compiled-full.json").write_text("{not json")
+    (tmp_path / "compiled-reduced.json").write_text(json.dumps(_payload("reduced")))
+
+    data, level = load_compiled_results(tmp_path)
+
+    assert level == "reduced"
+    assert data["level"] == "reduced"
+
+
+def test_speedup_section_excludes_fullgraph_rows():
+    data = _payload("full")
+    data["rows"].append(
+        {
+            **data["rows"][0],
+            "config": "fullgraph",
+            "speedup": 5.0,
+        }
+    )
+
+    md = build_compiled_markdown(data, "full")
+
+    assert "5.00x" not in md
+
+
+def test_break_locations_are_rendered():
+    data = _payload("reduced")
+    data["rows"][0]["graph_breaks"] = 2
+    data["rows"][0]["break_locations"] = ["namedlinop.py:711 logger.debug"]
+    data["rows"][0]["effective_class"] = "works_with_breaks"
+
+    md = build_compiled_markdown(data, "reduced")
+
+    assert "namedlinop.py:711 logger.debug" in md
+
+
+def test_full_page_states_phase_coverage():
+    data = _payload("full")
+    data["phases"] = {"recompile": [{"op": "Dense", "level": "wrapper"}]}
+
+    md = build_compiled_markdown(data, "full")
+
+    assert "CUDA-only" in md
+    assert "forward-only" in md
+    assert "deep-dive-only" in md

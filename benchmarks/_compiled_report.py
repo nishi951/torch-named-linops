@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -61,8 +62,12 @@ def load_compiled_results(results_dir: Path) -> tuple[dict | None, str | None]:
     """Load the newest available compiled results, preferring the full level."""
     for level in ("full", "reduced"):
         path = results_dir / f"compiled-{level}.json"
-        if path.exists():
+        if not path.exists():
+            continue
+        try:
             return json.loads(path.read_text()), level
+        except (OSError, json.JSONDecodeError) as exc:
+            warnings.warn(f"Could not read {path}: {exc}", stacklevel=2)
     return None, None
 
 
@@ -137,9 +142,43 @@ def _build_compatibility_section(rows: list[dict]) -> list[str]:
     return lines
 
 
+def _build_break_details_section(rows: list[dict]) -> list[str]:
+    lines = ["### Graph-break details", ""]
+    break_rows = [
+        row
+        for row in rows
+        if (row.get("graph_breaks") or 0) > 0 or row.get("break_locations")
+    ]
+    if not break_rows:
+        lines += ["No graph breaks were recorded.", ""]
+        return lines
+    for row in sorted(
+        break_rows,
+        key=lambda r: (
+            r.get("op", ""),
+            r.get("method", ""),
+            r.get("device", ""),
+            r.get("config", ""),
+        ),
+    ):
+        lines.append(
+            f"- **{row.get('op', '')}** ({row.get('level', '')}, "
+            f"{row.get('method', '')}, {row.get('device', '')}, "
+            f"{row.get('config', '')}) — {row.get('graph_breaks')} breaks"
+        )
+        for location in row.get("break_locations", [])[:3]:
+            lines.append(f"  - `{_cell(location)}`")
+    lines.append("")
+    return lines
+
+
 def _build_speedup_section(rows: list[dict]) -> list[str]:
     lines = ["## Speedups", ""]
-    speed_rows = [row for row in rows if row.get("speedup") is not None]
+    speed_rows = [
+        row
+        for row in rows
+        if row.get("speedup") is not None and row.get("config") == "default"
+    ]
     if not speed_rows:
         lines += ["No timed rows recorded.", ""]
         return lines
@@ -151,6 +190,7 @@ def _build_speedup_section(rows: list[dict]) -> list[str]:
                 row.get("level", ""),
                 row.get("method", ""),
                 row.get("device", ""),
+                row.get("dtype", ""),
                 _format_time(row.get("eager_time")),
                 _format_time(row.get("compiled_time")),
                 _format_speedup(row.get("speedup")),
@@ -164,6 +204,7 @@ def _build_speedup_section(rows: list[dict]) -> list[str]:
                 "Level",
                 "Method",
                 "Device",
+                "Dtype",
                 "Eager",
                 "Compiled",
                 "Speedup",
@@ -238,17 +279,33 @@ def _build_functional_section(rows: list[dict]) -> list[str]:
         return lines
     lines.append(
         _table(
-            ["Operator", "Device", "Class", "Graph breaks", "Speedup"],
+            [
+                "Operator",
+                "Device",
+                "Dtype",
+                "Config",
+                "Class",
+                "Graph breaks",
+                "Speedup",
+            ],
             [
                 [
                     row.get("op", ""),
                     row.get("device", ""),
+                    row.get("dtype", ""),
+                    row.get("config", ""),
                     row.get("effective_class", row.get("cell_class", "")),
                     "—" if row.get("graph_breaks") is None else row.get("graph_breaks"),
                     _format_speedup(row.get("speedup")),
                 ]
                 for row in sorted(
-                    functional, key=lambda r: (r.get("op", ""), r.get("device", ""))
+                    functional,
+                    key=lambda r: (
+                        r.get("op", ""),
+                        r.get("device", ""),
+                        r.get("dtype", ""),
+                        r.get("config", ""),
+                    ),
                 )
             ],
         )
@@ -329,9 +386,18 @@ def build_compiled_markdown(data: dict | None, level: str | None) -> str:
     lines.append("")
     lines.extend(_build_metadata_section(metadata))
     lines.extend(_build_compatibility_section(rows))
+    lines.extend(_build_break_details_section(rows))
     lines.extend(_build_speedup_section(rows))
     lines.extend(_build_summary_section(rows))
     lines.extend(_build_functional_section(rows))
+    if level == "full":
+        lines += ["## Full-only Phases", ""]
+        lines.append(
+            "Phase coverage is deliberately narrow: CUDA-only, recompilation is "
+            "forward-only, autograd is deep-dive-only, and each phase uses the "
+            "case's first dtype."
+        )
+        lines.append("")
     lines.extend(_build_phase_section("Recompilation", phases.get("recompile", [])))
     lines.extend(_build_phase_section("Autograd", phases.get("autograd", [])))
     lines.extend(_build_phase_section("Pipeline", phases.get("pipeline", [])))
@@ -369,7 +435,9 @@ def _plot_speedup_bars(rows: list[dict], device: str, assets_dir: Path) -> None:
         return
 
     selected.sort(key=lambda row: row["speedup"])
-    labels = [f"{row['op']} ({row['method']})" for row in selected]
+    labels = [
+        f"{row['op']} ({row['method']}, {row.get('dtype', '')})" for row in selected
+    ]
     values = [row["speedup"] for row in selected]
     colors = ["#2E7D32" if value >= 1.0 else "#C62828" for value in values]
 
@@ -386,44 +454,54 @@ def _plot_speedup_bars(rows: list[dict], device: str, assets_dir: Path) -> None:
 
 
 def _plot_wrapper_vs_inner(rows: list[dict], device: str, assets_dir: Path) -> None:
-    grouped: dict[str, dict[str, float]] = defaultdict(dict)
+    grouped: dict[tuple[str, str, str], dict[str, float]] = defaultdict(dict)
     for row in rows:
         if (
             row.get("device") == device
             and row.get("config") == "default"
             and row.get("speedup") is not None
         ):
-            grouped[row.get("op", "")][row.get("level", "")] = row["speedup"]
+            key = (
+                row.get("op", ""),
+                row.get("method", ""),
+                row.get("dtype", ""),
+            )
+            grouped[key][row.get("level", "")] = row["speedup"]
 
     selected = {
-        op: levels
-        for op, levels in grouped.items()
+        key: levels
+        for key, levels in grouped.items()
         if "wrapper" in levels and "inner" in levels
     }
     if not selected:
         return
 
-    ops = sorted(selected)
-    x = np.arange(len(ops))
+    keys = sorted(selected)
+    x = np.arange(len(keys))
     width = 0.38
-    fig, ax = plt.subplots(figsize=(10, max(4, len(ops) * 0.6)))
+    fig, ax = plt.subplots(figsize=(10, max(4, len(keys) * 0.6)))
     ax.bar(
         x - width / 2,
-        [selected[op]["wrapper"] for op in ops],
+        [selected[key]["wrapper"] for key in keys],
         width,
         label="wrapper",
         color="#4C72B0",
     )
     ax.bar(
         x + width / 2,
-        [selected[op]["inner"] for op in ops],
+        [selected[key]["inner"] for key in keys],
         width,
         label="inner",
         color="#7FB3D5",
     )
     ax.axhline(1.0, color="black", linewidth=0.8, linestyle="--")
     ax.set_xticks(x)
-    ax.set_xticklabels(ops, rotation=45, ha="right", fontsize=8)
+    ax.set_xticklabels(
+        [f"{op} ({method}, {dtype})" for op, method, dtype in keys],
+        rotation=45,
+        ha="right",
+        fontsize=8,
+    )
     ax.set_ylabel("Compiled speedup (eager / compiled)")
     ax.set_title(f"Wrapper vs inner compile unit — {device.upper()}")
     ax.legend()

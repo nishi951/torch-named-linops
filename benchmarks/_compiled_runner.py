@@ -153,6 +153,7 @@ def effective_class(
     graph_breaks: int | None,
     speedup: float | None,
     degraded: bool,
+    config: str | None = None,
 ) -> str:
     if status == "n_a":
         return "n_a"
@@ -160,6 +161,8 @@ def effective_class(
         return cell_class
     if degraded:
         return "silent_degradation"
+    if config == "default" and graph_breaks is None:
+        return "works_with_unknown_breaks"
     if graph_breaks is not None and graph_breaks > 0:
         return "works_with_breaks"
     if speedup is not None and speedup < 0.9:
@@ -213,20 +216,34 @@ def median_time(
     return statistics.median(durations)
 
 
+def _format_break_reason(reason) -> str:
+    reason_text = str(getattr(reason, "reason", reason)).strip().splitlines()
+    text = reason_text[0][:220] if reason_text else "unknown graph break"
+    stack = getattr(reason, "user_stack", None) or []
+    if stack:
+        frame = stack[0]
+        text = (f"{frame.filename}:{frame.lineno} in {frame.name}: {text}")[:300]
+    return text
+
+
 def capture_graph_breaks(
     target: Callable[[torch.Tensor], torch.Tensor],
     input_: torch.Tensor,
     spec_key: str,
     log_dir: Path | None = None,
-) -> tuple[int, list[str]]:
-    """Run torch._dynamo.explain and optionally write its report to a log file."""
-    count = 0
+) -> tuple[int | None, list[str]]:
+    """Run torch._dynamo.explain and optionally write its report to a log file.
+
+    Returns ``(None, [error])`` when explain itself fails, so callers cannot
+    mistake a failed measurement for a clean zero-break run.
+    """
+    count: int | None = None
     locations: list[str] = []
     try:
         explanation = torch._dynamo.explain(target)(input_)
         count = max(0, int(getattr(explanation, "graph_break_count", 0) or 0))
         reasons = getattr(explanation, "break_reasons", None) or []
-        locations = [str(r).splitlines()[0][:300] for r in reasons if str(r)]
+        locations = [_format_break_reason(reason) for reason in reasons[:3]]
         text = str(explanation)
         if locations:
             text += "\n\nBreak locations:\n" + "\n".join(locations)
@@ -308,7 +325,9 @@ def execute_cell(
     except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
         return _error_result(spec, exc, phase="compiled")
 
-    graph_breaks, break_locations = (0, [])
+    # Non-default configs do not get an explain pass, so their break count is
+    # unknown rather than a measured zero.
+    graph_breaks, break_locations = (None, [])
     if spec.config == "default":
         graph_breaks, break_locations = capture_graph_breaks(
             target, input_, spec_key(spec), log_dir=log_dir
