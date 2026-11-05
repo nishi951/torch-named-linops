@@ -419,14 +419,14 @@ class Dense(NamedLinop):
             return None
         # Guaranteed only one ellipsis axis
         # However it may span multiple weight axes
-        ellipsis_axes_count = self.weight.ndim - len(self.weightshape)
+        extra_ellipsis_axes_count = self.weight.ndim - len(self.weightshape)
         seen_ellipsis = False
         for axis, weight_dim in enumerate(self.weightshape):
             if weight_dim == ELLIPSES:
                 seen_ellipsis = True
             elif weight_dim == dim:
                 if seen_ellipsis:
-                    axis += ellipsis_axes_count
+                    axis += extra_ellipsis_axes_count
                 return self.weight.shape[axis]
         return None
 
