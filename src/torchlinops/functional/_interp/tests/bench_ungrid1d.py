@@ -3,7 +3,7 @@ from math import prod
 import sigpy as sp
 import torch
 
-from torchlinops.functional import ungrid
+from torchlinops.functional._interp import ungrid
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.utils import from_pytorch
 from torchlinops.utils._device import device_ordinal
