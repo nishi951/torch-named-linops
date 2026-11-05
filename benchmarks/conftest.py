@@ -1,6 +1,7 @@
 """Pytest configuration and session-scoped benchmark collector."""
 
 import json
+import os
 import platform
 import shutil
 import subprocess  # nosec
@@ -21,6 +22,7 @@ NUM_WARMUP = 3
 DIFF_PATHS = [
     "src/",
     "tests/",
+    "benchmarks/",
     "uv.lock",
     "pyproject.toml",
 ]
@@ -212,6 +214,7 @@ def _result_to_dict(result: CellResult) -> dict:
             result.graph_breaks,
             result.speedup,
             result.degraded,
+            spec.config,
         ),
         "graph_breaks": result.graph_breaks,
         "break_locations": list(result.break_locations),
@@ -251,18 +254,26 @@ def remove_owned_latest_files(latest_dir: Path, names: list[str]) -> None:
 
 def _write_compiled_results(config, latest_dir: Path) -> bool:
     level = getattr(config, "_compiled_level", None)
-    results = getattr(config, "_compiled_results", None)
-    if not level or not results:
+    results = getattr(config, "_compiled_results", None) or []
+    phases = dict(getattr(config, "_compiled_phases", {}) or {})
+    if not level or (not results and not phases):
         return False
 
     latest_dir.mkdir(parents=True, exist_ok=True)
     metadata = _collect_metadata()
     payload = compiled_results_payload(results, level, metadata)
-    payload["phases"] = dict(getattr(config, "_compiled_phases", {}))
+    payload["phases"] = phases
 
     filename = f"compiled-{level}.json"
+    target = latest_dir / filename
+    temp = latest_dir / f"{filename}.tmp"
     remove_owned_latest_files(latest_dir, [filename])
-    (latest_dir / filename).write_text(json.dumps(payload, indent=2))
+    try:
+        temp.write_text(json.dumps(payload, indent=2))
+        os.replace(temp, target)
+    finally:
+        if temp.exists():
+            temp.unlink()
 
     if metadata.get("dirty") and not (latest_dir / "patch.diff").exists():
         _write_patch_diff(latest_dir)
@@ -387,7 +398,9 @@ def pytest_sessionfinish(session, exitstatus):
     """Write benchmark results to disk at the end of the session."""
     config = session.config
     results = getattr(config, "_benchmark_results", None)
-    if not results and not getattr(config, "_compiled_results", None):
+    compiled_results = getattr(config, "_compiled_results", None)
+    compiled_phases = getattr(config, "_compiled_phases", None)
+    if not results and not compiled_results and not compiled_phases:
         return
 
     benchmarks_dir = Path(__file__).parent

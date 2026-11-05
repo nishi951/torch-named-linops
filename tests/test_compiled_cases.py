@@ -1,4 +1,6 @@
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import torch
 
@@ -9,7 +11,12 @@ from benchmarks._compiled_cases import (
     iter_specs,
     levels_for,
 )
-from benchmarks.conftest import remove_owned_latest_files
+from benchmarks._compiled_runner import CellSpec
+from benchmarks.conftest import (
+    DIFF_PATHS,
+    _write_compiled_results,
+    remove_owned_latest_files,
+)
 
 
 def test_registry_covers_all_linops_and_functional_kernels():
@@ -71,3 +78,62 @@ def test_compiled_session_preserves_eager_files(tmp_path: Path):
 
     assert (tmp_path / "results.json").read_text() == "eager"
     assert not (tmp_path / "compiled-reduced.json").exists()
+
+
+def test_entry_records_builder_failure(monkeypatch):
+    from benchmarks import test_compiled_benchmarks as entry
+
+    class BoomCase:
+        op = "Boom"
+        category = "linop"
+        deep_dive = False
+        inner_build = None
+
+        def build(self, *args):
+            raise RuntimeError("build boom")
+
+    class Session:
+        def __init__(self):
+            self.recorded = []
+
+        def record(self, result):
+            self.recorded.append(result)
+
+    spec = CellSpec(
+        op="Boom",
+        category="linop",
+        method="fwd",
+        device="cpu",
+        dtype=torch.float32,
+        level="wrapper",
+        config="default",
+    )
+    monkeypatch.setitem(entry.CASE_BY_OP, "Boom", BoomCase())
+    session = Session()
+
+    entry.run_compiled_row(spec, session)
+
+    assert len(session.recorded) == 1
+    result = session.recorded[0]
+    assert result.status == "error"
+    assert result.cell_class == "fails_loud"
+    assert "build boom" in (result.traceback_tail or "")
+
+
+def test_phase_only_results_are_written(tmp_path: Path):
+    config = SimpleNamespace(
+        _compiled_level="full",
+        _compiled_results=[],
+        _compiled_phases={"recompile": [{"op": "Dense", "recompiles": 1}]},
+    )
+
+    written = _write_compiled_results(config, tmp_path)
+
+    assert written is True
+    payload = json.loads((tmp_path / "compiled-full.json").read_text())
+    assert payload["rows"] == []
+    assert payload["phases"]["recompile"][0]["op"] == "Dense"
+
+
+def test_dirty_paths_include_benchmarks():
+    assert "benchmarks/" in DIFF_PATHS

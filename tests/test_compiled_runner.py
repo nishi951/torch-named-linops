@@ -66,6 +66,11 @@ def test_effective_class_taxonomy():
     assert effective_class("ok", "works", 0, 1.2, True) == "silent_degradation"
     assert effective_class("ok", "fails_silent", 0, None, False) == "fails_silent"
     assert effective_class("n_a", "n_a", 0, None, False) == "n_a"
+    assert (
+        effective_class("ok", "works", None, 1.2, False, "default")
+        == "works_with_unknown_breaks"
+    )
+    assert effective_class("ok", "works", None, 1.2, False, "fullgraph") == "works"
 
 
 def test_detect_degradation():
@@ -108,8 +113,45 @@ def test_capture_graph_breaks_records_explain_failure(monkeypatch):
 
     monkeypatch.setattr(torch._dynamo, "explain", boom)
     count, locations = capture_graph_breaks(lambda t: t, torch.ones(2), "boom")
-    assert count == 0
+    assert count is None
     assert any("explain failed" in loc for loc in locations)
+
+
+def test_capture_graph_breaks_includes_user_stack():
+    def target(t):
+        y = t + 1
+        torch._dynamo.graph_break()
+        return y * 2
+
+    count, locations = capture_graph_breaks(target, torch.ones(4), "stack")
+
+    assert count >= 1
+    assert any("test_compiled_runner.py" in location for location in locations)
+
+
+def test_execute_cell_records_compiled_failure(monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("compiled boom")
+
+    monkeypatch.setattr(torch, "compile", boom)
+    res = execute_cell(_spec(), lambda t: t * 2, torch.randn(3), warmup=1, iters=1)
+    assert res.status == "error"
+    assert res.cell_class == "fails_loud"
+    assert "compiled boom" in (res.traceback_tail or "")
+
+
+def test_fullgraph_rows_have_unknown_breaks():
+    weight = torch.randn(7, 3)
+    x = torch.randn(7)
+    res = execute_cell(
+        _spec(config="fullgraph"),
+        lambda t: t @ weight,
+        x,
+        warmup=1,
+        iters=1,
+    )
+    assert res.status == "ok", res.traceback_tail
+    assert res.graph_breaks is None
 
 
 def test_measure_recompiles_two_shapes():
