@@ -407,9 +407,6 @@ SKIPPED = {
     "BreakpointLinop": "debugging operator invokes pdb; automated run would block"
 }
 
-CASE_BY_OP = {case.op: case for case in CASES}
-
-
 # --- Functional (triton kernel) cases -------------------------------------
 
 
@@ -475,6 +472,8 @@ CASES.extend(
         ),
     ]
 )
+
+CASE_BY_OP = {case.op: case for case in CASES}
 
 
 # --- Matrix iteration -----------------------------------------------------
