@@ -1,6 +1,7 @@
 """Pytest configuration and session-scoped benchmark collector."""
 
 import json
+import os
 import platform
 import shutil
 import subprocess  # nosec
@@ -11,6 +12,8 @@ from pathlib import Path
 import pytest
 import torch
 
+from benchmarks._compiled_cases import iter_specs, spec_id
+from benchmarks._compiled_runner import PROTOCOLS, CellResult, effective_class
 from torchlinops.utils.benchmark import CupyHandler, TorchHandler
 
 NUM_WARMUP = 3
@@ -19,6 +22,7 @@ NUM_WARMUP = 3
 DIFF_PATHS = [
     "src/",
     "tests/",
+    "benchmarks/",
     "uv.lock",
     "pyproject.toml",
 ]
@@ -175,6 +179,139 @@ class BenchmarkSession:
         return max(0.01, min(0.5, min_run_time))
 
 
+class CompiledBenchmarkSession:
+    """Collects compiled benchmark results during a pytest session."""
+
+    def __init__(self, config, level: str):
+        self.config = config
+        self.level = level
+        config._compiled_results = []
+        config._compiled_phases = {}
+        config._compiled_level = level
+
+    def record(self, result: CellResult) -> None:
+        self.config._compiled_results.append(_result_to_dict(result))
+
+    def record_phase(self, kind: str, rows: list[dict]) -> None:
+        self.config._compiled_phases[kind] = rows
+
+
+def _result_to_dict(result: CellResult) -> dict:
+    spec = result.spec
+    return {
+        "op": spec.op,
+        "category": spec.category,
+        "method": spec.method,
+        "device": spec.device,
+        "dtype": str(spec.dtype),
+        "level": spec.level,
+        "config": spec.config,
+        "status": result.status,
+        "cell_class": result.cell_class,
+        "effective_class": effective_class(
+            result.status,
+            result.cell_class,
+            result.graph_breaks,
+            result.speedup,
+            result.degraded,
+            spec.config,
+        ),
+        "graph_breaks": result.graph_breaks,
+        "break_locations": list(result.break_locations),
+        "recompiles": result.recompiles,
+        "max_abs_diff": result.max_abs_diff,
+        "max_rel_diff": result.max_rel_diff,
+        "eager_time": result.eager_time,
+        "compiled_time": result.compiled_time,
+        "speedup": result.speedup,
+        "degraded": result.degraded,
+        "traceback_tail": result.traceback_tail,
+        "notes": result.notes,
+    }
+
+
+def compiled_results_payload(results: list[dict], level: str, metadata: dict) -> dict:
+    return {
+        "metadata": {
+            **metadata,
+            "suite_level": level,
+            "protocol": PROTOCOLS[level],
+        },
+        "level": level,
+        "rows": results,
+    }
+
+
+def remove_owned_latest_files(latest_dir: Path, names: list[str]) -> None:
+    """Remove only the named files from the latest results directory."""
+    for name in names:
+        path = latest_dir / name
+        if path.is_file() or path.is_symlink():
+            path.unlink()
+        elif path.is_dir():
+            shutil.rmtree(path)
+
+
+def _write_compiled_results(config, latest_dir: Path) -> bool:
+    level = getattr(config, "_compiled_level", None)
+    results = getattr(config, "_compiled_results", None) or []
+    phases = dict(getattr(config, "_compiled_phases", {}) or {})
+    if not level or (not results and not phases):
+        return False
+
+    latest_dir.mkdir(parents=True, exist_ok=True)
+    metadata = _collect_metadata()
+    payload = compiled_results_payload(results, level, metadata)
+    payload["phases"] = phases
+
+    filename = f"compiled-{level}.json"
+    target = latest_dir / filename
+    temp = latest_dir / f"{filename}.tmp"
+    remove_owned_latest_files(latest_dir, [filename])
+    try:
+        temp.write_text(json.dumps(payload, indent=2))
+        os.replace(temp, target)
+    finally:
+        if temp.exists():
+            temp.unlink()
+
+    if metadata.get("dirty") and not (latest_dir / "patch.diff").exists():
+        _write_patch_diff(latest_dir)
+    return True
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--compiled-level",
+        action="store",
+        default="reduced",
+        choices=("reduced", "full"),
+        help="Compiled benchmark level to run (default: reduced).",
+    )
+
+
+def pytest_generate_tests(metafunc):
+    if "compiled_spec" not in metafunc.fixturenames:
+        return
+
+    level = metafunc.config.getoption("compiled_level")
+    params = []
+    for spec in iter_specs(level):
+        marks = [pytest.mark.benchmark]
+        if spec.device == "cuda":
+            marks.extend(
+                [
+                    pytest.mark.gpu,
+                    pytest.mark.skipif(
+                        not torch.cuda.is_available(),
+                        reason="GPU is required but not available",
+                    ),
+                ]
+            )
+        params.append(pytest.param(spec, id=spec_id(spec), marks=marks))
+    metafunc.parametrize("compiled_spec", params)
+
+
 def _collect_metadata():
     """Collect environment metadata for the benchmark run."""
     metadata = {
@@ -249,11 +386,21 @@ def benchmark_session(request):
     yield session
 
 
+@pytest.fixture(scope="session")
+def compiled_benchmark_session(request):
+    """Session-scoped fixture for collecting compiled benchmark results."""
+    level = request.config.getoption("compiled_level")
+    return CompiledBenchmarkSession(request.config, level)
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_sessionfinish(session, exitstatus):
     """Write benchmark results to disk at the end of the session."""
-    results = getattr(session.config, "_benchmark_results", None)
-    if not results:
+    config = session.config
+    results = getattr(config, "_benchmark_results", None)
+    compiled_results = getattr(config, "_compiled_results", None)
+    compiled_phases = getattr(config, "_compiled_phases", None)
+    if not results and not compiled_results and not compiled_phases:
         return
 
     benchmarks_dir = Path(__file__).parent
@@ -262,19 +409,17 @@ def pytest_sessionfinish(session, exitstatus):
 
     metadata = _collect_metadata()
 
-    # Clear previous latest results (keep directory)
-    for item in latest_dir.iterdir():
-        if item.is_file() or item.is_symlink():
-            item.unlink()
-        elif item.is_dir():
-            shutil.rmtree(item)
+    if results:
+        # Remove only the files this eager suite owns.
+        remove_owned_latest_files(
+            latest_dir, ["results.json", "metadata.json", "patch.diff"]
+        )
+        (latest_dir / "results.json").write_text(json.dumps(results, indent=2))
+        (latest_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
+        if metadata.get("dirty"):
+            _write_patch_diff(latest_dir)
 
-    # Write results and metadata
-    (latest_dir / "results.json").write_text(json.dumps(results, indent=2))
-    (latest_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
+    compiled_written = _write_compiled_results(config, latest_dir)
 
-    if metadata.get("dirty"):
-        _write_patch_diff(latest_dir)
-
-    # Archive to date-SHA directory
-    _archive_results(latest_dir, metadata)
+    if results or compiled_written:
+        _archive_results(latest_dir, metadata)

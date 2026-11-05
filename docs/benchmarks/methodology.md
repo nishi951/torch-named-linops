@@ -202,3 +202,25 @@ just docs
 Results are saved to `benchmarks/results/latest/` and automatically archived
 to `benchmarks/results/<date>-<sha>/`. If the working tree is dirty, a
 `patch.diff` is saved alongside the results for reproducibility.
+
+## Compiled Benchmarks
+
+The compiled suite measures eager vs `torch.compile` behavior without changing
+the eager pages above. It has two levels:
+
+- **reduced** — a quick compatibility sweep over every operator: forward and
+  adjoint, wrapper level (plus inner level for deep-dive operators), default
+  compile, CPU and CUDA, light timing. This runs as part of `just bench`.
+- **full** — the complete matrix: all methods, both dtypes, wrapper and inner
+  levels, default and `fullgraph`, plus shape-recompilation, autograd, and
+  pipeline checks. Run it with `just bench-compiled`.
+
+Every default-compile row records the graph-break count and first break
+locations via `torch._dynamo.explain`. Break counts are PyTorch-version
+dependent and are intended as a monitoring signal, not a pass/fail criterion on
+their own. The page prefers the newest full-level data; if only a reduced run
+exists, it labels the page and notes that the full-only phases were not run.
+
+Full-level phase coverage is deliberately narrower than the sweep: phases run
+CUDA-only, recompilation is forward-only, autograd is deep-dive-only, and each
+phase uses the case's first dtype.

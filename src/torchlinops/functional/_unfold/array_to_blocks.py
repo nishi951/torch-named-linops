@@ -23,9 +23,7 @@ class ArrayToBlocksFn(Function):
         out,  # Optional[Tensor]
     ) -> Tensor:
         """Remembered something about Function not liking type annotations?"""
-        output = unfold(input, block_shape, stride, mask, out)
-        output.requires_grad_(input.requires_grad)
-        return output
+        return unfold(input, block_shape, stride, mask, out)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
@@ -77,9 +75,7 @@ class BlocksToArrayFn(Function):
         mask,  # Tensor
         out,  # Optional[Tensor]
     ) -> Tensor:
-        output = fold(input, im_size, block_shape, stride, mask, out)
-        output.requires_grad_(input.requires_grad)
-        return output
+        return fold(input, im_size, block_shape, stride, mask, out)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
