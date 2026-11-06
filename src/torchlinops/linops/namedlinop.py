@@ -332,6 +332,7 @@ class NamedLinop(nn.Module):
         ``torchlinops.config.cache_adjoint_normal = False`` to disable caching.
         """
         try:
+            # Not redundant because _build_adjoint() has compilation disabled
             if config.cache_adjoint_normal and self._adjoint is not None:
                 return self._adjoint[0]
             return self._build_adjoint()
@@ -360,6 +361,7 @@ class NamedLinop(nn.Module):
 
     @torch.compiler.disable
     def _build_adjoint(self):
+        """Adjoint creation bookkeeping. Compiler disabled to prevent tracing issues."""
         if config.cache_adjoint_normal:
             if self._adjoint is None:
                 try:
@@ -398,6 +400,7 @@ class NamedLinop(nn.Module):
         ``torchlinops.config.cache_adjoint_normal = False`` to disable caching.
         """
         try:
+            # Not redundant because _build_normal() has compilation disabled
             if config.cache_adjoint_normal and self._normal is not None:
                 return self._normal[0]
             return self._build_normal()
@@ -406,6 +409,7 @@ class NamedLinop(nn.Module):
 
     @torch.compiler.disable
     def _build_normal(self):
+        """Normal creation bookkeeping. Compiler disabled to prevent tracing issues."""
         if config.cache_adjoint_normal:
             if self._normal is None:
                 try:
