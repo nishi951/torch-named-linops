@@ -332,21 +332,9 @@ class NamedLinop(nn.Module):
         ``torchlinops.config.cache_adjoint_normal = False`` to disable caching.
         """
         try:
-            if config.cache_adjoint_normal:
-                if self._adjoint is None:
-                    try:
-                        _adjoint = self.adjoint()
-                        _adjoint._adjoint = [self]
-                        self._adjoint = [_adjoint]
-                    except AttributeError:
-                        traceback.print_exc()
-                        raise
-                    if not torch.compiler.is_compiling():
-                        logger.debug(
-                            f"{type(self).__name__}: Making new adjoint {_adjoint._shape}"
-                        )
+            if config.cache_adjoint_normal and self._adjoint is not None:
                 return self._adjoint[0]
-            return self.adjoint()
+            return self._build_adjoint()
         except AttributeError as e:
             raise RuntimeError(f"AttributeError in {type(self).__name__}.H: {e}") from e
 
@@ -370,6 +358,24 @@ class NamedLinop(nn.Module):
         adj._update_suffix(adjoint=True)
         return adj
 
+    @torch.compiler.disable
+    def _build_adjoint(self):
+        if config.cache_adjoint_normal:
+            if self._adjoint is None:
+                try:
+                    _adjoint = self.adjoint()
+                    _adjoint._adjoint = [self]
+                    self._adjoint = [_adjoint]
+                except AttributeError:
+                    traceback.print_exc()
+                    raise
+                if not torch.compiler.is_compiling():
+                    logger.debug(
+                        f"{type(self).__name__}: Making new adjoint {_adjoint._shape}"
+                    )
+            return self._adjoint[0]
+        return self.adjoint()
+
     @final
     def _update_suffix(self, adjoint: bool = False, normal: bool = False):
         if adjoint:
@@ -392,18 +398,24 @@ class NamedLinop(nn.Module):
         ``torchlinops.config.cache_adjoint_normal = False`` to disable caching.
         """
         try:
-            if config.cache_adjoint_normal:
-                if self._normal is None:
-                    try:
-                        _normal = self.normal()
-                        self._normal = [_normal]
-                    except AttributeError:
-                        traceback.print_exc()
-                        raise
+            if config.cache_adjoint_normal and self._normal is not None:
                 return self._normal[0]
-            return self.normal()
+            return self._build_normal()
         except AttributeError as e:
             raise RuntimeError(f"AttributeError in {type(self).__name__}.N: {e}") from e
+
+    @torch.compiler.disable
+    def _build_normal(self):
+        if config.cache_adjoint_normal:
+            if self._normal is None:
+                try:
+                    _normal = self.normal()
+                    self._normal = [_normal]
+                except AttributeError:
+                    traceback.print_exc()
+                    raise
+            return self._normal[0]
+        return self.normal()
 
     def normal(self, inner=None) -> "NamedLinop":
         """Create the normal operator $A^H A$, optionally with an inner operator.
