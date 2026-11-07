@@ -121,3 +121,16 @@ class BaseNamedLinopTests(ABC):
             out.sum().backward()
         grad_out = torch.ones_like(out)
         assert x.grad.allclose(A.H(grad_out), rtol=1e-3)
+
+    def test_compile(self, linop_input_output):
+        """Basic compilation test"""
+        A, x, y = linop_input_output
+
+        A_comp = torch.compile(A)
+        torch.testing.assert_close(A_comp(x), A(x))
+
+        AH_comp = torch.compile(A.H)
+        torch.testing.assert_close(AH_comp(y), A.H(y))
+
+        AN_comp = torch.compile(A.N)
+        torch.testing.assert_close(AN_comp(x), A.N(x))

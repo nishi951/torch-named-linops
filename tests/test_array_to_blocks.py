@@ -19,8 +19,8 @@ class TestArrayToBlocks(BaseNamedLinopTests):
     equality_check = "approx"
 
     # Fixture/test parameterization
-    devices = ["cpu"]
-    instances = ["small3d"]
+    devices = ("cpu",)
+    instances = ("small3d",)
 
     @pytest.fixture(
         scope="class",
@@ -84,8 +84,31 @@ class TestArrayToBlocks(BaseNamedLinopTests):
         return spec
 
     def test_size(self, linop_input_output):
-        A, x, y = linop_input_output
+        A, _x, _y = linop_input_output
         for dim in A.dims:
             if dim != "...":
                 size = A.size(dim)
                 assert size is None or isinstance(size, int)
+
+    def test_compile(self, linop_input_output):
+        """Use a tiny fixture for the compile smoke test.
+
+        The class's correctness fixture is 3D with stride 1, which produces
+        13^3 = 2197 blocks. The CPU fallback unrolls that loop into a graph
+        that takes Inductor minutes to schedule (and can exceed Python's
+        recursion limit), so compile a single-block 2D operator instead.
+        """
+        op = ArrayToBlocks((2, 2), (2, 2), (2, 2))
+        x = torch.randn(2, 2, 2, dtype=torch.complex64)
+        y = op(x).clone()
+
+        torch._dynamo.reset()
+        torch.testing.assert_close(torch.compile(op)(x), op(x))
+
+        H = op.H
+        torch._dynamo.reset()
+        torch.testing.assert_close(torch.compile(H)(y), H(y))
+
+        N = op.N
+        torch._dynamo.reset()
+        torch.testing.assert_close(torch.compile(N)(x), N(x))
