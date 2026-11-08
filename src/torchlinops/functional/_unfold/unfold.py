@@ -1,5 +1,3 @@
-from itertools import product
-
 import torch
 from jaxtyping import Bool, Float, Shaped
 from torch import Tensor
@@ -496,7 +494,7 @@ def _unfold_torch(
     block_size: tuple[int, ...],
     stride: tuple[int, ...],
     ndim: int,
-    im_size: tuple[int, ...],
+    _im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
     out: Tensor | None = None,
@@ -505,23 +503,35 @@ def _unfold_torch(
 
     Note: Compile takes forever
     """
+    output_size = (nbatch, *nblocks, *block_size)
     if out is None:
-        out = torch.zeros(
-            (nbatch, *nblocks, *block_size), device=x.device, dtype=x.dtype
-        )
+        out = torch.zeros(output_size, device=x.device, dtype=x.dtype)
     else:
-        out = out.reshape(nbatch, *nblocks, *block_size).zero_()
-    # Python implementation
-    for batch in range(nbatch):
-        for blk in product(*(range(nblk) for nblk in nblocks)):
-            blk_slc = tuple(
-                slice(iblk * st, iblk * st + blk_sz)
-                for iblk, st, blk_sz in zip(blk, stride, block_size)
-            )
-            out_idx = (batch, *blk)
-            in_idx = (batch, *blk_slc)
-            out[out_idx] = x[in_idx]
+        out = out.reshape(*output_size).zero_()
+    x_strided_view = _unfold_helper(x, x.stride(), stride, ndim, output_size)
+    out.copy_(x_strided_view)
     return out
+
+
+def _unfold_helper(x, x_stride, block_stride, ndim, output_size):
+    """
+    Parameters
+    ----------
+    x : Tensor
+        Batched tensor to be unfolded. First dim is batch dim. Should be contiguous.
+
+    Returns
+    -------
+    A view of the input tensor, unfolded to the correct shape
+    """
+    batch_stride = x_stride[0]
+    im_stride = x_stride[1 : 1 + ndim]
+    out_stride = (
+        (batch_stride,)
+        + tuple(i * b for i, b in zip(im_stride, block_stride))
+        + tuple(im_stride)
+    )
+    return x.as_strided(output_size, out_stride)
 
 
 def _prep_unfold(
