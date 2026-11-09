@@ -1,8 +1,11 @@
 """Operator registry for compiled benchmarks.
 
-Each Case builds one operator instantiation on a given (device, dtype) and
-exposes a callable + reference input per evaluation method. Construction shapes
-follow the repo's canonical test/benchmark fixtures.
+Each Case follows the same shape as the repo's ``linop_input_output`` test
+paradigm: building a case returns a linop, an input tensor, and an
+output-shaped tensor. The output is constructed independently rather than as
+``linop(input)`` so adjoint and normal targets get dense tensors without
+inheriting forward views. Functional-kernel cases return their callable in the
+linop position and only support ``fwd``.
 """
 
 from __future__ import annotations
@@ -57,16 +60,7 @@ DEFAULT_METHODS = ["fwd", "adj", "normal"]
 class Case:
     op: str
     category: str
-    build: Callable[
-        [str, torch.dtype, str], tuple[Callable[[Tensor], Tensor], Tensor, str | None]
-    ]
-    inner_build: (
-        Callable[
-            [str, torch.dtype, str],
-            tuple[Callable[[Tensor], Tensor], Tensor, str | None],
-        ]
-        | None
-    ) = None
+    build: Callable[[str, torch.dtype], tuple[object, Tensor, Tensor]]
     methods: list[str] = field(default_factory=lambda: list(DEFAULT_METHODS))
     devices: list[str] = field(default_factory=lambda: ["cuda", "cpu"])
     dtypes: list[torch.dtype] = field(default_factory=lambda: [torch.float32])
@@ -77,32 +71,34 @@ def _rand(shape, dtype: torch.dtype, device: str) -> Tensor:
     return torch.randn(shape, dtype=dtype, device=device)
 
 
-def _call_for_method(
-    A, x: Tensor, method: str
+def target_for_spec(
+    case: Case, spec: CellSpec
 ) -> tuple[Callable[[Tensor], Tensor], Tensor]:
-    if method == "fwd":
-        return (lambda t: A(t)), x
-    if method == "adj":
-        y = A(x)
-        return (lambda t: A.H(t)), y
-    if method == "normal":
-        return (lambda t: A.N(t)), x
-    raise ValueError(f"unknown method {method!r}")
+    """Return the callable to compile and its input for one benchmark cell."""
+    linop, x, y = case.build(spec.device, spec.dtype)
 
+    if case.category == "functional":
+        if spec.method != "fwd":
+            raise ValueError(f"{case.op} only supports the forward method")
+        return linop, x
 
-def _inner_call_for_method(
-    A, x: Tensor, method: str
-) -> tuple[Callable[[Tensor], Tensor], Tensor]:
-    """Target the bare static fn/adj_fn/normal_fn, bypassing the wrapper."""
-    cls = type(A)
-    if method == "fwd":
-        return (lambda t: cls.fn(A, t)), x
-    if method == "adj":
-        y = A(x)
-        return (lambda t: cls.adj_fn(A, t)), y
-    if method == "normal":
-        return (lambda t: cls.normal_fn(A, t)), x
-    raise ValueError(f"unknown method {method!r}")
+    if spec.level == "inner":
+        cls = type(linop)
+        target = {
+            "fwd": cls.fn,
+            "adj": cls.adj_fn,
+            "normal": cls.normal_fn,
+        }[spec.method]
+        input_ = y if spec.method == "adj" else x
+        return (lambda t: target(linop, t)), input_
+
+    if spec.method == "fwd":
+        return (lambda t: linop(t)), x
+    if spec.method == "adj":
+        return (lambda t: linop.H(t)), y
+    if spec.method == "normal":
+        return (lambda t: linop.N(t)), x
+    raise ValueError(f"unknown method {spec.method!r}")
 
 
 def _make_case(
@@ -114,24 +110,16 @@ def _make_case(
     dtypes: list[torch.dtype] | None = None,
     methods: list[str] | None = None,
     deep_dive: bool = False,
-    with_inner: bool = False,
-    note: str | None = None,
 ) -> Case:
-    def build(device: str, dtype: torch.dtype, method: str):
-        A, x = construct(device, dtype)
-        fn, inp = _call_for_method(A, x, method)
-        return fn, inp, note
-
-    def inner_build(device: str, dtype: torch.dtype, method: str):
-        A, x = construct(device, dtype)
-        fn, inp = _inner_call_for_method(A, x, method)
-        return fn, inp, note
+    def build(device: str, dtype: torch.dtype):
+        linop, x = construct(device, dtype)
+        y = torch.randn_like(linop(x))
+        return linop, x, y
 
     return Case(
         op=op,
         category=category,
         build=build,
-        inner_build=inner_build if with_inner else None,
         methods=list(methods or DEFAULT_METHODS),
         devices=list(devices or ["cuda", "cpu"]),
         dtypes=list(dtypes or [torch.float32]),
@@ -346,44 +334,37 @@ CASES: list[Case] = [
     _make_case("ShapeSpec", _shapespec),
     _make_case("Scalar", _scalar),
     _make_case("Sleep", _sleep),
-    _make_case("FFT", _fft, dtypes=[torch.complex64], deep_dive=True, with_inner=True),
+    _make_case("FFT", _fft, dtypes=[torch.complex64], deep_dive=True),
     _make_case(
         "Convolution",
         _convolution,
         dtypes=[torch.float32, torch.complex64],
         deep_dive=True,
-        with_inner=True,
     ),
     _make_case(
         "Interpolate",
         _interpolate,
         dtypes=[torch.complex64],
         deep_dive=True,
-        with_inner=True,
     ),
-    _make_case(
-        "NUFFT", _nufft, dtypes=[torch.complex64], deep_dive=True, with_inner=True
-    ),
+    _make_case("NUFFT", _nufft, dtypes=[torch.complex64], deep_dive=True),
     _make_case(
         "FastSamplingNUFFT",
         _fast_sampling_nufft,
         dtypes=[torch.complex64],
         deep_dive=True,
-        with_inner=True,
     ),
     _make_case(
         "SamplingNUFFT",
         _sampling_nufft,
         dtypes=[torch.complex64],
         deep_dive=True,
-        with_inner=True,
     ),
     _make_case(
         "ToeplitzPSF",
         _toeplitz_psf,
         dtypes=[torch.complex64],
         deep_dive=True,
-        with_inner=True,
     ),
     _make_case("Sampling", _sampling),
     _make_case("ArrayToBlocks", _array_to_blocks, dtypes=[torch.complex64]),
@@ -414,26 +395,33 @@ def _locs(device: str, npts: int = 8) -> Tensor:
     return get_valid_locs((npts,), (16, 16), 2, 4.0, "cpu", centered=True).to(device)
 
 
-def _functional_unfold(device, dtype, method):
+def _functional_build(device, dtype, x, fn):
+    y = torch.randn_like(fn(x))
+    return fn, x, y
+
+
+def _functional_unfold(device, dtype):
     x = _rand((2, 8, 8), torch.complex64, device)
-    return (lambda t: unfold(t, (4, 4), (4, 4))), x, "triton unfold"
+    return _functional_build(device, dtype, x, lambda t: unfold(t, (4, 4), (4, 4)))
 
 
-def _functional_fold(device, dtype, method):
+def _functional_fold(device, dtype):
     x = _rand((2, 2, 2, 4, 4), torch.complex64, device)
-    return (lambda t: fold(t, (8, 8), (4, 4), (4, 4))), x, "triton fold"
+    return _functional_build(
+        device, dtype, x, lambda t: fold(t, (8, 8), (4, 4), (4, 4))
+    )
 
 
-def _functional_grid(device, dtype, method):
+def _functional_grid(device, dtype):
     locs = _locs(device)
     x = _rand((8,), torch.complex64, device)
-    return (lambda t: grid(t, locs, (16, 16), 4.0)), x, "triton grid"
+    return _functional_build(device, dtype, x, lambda t: grid(t, locs, (16, 16), 4.0))
 
 
-def _functional_ungrid(device, dtype, method):
+def _functional_ungrid(device, dtype):
     locs = _locs(device)
     x = _rand((16, 16), torch.complex64, device)
-    return (lambda t: ungrid(t, locs, 4.0)), x, "triton ungrid"
+    return _functional_build(device, dtype, x, lambda t: ungrid(t, locs, 4.0))
 
 
 CASES.extend(
@@ -482,7 +470,7 @@ CASE_BY_OP = {case.op: case for case in CASES}
 def levels_for(case: Case, suite_level: str) -> list[str]:
     if case.category == "functional":
         return ["inner"]
-    if case.deep_dive and case.inner_build is not None:
+    if case.deep_dive:
         return ["wrapper", "inner"]
     return ["wrapper"]
 

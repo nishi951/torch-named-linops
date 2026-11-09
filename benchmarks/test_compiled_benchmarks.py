@@ -9,7 +9,7 @@ import traceback
 import pytest
 import torch
 
-from benchmarks._compiled_cases import CASE_BY_OP
+from benchmarks._compiled_cases import CASE_BY_OP, target_for_spec
 from benchmarks._compiled_runner import (
     PROTOCOLS,
     CellResult,
@@ -23,11 +23,9 @@ _CUDA_REQUIRED = pytest.mark.skipif(
 
 def run_compiled_row(spec, session):
     case = CASE_BY_OP[spec.op]
-    use_inner = spec.level == "inner" and case.inner_build is not None
-    builder = case.inner_build if use_inner else case.build
 
     try:
-        target, input_, note = builder(spec.device, spec.dtype, spec.method)
+        target, input_ = target_for_spec(case, spec)
     except Exception:  # noqa: BLE001 - recorded, not swallowed
         result = CellResult(
             spec=spec,
@@ -42,7 +40,6 @@ def run_compiled_row(spec, session):
 
     protocol = PROTOCOLS[session.level]
     result = execute_cell(spec, target, input_, **protocol)
-    result.notes = " | ".join(filter(None, [note, result.notes]))
     session.record(result)
     return result
 

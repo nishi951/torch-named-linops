@@ -6,10 +6,12 @@ import torch
 
 from benchmarks._compiled_cases import (
     CASES,
+    CASE_BY_OP,
     SKIPPED,
     configs_for,
     iter_specs,
     levels_for,
+    target_for_spec,
 )
 from benchmarks._compiled_runner import CellSpec
 from benchmarks.conftest import (
@@ -37,11 +39,39 @@ def test_full_methods_include_normal_and_all_dtypes():
     assert dense.dtypes == [torch.float32]
 
 
-def test_deep_dive_cases_have_inner_build():
+def test_deep_dive_cases_produce_wrapper_and_inner_specs():
     nufft = next(case for case in CASES if case.op == "NUFFT")
     assert nufft.deep_dive is True
-    assert nufft.inner_build is not None
     assert levels_for(nufft, "reduced") == ["wrapper", "inner"]
+
+
+def test_case_build_returns_linop_input_output():
+    case = CASE_BY_OP["Dense"]
+
+    linop, x, y = case.build("cpu", torch.float32)
+
+    assert hasattr(linop, "H")
+    assert isinstance(x, torch.Tensor)
+    assert isinstance(y, torch.Tensor)
+    assert linop(x).shape == y.shape
+
+
+def test_adjoint_target_uses_independent_output():
+    case = CASE_BY_OP["ArrayToBlocks"]
+    spec = CellSpec(
+        op="ArrayToBlocks",
+        category="linop",
+        method="adj",
+        device="cpu",
+        dtype=torch.complex64,
+        level="wrapper",
+        config="default",
+    )
+
+    target, y = target_for_spec(case, spec)
+
+    assert y._base is None
+    assert target(y).shape == case.build("cpu", torch.complex64)[1].shape
 
 
 def test_reduced_specs_drop_normal_and_fullgraph():
@@ -87,7 +117,6 @@ def test_entry_records_builder_failure(monkeypatch):
         op = "Boom"
         category = "linop"
         deep_dive = False
-        inner_build = None
 
         def build(self, *args):
             raise RuntimeError("build boom")

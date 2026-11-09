@@ -15,7 +15,7 @@ import traceback
 import torch
 from torch import Tensor
 
-from benchmarks._compiled_cases import CASES, levels_for
+from benchmarks._compiled_cases import CASES, levels_for, target_for_spec
 from benchmarks._compiled_runner import (
     TOL,
     CellSpec,
@@ -30,12 +30,6 @@ from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 STEPS = 20
 ALPHA = 0.5
 REPEATS = 3
-
-
-def _builder(case, level: str):
-    if level == "inner" and case.inner_build is not None:
-        return case.inner_build
-    return case.build
 
 
 def _sync(device: str) -> None:
@@ -56,7 +50,6 @@ def _variant(input_: Tensor) -> Tensor | None:
 
 
 def run_recompile_check(case, spec: CellSpec, device: str, dtype: torch.dtype) -> dict:
-    builder = _builder(case, spec.level)
     record = {
         "op": spec.op,
         "level": spec.level,
@@ -69,12 +62,8 @@ def run_recompile_check(case, spec: CellSpec, device: str, dtype: torch.dtype) -
         "shapes": [],
         "notes": "",
     }
-    if builder is None:
-        record["notes"] = "no inner build"
-        return record
-
     try:
-        fn, input_, _ = builder(device, dtype, "fwd")
+        fn, input_ = target_for_spec(case, spec)
         variant = _variant(input_)
         if variant is None:
             record["notes"] = "no batch-shaped input to vary"
@@ -129,7 +118,6 @@ def run_recompile_phase(device: str = "cuda") -> list[dict]:
 
 
 def run_autograd_check(case, spec: CellSpec, device: str, dtype: torch.dtype) -> dict:
-    builder = _builder(case, spec.level)
     row = {
         "op": spec.op,
         "level": spec.level,
@@ -139,7 +127,7 @@ def run_autograd_check(case, spec: CellSpec, device: str, dtype: torch.dtype) ->
         "config": "default",
     }
     try:
-        fn, x, _ = builder(device, dtype, "fwd")
+        fn, x = target_for_spec(case, spec)
         y = torch.randn_like(fn(x).detach())
     except Exception:  # noqa: BLE001 - recorded, not swallowed
         row.update(
