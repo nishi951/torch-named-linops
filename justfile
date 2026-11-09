@@ -34,11 +34,11 @@ bench: bench-gpu
 
 # Run the full compiled matrix (slow)
 bench-compiled:
-    uv run pytest benchmarks/test_compiled_benchmarks.py -m benchmark --compiled-level full
+    uv run pytest benchmarks/compile/test_benchmarks.py -m benchmark --compiled-level full
 
 # Run only the reduced compiled matrix
 bench-compiled-reduced:
-    uv run pytest benchmarks/test_compiled_benchmarks.py -m benchmark --compiled-level reduced
+    uv run pytest benchmarks/compile/test_benchmarks.py -m benchmark --compiled-level reduced
 
 # Generate benchmark report for docs
 bench-report:

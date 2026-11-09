@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 import torch
 from torch import Tensor
 
-from benchmarks._compiled_runner import CellSpec
+from benchmarks.compile.runner import CellSpec
 from torchlinops import (
     FFT,
     NUFFT,
@@ -41,7 +41,6 @@ from torchlinops import (
     Scalar,
     ShapeSpec,
     SimpleLinop,
-    Sleep,
     Stack,
     SumReduce,
     ToDevice,
@@ -58,6 +57,29 @@ DEFAULT_METHODS = ["fwd", "adj", "normal"]
 
 @dataclass
 class Case:
+    """One operator instantiation for the compiled benchmark matrix.
+
+    Attributes
+    ----------
+    op : str
+        Human-readable operator name used as the result-row key.
+    category : str
+        ``"linop"`` for ``NamedLinop`` cases or ``"functional"`` for bare
+        functional kernels.
+    build : callable
+        ``build(device, dtype) -> (linop, input, output)``. ``input`` and
+        ``output`` are independently constructed tensors with the operator's
+        input and output shapes.
+    methods : list of str
+        Methods to evaluate: any of ``"fwd"``, ``"adj"``, ``"normal"``.
+    devices : list of str
+        Devices to evaluate, normally ``["cuda", "cpu"]``.
+    dtypes : list of torch.dtype
+        Dtypes to evaluate. The reduced suite uses the first entry only.
+    deep_dive : bool
+        If true, evaluate both wrapper and inner compile levels.
+    """
+
     op: str
     category: str
     build: Callable[[str, torch.dtype], tuple[object, Tensor, Tensor]]
@@ -65,10 +87,6 @@ class Case:
     devices: list[str] = field(default_factory=lambda: ["cuda", "cpu"])
     dtypes: list[torch.dtype] = field(default_factory=lambda: [torch.float32])
     deep_dive: bool = False
-
-
-def _rand(shape, dtype: torch.dtype, device: str) -> Tensor:
-    return torch.randn(shape, dtype=dtype, device=device)
 
 
 def target_for_spec(
@@ -131,62 +149,66 @@ def _make_case(
 
 
 def _dense(device, dtype):
-    W = _rand((9, 3), dtype, device)
-    return Dense(W, ("M", "N"), ("N",), ("M",)), _rand((3,), dtype, device)
+    W = torch.randn((9, 3), dtype=dtype, device=device)
+    return Dense(W, ("M", "N"), ("N",), ("M",)), torch.randn(
+        (3,), dtype=dtype, device=device
+    )
 
 
 def _dense_simple(device, dtype):
-    W = _rand((5, 3), dtype, device)
-    return Dense(W), _rand((3,), dtype, device)
+    W = torch.randn((5, 3), dtype=dtype, device=device)
+    return Dense(W), torch.randn((3,), dtype=dtype, device=device)
 
 
 def _diagonal(device, dtype):
-    weight = _rand((10, 1, 1), dtype, device)
-    return Diagonal(weight, ("M", "N", "P")), _rand((10, 5, 7), dtype, device)
+    weight = torch.randn((10, 1, 1), dtype=dtype, device=device)
+    return Diagonal(weight, ("M", "N", "P")), torch.randn(
+        (10, 5, 7), dtype=dtype, device=device
+    )
 
 
 def _identity(device, dtype):
-    return Identity(ishape=("N", "M")), _rand((4, 5), dtype, device)
+    return Identity(ishape=("N", "M")), torch.randn((4, 5), dtype=dtype, device=device)
 
 
 def _zero(device, dtype):
-    return Zero(ishape=("N", "M")), _rand((4, 5), dtype, device)
+    return Zero(ishape=("N", "M")), torch.randn((4, 5), dtype=dtype, device=device)
 
 
 def _shapespec(device, dtype):
-    return ShapeSpec(ishape=("N", "M")), _rand((4, 5), dtype, device)
+    return ShapeSpec(ishape=("N", "M")), torch.randn((4, 5), dtype=dtype, device=device)
 
 
 def _scalar(device, dtype):
     weight = 2.0 + 0j if dtype.is_complex else 2.0
-    return Scalar(weight=weight, ioshape=("N",)), _rand((8,), dtype, device)
-
-
-def _sleep(device, dtype):
-    return Sleep(duration=0.0, ioshape=("N",)), _rand((8,), dtype, device)
+    return Scalar(weight=weight, ioshape=("N",)), torch.randn(
+        (8,), dtype=dtype, device=device
+    )
 
 
 def _fft(device, dtype):
-    return FFT(ndim=2, centered=True), _rand((8, 10), torch.complex64, device)
+    return FFT(ndim=2, centered=True), torch.randn(
+        (8, 10), dtype=torch.complex64, device=device
+    )
 
 
 def _convolution(device, dtype):
-    weight = _rand((5,), dtype, device)
+    weight = torch.randn((5,), dtype=dtype, device=device)
     conv = Convolution(weight, in_grid_shape=("x",), out_grid_shape=("x",))
-    return conv, _rand((3, 16), dtype, device)
+    return conv, torch.randn((3, 16), dtype=dtype, device=device)
 
 
 def _interpolate(device, dtype):
     locs = get_valid_locs((8,), (16, 16), 2, 4.0, "cpu", centered=True).to(device)
     op = Interpolate(locs, (16, 16), width=4.0, kernel="kaiser_bessel")
-    return op, _rand((16, 16), torch.complex64, device)
+    return op, torch.randn((16, 16), dtype=torch.complex64, device=device)
 
 
 def _nufft(device, dtype):
     locs = get_valid_locs((8,), (16, 16), 2, 4.0, "cpu", centered=True).to(device)
     op = NUFFT(locs.clone(), (16, 16), output_shape=("R",), width=4.0, oversamp=1.25)
     op._locs_orig = locs.clone()
-    return op, _rand((16, 16), torch.complex64, device)
+    return op, torch.randn((16, 16), dtype=torch.complex64, device=device)
 
 
 def _sampling_nufft_locs(device, grid_size=(16, 16), npts=8, oversamp=1.25):
@@ -199,14 +221,14 @@ def _sampling_nufft_locs(device, grid_size=(16, 16), npts=8, oversamp=1.25):
 def _fast_sampling_nufft(device, dtype):
     locs = _sampling_nufft_locs(device)
     op = FastSamplingNUFFT(locs.clone(), (16, 16), output_shape=("R",), oversamp=1.25)
-    return op, _rand((16, 16), torch.complex64, device)
+    return op, torch.randn((16, 16), dtype=torch.complex64, device=device)
 
 
 def _sampling_nufft(device, dtype):
     locs = _sampling_nufft_locs(device)
     op = SamplingNUFFT(locs.clone(), (16, 16), output_shape=("R",), oversamp=1.25)
     op._locs_orig = locs.clone()
-    return op, _rand((16, 16), torch.complex64, device)
+    return op, torch.randn((16, 16), dtype=torch.complex64, device=device)
 
 
 def _toeplitz_psf(device, dtype):
@@ -222,40 +244,42 @@ def _toeplitz_psf(device, dtype):
     nufft._locs_orig = locs.clone()
     op = toeplitz_psf(nufft, oversamp=nufft.options["oversamp"])
     padded = int(16 * nufft.options["oversamp"])
-    return op, _rand((2, padded, padded), torch.complex64, device)
+    return op, torch.randn((2, padded, padded), dtype=torch.complex64, device=device)
 
 
 def _sampling(device, dtype):
     N, R, K, B = 16, 3, 4, 2
     idx = torch.randint(0, N - 1, (R, K, 2)).to(device)
     op = Sampling.from_stacked_idx(idx, (N, N), ("R", "K"))
-    return op, _rand((B, N, N), dtype, device)
+    return op, torch.randn((B, N, N), dtype=dtype, device=device)
 
 
 def _array_to_blocks(device, dtype):
     op = ArrayToBlocks((8, 8), (4, 4), (4, 4))
-    return op, _rand((2, 8, 8), torch.complex64, device)
+    return op, torch.randn((2, 8, 8), dtype=torch.complex64, device=device)
 
 
 def _blocks_to_array(device, dtype):
     op = BlocksToArray((8, 8), (4, 4), (4, 4))
-    return op, _rand((2, 2, 4, 4), torch.complex64, device)
+    return op, torch.randn((2, 2, 4, 4), dtype=torch.complex64, device=device)
 
 
 def _pad(device, dtype):
-    return Pad((20, 20), (10, 10), Dim("XY")), _rand((10, 10), dtype, device)
+    return Pad((20, 20), (10, 10), Dim("XY")), torch.randn(
+        (10, 10), dtype=dtype, device=device
+    )
 
 
 def _truncate(device, dtype):
     op = Truncate(
         dim=1, from_length=5, to_length=3, ishape=("N", "M"), oshape=("N", "M")
     )
-    return op, _rand((4, 5), dtype, device)
+    return op, torch.randn((4, 5), dtype=dtype, device=device)
 
 
 def _pad_dim(device, dtype):
     op = PadDim(dim=1, from_length=3, to_length=5, ishape=("N", "M"), oshape=("N", "M"))
-    return op, _rand((4, 3), dtype, device)
+    return op, torch.randn((4, 3), dtype=dtype, device=device)
 
 
 def _rearrange(device, dtype):
@@ -266,53 +290,81 @@ def _rearrange(device, dtype):
         oshape=("A", "B", "C"),
         axes_lengths={"A": 2, "B": 3},
     )
-    return op, _rand((6, 4), dtype, device)
+    return op, torch.randn((6, 4), dtype=dtype, device=device)
 
 
 def _sum_reduce(device, dtype):
-    return SumReduce(("A", "B", "C"), ("A", "B")), _rand((5, 2, 3), dtype, device)
+    return SumReduce(("A", "B", "C"), ("A", "B")), torch.randn(
+        (5, 2, 3), dtype=dtype, device=device
+    )
 
 
 def _repeat(device, dtype):
     op = Repeat({"C": 3}, ishape=("A", "B"), oshape=("A", "B", "C"), broadcast_dims=[])
-    return op, _rand((4, 5), dtype, device)
+    return op, torch.randn((4, 5), dtype=dtype, device=device)
 
 
 def _add(device, dtype):
-    A = Dense(_rand((5, 5), dtype, device), ("M", "N"), ("N",), ("M",))
-    B = Dense(_rand((5, 5), dtype, device), ("M", "N"), ("N",), ("M",))
-    C = Dense(_rand((5, 5), dtype, device), ("M", "N"), ("N",), ("M",))
+    A = Dense(
+        torch.randn((5, 5), dtype=dtype, device=device), ("M", "N"), ("N",), ("M",)
+    )
+    B = Dense(
+        torch.randn((5, 5), dtype=dtype, device=device), ("M", "N"), ("N",), ("M",)
+    )
+    C = Dense(
+        torch.randn((5, 5), dtype=dtype, device=device), ("M", "N"), ("N",), ("M",)
+    )
     add = Add(A, B, C)
     add.threaded = False
-    return add, _rand((5,), dtype, device)
+    return add, torch.randn((5,), dtype=dtype, device=device)
 
 
 def _stack(device, dtype):
     Q, P = 4, 3
-    A = Dense(_rand((P, Q), dtype, device), ("P", "Q"), Dim("Q"), Dim("P"))
-    B = Dense(_rand((P, Q), dtype, device), ("P", "Q"), Dim("Q"), Dim("P"))
+    A = Dense(
+        torch.randn((P, Q), dtype=dtype, device=device), ("P", "Q"), Dim("Q"), Dim("P")
+    )
+    B = Dense(
+        torch.randn((P, Q), dtype=dtype, device=device), ("P", "Q"), Dim("Q"), Dim("P")
+    )
     C = Stack(A, B, odim_and_idx=("M", 1))
-    return C, _rand((Q,), dtype, device)
+    return C, torch.randn((Q,), dtype=dtype, device=device)
 
 
 def _concat(device, dtype):
     N, P, Q = 1, 3, 4
-    A = Dense(_rand((N, P, Q), dtype, device), ("N", "P", "Q"), ("N", "Q"), ("N", "P"))
-    B = Dense(_rand((N, P, Q), dtype, device), ("N", "P", "Q"), ("N", "Q"), ("N", "P"))
+    A = Dense(
+        torch.randn((N, P, Q), dtype=dtype, device=device),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    B = Dense(
+        torch.randn((N, P, Q), dtype=dtype, device=device),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
     C = Concat(A, B, idim="Q")
-    return C, _rand((N, 2 * Q), dtype, device)
+    return C, torch.randn((N, 2 * Q), dtype=dtype, device=device)
 
 
 def _chain(device, dtype):
     M, K, N = 5, 4, 3
-    A = Dense(_rand((M, K), dtype, device), ("M", "K"), ("K",), ("M",))
-    B = Dense(_rand((K, N), dtype, device), ("K", "N"), ("N",), ("K",))
-    return Chain(B, A), _rand((N,), dtype, device)
+    A = Dense(
+        torch.randn((M, K), dtype=dtype, device=device), ("M", "K"), ("K",), ("M",)
+    )
+    B = Dense(
+        torch.randn((K, N), dtype=dtype, device=device), ("K", "N"), ("N",), ("K",)
+    )
+    return Chain(B, A), torch.randn((N,), dtype=dtype, device=device)
 
 
 def _to_device(device, dtype):
     dev = torch.device("cuda:0") if device == "cuda" else torch.device("cpu")
-    return ToDevice(dev, dev, ioshape=("N",)), _rand((8,), dtype, device)
+    return ToDevice(dev, dev, ioshape=("N",)), torch.randn(
+        (8,), dtype=dtype, device=device
+    )
 
 
 def _simple_linop(device, dtype):
@@ -322,7 +374,7 @@ def _simple_linop(device, dtype):
         normal=lambda t: 4.0 * t,
         ishape=("N",),
     )
-    return op, _rand((8,), dtype, device)
+    return op, torch.randn((8,), dtype=dtype, device=device)
 
 
 CASES: list[Case] = [
@@ -333,7 +385,6 @@ CASES: list[Case] = [
     _make_case("Zero", _zero),
     _make_case("ShapeSpec", _shapespec),
     _make_case("Scalar", _scalar),
-    _make_case("Sleep", _sleep),
     _make_case("FFT", _fft, dtypes=[torch.complex64], deep_dive=True),
     _make_case(
         "Convolution",
@@ -385,7 +436,8 @@ CASES: list[Case] = [
 
 # BreakpointLinop calls pdb in fn/adj_fn: never run it in an automated sweep.
 SKIPPED = {
-    "BreakpointLinop": "debugging operator invokes pdb; automated run would block"
+    "BreakpointLinop": "debugging operator invokes pdb; automated run would block",
+    "Sleep": "sleep timing is not meaningful; eager sleeps and compile has no effect",
 }
 
 # --- Functional (triton kernel) cases -------------------------------------
@@ -401,12 +453,12 @@ def _functional_build(device, dtype, x, fn):
 
 
 def _functional_unfold(device, dtype):
-    x = _rand((2, 8, 8), torch.complex64, device)
+    x = torch.randn((2, 8, 8), dtype=torch.complex64, device=device)
     return _functional_build(device, dtype, x, lambda t: unfold(t, (4, 4), (4, 4)))
 
 
 def _functional_fold(device, dtype):
-    x = _rand((2, 2, 2, 4, 4), torch.complex64, device)
+    x = torch.randn((2, 2, 2, 4, 4), dtype=torch.complex64, device=device)
     return _functional_build(
         device, dtype, x, lambda t: fold(t, (8, 8), (4, 4), (4, 4))
     )
@@ -414,13 +466,13 @@ def _functional_fold(device, dtype):
 
 def _functional_grid(device, dtype):
     locs = _locs(device)
-    x = _rand((8,), torch.complex64, device)
+    x = torch.randn((8,), dtype=torch.complex64, device=device)
     return _functional_build(device, dtype, x, lambda t: grid(t, locs, (16, 16), 4.0))
 
 
 def _functional_ungrid(device, dtype):
     locs = _locs(device)
-    x = _rand((16, 16), torch.complex64, device)
+    x = torch.randn((16, 16), dtype=torch.complex64, device=device)
     return _functional_build(device, dtype, x, lambda t: ungrid(t, locs, 4.0))
 
 

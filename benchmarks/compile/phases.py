@@ -15,8 +15,8 @@ import traceback
 import torch
 from torch import Tensor
 
-from benchmarks._compiled_cases import CASES, levels_for, target_for_spec
-from benchmarks._compiled_runner import (
+from benchmarks.compile.cases import CASES, levels_for, target_for_spec
+from benchmarks.compile.runner import (
     TOL,
     CellSpec,
     capture_graph_breaks,

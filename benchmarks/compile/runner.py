@@ -26,19 +26,69 @@ SLOW_CALL_SECONDS = 0.5
 
 @dataclass(frozen=True)
 class CellSpec:
+    """One point in the compiled benchmark matrix.
+
+    Attributes
+    ----------
+    op : str
+        Operator name from the case registry.
+    category : str
+        ``"linop"`` or ``"functional"``.
+    method : str
+        ``"fwd"``, ``"adj"``, or ``"normal"``.
+    device : str
+        ``"cuda"`` or ``"cpu"``.
+    dtype : torch.dtype
+        Input dtype for the cell.
+    level : str
+        Compile unit: ``"wrapper"`` or ``"inner"``.
+    config : str
+        ``torch.compile`` mode: ``"default"`` or ``"fullgraph"``.
+    """
+
     op: str
-    category: str  # "linop" | "functional"
-    method: str  # "fwd" | "adj" | "normal"
-    device: str  # "cuda" | "cpu"
+    category: str
+    method: str
+    device: str
     dtype: torch.dtype
-    level: str  # "wrapper" | "inner"
-    config: str  # "default" | "fullgraph"
+    level: str
+    config: str
 
 
 @dataclass
 class CellResult:
+    """Measured and classified outcome for one ``CellSpec``.
+
+    Attributes
+    ----------
+    spec : CellSpec
+        The matrix cell that produced this result.
+    status : str
+        ``"ok"``, ``"error"``, or ``"n_a"``.
+    cell_class : str
+        Raw numeric/execution class before the effective-class overlay.
+    graph_breaks : int or None
+        Measured graph-break count, or ``None`` when not measured.
+    break_locations : list of str
+        Up to three formatted graph-break reasons/locations.
+    recompiles : int or None
+        Shape-driven recompiles, when measured by the full suite.
+    max_abs_diff, max_rel_diff : float or None
+        Compiled-vs-eager numeric differences.
+    eager_time, compiled_time : float or None
+        Median per-call times in seconds.
+    speedup : float or None
+        ``eager_time / compiled_time``.
+    degraded : bool
+        Whether a silent fallback warning was captured.
+    traceback_tail : str or None
+        Trimmed traceback for failed cells.
+    notes : str
+        Free-form annotation.
+    """
+
     spec: CellSpec
-    status: str = "ok"  # "ok" | "error" | "n_a"
+    status: str = "ok"
     cell_class: str = "works"
     graph_breaks: int | None = 0
     break_locations: list[str] = field(default_factory=list)

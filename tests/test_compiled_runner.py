@@ -1,6 +1,6 @@
 import torch
 
-from benchmarks._compiled_runner import (
+from benchmarks.compile.runner import (
     TOL,
     CellSpec,
     capture_graph_breaks,
@@ -45,14 +45,14 @@ def test_diff_metrics_nan_is_inf():
 
 
 def test_nan_output_is_fails_silent():
-    from benchmarks._compiled_runner import run_cell
+    from benchmarks.compile.runner import run_cell
 
     res = run_cell(_spec(), torch.tensor([1.0, 2.0]), torch.tensor([1.0, float("nan")]))
     assert res.cell_class == "fails_silent"
 
 
 def test_shape_disagreement_is_fails_silent():
-    from benchmarks._compiled_runner import run_cell
+    from benchmarks.compile.runner import run_cell
 
     ref = torch.randn(2)
     res = run_cell(_spec(), ref, ref.reshape(1, 2))
@@ -79,7 +79,7 @@ def test_detect_degradation():
 
 
 def test_median_time_counts_warmup_and_iters():
-    from benchmarks._compiled_runner import CallCounter
+    from benchmarks.compile.runner import CallCounter
 
     counter = CallCounter()
     median_time(

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import torch
 
-from benchmarks._compiled_cases import (
+from benchmarks.compile.cases import (
     CASES,
     CASE_BY_OP,
     SKIPPED,
@@ -13,12 +13,9 @@ from benchmarks._compiled_cases import (
     levels_for,
     target_for_spec,
 )
-from benchmarks._compiled_runner import CellSpec
-from benchmarks.conftest import (
-    DIFF_PATHS,
-    _write_compiled_results,
-    remove_owned_latest_files,
-)
+from benchmarks._session import DIFF_PATHS, remove_owned_latest_files
+from benchmarks.compile.results import write_compiled_results
+from benchmarks.compile.runner import CellSpec
 
 
 def test_registry_covers_all_linops_and_functional_kernels():
@@ -95,7 +92,7 @@ def test_functional_cases_are_inner_only():
 
 
 def test_case_by_op_includes_functional_kernels():
-    from benchmarks._compiled_cases import CASE_BY_OP
+    from benchmarks.compile.cases import CASE_BY_OP
 
     assert "functional.unfold" in CASE_BY_OP
 
@@ -111,7 +108,7 @@ def test_compiled_session_preserves_eager_files(tmp_path: Path):
 
 
 def test_entry_records_builder_failure(monkeypatch):
-    from benchmarks import test_compiled_benchmarks as entry
+    from benchmarks.compile import test_benchmarks as entry
 
     class BoomCase:
         op = "Boom"
@@ -156,7 +153,7 @@ def test_phase_only_results_are_written(tmp_path: Path):
         _compiled_phases={"recompile": [{"op": "Dense", "recompiles": 1}]},
     )
 
-    written = _write_compiled_results(config, tmp_path)
+    written = write_compiled_results(config, tmp_path)
 
     assert written is True
     payload = json.loads((tmp_path / "compiled-full.json").read_text())

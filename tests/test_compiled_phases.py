@@ -1,6 +1,6 @@
 import torch
 
-from benchmarks._compiled_phases import pipeline_break_kind
+from benchmarks.compile.phases import pipeline_break_kind
 
 
 def test_pipeline_break_kind_attributes_wrapper_logging():
@@ -21,21 +21,21 @@ def test_pipeline_break_kind_none():
 
 
 def test_simple_chain_builds_on_cpu():
-    from benchmarks._compiled_phases import _simple_chain
+    from benchmarks.compile.phases import _simple_chain
 
     chain, x = _simple_chain("cpu")
     assert chain(x).shape == (2, 8)
 
 
 def test_pipeline_row_default_breaks_are_unknown():
-    from benchmarks._compiled_phases import _row
+    from benchmarks.compile.phases import _row
 
     row = _row("pipeline.x", "loop", "eager", torch.float32)
     assert row["graph_breaks"] is None
 
 
 def test_pipeline_phase_records_chain_build_failure(monkeypatch):
-    from benchmarks import _compiled_phases
+    from benchmarks.compile import phases as _compiled_phases
 
     def boom(device):
         raise RuntimeError("chain build boom")

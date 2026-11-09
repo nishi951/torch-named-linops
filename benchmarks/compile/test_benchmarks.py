@@ -1,7 +1,7 @@
 """Compiled benchmark entry point.
 
-Rows are parametrized by ``benchmarks/conftest.py`` from the case registry,
-according to ``--compiled-level``.
+Rows are parametrized by ``benchmarks/compile/conftest.py`` from the case
+registry, according to ``--compiled-level``.
 """
 
 import traceback
@@ -9,8 +9,8 @@ import traceback
 import pytest
 import torch
 
-from benchmarks._compiled_cases import CASE_BY_OP, target_for_spec
-from benchmarks._compiled_runner import (
+from benchmarks.compile.cases import CASE_BY_OP, target_for_spec
+from benchmarks.compile.runner import (
     PROTOCOLS,
     CellResult,
     execute_cell,
@@ -58,7 +58,7 @@ def _require_full(request):
 @_CUDA_REQUIRED
 def test_recompile_phase(request, compiled_benchmark_session):
     _require_full(request)
-    from benchmarks._compiled_phases import run_recompile_phase
+    from benchmarks.compile.phases import run_recompile_phase
 
     compiled_benchmark_session.record_phase("recompile", run_recompile_phase())
 
@@ -68,7 +68,7 @@ def test_recompile_phase(request, compiled_benchmark_session):
 @_CUDA_REQUIRED
 def test_autograd_phase(request, compiled_benchmark_session):
     _require_full(request)
-    from benchmarks._compiled_phases import run_autograd_phase
+    from benchmarks.compile.phases import run_autograd_phase
 
     compiled_benchmark_session.record_phase("autograd", run_autograd_phase())
 
@@ -78,6 +78,6 @@ def test_autograd_phase(request, compiled_benchmark_session):
 @_CUDA_REQUIRED
 def test_pipeline_phase(request, compiled_benchmark_session):
     _require_full(request)
-    from benchmarks._compiled_phases import run_pipeline_phase
+    from benchmarks.compile.phases import run_pipeline_phase
 
     compiled_benchmark_session.record_phase("pipeline", run_pipeline_phase())

@@ -1,7 +1,11 @@
 import json
 from pathlib import Path
 
-from benchmarks._compiled_report import build_compiled_markdown, load_compiled_results
+from benchmarks.compile.report import (
+    build_compiled_markdown,
+    build_compiled_pages,
+    load_compiled_results,
+)
 
 
 def _payload(level="reduced", config="default"):
@@ -104,7 +108,7 @@ def test_speedup_section_excludes_fullgraph_rows():
         }
     )
 
-    md = build_compiled_markdown(data, "full")
+    md = build_compiled_pages(data, "full")["float-vs-complex.md"]
 
     assert "5.00x" not in md
 
@@ -135,9 +139,9 @@ def test_compiled_markdown_links_speedup_chart():
     data = _payload("reduced")
     data["rows"][0]["device"] = "cpu"
 
-    md = build_compiled_markdown(data, "reduced")
+    md = build_compiled_pages(data, "reduced")["float-vs-complex.md"]
 
-    assert "assets/speedup_cpu.png" in md
+    assert "../assets/speedup_cpu.png" in md
 
 
 def test_compiled_markdown_links_wrapper_vs_inner_chart():
@@ -151,15 +155,38 @@ def test_compiled_markdown_links_wrapper_vs_inner_chart():
         }
     )
 
-    md = build_compiled_markdown(data, "reduced")
+    md = build_compiled_pages(data, "reduced")["wrapper-vs-inner.md"]
 
-    assert "assets/speedup_wrapper_vs_inner_cpu.png" in md
+    assert "../assets/speedup_wrapper_vs_inner_cpu.png" in md
 
 
 def test_compiled_markdown_omits_charts_without_timed_rows():
     data = _payload("reduced")
     data["rows"][0]["config"] = "fullgraph"
 
-    md = build_compiled_markdown(data, "reduced")
+    pages = build_compiled_pages(data, "reduced")
 
-    assert "assets/speedup_" not in md
+    assert "../assets/speedup_" not in pages["float-vs-complex.md"]
+    assert "../assets/speedup_" not in pages["wrapper-vs-inner.md"]
+
+
+def test_reduced_chains_page_omits_pipeline_chart():
+    data = _payload("reduced")
+    md = build_compiled_pages(data, "reduced")["chains.md"]
+    assert "pipeline_speedups.png" not in md
+
+
+def test_full_chains_page_links_pipeline_chart():
+    data = _payload("full")
+    data["phases"] = {
+        "pipeline": [
+            {
+                "op": "pipeline.simple",
+                "level": "loop",
+                "config": "default",
+                "speedup": 1.5,
+            }
+        ]
+    }
+    md = build_compiled_pages(data, "full")["chains.md"]
+    assert "../assets/pipeline_speedups.png" in md

@@ -11,8 +11,8 @@ from typing import Callable
 import pytest
 import torch
 
-from benchmarks._compiled_phases import _simple_chain
-from benchmarks._compiled_runner import capture_graph_breaks, median_time
+from benchmarks.compile.phases import _simple_chain
+from benchmarks.compile.runner import capture_graph_breaks, median_time
 from torchlinops import ArrayToBlocks, Chain, Dense, Interpolate, NUFFT, Sampling
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.functional._unfold import unfold

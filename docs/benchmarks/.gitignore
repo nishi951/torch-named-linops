@@ -7,4 +7,7 @@ tmp/
 index.md
 cpu.md
 gpu.md
-compiled.md
+float-vs-complex.md
+wrapper-vs-inner.md
+autograd.md
+chains.md
