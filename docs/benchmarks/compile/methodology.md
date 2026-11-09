@@ -99,6 +99,29 @@ just bench
 just bench-report
 ```
 
+## Class glossary
+
+Every result row gets one effective class. The classes are:
+
+| Class | Meaning |
+|---|---|
+| `works` | Compiled and ran; output agreed within tolerance; no graph breaks or fallback warnings; speedup at least 0.9x. |
+| `works_with_breaks` | Output agreed, but `torch._dynamo.explain` reported one or more graph breaks. |
+| `works_with_unknown_breaks` | Output agreed, but graph-break measurement itself failed, so the break count is unknown rather than zero. |
+| `compiles_slower` | Output agreed, but the compiled median was below 0.9x eager. |
+| `silent_degradation` | Ran and agreed, but a known fallback warning was captured (for example, Inductor falling back for complex operators). This is flagged even when the timing looks normal. |
+| `fails_loud` | Raised during eager or compiled execution; the traceback tail is recorded. |
+| `fails_silent` | Returned output that disagreed with eager beyond the 1e-3 relative tolerance, or had a shape or non-finite-value mismatch. This is the red-flag class. |
+| `n_a` | Not applicable in this environment, for example a CUDA-only path measured on CPU. |
+| `blocked_out_of_scope` | Failed because of an excluded dependency path (cupy/SigPy), so it is not counted as a compile verdict. |
+
+Supporting terms:
+
+- **Graph break**: a point where Dynamo cannot continue tracing one graph and splits it into fragments. `fullgraph=True` converts graph breaks into loud failures.
+- **Wrapper**: the `NamedLinop` call path, including shape checks and context bookkeeping.
+- **Inner**: the bare `fn` / `adj_fn` / `normal_fn` math function.
+- **Speedup**: eager median time divided by compiled median time; values below 1.0 mean compiled is slower.
+
 ## Caveats
 
 - One GPU and one PyTorch version per run.
