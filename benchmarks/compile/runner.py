@@ -225,6 +225,17 @@ def spec_key(spec: CellSpec) -> str:
     return f"{spec.op}-{spec.method}-{spec.device}-{dtype}-{spec.level}-{spec.config}"
 
 
+def eager_key(spec: CellSpec) -> tuple[str, str, str, str, str]:
+    """Key identifying an eager measurement shared across compile configs."""
+    return (
+        spec.op,
+        spec.method,
+        spec.device,
+        str(spec.dtype),
+        spec.level,
+    )
+
+
 def _sync(device: str) -> None:
     if device == "cuda":
         torch.cuda.synchronize()
@@ -347,15 +358,28 @@ def execute_cell(
     warmup: int,
     iters: int,
     log_dir: Path | None = None,
+    eager_cache: dict[tuple[str, str, str, str, str], tuple[torch.Tensor, float]]
+    | None = None,
 ) -> CellResult:
-    """Run one matrix cell: eager reference, compiled run, classification."""
-    try:
-        ref = target(input_)
-        eager_time = median_time(
-            lambda: target(input_), warmup=warmup, iters=iters, device=spec.device
-        )
-    except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
-        return _error_result(spec, exc, phase="eager")
+    """Run one matrix cell: eager reference, compiled run, classification.
+
+    ``eager_cache`` lets full-matrix runs reuse the eager reference/timing
+    across the ``default`` and ``fullgraph`` configs for the same spec key.
+    """
+    key = eager_key(spec)
+    cached = eager_cache.get(key) if eager_cache is not None else None
+    if cached is not None:
+        ref, eager_time = cached
+    else:
+        try:
+            ref = target(input_)
+            eager_time = median_time(
+                lambda: target(input_), warmup=warmup, iters=iters, device=spec.device
+            )
+        except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+            return _error_result(spec, exc, phase="eager")
+        if eager_cache is not None:
+            eager_cache[key] = (ref, eager_time)
 
     if spec.config == "eager":
         result = run_cell(spec, ref, ref, eager_time=eager_time)

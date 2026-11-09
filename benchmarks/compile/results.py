@@ -21,6 +21,7 @@ class CompiledBenchmarkSession:
         config._compiled_results = []
         config._compiled_phases = {}
         config._compiled_level = level
+        self.eager_cache: dict = {}
 
     def record(self, result: CellResult) -> None:
         self.config._compiled_results.append(result_to_dict(result))

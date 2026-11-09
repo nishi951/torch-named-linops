@@ -169,3 +169,25 @@ def test_check_grad_agreement_cpu():
 
     result = check_grad_agreement(fn, torch.randn(3), torch.randn(3))
     assert result["cell_class"] == "works"
+
+
+def test_execute_cell_reuses_cached_eager(monkeypatch):
+    from benchmarks.compile.runner import eager_key
+
+    spec = _spec(config="fullgraph")
+    x = torch.randn(3)
+    ref = torch.ones_like(x)
+    cache = {eager_key(spec): (ref, 1.0)}
+    eager_calls = []
+
+    def target(t):
+        eager_calls.append(t)
+        raise AssertionError("eager target should have been served from cache")
+
+    monkeypatch.setattr(torch, "compile", lambda fn, **kwargs: lambda t: ref)
+
+    res = execute_cell(spec, target, x, warmup=1, iters=1, eager_cache=cache)
+
+    assert res.status == "ok"
+    assert res.eager_time == 1.0
+    assert eager_calls == []

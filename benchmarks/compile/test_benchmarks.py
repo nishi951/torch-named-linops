@@ -39,7 +39,9 @@ def run_compiled_row(spec, session):
         return result
 
     protocol = PROTOCOLS[session.level]
-    result = execute_cell(spec, target, input_, **protocol)
+    result = execute_cell(
+        spec, target, input_, eager_cache=session.eager_cache, **protocol
+    )
     session.record(result)
     return result
 
