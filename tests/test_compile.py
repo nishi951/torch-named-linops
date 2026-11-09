@@ -2,14 +2,21 @@ import pytest
 import torch
 
 from torchlinops import (
+    FFT,
     NUFFT,
+    Add,
     ArrayToBlocks,
     BlocksToArray,
     Chain,
     Concat,
     Dense,
     Identity,
+    PadDim,
+    ShapeSpec,
+    SimpleLinop,
     Stack,
+    Truncate,
+    config,
 )
 from torchlinops.functional import interpolate, interpolate_adjoint
 from torchlinops.functional._interp import grid, ungrid
@@ -64,14 +71,170 @@ def test_dense_chain_compiles():
 
 
 def test_identity_adjoint_compiles():
-    """CPU coverage for the `H` debug-log guard; runs in CI without a GPU."""
+    """CPU fullgraph coverage for the adjoint forward path."""
     linop = Identity(("N",))
     x = torch.randn(16)
 
+    # Cold .H/.N construction is intentionally eager (see #238), so warm the
+    # adjoint before asking Dynamo for a single full graph.
+    _ = linop.H
     compiled = torch.compile(lambda t: linop.H(t), fullgraph=True)
     out = compiled(x)
 
     torch.testing.assert_close(out, linop.H(x))
+
+
+def _cold_add():
+    A = Dense(torch.randn(5, 5), ("M", "N"), ("N",), ("M",))
+    B = Dense(torch.randn(5, 5), ("M", "N"), ("N",), ("M",))
+    op = Add(A, B)
+    op.threaded = False
+    return op
+
+
+def _cold_stack():
+    A = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    B = Dense(
+        torch.randn(1, 3, 4, dtype=torch.complex64),
+        ("N", "P", "Q"),
+        ("N", "Q"),
+        ("N", "P"),
+    )
+    return Stack(A, B, odim_and_idx=("Q", 1))
+
+
+COLD_CONSTRUCTION_CASES = [
+    pytest.param(
+        lambda: FFT(ndim=2, centered=True),
+        lambda: torch.randn(8, 10, dtype=torch.complex64),
+        id="fft",
+    ),
+    pytest.param(
+        lambda: ArrayToBlocks((8, 8), (4, 4), (4, 4)),
+        lambda: torch.randn(2, 8, 8, dtype=torch.complex64),
+        id="array-to-blocks",
+    ),
+    pytest.param(
+        lambda: BlocksToArray((8, 8), (4, 4), (4, 4)),
+        lambda: torch.randn(2, 2, 4, 4, dtype=torch.complex64),
+        id="blocks-to-array",
+    ),
+    pytest.param(
+        lambda: ShapeSpec(ishape=("N", "M")),
+        lambda: torch.randn(4, 5),
+        id="shape-spec",
+    ),
+    pytest.param(
+        lambda: Truncate(
+            dim=1,
+            from_length=5,
+            to_length=3,
+            ishape=("N", "M"),
+            oshape=("N", "M"),
+        ),
+        lambda: torch.randn(4, 5),
+        id="truncate",
+    ),
+    pytest.param(
+        lambda: PadDim(
+            dim=1,
+            from_length=3,
+            to_length=5,
+            ishape=("N", "M"),
+            oshape=("N", "M"),
+        ),
+        lambda: torch.randn(4, 3),
+        id="pad-dim",
+    ),
+    pytest.param(
+        _cold_stack,
+        lambda: torch.randn(1, 4, dtype=torch.complex64),
+        id="stack",
+    ),
+    pytest.param(
+        lambda: SimpleLinop(
+            forward=lambda t: 2.0 * t,
+            adjoint=lambda t: 2.0 * t,
+            normal=lambda t: 4.0 * t,
+            ishape=("N",),
+        ),
+        lambda: torch.randn(8),
+        id="simple-linop",
+    ),
+    pytest.param(_cold_add, lambda: torch.randn(5), id="add"),
+]
+
+
+@pytest.mark.parametrize("method", ["H", "N"])
+@pytest.mark.parametrize("factory, input_factory", COLD_CONSTRUCTION_CASES)
+def test_cold_adjoint_and_normal_compile_cpu(factory, input_factory, method):
+    """Regression coverage for #238: cold .H/.N construction under torch.compile."""
+    op = factory()
+    x = input_factory()
+    # H consumes the output space; N consumes the input space.
+    inp = op(x).clone() if method == "H" else x.clone()
+    cache_name = "_adjoint" if method == "H" else "_normal"
+    assert getattr(op, cache_name) is None
+
+    torch._dynamo.reset()
+    if method == "H":
+        fn = lambda t: op.H(t)
+    else:
+        fn = lambda t: op.N(t)
+    compiled = torch.compile(fn)
+
+    # Call the compiled function first so the eager reference does not warm
+    # the adjoint/normal cache before Dynamo traces the cold construction.
+    actual = compiled(inp)
+    expected = op.H(inp) if method == "H" else op.N(inp)
+    torch.testing.assert_close(actual, expected)
+
+
+CACHE_DISABLED_CASES = [
+    pytest.param(
+        lambda: FFT(ndim=2, centered=True),
+        lambda: torch.randn(8, 10, dtype=torch.complex64),
+        id="fft",
+    ),
+    pytest.param(
+        lambda: ArrayToBlocks((8, 8), (4, 4), (4, 4)),
+        lambda: torch.randn(2, 8, 8, dtype=torch.complex64),
+        id="array-to-blocks",
+    ),
+]
+
+
+@pytest.mark.parametrize("method", ["H", "N"])
+@pytest.mark.parametrize("factory, input_factory", CACHE_DISABLED_CASES)
+def test_cold_adjoint_and_normal_compile_without_cache_cpu(
+    factory, input_factory, method
+):
+    """Cold construction must also work when adjoint/normal caching is disabled."""
+    op = factory()
+    x = input_factory()
+    inp = op(x).clone() if method == "H" else x.clone()
+    cache_name = "_adjoint" if method == "H" else "_normal"
+    assert getattr(op, cache_name) is None
+
+    torch._dynamo.reset()
+    with config.using(cache_adjoint_normal=False):
+        if method == "H":
+            fn = lambda t: op.H(t)
+        else:
+            fn = lambda t: op.N(t)
+        compiled = torch.compile(fn)
+
+        # Call the compiled function before the eager reference warms anything.
+        actual = compiled(inp)
+        assert getattr(op, cache_name) is None
+        expected = op.H(inp) if method == "H" else op.N(inp)
+
+    torch.testing.assert_close(actual, expected)
 
 
 def test_concat_dense_compiles_cpu():
