@@ -22,11 +22,18 @@ class TestArrayToBlocks(BaseNamedLinopTests):
     # Fixture/test parameterization
     devices = ["cpu", "cuda"]
     instances = ["small3d", "small4d_nomask"]
-    isclose_kwargs: ClassVar[dict] = {"rtol": 1e-3}
+    # Complex64 fold accumulates up to 81 overlapping blocks with CUDA atomics,
+    # so results vary by a few ulps between runs.
+    isclose_kwargs: ClassVar[dict] = {"rtol": 1e-3, "atol": 1e-4}
 
     @pytest.fixture(
         scope="class",
-        params=product(instances, devices),
+        params=[
+            pytest.param((spec, dev), marks=PYTEST_GPU_MARKS)
+            if dev == "cuda"
+            else (spec, dev)
+            for spec, dev in product(instances, devices)
+        ],
     )
     @classmethod
     def linop_input_output(cls, request):
@@ -70,9 +77,9 @@ class TestArrayToBlocks(BaseNamedLinopTests):
                         [0, 0, 0],
                     ],
                     [
+                        [0, 1, 0],
                         [1, 1, 1],
-                        [1, 1, 1],
-                        [1, 1, 1],
+                        [0, 1, 0],
                     ],
                     [
                         [0, 0, 0],
