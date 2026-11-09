@@ -426,7 +426,7 @@ CASES: list[Case] = [
     _make_case("Rearrange", _rearrange),
     _make_case("SumReduce", _sum_reduce),
     _make_case("Repeat", _repeat),
-    _make_case("Add", _add),
+    _make_case("Add", _add, dtypes=[torch.float32, torch.complex64]),
     _make_case("Stack", _stack),
     _make_case("Concat", _concat),
     _make_case("Chain", _chain),

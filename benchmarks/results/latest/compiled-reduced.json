@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "date": "2026-11-09T21:58:06.417020+00:00",
+    "date": "2026-11-09T23:01:52.662427+00:00",
     "python_version": "3.13.3",
     "torch_version": "2.15.0+cu132",
     "cuda_version": "13.2",
     "os": "Linux",
     "num_threads": 12,
-    "commit_sha": "a9aee4e",
-    "full_sha": "a9aee4e27637fba2772db03166d440c73e0dd606",
+    "commit_sha": "db0c77d",
+    "full_sha": "db0c77d82d5372346884769501444ba393d8c55a",
     "gpu_name": "NVIDIA GeForce RTX 3090",
     "dirty": false,
     "suite_level": "reduced",
@@ -34,9 +34,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.1696010157465935e-05,
-      "compiled_time": 3.357185050845146e-05,
-      "speedup": 1.2419932034121646,
+      "eager_time": 3.859749995172024e-05,
+      "compiled_time": 2.9742484912276268e-05,
+      "speedup": 1.2977227715021566,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -85,9 +85,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.8702121451497078e-05,
-      "compiled_time": 1.1815689504146576e-05,
-      "speedup": 1.5828209978718373,
+      "eager_time": 1.776660792529583e-05,
+      "compiled_time": 1.0605668649077415e-05,
+      "speedup": 1.675199227239797,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -136,9 +136,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.3238746002316475e-05,
-      "compiled_time": 3.3246586099267006e-05,
-      "speedup": 1.3005469455785648,
+      "eager_time": 4.003848880529404e-05,
+      "compiled_time": 2.9085204005241394e-05,
+      "speedup": 1.376593019532501,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -187,9 +187,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.898687332868576e-05,
-      "compiled_time": 1.2518605217337608e-05,
-      "speedup": 1.5166923949634534,
+      "eager_time": 1.8140533939003944e-05,
+      "compiled_time": 1.1197058483958244e-05,
+      "speedup": 1.6201160300264084,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -238,9 +238,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.535634070634842e-05,
-      "compiled_time": 3.340677358210087e-05,
-      "speedup": 1.3576989287780263,
+      "eager_time": 4.0753744542598724e-05,
+      "compiled_time": 2.8467969968914986e-05,
+      "speedup": 1.431564828370233,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -289,9 +289,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.9910745322704315e-05,
-      "compiled_time": 1.150602474808693e-05,
-      "speedup": 1.7304625844833865,
+      "eager_time": 1.8495367839932442e-05,
+      "compiled_time": 1.073232851922512e-05,
+      "speedup": 1.7233322486169866,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -340,9 +340,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.554656334221363e-05,
-      "compiled_time": 3.218650817871094e-05,
-      "speedup": 1.4150824652777778,
+      "eager_time": 3.959541209042072e-05,
+      "compiled_time": 2.975459210574627e-05,
+      "speedup": 1.330732814272859,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -391,9 +391,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.8256716430187225e-05,
-      "compiled_time": 1.1659925803542137e-05,
-      "speedup": 1.565766089578466,
+      "eager_time": 1.7933081835508347e-05,
+      "compiled_time": 1.1653872206807137e-05,
+      "speedup": 1.538808862605638,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -442,9 +442,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.4045974239706993e-05,
-      "compiled_time": 2.1987594664096832e-05,
-      "speedup": 0.6388135880384599,
+      "eager_time": 1.3950048014521599e-05,
+      "compiled_time": 1.8400372937321663e-05,
+      "speedup": 0.7581394171759733,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -501,9 +501,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.641734555363655e-06,
-      "compiled_time": 9.227776899933815e-06,
-      "speedup": 0.8281230287891403,
+      "eager_time": 7.434515282511711e-06,
+      "compiled_time": 9.049195796251297e-06,
+      "speedup": 0.8215664076570781,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -560,9 +560,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.440802589058876e-05,
-      "compiled_time": 2.2458378225564957e-05,
-      "speedup": 0.6415434696966555,
+      "eager_time": 1.3814540579915047e-05,
+      "compiled_time": 1.9214581698179245e-05,
+      "speedup": 0.7189612970457795,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -619,9 +619,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.831957191228867e-06,
-      "compiled_time": 9.70042310655117e-06,
-      "speedup": 0.8073830497083744,
+      "eager_time": 7.447786629199982e-06,
+      "compiled_time": 9.177252650260925e-06,
+      "speedup": 0.811548609701644,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -678,9 +678,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.126262739300728e-06,
-      "compiled_time": 1.4003366231918335e-05,
-      "speedup": 0.651719207235967,
+      "eager_time": 8.787726983428001e-06,
+      "compiled_time": 1.3303011655807495e-05,
+      "speedup": 0.6605817698123775,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -733,9 +733,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.557907909154892e-06,
-      "compiled_time": 9.525800123810768e-06,
-      "speedup": 0.6884364382958962,
+      "eager_time": 6.403075531125069e-06,
+      "compiled_time": 9.307870641350746e-06,
+      "speedup": 0.6879205543187332,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -788,9 +788,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.617535397410393e-06,
-      "compiled_time": 1.3638520613312721e-05,
-      "speedup": 0.7051743858511019,
+      "eager_time": 9.378185495734215e-06,
+      "compiled_time": 1.3665063306689262e-05,
+      "speedup": 0.6862892095892045,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -843,9 +843,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.664544343948364e-06,
-      "compiled_time": 9.82196070253849e-06,
-      "speedup": 0.6785350242977362,
+      "eager_time": 6.61797821521759e-06,
+      "compiled_time": 9.407056495547295e-06,
+      "speedup": 0.7035121154369725,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -898,9 +898,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.2385426089167595e-05,
-      "compiled_time": 2.0458130165934563e-05,
-      "speedup": 0.6054036213823164,
+      "eager_time": 1.2911157682538033e-05,
+      "compiled_time": 1.798500306904316e-05,
+      "speedup": 0.7178846527283319,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -953,9 +953,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.948364898562431e-06,
-      "compiled_time": 8.830567821860313e-06,
-      "speedup": 0.7868536926200332,
+      "eager_time": 6.527174264192581e-06,
+      "compiled_time": 8.16304236650467e-06,
+      "speedup": 0.7996006845407873,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1008,9 +1008,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.2099277228116989e-05,
-      "compiled_time": 2.1065352484583855e-05,
-      "speedup": 0.574368610113291,
+      "eager_time": 1.2007076293230057e-05,
+      "compiled_time": 1.850188709795475e-05,
+      "speedup": 0.6489649531240168,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1063,9 +1063,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.943941116333008e-06,
-      "compiled_time": 8.588656783103943e-06,
-      "speedup": 0.8085014096725223,
+      "eager_time": 7.041962817311287e-06,
+      "compiled_time": 8.570961654186249e-06,
+      "speedup": 0.8216070846463109,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1118,9 +1118,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.024050086736679e-06,
-      "compiled_time": 1.4197546988725662e-05,
-      "speedup": 0.6356062842336581,
+      "eager_time": 8.875736966729164e-06,
+      "compiled_time": 1.3227574527263641e-05,
+      "speedup": 0.6710026050834331,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1173,9 +1173,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.749527528882027e-06,
-      "compiled_time": 9.924406185746193e-06,
-      "speedup": 0.6800938416422287,
+      "eager_time": 6.498768925666809e-06,
+      "compiled_time": 9.021954610943794e-06,
+      "speedup": 0.7203282665359106,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1228,9 +1228,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.630108252167702e-06,
-      "compiled_time": 1.3991724699735641e-05,
-      "speedup": 0.6882717076580025,
+      "eager_time": 9.553739801049232e-06,
+      "compiled_time": 1.363782212138176e-05,
+      "speedup": 0.7005326595417762,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1283,9 +1283,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.832880899310112e-06,
-      "compiled_time": 9.953510016202927e-06,
-      "speedup": 0.6864795321637427,
+      "eager_time": 6.6747888922691345e-06,
+      "compiled_time": 9.980052709579468e-06,
+      "speedup": 0.6688129899216125,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1338,9 +1338,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.4765653759241104e-05,
-      "compiled_time": 2.3139873519539833e-05,
-      "speedup": 0.638104341701464,
+      "eager_time": 1.3588694855570793e-05,
+      "compiled_time": 1.8887687474489212e-05,
+      "speedup": 0.7194472522866793,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1389,9 +1389,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.474562153220177e-06,
-      "compiled_time": 9.454553946852684e-06,
-      "speedup": 0.7905779791661536,
+      "eager_time": 7.10110180079937e-06,
+      "compiled_time": 8.631031960248947e-06,
+      "speedup": 0.8227407607229565,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1440,9 +1440,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3902783393859863e-05,
-      "compiled_time": 2.3170607164502144e-05,
-      "speedup": 0.6000180873619583,
+      "eager_time": 1.2873904779553413e-05,
+      "compiled_time": 1.969211734831333e-05,
+      "speedup": 0.6537592962625773,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1491,9 +1491,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.762573659420013e-06,
-      "compiled_time": 9.234528988599777e-06,
-      "speedup": 0.8406030961625738,
+      "eager_time": 7.302034646272659e-06,
+      "compiled_time": 8.965609595179558e-06,
+      "speedup": 0.8144493209026931,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1542,9 +1542,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00013911863788962364,
-      "compiled_time": 0.0003173390869051218,
-      "speedup": 0.43839112050895074,
+      "eager_time": 0.00013102125376462936,
+      "compiled_time": 0.00030553084798157215,
+      "speedup": 0.42883150631170247,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1597,9 +1597,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0001276545226573944,
-      "compiled_time": 0.00030934601090848446,
-      "speedup": 0.41265934634973894,
+      "eager_time": 0.00011857901699841022,
+      "compiled_time": 0.0003045664634555578,
+      "speedup": 0.3893370781964417,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1652,9 +1652,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.109452366828918e-05,
-      "compiled_time": 0.00019708718173205853,
-      "speedup": 0.4622042025652021,
+      "eager_time": 8.402252569794655e-05,
+      "compiled_time": 0.00018976256251335144,
+      "speedup": 0.4427771452129017,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1707,9 +1707,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.946905680000782e-05,
-      "compiled_time": 0.0001913688611239195,
-      "speedup": 0.4152663935672806,
+      "eager_time": 7.463805377483368e-05,
+      "compiled_time": 0.0001855518203228712,
+      "speedup": 0.4022491056404568,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1762,9 +1762,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00013894145376980305,
-      "compiled_time": 0.00032257894054055214,
-      "speedup": 0.4307207827546833,
+      "eager_time": 0.00013147597201168537,
+      "compiled_time": 0.00030703446827828884,
+      "speedup": 0.4282124178074972,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1817,9 +1817,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00012747501023113728,
-      "compiled_time": 0.0003144824877381325,
-      "speedup": 0.40534851764873114,
+      "eager_time": 0.0001162039116024971,
+      "compiled_time": 0.0003015710972249508,
+      "speedup": 0.38532841068591256,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1872,9 +1872,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.902372792363167e-05,
-      "compiled_time": 0.00019831303507089615,
-      "speedup": 0.44890507521003864,
+      "eager_time": 8.407840505242348e-05,
+      "compiled_time": 0.00018949504010379314,
+      "speedup": 0.4436971279373368,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1927,9 +1927,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.013728074729443e-05,
-      "compiled_time": 0.0001914903987199068,
-      "speedup": 0.4184924219856647,
+      "eager_time": 7.512304000556469e-05,
+      "compiled_time": 0.00018710456788539886,
+      "speedup": 0.4015029715980926,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -1982,9 +1982,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.8445618227124214e-05,
-      "compiled_time": 3.524823114275932e-05,
-      "speedup": 0.8070083889292555,
+      "eager_time": 2.5227200239896774e-05,
+      "compiled_time": 3.0428869649767876e-05,
+      "speedup": 0.8290547933675616,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2037,9 +2037,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.6255537047982216e-05,
-      "compiled_time": 3.115460276603699e-05,
-      "speedup": 0.5217699988042569,
+      "eager_time": 1.6023172065615654e-05,
+      "compiled_time": 2.7342000976204872e-05,
+      "speedup": 0.5860277775412362,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2086,15 +2086,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.698894917964935e-05,
-      "compiled_time": 5.273008719086647e-05,
-      "speedup": 0.8911221597181134,
+      "eager_time": 4.219287075102329e-05,
+      "compiled_time": 4.260800778865814e-05,
+      "speedup": 0.9902568306010929,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2147,9 +2147,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.217649646103382e-05,
-      "compiled_time": 4.483293741941452e-05,
-      "speedup": 0.7176977087185027,
+      "eager_time": 3.2414449378848076e-05,
+      "compiled_time": 3.897235728800297e-05,
+      "speedup": 0.8317292469456642,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2202,9 +2202,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.123166970908642e-05,
-      "compiled_time": 3.629177808761597e-05,
-      "speedup": 0.8605714945596387,
+      "eager_time": 2.8479844331741333e-05,
+      "compiled_time": 3.2330164685845375e-05,
+      "speedup": 0.8809062560763952,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2257,9 +2257,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.810118556022644e-05,
-      "compiled_time": 3.000791184604168e-05,
-      "speedup": 0.6032137675255852,
+      "eager_time": 1.807347871363163e-05,
+      "compiled_time": 2.5793910026550293e-05,
+      "speedup": 0.7006878249566725,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2312,9 +2312,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 5.532405339181423e-05,
-      "compiled_time": 5.7358527556061745e-05,
-      "speedup": 0.9645305719841041,
+      "eager_time": 4.840712063014507e-05,
+      "compiled_time": 4.965486004948616e-05,
+      "speedup": 0.9748717563981132,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2361,15 +2361,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.553460843861103e-05,
-      "compiled_time": 5.063158459961414e-05,
-      "speedup": 1.2943424338157188,
+      "eager_time": 3.753509372472763e-05,
+      "compiled_time": 4.473305307328701e-05,
+      "speedup": 0.8390908097248174,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2422,9 +2422,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.468050509691238e-05,
-      "compiled_time": 5.901232361793518e-05,
-      "speedup": 1.4349630705132252,
+      "eager_time": 8.18024855107069e-05,
+      "compiled_time": 5.1154522225260735e-05,
+      "speedup": 1.5991251985599002,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2475,9 +2475,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.364177145063877e-05,
-      "compiled_time": 5.279923789203167e-05,
-      "speedup": 1.394750651538336,
+      "eager_time": 6.77015632390976e-05,
+      "compiled_time": 4.61135059595108e-05,
+      "speedup": 1.4681504221028396,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2528,9 +2528,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00019262544810771942,
-      "compiled_time": 5.465047433972359e-05,
-      "speedup": 3.524680260052317,
+      "eager_time": 0.00018574343994259834,
+      "compiled_time": 4.6936795115470886e-05,
+      "speedup": 3.957309813881503,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2581,9 +2581,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00018149614334106445,
-      "compiled_time": 5.040224641561508e-05,
-      "speedup": 3.6009534544245088,
+      "eager_time": 0.00017125788144767284,
+      "compiled_time": 4.467787221074104e-05,
+      "speedup": 3.833170045338475,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2634,9 +2634,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.779345080256462e-05,
-      "compiled_time": 5.560298450291157e-05,
-      "speedup": 1.5789341451261028,
+      "eager_time": 8.291215635836124e-05,
+      "compiled_time": 4.949071444571018e-05,
+      "speedup": 1.6753073235447706,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2687,9 +2687,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.517100311815739e-05,
-      "compiled_time": 5.13328704982996e-05,
-      "speedup": 1.4643833938849655,
+      "eager_time": 7.008295506238937e-05,
+      "compiled_time": 4.47805505245924e-05,
+      "speedup": 1.5650311182284706,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2740,9 +2740,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00020161340944468975,
-      "compiled_time": 5.918554961681366e-05,
-      "speedup": 3.406463414634146,
+      "eager_time": 0.00018891575746238232,
+      "compiled_time": 5.2974093705415726e-05,
+      "speedup": 3.566191401271086,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2793,9 +2793,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00018884846940636635,
-      "compiled_time": 5.65133523195982e-05,
-      "speedup": 3.3416610704383185,
+      "eager_time": 0.00017875758931040764,
+      "compiled_time": 4.883343353867531e-05,
+      "speedup": 3.660557457399231,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2846,9 +2846,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00040012551471590996,
-      "compiled_time": 0.0004280656576156616,
-      "speedup": 0.934729305183277,
+      "eager_time": 0.0003807526081800461,
+      "compiled_time": 0.00041315704584121704,
+      "speedup": 0.9215687158494581,
       "degraded": true,
       "input_tensor": {
         "shape": [
@@ -2899,9 +2899,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00035598548129200935,
-      "compiled_time": 0.0004113225731998682,
-      "speedup": 0.8654654630856603,
+      "eager_time": 0.0003311852924525738,
+      "compiled_time": 0.0003823828883469105,
+      "speedup": 0.8661090821410175,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -2952,9 +2952,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0006841511931270361,
-      "compiled_time": 0.0005084711592644453,
-      "speedup": 1.3455063884384901,
+      "eager_time": 0.0006740556564182043,
+      "compiled_time": 0.0004972254391759634,
+      "speedup": 1.355633890203398,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3005,9 +3005,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0006766640581190586,
-      "compiled_time": 0.0005054066423326731,
-      "speedup": 1.3388507420400284,
+      "eager_time": 0.0006464633625000715,
+      "compiled_time": 0.0005004187114536762,
+      "speedup": 1.2918449044843814,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3058,9 +3058,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00039856741204857826,
-      "compiled_time": 0.0004431675188243389,
-      "speedup": 0.8993606144825811,
+      "eager_time": 0.00037496350705623627,
+      "compiled_time": 0.00042407563887536526,
+      "speedup": 0.8841901601578135,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3111,9 +3111,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0003329056780785322,
-      "compiled_time": 0.00041314936242997646,
-      "speedup": 0.805775606479256,
+      "eager_time": 0.00031127012334764004,
+      "compiled_time": 0.00040428387001156807,
+      "speedup": 0.7699296124248871,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3164,9 +3164,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0006843206938356161,
-      "compiled_time": 0.0005088923498988152,
-      "speedup": 1.3447258422565833,
+      "eager_time": 0.0006759124808013439,
+      "compiled_time": 0.0004984140396118164,
+      "speedup": 1.3561264873834011,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3217,9 +3217,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0006511104293167591,
-      "compiled_time": 0.0005168220959603786,
-      "speedup": 1.2598347369549685,
+      "eager_time": 0.0006259491201490164,
+      "compiled_time": 0.0004983104299753904,
+      "speedup": 1.2561429231572165,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3270,9 +3270,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0001863660290837288,
-      "compiled_time": 0.00011159013956785202,
-      "speedup": 1.6700940585382953,
+      "eager_time": 0.0001729554496705532,
+      "compiled_time": 9.525800123810768e-05,
+      "speedup": 1.815652726517244,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3323,9 +3323,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00014809845015406609,
-      "compiled_time": 9.75786242634058e-05,
-      "speedup": 1.517734557870851,
+      "eager_time": 0.00013521406799554825,
+      "compiled_time": 7.926393300294876e-05,
+      "speedup": 1.7058712944576955,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3376,9 +3376,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0002925102598965168,
-      "compiled_time": 0.00022096466273069382,
-      "speedup": 1.32378750648026,
+      "eager_time": 0.0002863460686057806,
+      "compiled_time": 0.00021332805044949055,
+      "speedup": 1.3422804361753564,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3429,9 +3429,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.000276034465059638,
-      "compiled_time": 0.00022068503312766552,
-      "speedup": 1.2508073662610053,
+      "eager_time": 0.0002674870193004608,
+      "compiled_time": 0.00021181395277380943,
+      "speedup": 1.262839467360789,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3484,9 +3484,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0002927354071289301,
-      "compiled_time": 0.0004249450284987688,
-      "speedup": 0.6888782960071228,
+      "eager_time": 0.0002683289349079132,
+      "compiled_time": 0.0003999934997409582,
+      "speedup": 0.6708332387443472,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3537,9 +3537,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0002281505148857832,
-      "compiled_time": 0.0003512485418468714,
-      "speedup": 0.6495415288734397,
+      "eager_time": 0.0002117515541613102,
+      "compiled_time": 0.00033080950379371643,
+      "speedup": 0.6401011812930034,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3590,9 +3590,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00032652681693434715,
-      "compiled_time": 0.0004246125463396311,
-      "speedup": 0.768999455501654,
+      "eager_time": 0.0003154459409415722,
+      "compiled_time": 0.00040690740570425987,
+      "speedup": 0.7752278196942873,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3643,9 +3643,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0002843358088284731,
-      "compiled_time": 0.0003824119921773672,
-      "speedup": 0.7435326680252087,
+      "eager_time": 0.0002689356915652752,
+      "compiled_time": 0.00035769050009548664,
+      "speedup": 0.7518670232882393,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3696,9 +3696,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00033593992702662945,
-      "compiled_time": 0.0003858394920825958,
-      "speedup": 0.8706727380688017,
+      "eager_time": 0.0003093739505857229,
+      "compiled_time": 0.0003657250199466944,
+      "speedup": 0.8459195671950888,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3749,9 +3749,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0002852699253708124,
-      "compiled_time": 0.0003693473991006613,
-      "speedup": 0.7723620798885481,
+      "eager_time": 0.00025781639851629734,
+      "compiled_time": 0.00035116286017000675,
+      "speedup": 0.7341790028463772,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3802,9 +3802,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004379840102046728,
-      "compiled_time": 0.00046108965761959553,
-      "speedup": 0.9498890356070724,
+      "eager_time": 0.0004271739162504673,
+      "compiled_time": 0.00044166226871311665,
+      "speedup": 0.9671958564518892,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3855,9 +3855,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004148960579186678,
-      "compiled_time": 0.0004468369297683239,
-      "speedup": 0.9285178334158352,
+      "eager_time": 0.00040571833960711956,
+      "compiled_time": 0.0004338144790381193,
+      "speedup": 0.9352346664562781,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3910,9 +3910,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004274505190551281,
-      "compiled_time": 0.0006310590542852879,
-      "speedup": 0.6773542288197439,
+      "eager_time": 0.00040083006024360657,
+      "compiled_time": 0.0006043093744665384,
+      "speedup": 0.663286186148352,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -3963,9 +3963,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0003493714611977339,
-      "compiled_time": 0.0005875218193978071,
-      "speedup": 0.5946527425242343,
+      "eager_time": 0.00032955966889858246,
+      "compiled_time": 0.0005486244335770607,
+      "speedup": 0.6007017710637417,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4016,9 +4016,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004559354856610298,
-      "compiled_time": 0.0005602615419775248,
-      "speedup": 0.813790438036741,
+      "eager_time": 0.0004451477434486151,
+      "compiled_time": 0.0005368785932660103,
+      "speedup": 0.8291404221215711,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4069,9 +4069,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00041293026879429817,
-      "compiled_time": 0.0005453838966786861,
-      "speedup": 0.7571368925796809,
+      "eager_time": 0.0003990472760051489,
+      "compiled_time": 0.0005213972181081772,
+      "speedup": 0.7653421655240905,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4122,9 +4122,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.8369948267936707e-05,
-      "compiled_time": 4.319404251873493e-05,
-      "speedup": 0.6568023415643849,
+      "eager_time": 2.700858749449253e-05,
+      "compiled_time": 3.775954246520996e-05,
+      "speedup": 0.7152784629044988,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4181,9 +4181,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.7165672034025192e-05,
-      "compiled_time": 3.924430347979069e-05,
-      "speedup": 0.4374054451715484,
+      "eager_time": 1.6238074749708176e-05,
+      "compiled_time": 3.278045915067196e-05,
+      "speedup": 0.49535836807750494,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4240,9 +4240,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.7652055248618126e-05,
-      "compiled_time": 2.558249980211258e-05,
-      "speedup": 0.6900050966544105,
+      "eager_time": 1.801340840756893e-05,
+      "compiled_time": 2.1623913198709488e-05,
+      "speedup": 0.8330318496026875,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4299,9 +4299,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.061800867319107e-05,
-      "compiled_time": 2.279854379594326e-05,
-      "speedup": 0.4657318804317854,
+      "eager_time": 1.0021030902862549e-05,
+      "compiled_time": 2.026488073170185e-05,
+      "speedup": 0.49450233808610133,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4358,9 +4358,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.4213997423648834e-05,
-      "compiled_time": 5.136360414326191e-05,
-      "speedup": 0.6661136420298724,
+      "eager_time": 2.9865652322769165e-05,
+      "compiled_time": 4.488951526582241e-05,
+      "speedup": 0.66531465412165,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4417,9 +4417,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.3391563445329666e-05,
-      "compiled_time": 5.1642535254359245e-05,
-      "speedup": 0.45295149299152854,
+      "eager_time": 2.2682128474116325e-05,
+      "compiled_time": 4.619918763637543e-05,
+      "speedup": 0.49096379470225376,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4476,9 +4476,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.0262785255908966e-05,
-      "compiled_time": 2.8932932764291763e-05,
-      "speedup": 0.7003363751951459,
+      "eager_time": 1.8304912373423576e-05,
+      "compiled_time": 2.4396460503339767e-05,
+      "speedup": 0.7503101677769083,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4535,9 +4535,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3898592442274094e-05,
-      "compiled_time": 3.2212818041443825e-05,
-      "speedup": 0.43146155124934044,
+      "eager_time": 1.340080052614212e-05,
+      "compiled_time": 2.670357935130596e-05,
+      "speedup": 0.5018353663321447,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4594,9 +4594,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.417394615709782e-05,
-      "compiled_time": 2.527143806219101e-05,
-      "speedup": 2.5393864013267,
+      "eager_time": 6.032641977071762e-05,
+      "compiled_time": 2.013356424868107e-05,
+      "speedup": 2.9963109872445735,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4653,9 +4653,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.1047267839312553e-05,
-      "compiled_time": 1.1560274288058281e-05,
-      "speedup": 2.6856860889005256,
+      "eager_time": 2.845143899321556e-05,
+      "compiled_time": 1.0562129318714142e-05,
+      "speedup": 2.6937218940128735,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4712,9 +4712,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00015630805864930153,
-      "compiled_time": 0.00013505201786756516,
-      "speedup": 1.15739150823041,
+      "eager_time": 0.0001461924985051155,
+      "compiled_time": 0.00012762751430273056,
+      "speedup": 1.145462240676012,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4771,9 +4771,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.671793431043625e-05,
-      "compiled_time": 3.7550926208496094e-05,
-      "speedup": 1.2441220238095239,
+      "eager_time": 4.261289723217487e-05,
+      "compiled_time": 3.326311707496643e-05,
+      "speedup": 1.281085507895621,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4830,9 +4830,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.574065916240215e-05,
-      "compiled_time": 4.491489380598068e-05,
-      "speedup": 2.131601592468949,
+      "eager_time": 8.937111124396324e-05,
+      "compiled_time": 4.033232107758522e-05,
+      "speedup": 2.215868287670442,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4893,9 +4893,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.767114296555519e-05,
-      "compiled_time": 1.5152152627706528e-05,
-      "speedup": 3.1461630658594304,
+      "eager_time": 4.059658385813236e-05,
+      "compiled_time": 1.3501383364200592e-05,
+      "speedup": 3.006846244050493,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -4956,9 +4956,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.690496906638145e-05,
-      "compiled_time": 4.598498344421387e-05,
-      "speedup": 1.8898553953337653,
+      "eager_time": 8.110841736197472e-05,
+      "compiled_time": 3.997259773313999e-05,
+      "speedup": 2.029100482872304,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5019,9 +5019,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.189593113958836e-05,
-      "compiled_time": 2.3670028895139694e-05,
-      "speedup": 2.6149495386673487,
+      "eager_time": 5.2592018619179726e-05,
+      "compiled_time": 1.919805072247982e-05,
+      "speedup": 2.739445758292402,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5082,9 +5082,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.759205229580402e-05,
-      "compiled_time": 4.9969181418418884e-05,
-      "speedup": 1.7529214969992917,
+      "eager_time": 8.178618736565113e-05,
+      "compiled_time": 4.2785657569766045e-05,
+      "speedup": 1.911532789516932,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5141,9 +5141,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 5.981489084661007e-05,
-      "compiled_time": 2.5499612092971802e-05,
-      "speedup": 2.345717677136596,
+      "eager_time": 5.29696699231863e-05,
+      "compiled_time": 2.09026038646698e-05,
+      "speedup": 2.534118249866334,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5200,9 +5200,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.584682993590832e-05,
-      "compiled_time": 4.987558349967003e-05,
-      "speedup": 1.9217184684474404,
+      "eager_time": 9.030988439917564e-05,
+      "compiled_time": 4.309089854359627e-05,
+      "speedup": 2.0957995180306255,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5259,9 +5259,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.845275543630123e-05,
-      "compiled_time": 1.7796875908970833e-05,
-      "speedup": 2.722542747622225,
+      "eager_time": 4.303944297134876e-05,
+      "compiled_time": 1.583341509103775e-05,
+      "speedup": 2.7182665725545556,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5312,15 +5312,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.9897473976016045e-05,
-      "compiled_time": 2.3091910406947136e-05,
-      "speedup": 0.8616642636041904,
+      "eager_time": 1.833937130868435e-05,
+      "compiled_time": 1.9266968593001366e-05,
+      "speedup": 0.9518555667001003,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5373,9 +5373,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.0220799595117569e-05,
-      "compiled_time": 9.652925655245781e-06,
-      "speedup": 1.0588292047565064,
+      "eager_time": 1.0149553418159485e-05,
+      "compiled_time": 8.922535926103592e-06,
+      "speedup": 1.1375189186368144,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5428,9 +5428,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.2217555195093155e-05,
-      "compiled_time": 2.1483981981873512e-05,
-      "speedup": 0.5686820630086807,
+      "eager_time": 1.1765630915760994e-05,
+      "compiled_time": 1.8259743228554726e-05,
+      "speedup": 0.6443481032833918,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5483,9 +5483,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.683884516358376e-06,
-      "compiled_time": 1.3538170605897903e-05,
-      "speedup": 0.6414370721975716,
+      "eager_time": 8.448492735624313e-06,
+      "compiled_time": 1.1599389836192131e-05,
+      "speedup": 0.7283566510768984,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5538,9 +5538,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.1126045137643814e-05,
-      "compiled_time": 2.0091887563467026e-05,
-      "speedup": 0.5537580828331055,
+      "eager_time": 1.0721152648329735e-05,
+      "compiled_time": 1.683994196355343e-05,
+      "speedup": 0.6366502136131735,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5593,9 +5593,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.759081199765205e-06,
-      "compiled_time": 1.1548632755875587e-05,
-      "speedup": 0.6718614544061612,
+      "eager_time": 7.452676072716713e-06,
+      "compiled_time": 1.0301358997821808e-05,
+      "speedup": 0.7234653286321309,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5642,15 +5642,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.8648570403456688e-05,
-      "compiled_time": 2.176966518163681e-05,
-      "speedup": 0.8566310160427808,
+      "eager_time": 1.7581507563591003e-05,
+      "compiled_time": 1.8671154975891113e-05,
+      "speedup": 0.9416400638467678,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5697,15 +5697,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.964911103248596e-06,
-      "compiled_time": 1.0306248441338539e-05,
-      "speedup": 0.8698520275612787,
+      "eager_time": 8.876435458660126e-06,
+      "compiled_time": 9.070616215467453e-06,
+      "speedup": 0.9785923302017557,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5752,15 +5752,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.7611542716622353e-05,
-      "compiled_time": 2.1351035684347153e-05,
-      "speedup": 0.8248566007284465,
+      "eager_time": 1.6911188140511513e-05,
+      "compiled_time": 1.751631498336792e-05,
+      "speedup": 0.9654535304125904,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5813,9 +5813,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.668750524520874e-06,
-      "compiled_time": 9.219162166118622e-06,
-      "speedup": 0.9402969996969391,
+      "eager_time": 8.515547960996628e-06,
+      "compiled_time": 8.848961442708969e-06,
+      "speedup": 0.9623217386728411,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5868,9 +5868,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.1531868949532509e-05,
-      "compiled_time": 2.1371524780988693e-05,
-      "speedup": 0.5395903693212768,
+      "eager_time": 1.0950258001685143e-05,
+      "compiled_time": 1.7267651855945587e-05,
+      "speedup": 0.6341486435467343,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5923,9 +5923,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.668044418096542e-06,
-      "compiled_time": 1.2171920388936996e-05,
-      "speedup": 0.6299781935039596,
+      "eager_time": 7.435446605086327e-06,
+      "compiled_time": 1.08333770185709e-05,
+      "speedup": 0.6863461497130822,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -5978,9 +5978,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.4440156519412994e-05,
-      "compiled_time": 2.2289110347628593e-05,
-      "speedup": 0.6478570160136216,
+      "eager_time": 1.3823853805661201e-05,
+      "compiled_time": 1.9937986508011818e-05,
+      "speedup": 0.6933425198229655,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6035,9 +6035,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.679002687335014e-06,
-      "compiled_time": 1.3825716450810432e-05,
-      "speedup": 0.700072413735033,
+      "eager_time": 9.407056495547295e-06,
+      "compiled_time": 1.215469092130661e-05,
+      "speedup": 0.77394452532373,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6092,9 +6092,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.4605233445763588e-05,
-      "compiled_time": 2.2627413272857666e-05,
-      "speedup": 0.6454663319064866,
+      "eager_time": 1.3631768524646759e-05,
+      "compiled_time": 1.9322382286190987e-05,
+      "speedup": 0.7054910891804937,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6149,9 +6149,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.0362360626459122e-05,
-      "compiled_time": 1.4391029253602028e-05,
-      "speedup": 0.7200569496351664,
+      "eager_time": 1.0336516425013542e-05,
+      "compiled_time": 1.2357952073216438e-05,
+      "speedup": 0.8364263240198203,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6200,15 +6200,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
-      "max_abs_diff": 5.960464477539063e-08,
-      "max_rel_diff": 2.0438382874270223e-07,
-      "eager_time": 2.1608546376228333e-05,
-      "compiled_time": 2.440693788230419e-05,
-      "speedup": 0.8853444246234272,
+      "max_abs_diff": 2.384185791015625e-07,
+      "max_rel_diff": 1.1138030493254364e-07,
+      "eager_time": 1.9898172467947006e-05,
+      "compiled_time": 2.0644627511501312e-05,
+      "speedup": 0.9638426489827221,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6263,9 +6263,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.2430362403392792e-05,
-      "compiled_time": 1.0394491255283356e-05,
-      "speedup": 1.1958605859689992,
+      "eager_time": 1.1724885553121567e-05,
+      "compiled_time": 9.773531928658485e-06,
+      "speedup": 1.1996569549991662,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6314,15 +6314,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.042553387582302e-05,
-      "compiled_time": 2.5511253625154495e-05,
-      "speedup": 0.8006479875878434,
+      "eager_time": 1.9172905012965202e-05,
+      "compiled_time": 2.1041370928287506e-05,
+      "speedup": 0.9112003717965742,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6377,9 +6377,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.4526769518852234e-05,
-      "compiled_time": 1.5914440155029297e-05,
-      "speedup": 0.9128043071161048,
+      "eager_time": 1.3804063200950623e-05,
+      "compiled_time": 1.3617565855383873e-05,
+      "speedup": 1.0136953511036642,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6428,15 +6428,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.9786646589636803e-05,
-      "compiled_time": 2.5173183530569077e-05,
-      "speedup": 0.7860208290941378,
+      "eager_time": 1.8739374354481697e-05,
+      "compiled_time": 2.063368447124958e-05,
+      "speedup": 0.90819331761095,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6485,15 +6485,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3873912394046783e-05,
-      "compiled_time": 1.6674399375915527e-05,
-      "speedup": 0.8320487042001787,
+      "eager_time": 1.3745157048106194e-05,
+      "compiled_time": 1.354818232357502e-05,
+      "speedup": 1.014538830363127,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6542,15 +6542,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
-      "max_abs_diff": 5.960464477539063e-08,
-      "max_rel_diff": 2.6253327281066285e-07,
-      "eager_time": 2.1656975150108337e-05,
-      "compiled_time": 2.6196008548140526e-05,
-      "speedup": 0.8267280532570148,
+      "max_abs_diff": 1.1920928955078125e-07,
+      "max_rel_diff": 6.309215934808133e-07,
+      "eager_time": 1.976662315428257e-05,
+      "compiled_time": 2.149702049791813e-05,
+      "speedup": 0.9195052475386931,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6605,9 +6605,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.1712545529007912e-05,
-      "compiled_time": 1.1593569070100784e-05,
-      "speedup": 1.0102622805960557,
+      "eager_time": 1.201988197863102e-05,
+      "compiled_time": 1.0295072570443153e-05,
+      "speedup": 1.167537372503788,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6662,9 +6662,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0001729009672999382,
-      "compiled_time": 7.227668538689613e-05,
-      "speedup": 2.3922094154484483,
+      "eager_time": 0.00016715750098228455,
+      "compiled_time": 6.387149915099144e-05,
+      "speedup": 2.617090614815949,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6713,9 +6713,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.869605906307697e-05,
-      "compiled_time": 1.4481833204627037e-05,
-      "speedup": 5.434122735092204,
+      "eager_time": 7.091043516993523e-05,
+      "compiled_time": 1.2549338862299919e-05,
+      "speedup": 5.650531549750459,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6764,9 +6764,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00017450633458793163,
-      "compiled_time": 7.455120794475079e-05,
-      "speedup": 2.3407579756086134,
+      "eager_time": 0.00015899795107543468,
+      "compiled_time": 6.550131365656853e-05,
+      "speedup": 2.427400951209629,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6815,9 +6815,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.780361920595169e-05,
-      "compiled_time": 1.4592893421649933e-05,
-      "speedup": 5.331610185717021,
+      "eager_time": 7.112743332982063e-05,
+      "compiled_time": 1.340801827609539e-05,
+      "speedup": 5.304843106951221,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6868,9 +6868,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0006955007556825876,
-      "compiled_time": 0.0007380275055766106,
-      "speedup": 0.9423778252535489,
+      "eager_time": 0.0006741310935467482,
+      "compiled_time": 0.000769919017329812,
+      "speedup": 0.8755870141832969,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6921,9 +6921,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004340240266174078,
-      "compiled_time": 0.000448824604973197,
-      "speedup": 0.967023692124292,
+      "eager_time": 0.0004189657047390938,
+      "compiled_time": 0.00045235478319227695,
+      "speedup": 0.9261882935832892,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -6977,9 +6977,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0038197741378098726,
-      "compiled_time": 0.0008459670934826136,
-      "speedup": 4.515275082491583,
+      "eager_time": 0.0007991152815520763,
+      "compiled_time": 0.0008387321140617132,
+      "speedup": 0.9527658094337355,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7024,7 +7024,7 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [
         "/home/mark/.local/share/opencode/worktree/d3d230/compiled-benchmarks/src/torchlinops/linops/stack.py:213 in _fn: Unsupported method call"
@@ -7032,9 +7032,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00044444063678383827,
-      "compiled_time": 0.0004880465567111969,
-      "speedup": 0.9106521307696418,
+      "eager_time": 0.0004252255894243717,
+      "compiled_time": 0.00049946503713727,
+      "speedup": 0.8513620730323618,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7088,9 +7088,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0007167069707065821,
-      "compiled_time": 0.0008547573816031218,
-      "speedup": 0.8384917008407435,
+      "eager_time": 0.0007158583030104637,
+      "compiled_time": 0.0007637904491275549,
+      "speedup": 0.9372443761612337,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7145,9 +7145,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00045254500582814217,
-      "compiled_time": 0.0004679197445511818,
-      "speedup": 0.9671423595561527,
+      "eager_time": 0.0004494776949286461,
+      "compiled_time": 0.0004574365448206663,
+      "speedup": 0.9826011935816357,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7202,9 +7202,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0007412000559270382,
-      "compiled_time": 0.0007458801846951246,
-      "speedup": 0.993725361171782,
+      "eager_time": 0.0006963505875319242,
+      "compiled_time": 0.000721057178452611,
+      "speedup": 0.96573560092182,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7257,9 +7257,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00041379244066774845,
-      "compiled_time": 0.00045004114508628845,
-      "speedup": 0.9194546880561557,
+      "eager_time": 0.0004113821778446436,
+      "compiled_time": 0.00044580106623470783,
+      "speedup": 0.9227931671838058,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7312,9 +7312,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0001356271095573902,
-      "compiled_time": 6.108451634645462e-05,
-      "speedup": 2.220318955922487,
+      "eager_time": 0.00012770481407642365,
+      "compiled_time": 5.3935451433062553e-05,
+      "speedup": 2.3677342208753687,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7363,9 +7363,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.184913218021393e-05,
-      "compiled_time": 1.467089168727398e-05,
-      "speedup": 4.215771849359635,
+      "eager_time": 5.802442319691181e-05,
+      "compiled_time": 1.208670437335968e-05,
+      "speedup": 4.800681923254738,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7414,9 +7414,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00013148575089871883,
-      "compiled_time": 6.098300218582153e-05,
-      "speedup": 2.156104917532071,
+      "eager_time": 0.0001251779031008482,
+      "compiled_time": 5.3743598982691765e-05,
+      "speedup": 2.3291685981276022,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7465,9 +7465,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 5.992758087813854e-05,
-      "compiled_time": 1.4355871826410294e-05,
-      "speedup": 4.174429919880632,
+      "eager_time": 5.842442624270916e-05,
+      "compiled_time": 1.2521864846348763e-05,
+      "speedup": 4.665792752087168,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7510,15 +7510,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.1692056432366371e-05,
-      "compiled_time": 1.3543060049414635e-05,
-      "speedup": 0.8633245654752695,
+      "eager_time": 1.180754043161869e-05,
+      "compiled_time": 1.2365402653813362e-05,
+      "speedup": 0.9548852360240261,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7567,9 +7567,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.312519639730453e-06,
-      "compiled_time": 7.663387805223465e-06,
-      "speedup": 1.0847055964027466,
+      "eager_time": 8.122529834508896e-06,
+      "compiled_time": 7.267342880368233e-06,
+      "speedup": 1.117675327587864,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7612,15 +7612,15 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.2026634067296982e-05,
-      "compiled_time": 1.4175893738865852e-05,
-      "speedup": 0.8483863020448387,
+      "eager_time": 1.2204516679048538e-05,
+      "compiled_time": 1.3030599802732468e-05,
+      "speedup": 0.9366043669370689,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7669,9 +7669,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.903901860117912e-06,
-      "compiled_time": 7.750233635306358e-06,
-      "speedup": 1.0198275603088294,
+      "eager_time": 8.041970431804657e-06,
+      "compiled_time": 7.29365274310112e-06,
+      "speedup": 1.1025984804954352,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7720,9 +7720,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.7001526430249214e-05,
-      "compiled_time": 2.2104475647211075e-05,
-      "speedup": 0.7691440729739409,
+      "eager_time": 1.6421079635620117e-05,
+      "compiled_time": 1.9262079149484634e-05,
+      "speedup": 0.852508159071679,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7771,9 +7771,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.369570761919022e-06,
-      "compiled_time": 8.737202733755112e-06,
-      "speedup": 1.0723764856366254,
+      "eager_time": 9.484821930527687e-06,
+      "compiled_time": 1.029251143336296e-05,
+      "speedup": 0.9215264896167941,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7822,9 +7822,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.6649719327688217e-05,
-      "compiled_time": 2.3106811568140984e-05,
-      "speedup": 0.7205545983092007,
+      "eager_time": 1.6657868400216103e-05,
+      "compiled_time": 1.9633444026112556e-05,
+      "speedup": 0.8484435220871628,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7873,9 +7873,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.360024705529213e-06,
-      "compiled_time": 8.925795555114746e-06,
-      "speedup": 1.0486487896494157,
+      "eager_time": 9.319279342889786e-06,
+      "compiled_time": 8.296454325318336e-06,
+      "speedup": 1.123284595739904,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7924,9 +7924,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 5.08786179125309e-05,
-      "compiled_time": 4.259170964360237e-05,
-      "speedup": 1.194566227518723,
+      "eager_time": 4.81859315186739e-05,
+      "compiled_time": 3.8577476516366005e-05,
+      "speedup": 1.2490690389826724,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -7987,9 +7987,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3311626389622688e-05,
-      "compiled_time": 1.1937692761421204e-05,
-      "speedup": 1.1150920580433765,
+      "eager_time": 1.3505108654499054e-05,
+      "compiled_time": 1.1436408385634422e-05,
+      "speedup": 1.1808872330462754,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -8050,9 +8050,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.354002885520458e-05,
-      "compiled_time": 4.206504672765732e-05,
-      "speedup": 1.0350643168685103,
+      "eager_time": 4.126853309571743e-05,
+      "compiled_time": 3.637908957898617e-05,
+      "speedup": 1.1344025805295461,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -8113,9 +8113,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.1620187908411026e-05,
-      "compiled_time": 1.9161030650138855e-05,
-      "speedup": 1.1283415961893652,
+      "eager_time": 2.139061689376831e-05,
+      "compiled_time": 1.6576377674937248e-05,
+      "speedup": 1.2904276985743381,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -8174,11 +8174,11 @@
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
-      "max_abs_diff": 2.9802322387695312e-08,
-      "max_rel_diff": 1.02484658559037e-07,
-      "eager_time": 4.038936458528042e-05,
-      "compiled_time": 5.4292380809783936e-05,
-      "speedup": 0.7439232537395362,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "eager_time": 3.790389746427536e-05,
+      "compiled_time": 4.5801978558301926e-05,
+      "speedup": 0.8275602639311095,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -8229,9 +8229,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00012516602873802185,
-      "compiled_time": 5.401577800512314e-05,
-      "speedup": 2.3172123657304438,
+      "eager_time": 0.00011448911391198635,
+      "compiled_time": 4.838546738028526e-05,
+      "speedup": 2.3661880335299834,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -8282,9 +8282,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.9235688745975494e-05,
-      "compiled_time": 5.194498226046562e-05,
-      "speedup": 0.7553316420292063,
+      "eager_time": 3.794184885919094e-05,
+      "compiled_time": 4.492606967687607e-05,
+      "speedup": 0.8445396878044735,
       "degraded": false,
       "input_tensor": {
         "shape": [
@@ -8335,9 +8335,9 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00012168451212346554,
-      "compiled_time": 4.7773588448762894e-05,
-      "speedup": 2.5471084771865526,
+      "eager_time": 0.00011411099694669247,
+      "compiled_time": 4.4411513954401016e-05,
+      "speedup": 2.5694011932098184,
       "degraded": false,
       "input_tensor": {
         "shape": [

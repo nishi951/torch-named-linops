@@ -30,6 +30,7 @@ logo = "assets/logo_dark.svg"
 favicon = "assets/favicon.svg"
 features = [
     "navigation.indexes",
+    "navigation.instant",
     "navigation.sections",
     "navigation.tabs",
     "navigation.top",
