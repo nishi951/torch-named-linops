@@ -151,7 +151,7 @@ repo = "fontawesome/brands/github"
         "reference/utils/memory.md",
         "reference/utils/benchmark.md",
     ] },
-    { "Testing" = "reference/testing.md" },
+    { "Tools" = "reference/tools.md" },
 ]
 
 # mkdocstrings configuration

@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchlinops import Identity
-from torchlinops.testing import compile_check
+from torchlinops.tools import compile_check
 
 
 def _check(linop=None, **kwargs):

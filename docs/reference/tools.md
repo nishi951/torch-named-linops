@@ -1,8 +1,8 @@
-# Testing Helpers
+# Tools
 
 ## `compile_check`
 
-`torchlinops.testing.compile_check` profiles a user-provided linop with eager
+`torchlinops.tools.compile_check` profiles a user-provided linop with eager
 execution versus `torch.compile` on a sample input. It always benchmarks the
 wrapped operator (`linop`, `linop.H`, or `linop.N`), since that is what user code
 calls in practice.
@@ -10,7 +10,7 @@ calls in practice.
 ```python
 import torch
 from torchlinops import NUFFT
-from torchlinops.testing import compile_check
+from torchlinops.tools import compile_check
 
 locs = torch.randn(4096, 2, device="cuda")
 A = NUFFT(locs, (64, 64), output_shape=("K",))
@@ -32,4 +32,4 @@ normal operator. The result includes:
 Autograd/backward profiling is not included yet. For full benchmark matrices,
 see the [torch.compile benchmarks](../benchmarks/compile/index.md).
 
-::: torchlinops.testing.compile_check
+::: torchlinops.tools.compile_check
