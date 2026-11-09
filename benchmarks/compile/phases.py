@@ -127,7 +127,18 @@ def run_autograd_check(case, spec: CellSpec, device: str, dtype: torch.dtype) ->
         "config": "default",
     }
     try:
-        fn, x = target_for_spec(case, spec)
+        # The result row is tagged method="grad", but the autograd check still
+        # builds the forward target and input.
+        forward_spec = CellSpec(
+            op=spec.op,
+            category=spec.category,
+            method="fwd",
+            device=spec.device,
+            dtype=spec.dtype,
+            level=spec.level,
+            config=spec.config,
+        )
+        fn, x = target_for_spec(case, forward_spec)
         y = torch.randn_like(fn(x).detach())
     except Exception:  # noqa: BLE001 - recorded, not swallowed
         row.update(

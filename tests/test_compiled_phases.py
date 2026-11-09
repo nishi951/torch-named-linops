@@ -48,3 +48,31 @@ def test_pipeline_phase_records_chain_build_failure(monkeypatch):
     assert rows[0]["status"] == "error"
     assert rows[0]["cell_class"] == "fails_loud"
     assert "chain build boom" in (rows[0]["traceback_tail"] or "")
+
+
+def test_autograd_check_builds_forward_target(monkeypatch):
+    from benchmarks.compile import phases
+    from benchmarks.compile.cases import CASE_BY_OP
+    from benchmarks.compile.runner import CellSpec
+
+    called = {}
+
+    def fake_check(fn, x, y):
+        called["ok"] = True
+        return {"status": "ok", "cell_class": "works"}
+
+    monkeypatch.setattr(phases, "check_grad_agreement", fake_check)
+    spec = CellSpec(
+        op="Dense",
+        category="linop",
+        method="grad",
+        device="cpu",
+        dtype=torch.float32,
+        level="wrapper",
+        config="default",
+    )
+
+    row = phases.run_autograd_check(CASE_BY_OP["Dense"], spec, "cpu", torch.float32)
+
+    assert row.get("notes") != "case build failed"
+    assert called.get("ok") is True
