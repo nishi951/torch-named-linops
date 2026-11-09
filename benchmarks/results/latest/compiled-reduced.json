@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "date": "2026-11-09T20:03:46.724242+00:00",
+    "date": "2026-11-09T21:58:06.417020+00:00",
     "python_version": "3.13.3",
     "torch_version": "2.15.0+cu132",
     "cuda_version": "13.2",
     "os": "Linux",
     "num_threads": 12,
-    "commit_sha": "c310a20",
-    "full_sha": "c310a20701536f01ee5063ee8037aca9ac3c7ff6",
+    "commit_sha": "a9aee4e",
+    "full_sha": "a9aee4e27637fba2772db03166d440c73e0dd606",
     "gpu_name": "NVIDIA GeForce RTX 3090",
     "dirty": false,
     "suite_level": "reduced",
@@ -34,10 +34,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.8081081584095955e-05,
-      "compiled_time": 2.999044954776764e-05,
-      "speedup": 1.2697736165455562,
+      "eager_time": 4.1696010157465935e-05,
+      "compiled_time": 3.357185050845146e-05,
+      "speedup": 1.2419932034121646,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          9
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 9,
+        "bytes": 36,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -57,10 +85,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.878105103969574e-05,
-      "compiled_time": 1.102709211409092e-05,
-      "speedup": 1.7031734971812251,
+      "eager_time": 1.8702121451497078e-05,
+      "compiled_time": 1.1815689504146576e-05,
+      "speedup": 1.5828209978718373,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          9
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 9,
+        "bytes": 36,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -80,10 +136,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.044501110911369e-05,
-      "compiled_time": 2.919812686741352e-05,
-      "speedup": 1.3851919779913082,
+      "eager_time": 4.3238746002316475e-05,
+      "compiled_time": 3.3246586099267006e-05,
+      "speedup": 1.3005469455785648,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          9
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 9,
+        "bytes": 36,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -103,10 +187,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.8062302842736244e-05,
-      "compiled_time": 1.1174473911523819e-05,
-      "speedup": 1.6163895486935866,
+      "eager_time": 1.898687332868576e-05,
+      "compiled_time": 1.2518605217337608e-05,
+      "speedup": 1.5166923949634534,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          9
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 9,
+        "bytes": 36,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -126,10 +238,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.2032916098833084e-05,
-      "compiled_time": 2.9329443350434303e-05,
-      "speedup": 1.4331303733458232,
+      "eager_time": 4.535634070634842e-05,
+      "compiled_time": 3.340677358210087e-05,
+      "speedup": 1.3576989287780263,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -149,10 +289,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.8713995814323425e-05,
-      "compiled_time": 1.0565854609012604e-05,
-      "speedup": 1.7711767298369325,
+      "eager_time": 1.9910745322704315e-05,
+      "compiled_time": 1.150602474808693e-05,
+      "speedup": 1.7304625844833865,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -172,10 +340,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.146457649767399e-05,
-      "compiled_time": 3.0086375772953033e-05,
-      "speedup": 1.3781844915647732,
+      "eager_time": 4.554656334221363e-05,
+      "compiled_time": 3.218650817871094e-05,
+      "speedup": 1.4150824652777778,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -195,10 +391,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.717335544526577e-05,
-      "compiled_time": 1.0502990335226059e-05,
-      "speedup": 1.635091997339836,
+      "eager_time": 1.8256716430187225e-05,
+      "compiled_time": 1.1659925803542137e-05,
+      "speedup": 1.565766089578466,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -218,10 +442,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3878103345632553e-05,
-      "compiled_time": 1.843087375164032e-05,
-      "speedup": 0.7529813036887317,
+      "eager_time": 1.4045974239706993e-05,
+      "compiled_time": 2.1987594664096832e-05,
+      "speedup": 0.6388135880384599,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          10,
+          5,
+          7
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 350,
+        "bytes": 1400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          35,
+          7,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          10,
+          5,
+          7
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 350,
+        "bytes": 1400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          35,
+          7,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -241,10 +501,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.385155186057091e-06,
-      "compiled_time": 9.252689778804779e-06,
-      "speedup": 0.7981630598892803,
+      "eager_time": 7.641734555363655e-06,
+      "compiled_time": 9.227776899933815e-06,
+      "speedup": 0.8281230287891403,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          10,
+          5,
+          7
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 350,
+        "bytes": 1400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          35,
+          7,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          10,
+          5,
+          7
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 350,
+        "bytes": 1400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          35,
+          7,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -264,10 +560,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.394469290971756e-05,
-      "compiled_time": 1.980154775083065e-05,
-      "speedup": 0.7042223711594765,
+      "eager_time": 1.440802589058876e-05,
+      "compiled_time": 2.2458378225564957e-05,
+      "speedup": 0.6415434696966555,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          10,
+          5,
+          7
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 350,
+        "bytes": 1400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          35,
+          7,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          10,
+          5,
+          7
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 350,
+        "bytes": 1400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          35,
+          7,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -287,10 +619,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.53253698348999e-06,
-      "compiled_time": 8.921371772885323e-06,
-      "speedup": 0.8443249732494715,
+      "eager_time": 7.831957191228867e-06,
+      "compiled_time": 9.70042310655117e-06,
+      "speedup": 0.8073830497083744,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          10,
+          5,
+          7
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 350,
+        "bytes": 1400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          35,
+          7,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          10,
+          5,
+          7
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 350,
+        "bytes": 1400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          35,
+          7,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -310,10 +678,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.831033483147621e-06,
-      "compiled_time": 1.309695653617382e-05,
-      "speedup": 0.6742813461094025,
+      "eager_time": 9.126262739300728e-06,
+      "compiled_time": 1.4003366231918335e-05,
+      "speedup": 0.651719207235967,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -333,10 +733,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.3800252974033356e-06,
-      "compiled_time": 9.220559149980545e-06,
-      "speedup": 0.6919347507701631,
+      "eager_time": 6.557907909154892e-06,
+      "compiled_time": 9.525800123810768e-06,
+      "speedup": 0.6884364382958962,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -356,10 +788,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.75700095295906e-06,
-      "compiled_time": 1.2819655239582062e-05,
-      "speedup": 0.7610969851071558,
+      "eager_time": 9.617535397410393e-06,
+      "compiled_time": 1.3638520613312721e-05,
+      "speedup": 0.7051743858511019,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -379,10 +843,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.454763934016228e-06,
-      "compiled_time": 9.148148819804192e-06,
-      "speedup": 0.7055814308620295,
+      "eager_time": 6.664544343948364e-06,
+      "compiled_time": 9.82196070253849e-06,
+      "speedup": 0.6785350242977362,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -402,10 +898,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.2835720553994179e-05,
-      "compiled_time": 1.773051917552948e-05,
-      "speedup": 0.7239337115243197,
+      "eager_time": 1.2385426089167595e-05,
+      "compiled_time": 2.0458130165934563e-05,
+      "speedup": 0.6054036213823164,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -425,10 +953,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.858957931399345e-06,
-      "compiled_time": 8.18958505988121e-06,
-      "speedup": 0.8375220333200659,
+      "eager_time": 6.948364898562431e-06,
+      "compiled_time": 8.830567821860313e-06,
+      "speedup": 0.7868536926200332,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -448,10 +1008,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.1814059689640999e-05,
-      "compiled_time": 1.9250204786658287e-05,
-      "speedup": 0.6137108576543016,
+      "eager_time": 1.2099277228116989e-05,
+      "compiled_time": 2.1065352484583855e-05,
+      "speedup": 0.574368610113291,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -471,10 +1063,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.177237421274185e-06,
-      "compiled_time": 8.414499461650848e-06,
-      "speedup": 0.8529607083563918,
+      "eager_time": 6.943941116333008e-06,
+      "compiled_time": 8.588656783103943e-06,
+      "speedup": 0.8085014096725223,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -494,10 +1118,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.240815415978432e-06,
-      "compiled_time": 1.3120472431182861e-05,
-      "speedup": 0.7043050823395798,
+      "eager_time": 9.024050086736679e-06,
+      "compiled_time": 1.4197546988725662e-05,
+      "speedup": 0.6356062842336581,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -517,10 +1173,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.662914529442787e-06,
-      "compiled_time": 9.284354746341705e-06,
-      "speedup": 0.7176497141137527,
+      "eager_time": 6.749527528882027e-06,
+      "compiled_time": 9.924406185746193e-06,
+      "speedup": 0.6800938416422287,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -540,10 +1228,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.624054655432701e-06,
-      "compiled_time": 1.3177748769521713e-05,
-      "speedup": 0.7303261599349801,
+      "eager_time": 9.630108252167702e-06,
+      "compiled_time": 1.3991724699735641e-05,
+      "speedup": 0.6882717076580025,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -563,10 +1283,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.621470674872398e-06,
-      "compiled_time": 9.455019608139992e-06,
-      "speedup": 0.7003127385554926,
+      "eager_time": 6.832880899310112e-06,
+      "compiled_time": 9.953510016202927e-06,
+      "speedup": 0.6864795321637427,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -586,10 +1338,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.4632707461714745e-05,
-      "compiled_time": 1.9658124074339867e-05,
-      "speedup": 0.7443592993094953,
+      "eager_time": 1.4765653759241104e-05,
+      "compiled_time": 2.3139873519539833e-05,
+      "speedup": 0.638104341701464,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -609,10 +1389,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.420545443892479e-06,
-      "compiled_time": 9.372597560286522e-06,
-      "speedup": 0.7917277356850081,
+      "eager_time": 7.474562153220177e-06,
+      "compiled_time": 9.454553946852684e-06,
+      "speedup": 0.7905779791661536,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -632,10 +1440,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3639451935887337e-05,
-      "compiled_time": 2.0327745005488396e-05,
-      "speedup": 0.6709771266908724,
+      "eager_time": 1.3902783393859863e-05,
+      "compiled_time": 2.3170607164502144e-05,
+      "speedup": 0.6000180873619583,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -655,10 +1491,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.326947525143623e-06,
-      "compiled_time": 9.216368198394775e-06,
-      "speedup": 0.7949929264349233,
+      "eager_time": 7.762573659420013e-06,
+      "compiled_time": 9.234528988599777e-06,
+      "speedup": 0.8406030961625738,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -678,10 +1542,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00013270368799567223,
-      "compiled_time": 0.0003089015372097492,
-      "speedup": 0.42959866498030486,
+      "eager_time": 0.00013911863788962364,
+      "compiled_time": 0.0003173390869051218,
+      "speedup": 0.43839112050895074,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -701,10 +1597,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00012184726074337959,
-      "compiled_time": 0.0003037231508642435,
-      "speedup": 0.4011787063207513,
+      "eager_time": 0.0001276545226573944,
+      "compiled_time": 0.00030934601090848446,
+      "speedup": 0.41265934634973894,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -724,10 +1652,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.310284465551376e-05,
-      "compiled_time": 0.00018989690579473972,
-      "speedup": 0.43762084646781946,
+      "eager_time": 9.109452366828918e-05,
+      "compiled_time": 0.00019708718173205853,
+      "speedup": 0.4622042025652021,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -747,10 +1707,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.434375584125519e-05,
-      "compiled_time": 0.00018401001580059528,
-      "speedup": 0.40402015899949006,
+      "eager_time": 7.946905680000782e-05,
+      "compiled_time": 0.0001913688611239195,
+      "speedup": 0.4152663935672806,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -770,10 +1762,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0001332464162260294,
-      "compiled_time": 0.0003061720635741949,
-      "speedup": 0.4352010914076741,
+      "eager_time": 0.00013894145376980305,
+      "compiled_time": 0.00032257894054055214,
+      "speedup": 0.4307207827546833,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -793,10 +1817,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00012125307694077492,
-      "compiled_time": 0.0003006323240697384,
-      "speedup": 0.4033268122979602,
+      "eager_time": 0.00012747501023113728,
+      "compiled_time": 0.0003144824877381325,
+      "speedup": 0.40534851764873114,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -816,10 +1872,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.251471444964409e-05,
-      "compiled_time": 0.00019062659703195095,
-      "speedup": 0.43286044935174384,
+      "eager_time": 8.902372792363167e-05,
+      "compiled_time": 0.00019831303507089615,
+      "speedup": 0.44890507521003864,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -839,10 +1927,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.448438555002213e-05,
-      "compiled_time": 0.00018439139239490032,
-      "speedup": 0.4039471939693543,
+      "eager_time": 8.013728074729443e-05,
+      "compiled_time": 0.0001914903987199068,
+      "speedup": 0.4184924219856647,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          10
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 80,
+        "bytes": 640,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -862,10 +1982,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.5799497961997986e-05,
-      "compiled_time": 3.079394809901714e-05,
-      "speedup": 0.8378106593880189,
+      "eager_time": 2.8445618227124214e-05,
+      "compiled_time": 3.524823114275932e-05,
+      "speedup": 0.8070083889292555,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -885,10 +2037,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.62455253303051e-05,
-      "compiled_time": 2.7159228920936584e-05,
-      "speedup": 0.5981585625128591,
+      "eager_time": 1.6255537047982216e-05,
+      "compiled_time": 3.115460276603699e-05,
+      "speedup": 0.5217699988042569,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -902,16 +2086,48 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.258845001459122e-05,
-      "compiled_time": 4.560267552733421e-05,
-      "speedup": 0.9339024415149442,
+      "eager_time": 4.698894917964935e-05,
+      "compiled_time": 5.273008719086647e-05,
+      "speedup": 0.8911221597181134,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -931,10 +2147,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.308453597128391e-05,
-      "compiled_time": 3.9475271478295326e-05,
-      "speedup": 0.8381078769648176,
+      "eager_time": 3.217649646103382e-05,
+      "compiled_time": 4.483293741941452e-05,
+      "speedup": 0.7176977087185027,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -954,10 +2202,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.8169946745038033e-05,
-      "compiled_time": 3.1514791771769524e-05,
-      "speedup": 0.8938642828118651,
+      "eager_time": 3.123166970908642e-05,
+      "compiled_time": 3.629177808761597e-05,
+      "speedup": 0.8605714945596387,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -977,10 +2257,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.7351005226373672e-05,
-      "compiled_time": 2.698577009141445e-05,
-      "speedup": 0.6429686893350474,
+      "eager_time": 1.810118556022644e-05,
+      "compiled_time": 3.000791184604168e-05,
+      "speedup": 0.6032137675255852,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1000,10 +2312,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.8506539314985275e-05,
-      "compiled_time": 4.665111191570759e-05,
-      "speedup": 1.039772415342001,
+      "eager_time": 5.532405339181423e-05,
+      "compiled_time": 5.7358527556061745e-05,
+      "speedup": 0.9645305719841041,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1017,16 +2361,48 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "compiles_slower",
+      "effective_class": "works",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.724102862179279e-05,
-      "compiled_time": 4.161451943218708e-05,
-      "speedup": 0.8949046902362742,
+      "eager_time": 6.553460843861103e-05,
+      "compiled_time": 5.063158459961414e-05,
+      "speedup": 1.2943424338157188,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 48,
+        "bytes": 192,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1046,10 +2422,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.063018321990967e-05,
-      "compiled_time": 5.138525739312172e-05,
-      "speedup": 1.5691306672466447,
+      "eager_time": 8.468050509691238e-05,
+      "compiled_time": 5.901232361793518e-05,
+      "speedup": 1.4349630705132252,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1069,10 +2475,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.040449418127537e-05,
-      "compiled_time": 4.4744694605469704e-05,
-      "speedup": 1.5734713311166268,
+      "eager_time": 7.364177145063877e-05,
+      "compiled_time": 5.279923789203167e-05,
+      "speedup": 1.394750651538336,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1092,10 +2528,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0001851299311965704,
-      "compiled_time": 5.075824446976185e-05,
-      "speedup": 3.6472879062406824,
+      "eager_time": 0.00019262544810771942,
+      "compiled_time": 5.465047433972359e-05,
+      "speedup": 3.524680260052317,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1115,10 +2581,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00017390516586601734,
-      "compiled_time": 4.59509901702404e-05,
-      "speedup": 3.784579292453308,
+      "eager_time": 0.00018149614334106445,
+      "compiled_time": 5.040224641561508e-05,
+      "speedup": 3.6009534544245088,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1138,10 +2634,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.342042565345764e-05,
-      "compiled_time": 5.001900717616081e-05,
-      "speedup": 1.6677745193874227,
+      "eager_time": 8.779345080256462e-05,
+      "compiled_time": 5.560298450291157e-05,
+      "speedup": 1.5789341451261028,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1161,10 +2687,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.94403424859047e-05,
-      "compiled_time": 4.4340966269373894e-05,
-      "speedup": 1.566053884889442,
+      "eager_time": 7.517100311815739e-05,
+      "compiled_time": 5.13328704982996e-05,
+      "speedup": 1.4643833938849655,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1184,10 +2740,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0001861948985606432,
-      "compiled_time": 5.495338700711727e-05,
-      "speedup": 3.388233350139605,
+      "eager_time": 0.00020161340944468975,
+      "compiled_time": 5.918554961681366e-05,
+      "speedup": 3.406463414634146,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1207,10 +2793,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00017482670955359936,
-      "compiled_time": 4.982436075806618e-05,
-      "speedup": 3.5088600614970513,
+      "eager_time": 0.00018884846940636635,
+      "compiled_time": 5.65133523195982e-05,
+      "speedup": 3.3416610704383185,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1230,10 +2846,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00037856027483940125,
-      "compiled_time": 0.00041113654151558876,
-      "speedup": 0.9207653336867107,
+      "eager_time": 0.00040012551471590996,
+      "compiled_time": 0.0004280656576156616,
+      "speedup": 0.934729305183277,
       "degraded": true,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1253,10 +2899,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00033966940827667713,
-      "compiled_time": 0.0003917564172297716,
-      "speedup": 0.8670423593277233,
+      "eager_time": 0.00035598548129200935,
+      "compiled_time": 0.0004113225731998682,
+      "speedup": 0.8654654630856603,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1276,10 +2952,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0006749359890818596,
-      "compiled_time": 0.0004907834809273481,
-      "speedup": 1.3752214883160911,
+      "eager_time": 0.0006841511931270361,
+      "compiled_time": 0.0005084711592644453,
+      "speedup": 1.3455063884384901,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1299,10 +3005,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.000654454343020916,
-      "compiled_time": 0.0004965912085026503,
-      "speedup": 1.3178935345920915,
+      "eager_time": 0.0006766640581190586,
+      "compiled_time": 0.0005054066423326731,
+      "speedup": 1.3388507420400284,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1316,16 +3052,46 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0003827339969575405,
-      "compiled_time": 0.0004196686204522848,
-      "speedup": 0.9119909812295731,
+      "eager_time": 0.00039856741204857826,
+      "compiled_time": 0.0004431675188243389,
+      "speedup": 0.8993606144825811,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1345,10 +3111,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0003175206948071718,
-      "compiled_time": 0.00041834847070276737,
-      "speedup": 0.7589861492114005,
+      "eager_time": 0.0003329056780785322,
+      "compiled_time": 0.00041314936242997646,
+      "speedup": 0.805775606479256,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1368,10 +3164,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0006743553094565868,
-      "compiled_time": 0.0004984731785953045,
-      "speedup": 1.352841714286248,
+      "eager_time": 0.0006843206938356161,
+      "compiled_time": 0.0005088923498988152,
+      "speedup": 1.3447258422565833,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1391,10 +3217,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0006410747300833464,
-      "compiled_time": 0.0004978345241397619,
-      "speedup": 1.2877265416477448,
+      "eager_time": 0.0006511104293167591,
+      "compiled_time": 0.0005168220959603786,
+      "speedup": 1.2598347369549685,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1414,10 +3270,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00018607592210173607,
-      "compiled_time": 0.00010002264752984047,
-      "speedup": 1.860337900436226,
+      "eager_time": 0.0001863660290837288,
+      "compiled_time": 0.00011159013956785202,
+      "speedup": 1.6700940585382953,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1437,10 +3323,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00014224089682102203,
-      "compiled_time": 8.35589598864317e-05,
-      "speedup": 1.702281802147218,
+      "eager_time": 0.00014809845015406609,
+      "compiled_time": 9.75786242634058e-05,
+      "speedup": 1.517734557870851,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1460,10 +3376,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00028587435372173786,
-      "compiled_time": 0.0002080958802253008,
-      "speedup": 1.373762678108899,
+      "eager_time": 0.0002925102598965168,
+      "compiled_time": 0.00022096466273069382,
+      "speedup": 1.32378750648026,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1483,10 +3429,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0002594694960862398,
-      "compiled_time": 0.00020894757471978664,
-      "speedup": 1.2417923320440862,
+      "eager_time": 0.000276034465059638,
+      "compiled_time": 0.00022068503312766552,
+      "speedup": 1.2508073662610053,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1508,10 +3484,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0002804261166602373,
-      "compiled_time": 0.0004100583028048277,
-      "speedup": 0.6838688906970128,
+      "eager_time": 0.0002927354071289301,
+      "compiled_time": 0.0004249450284987688,
+      "speedup": 0.6888782960071228,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1531,10 +3537,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00022180727683007717,
-      "compiled_time": 0.0003383001312613487,
-      "speedup": 0.6556523522561784,
+      "eager_time": 0.0002281505148857832,
+      "compiled_time": 0.0003512485418468714,
+      "speedup": 0.6495415288734397,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1554,10 +3590,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0003105520736426115,
-      "compiled_time": 0.0004115079063922167,
-      "speedup": 0.754668546627189,
+      "eager_time": 0.00032652681693434715,
+      "compiled_time": 0.0004246125463396311,
+      "speedup": 0.768999455501654,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1577,10 +3643,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0002678500022739172,
-      "compiled_time": 0.000355633907020092,
-      "speedup": 0.7531621619498297,
+      "eager_time": 0.0002843358088284731,
+      "compiled_time": 0.0003824119921773672,
+      "speedup": 0.7435326680252087,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1600,10 +3696,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0003152515273541212,
-      "compiled_time": 0.00037446594797074795,
-      "speedup": 0.8418696788385887,
+      "eager_time": 0.00033593992702662945,
+      "compiled_time": 0.0003858394920825958,
+      "speedup": 0.8706727380688017,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1623,10 +3749,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00027204095385968685,
-      "compiled_time": 0.00035362737253308296,
-      "speedup": 0.769287037683251,
+      "eager_time": 0.0002852699253708124,
+      "compiled_time": 0.0003693473991006613,
+      "speedup": 0.7723620798885481,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1646,10 +3802,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004210209008306265,
-      "compiled_time": 0.00043690786696970463,
-      "speedup": 0.9636377201233144,
+      "eager_time": 0.0004379840102046728,
+      "compiled_time": 0.00046108965761959553,
+      "speedup": 0.9498890356070724,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1669,10 +3855,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00039177481085062027,
-      "compiled_time": 0.0004325255285948515,
-      "speedup": 0.9057842484428182,
+      "eager_time": 0.0004148960579186678,
+      "compiled_time": 0.0004468369297683239,
+      "speedup": 0.9285178334158352,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1694,10 +3910,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004021695349365473,
-      "compiled_time": 0.0006133515853434801,
-      "speedup": 0.6556916857259449,
+      "eager_time": 0.0004274505190551281,
+      "compiled_time": 0.0006310590542852879,
+      "speedup": 0.6773542288197439,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1717,10 +3963,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00034413719549775124,
-      "compiled_time": 0.0005561106372624636,
-      "speedup": 0.6188286510609061,
+      "eager_time": 0.0003493714611977339,
+      "compiled_time": 0.0005875218193978071,
+      "speedup": 0.5946527425242343,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1740,10 +4016,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00043820077553391457,
-      "compiled_time": 0.0005338164046406746,
-      "speedup": 0.8208829322674688,
+      "eager_time": 0.0004559354856610298,
+      "compiled_time": 0.0005602615419775248,
+      "speedup": 0.813790438036741,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1763,10 +4069,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0003993688151240349,
-      "compiled_time": 0.0005111258942633867,
-      "speedup": 0.78135116926445,
+      "eager_time": 0.00041293026879429817,
+      "compiled_time": 0.0005453838966786861,
+      "speedup": 0.7571368925796809,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1786,10 +4122,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.6965513825416565e-05,
-      "compiled_time": 3.608060069382191e-05,
-      "speedup": 0.7473687606878973,
+      "eager_time": 2.8369948267936707e-05,
+      "compiled_time": 4.319404251873493e-05,
+      "speedup": 0.6568023415643849,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1809,10 +4181,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.6459263861179352e-05,
-      "compiled_time": 3.372295759618282e-05,
-      "speedup": 0.4880729637735693,
+      "eager_time": 1.7165672034025192e-05,
+      "compiled_time": 3.924430347979069e-05,
+      "speedup": 0.4374054451715484,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1832,10 +4240,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.727091148495674e-05,
-      "compiled_time": 2.171494998037815e-05,
-      "speedup": 0.7953465930413338,
+      "eager_time": 1.7652055248618126e-05,
+      "compiled_time": 2.558249980211258e-05,
+      "speedup": 0.6900050966544105,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1855,10 +4299,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.0395189747214317e-05,
-      "compiled_time": 1.9732164219021797e-05,
-      "speedup": 0.5268144756870288,
+      "eager_time": 1.061800867319107e-05,
+      "compiled_time": 2.279854379594326e-05,
+      "speedup": 0.4657318804317854,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1878,10 +4358,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.14170029014349e-05,
-      "compiled_time": 4.652258940041065e-05,
-      "speedup": 0.6753064114947476,
+      "eager_time": 3.4213997423648834e-05,
+      "compiled_time": 5.136360414326191e-05,
+      "speedup": 0.6661136420298724,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1901,10 +4417,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.2610649466514587e-05,
-      "compiled_time": 4.631537012755871e-05,
-      "speedup": 0.48818889721148384,
+      "eager_time": 2.3391563445329666e-05,
+      "compiled_time": 5.1642535254359245e-05,
+      "speedup": 0.45295149299152854,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1924,10 +4476,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.899106428027153e-05,
-      "compiled_time": 2.5709858164191246e-05,
-      "speedup": 0.7386685744817656,
+      "eager_time": 2.0262785255908966e-05,
+      "compiled_time": 2.8932932764291763e-05,
+      "speedup": 0.7003363751951459,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1947,10 +4535,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3528391718864441e-05,
-      "compiled_time": 2.6529887691140175e-05,
-      "speedup": 0.509930229496687,
+      "eager_time": 1.3898592442274094e-05,
+      "compiled_time": 3.2212818041443825e-05,
+      "speedup": 0.43146155124934044,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          20,
+          20
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 800,
+        "bytes": 6400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          400,
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1970,10 +4594,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 6.132712587714195e-05,
-      "compiled_time": 2.1728454157710075e-05,
-      "speedup": 2.8224339123260074,
+      "eager_time": 6.417394615709782e-05,
+      "compiled_time": 2.527143806219101e-05,
+      "speedup": 2.5393864013267,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          16,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 512,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          256,
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          12,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -1993,10 +4653,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.9016518965363503e-05,
-      "compiled_time": 1.0834774002432823e-05,
-      "speedup": 2.6780917588911572,
+      "eager_time": 3.1047267839312553e-05,
+      "compiled_time": 1.1560274288058281e-05,
+      "speedup": 2.6856860889005256,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          16,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 512,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          256,
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          12,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2016,10 +4712,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00015194970183074474,
-      "compiled_time": 0.0001302680466324091,
-      "speedup": 1.166438783407239,
+      "eager_time": 0.00015630805864930153,
+      "compiled_time": 0.00013505201786756516,
+      "speedup": 1.15739150823041,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          12,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          16,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 512,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          256,
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2039,10 +4771,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.286249168217182e-05,
-      "compiled_time": 3.271573223173618e-05,
-      "speedup": 1.3101492388604614,
+      "eager_time": 4.671793431043625e-05,
+      "compiled_time": 3.7550926208496094e-05,
+      "speedup": 1.2441220238095239,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          12,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          16,
+          16
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 512,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          256,
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2062,10 +4830,50 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.186891838908195e-05,
-      "compiled_time": 4.084315150976181e-05,
-      "speedup": 2.2493102268840497,
+      "eager_time": 9.574065916240215e-05,
+      "compiled_time": 4.491489380598068e-05,
+      "speedup": 2.131601592468949,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          8,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          32,
+          16,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2085,10 +4893,50 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.1926512494683266e-05,
-      "compiled_time": 1.3592420145869255e-05,
-      "speedup": 3.084550951540794,
+      "eager_time": 4.767114296555519e-05,
+      "compiled_time": 1.5152152627706528e-05,
+      "speedup": 3.1461630658594304,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          8,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          32,
+          16,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2108,10 +4956,50 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.203391917049885e-05,
-      "compiled_time": 3.989296965301037e-05,
-      "speedup": 2.0563502763527275,
+      "eager_time": 8.690496906638145e-05,
+      "compiled_time": 4.598498344421387e-05,
+      "speedup": 1.8898553953337653,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          32,
+          16,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          8,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2131,10 +5019,50 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 5.165766924619675e-05,
-      "compiled_time": 1.9809696823358536e-05,
-      "speedup": 2.6076961049340635,
+      "eager_time": 6.189593113958836e-05,
+      "compiled_time": 2.3670028895139694e-05,
+      "speedup": 2.6149495386673487,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          32,
+          16,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          8,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2154,10 +5082,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.400739170610905e-05,
-      "compiled_time": 4.241545684635639e-05,
-      "speedup": 1.9805843895637663,
+      "eager_time": 8.759205229580402e-05,
+      "compiled_time": 4.9969181418418884e-05,
+      "speedup": 1.7529214969992917,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 64,
+        "bytes": 512,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          32,
+          16,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 64,
+        "bytes": 512,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          8,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2177,10 +5141,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 5.285930819809437e-05,
-      "compiled_time": 2.1734042093157768e-05,
-      "speedup": 2.4320974428744364,
+      "eager_time": 5.981489084661007e-05,
+      "compiled_time": 2.5499612092971802e-05,
+      "speedup": 2.345717677136596,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 64,
+        "bytes": 512,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          32,
+          16,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 64,
+        "bytes": 512,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          8,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2200,10 +5200,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.053829126060009e-05,
-      "compiled_time": 4.347437061369419e-05,
-      "speedup": 2.0825670385227157,
+      "eager_time": 9.584682993590832e-05,
+      "compiled_time": 4.987558349967003e-05,
+      "speedup": 1.9217184684474404,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 64,
+        "bytes": 512,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          8,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 64,
+        "bytes": 512,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          32,
+          16,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2223,10 +5259,46 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.102801904082298e-05,
-      "compiled_time": 1.5801051631569862e-05,
-      "speedup": 2.5965372430560674,
+      "eager_time": 4.845275543630123e-05,
+      "compiled_time": 1.7796875908970833e-05,
+      "speedup": 2.722542747622225,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 64,
+        "bytes": 512,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          8,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 64,
+        "bytes": 512,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          32,
+          16,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2240,16 +5312,48 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.934613101184368e-05,
-      "compiled_time": 1.9431812688708305e-05,
-      "speedup": 0.9955906493008543,
+      "eager_time": 1.9897473976016045e-05,
+      "compiled_time": 2.3091910406947136e-05,
+      "speedup": 0.8616642636041904,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          10,
+          10
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 100,
+        "bytes": 400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          20,
+          20
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 400,
+        "bytes": 1600,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2269,10 +5373,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.91462729871273e-06,
-      "compiled_time": 8.8568776845932e-06,
-      "speedup": 1.1194269190325972,
+      "eager_time": 1.0220799595117569e-05,
+      "compiled_time": 9.652925655245781e-06,
+      "speedup": 1.0588292047565064,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          10,
+          10
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 100,
+        "bytes": 400,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          10,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          20,
+          20
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 400,
+        "bytes": 1600,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2292,10 +5428,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.209694892168045e-05,
-      "compiled_time": 1.7770566046237946e-05,
-      "speedup": 0.6807295215135475,
+      "eager_time": 1.2217555195093155e-05,
+      "compiled_time": 2.1483981981873512e-05,
+      "speedup": 0.5686820630086807,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          20,
+          20
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 400,
+        "bytes": 1600,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          10,
+          10
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 100,
+        "bytes": 400,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2315,10 +5483,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.5500068962574e-06,
-      "compiled_time": 1.1269701644778252e-05,
-      "speedup": 0.7586719831415408,
+      "eager_time": 8.683884516358376e-06,
+      "compiled_time": 1.3538170605897903e-05,
+      "speedup": 0.6414370721975716,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          20,
+          20
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 400,
+        "bytes": 1600,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          20,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          10,
+          10
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 100,
+        "bytes": 400,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          20,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2338,10 +5538,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.0903924703598022e-05,
-      "compiled_time": 1.6998732462525368e-05,
-      "speedup": 0.6414551630620883,
+      "eager_time": 1.1126045137643814e-05,
+      "compiled_time": 2.0091887563467026e-05,
+      "speedup": 0.5537580828331055,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 12,
+        "bytes": 48,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2361,10 +5593,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.951632142066956e-06,
-      "compiled_time": 1.0476913303136826e-05,
-      "speedup": 0.7589670652028979,
+      "eager_time": 7.759081199765205e-06,
+      "compiled_time": 1.1548632755875587e-05,
+      "speedup": 0.6718614544061612,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 12,
+        "bytes": 48,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2378,16 +5642,48 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.791352406144142e-05,
-      "compiled_time": 1.8930062651634216e-05,
-      "speedup": 0.9463003050280429,
+      "eager_time": 1.8648570403456688e-05,
+      "compiled_time": 2.176966518163681e-05,
+      "speedup": 0.8566310160427808,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 12,
+        "bytes": 48,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2401,16 +5697,48 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.88807699084282e-06,
-      "compiled_time": 9.430339559912682e-06,
-      "speedup": 0.9424980865614893,
+      "eager_time": 8.964911103248596e-06,
+      "compiled_time": 1.0306248441338539e-05,
+      "speedup": 0.8698520275612787,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 12,
+        "bytes": 48,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2424,16 +5752,48 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.728045754134655e-05,
-      "compiled_time": 1.848139800131321e-05,
-      "speedup": 0.9350189601521851,
+      "eager_time": 1.7611542716622353e-05,
+      "compiled_time": 2.1351035684347153e-05,
+      "speedup": 0.8248566007284465,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 12,
+        "bytes": 48,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2453,10 +5813,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.398201316595078e-06,
-      "compiled_time": 8.744653314352036e-06,
-      "speedup": 0.9603812769583044,
+      "eager_time": 8.668750524520874e-06,
+      "compiled_time": 9.219162166118622e-06,
+      "speedup": 0.9402969996969391,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 12,
+        "bytes": 48,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2476,10 +5868,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.1001480743288994e-05,
-      "compiled_time": 1.7547979950904846e-05,
-      "speedup": 0.626937161660121,
+      "eager_time": 1.1531868949532509e-05,
+      "compiled_time": 2.1371524780988693e-05,
+      "speedup": 0.5395903693212768,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 12,
+        "bytes": 48,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2499,10 +5923,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.647089660167694e-06,
-      "compiled_time": 1.0909978300333023e-05,
-      "speedup": 0.7009262025694651,
+      "eager_time": 7.668044418096542e-06,
+      "compiled_time": 1.2171920388936996e-05,
+      "speedup": 0.6299781935039596,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 12,
+        "bytes": 48,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2522,10 +5978,44 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.395796425640583e-05,
-      "compiled_time": 1.9824597984552383e-05,
-      "speedup": 0.7040730040166303,
+      "eager_time": 1.4440156519412994e-05,
+      "compiled_time": 2.2289110347628593e-05,
+      "speedup": 0.6478570160136216,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          6,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          12,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2545,10 +6035,44 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.360956028103828e-06,
-      "compiled_time": 1.231417991220951e-05,
-      "speedup": 0.7601769744181209,
+      "eager_time": 9.679002687335014e-06,
+      "compiled_time": 1.3825716450810432e-05,
+      "speedup": 0.700072413735033,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          6,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          12,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2568,10 +6092,44 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3459939509630203e-05,
-      "compiled_time": 2.0558247342705727e-05,
-      "speedup": 0.6547221309897279,
+      "eager_time": 1.4605233445763588e-05,
+      "compiled_time": 2.2627413272857666e-05,
+      "speedup": 0.6454663319064866,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          12,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          6,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2591,10 +6149,44 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.725568816065788e-06,
-      "compiled_time": 1.2421514838933945e-05,
-      "speedup": 0.7829615745079662,
+      "eager_time": 1.0362360626459122e-05,
+      "compiled_time": 1.4391029253602028e-05,
+      "speedup": 0.7200569496351664,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          3,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          12,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          6,
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 24,
+        "bytes": 96,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2608,16 +6200,50 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
-      "max_abs_diff": 2.384185791015625e-07,
-      "max_rel_diff": 3.0823353416460493e-06,
-      "eager_time": 1.9728438928723335e-05,
-      "compiled_time": 2.1902378648519516e-05,
-      "speedup": 0.900744126714149,
+      "max_abs_diff": 5.960464477539063e-08,
+      "max_rel_diff": 2.0438382874270223e-07,
+      "eager_time": 2.1608546376228333e-05,
+      "compiled_time": 2.440693788230419e-05,
+      "speedup": 0.8853444246234272,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5,
+          2,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 30,
+        "bytes": 120,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          6,
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5,
+          2
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 10,
+        "bytes": 40,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2637,10 +6263,44 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.208670437335968e-05,
-      "compiled_time": 9.812414646148682e-06,
-      "speedup": 1.2317767653758542,
+      "eager_time": 1.2430362403392792e-05,
+      "compiled_time": 1.0394491255283356e-05,
+      "speedup": 1.1958605859689992,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5,
+          2,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 30,
+        "bytes": 120,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          6,
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5,
+          2
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 10,
+        "bytes": 40,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2660,10 +6320,44 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.9430415704846382e-05,
-      "compiled_time": 2.1594343706965446e-05,
-      "speedup": 0.8997919070158603,
+      "eager_time": 2.042553387582302e-05,
+      "compiled_time": 2.5511253625154495e-05,
+      "speedup": 0.8006479875878434,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5,
+          2
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 10,
+        "bytes": 40,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5,
+          2,
+          1
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 10,
+        "bytes": 40,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2683,10 +6377,44 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.4210585504770279e-05,
-      "compiled_time": 1.3490905985236168e-05,
-      "speedup": 1.0533455292269989,
+      "eager_time": 1.4526769518852234e-05,
+      "compiled_time": 1.5914440155029297e-05,
+      "speedup": 0.9128043071161048,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5,
+          2
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 10,
+        "bytes": 40,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5,
+          2,
+          1
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 10,
+        "bytes": 40,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2700,16 +6428,50 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.9273487851023674e-05,
-      "compiled_time": 2.1331245079636574e-05,
-      "speedup": 0.9035331870722683,
+      "eager_time": 1.9786646589636803e-05,
+      "compiled_time": 2.5173183530569077e-05,
+      "speedup": 0.7860208290941378,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 60,
+        "bytes": 240,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          5,
+          1,
+          0
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2723,16 +6485,50 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.3760058209300041e-05,
-      "compiled_time": 1.3733049854636192e-05,
-      "speedup": 1.0019666683620705,
+      "eager_time": 1.3873912394046783e-05,
+      "compiled_time": 1.6674399375915527e-05,
+      "speedup": 0.8320487042001787,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 60,
+        "bytes": 240,
+        "is_view": true,
+        "is_contiguous": false,
+        "stride": [
+          5,
+          1,
+          0
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2746,16 +6542,50 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
-      "max_abs_diff": 2.384185791015625e-07,
-      "max_rel_diff": 3.0994594852603654e-07,
-      "eager_time": 2.0528677850961685e-05,
-      "compiled_time": 2.195499837398529e-05,
-      "speedup": 0.9350343598880122,
+      "max_abs_diff": 5.960464477539063e-08,
+      "max_rel_diff": 2.6253327281066285e-07,
+      "eager_time": 2.1656975150108337e-05,
+      "compiled_time": 2.6196008548140526e-05,
+      "speedup": 0.8267280532570148,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 60,
+        "bytes": 240,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          15,
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2775,10 +6605,44 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.2382399290800095e-05,
-      "compiled_time": 1.0482966899871826e-05,
-      "speedup": 1.1811922530206111,
+      "eager_time": 1.1712545529007912e-05,
+      "compiled_time": 1.1593569070100784e-05,
+      "speedup": 1.0102622805960557,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4,
+          5,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 60,
+        "bytes": 240,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          15,
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4,
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 20,
+        "bytes": 80,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          5,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2798,10 +6662,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00016297167167067528,
-      "compiled_time": 6.754719652235508e-05,
-      "speedup": 2.412708151651253,
+      "eager_time": 0.0001729009672999382,
+      "compiled_time": 7.227668538689613e-05,
+      "speedup": 2.3922094154484483,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2821,10 +6713,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.425923831760883e-05,
-      "compiled_time": 1.3389624655246735e-05,
-      "speedup": 5.546028378660361,
+      "eager_time": 7.869605906307697e-05,
+      "compiled_time": 1.4481833204627037e-05,
+      "speedup": 5.434122735092204,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2844,10 +6764,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00016478425823152065,
-      "compiled_time": 6.68414868414402e-05,
-      "speedup": 2.465299113145373,
+      "eager_time": 0.00017450633458793163,
+      "compiled_time": 7.455120794475079e-05,
+      "speedup": 2.3407579756086134,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2867,10 +6815,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.14384950697422e-05,
-      "compiled_time": 1.375819556415081e-05,
-      "speedup": 5.192432011643059,
+      "eager_time": 7.780361920595169e-05,
+      "compiled_time": 1.4592893421649933e-05,
+      "speedup": 5.331610185717021,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2892,10 +6868,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.000673661008477211,
-      "compiled_time": 0.0007635247893631458,
-      "speedup": 0.882304042857744,
+      "eager_time": 0.0006955007556825876,
+      "compiled_time": 0.0007380275055766106,
+      "speedup": 0.9423778252535489,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 4,
+        "bytes": 16,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          2
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 6,
+        "bytes": 24,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2915,10 +6921,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00040978495962917805,
-      "compiled_time": 0.00043608667328953743,
-      "speedup": 0.9396869584159557,
+      "eager_time": 0.0004340240266174078,
+      "compiled_time": 0.000448824604973197,
+      "speedup": 0.967023692124292,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 4,
+        "bytes": 16,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3,
+          2
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 6,
+        "bytes": 24,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2941,10 +6977,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0010660579428076744,
-      "compiled_time": 0.0008713304996490479,
-      "speedup": 1.2234828727297602,
+      "eager_time": 0.0038197741378098726,
+      "compiled_time": 0.0008459670934826136,
+      "speedup": 4.515275082491583,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          2
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 6,
+        "bytes": 24,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 4,
+        "bytes": 16,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2966,10 +7032,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004350324161350727,
-      "compiled_time": 0.00045901653356850147,
-      "speedup": 0.9477489029709438,
+      "eager_time": 0.00044444063678383827,
+      "compiled_time": 0.0004880465567111969,
+      "speedup": 0.9106521307696418,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3,
+          2
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 6,
+        "bytes": 24,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          2,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          4
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 4,
+        "bytes": 16,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -2992,10 +7088,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0007245568558573723,
-      "compiled_time": 0.0008460490498691797,
-      "speedup": 0.8564005313514705,
+      "eager_time": 0.0007167069707065821,
+      "compiled_time": 0.0008547573816031218,
+      "speedup": 0.8384917008407435,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          1,
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          8,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          1,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          3,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3017,10 +7145,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0004489915445446968,
-      "compiled_time": 0.000451881205663085,
-      "speedup": 0.9936052637680562,
+      "eager_time": 0.00045254500582814217,
+      "compiled_time": 0.0004679197445511818,
+      "speedup": 0.9671423595561527,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          1,
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          8,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          1,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          3,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3042,10 +7202,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.0007184522692114115,
-      "compiled_time": 0.000723361736163497,
-      "speedup": 0.9932129850023256,
+      "eager_time": 0.0007412000559270382,
+      "compiled_time": 0.0007458801846951246,
+      "speedup": 0.993725361171782,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          1,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          1,
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          8,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3065,10 +7257,42 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00041415635496377945,
-      "compiled_time": 0.00044640060514211655,
-      "speedup": 0.9277683546865448,
+      "eager_time": 0.00041379244066774845,
+      "compiled_time": 0.00045004114508628845,
+      "speedup": 0.9194546880561557,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          1,
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          3,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          1,
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          8,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3088,10 +7312,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00012847245670855045,
-      "compiled_time": 5.448260344564915e-05,
-      "speedup": 2.358045478438126,
+      "eager_time": 0.0001356271095573902,
+      "compiled_time": 6.108451634645462e-05,
+      "speedup": 2.220318955922487,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3111,10 +7363,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 5.854899063706398e-05,
-      "compiled_time": 1.2183096259832382e-05,
-      "speedup": 4.805756220616901,
+      "eager_time": 6.184913218021393e-05,
+      "compiled_time": 1.467089168727398e-05,
+      "speedup": 4.215771849359635,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3134,10 +7414,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00012176670134067535,
-      "compiled_time": 5.490332841873169e-05,
-      "speedup": 2.2178382412810422,
+      "eager_time": 0.00013148575089871883,
+      "compiled_time": 6.098300218582153e-05,
+      "speedup": 2.156104917532071,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3157,10 +7465,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 5.7260505855083466e-05,
-      "compiled_time": 1.2965872883796692e-05,
-      "speedup": 4.416247665565292,
+      "eager_time": 5.992758087813854e-05,
+      "compiled_time": 1.4355871826410294e-05,
+      "speedup": 4.174429919880632,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          5
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 5,
+        "bytes": 20,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 3,
+        "bytes": 12,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3174,16 +7510,44 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.1538853868842125e-05,
-      "compiled_time": 1.2632692232728004e-05,
-      "speedup": 0.9134120942919808,
+      "eager_time": 1.1692056432366371e-05,
+      "compiled_time": 1.3543060049414635e-05,
+      "speedup": 0.8633245654752695,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3203,10 +7567,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 7.82310962677002e-06,
-      "compiled_time": 6.988644599914551e-06,
-      "speedup": 1.1194029850746268,
+      "eager_time": 8.312519639730453e-06,
+      "compiled_time": 7.663387805223465e-06,
+      "speedup": 1.0847055964027466,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3220,16 +7612,44 @@
       "config": "default",
       "status": "ok",
       "cell_class": "works",
-      "effective_class": "works",
+      "effective_class": "compiles_slower",
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.2128381058573723e-05,
-      "compiled_time": 1.327204518020153e-05,
-      "speedup": 0.913829096714208,
+      "eager_time": 1.2026634067296982e-05,
+      "compiled_time": 1.4175893738865852e-05,
+      "speedup": 0.8483863020448387,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3249,10 +7669,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 8.195871487259865e-06,
-      "compiled_time": 7.306458428502083e-06,
-      "speedup": 1.121729709059622,
+      "eager_time": 7.903901860117912e-06,
+      "compiled_time": 7.750233635306358e-06,
+      "speedup": 1.0198275603088294,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3272,10 +7720,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.661689020693302e-05,
-      "compiled_time": 2.0162668079137802e-05,
-      "speedup": 0.8241414351370702,
+      "eager_time": 1.7001526430249214e-05,
+      "compiled_time": 2.2104475647211075e-05,
+      "speedup": 0.7691440729739409,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3295,10 +7771,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.381677955389023e-06,
-      "compiled_time": 8.069910109043121e-06,
-      "speedup": 1.1625504904789383,
+      "eager_time": 9.369570761919022e-06,
+      "compiled_time": 8.737202733755112e-06,
+      "speedup": 1.0723764856366254,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3318,10 +7822,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.6713514924049377e-05,
-      "compiled_time": 2.0291656255722046e-05,
-      "speedup": 0.8236644024233523,
+      "eager_time": 1.6649719327688217e-05,
+      "compiled_time": 2.3106811568140984e-05,
+      "speedup": 0.7205545983092007,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3341,10 +7873,38 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 9.393785148859024e-06,
-      "compiled_time": 8.359551429748535e-06,
-      "speedup": 1.1237188057040999,
+      "eager_time": 9.360024705529213e-06,
+      "compiled_time": 8.925795555114746e-06,
+      "speedup": 1.0486487896494157,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 32,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3364,10 +7924,50 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.8129819333553314e-05,
-      "compiled_time": 3.7246616557240486e-05,
-      "speedup": 1.2921930575784664,
+      "eager_time": 5.08786179125309e-05,
+      "compiled_time": 4.259170964360237e-05,
+      "speedup": 1.194566227518723,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          8,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          32,
+          16,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3387,10 +7987,50 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 1.324852928519249e-05,
-      "compiled_time": 1.1385418474674225e-05,
-      "speedup": 1.163640081799591,
+      "eager_time": 1.3311626389622688e-05,
+      "compiled_time": 1.1937692761421204e-05,
+      "speedup": 1.1150920580433765,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          8,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          32,
+          16,
+          4,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3410,10 +8050,50 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 4.0991464629769325e-05,
-      "compiled_time": 3.737397491931915e-05,
-      "speedup": 1.096791677049589,
+      "eager_time": 4.354002885520458e-05,
+      "compiled_time": 4.206504672765732e-05,
+      "speedup": 1.0350643168685103,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          32,
+          16,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          8,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3433,10 +8113,50 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 2.1336134523153305e-05,
-      "compiled_time": 1.6504433006048203e-05,
-      "speedup": 1.2927517422340096,
+      "eager_time": 2.1620187908411026e-05,
+      "compiled_time": 1.9161030650138855e-05,
+      "speedup": 1.1283415961893652,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          2,
+          2,
+          2,
+          4,
+          4
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          32,
+          16,
+          4,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          2,
+          8,
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 128,
+        "bytes": 1024,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          64,
+          8,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3454,12 +8174,42 @@
       "graph_breaks": 0,
       "break_locations": [],
       "recompiles": null,
-      "max_abs_diff": 0.0,
-      "max_rel_diff": 0.0,
-      "eager_time": 3.7872930988669395e-05,
-      "compiled_time": 4.696659743785858e-05,
-      "speedup": 0.8063801308744795,
+      "max_abs_diff": 2.9802322387695312e-08,
+      "max_rel_diff": 1.02484658559037e-07,
+      "eager_time": 4.038936458528042e-05,
+      "compiled_time": 5.4292380809783936e-05,
+      "speedup": 0.7439232537395362,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3479,10 +8229,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00011569168418645859,
-      "compiled_time": 4.8704445362091064e-05,
-      "speedup": 2.375382438427413,
+      "eager_time": 0.00012516602873802185,
+      "compiled_time": 5.401577800512314e-05,
+      "speedup": 2.3172123657304438,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3502,10 +8282,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 3.792019560933113e-05,
-      "compiled_time": 4.704296588897705e-05,
-      "speedup": 0.8060757839721254,
+      "eager_time": 3.9235688745975494e-05,
+      "compiled_time": 5.194498226046562e-05,
+      "speedup": 0.7553316420292063,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cuda:0",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     },
@@ -3525,10 +8335,40 @@
       "recompiles": null,
       "max_abs_diff": 0.0,
       "max_rel_diff": 0.0,
-      "eager_time": 0.00011026812717318535,
-      "compiled_time": 4.311162047088146e-05,
-      "speedup": 2.557735616726884,
+      "eager_time": 0.00012168451212346554,
+      "compiled_time": 4.7773588448762894e-05,
+      "speedup": 2.5471084771865526,
       "degraded": false,
+      "input_tensor": {
+        "shape": [
+          16,
+          16
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 256,
+        "bytes": 2048,
+        "is_view": false,
+        "is_contiguous": true,
+        "stride": [
+          16,
+          1
+        ]
+      },
+      "output_tensor": {
+        "shape": [
+          8
+        ],
+        "dtype": "torch.complex64",
+        "device": "cpu",
+        "numel": 8,
+        "bytes": 64,
+        "is_view": true,
+        "is_contiguous": true,
+        "stride": [
+          1
+        ]
+      },
       "traceback_tail": null,
       "notes": ""
     }

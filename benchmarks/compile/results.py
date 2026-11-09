@@ -59,6 +59,8 @@ def result_to_dict(result: CellResult) -> dict:
         "compiled_time": result.compiled_time,
         "speedup": result.speedup,
         "degraded": result.degraded,
+        "input_tensor": result.input_tensor,
+        "output_tensor": result.output_tensor,
         "traceback_tail": result.traceback_tail,
         "notes": result.notes,
     }

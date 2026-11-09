@@ -81,6 +81,9 @@ class CellResult:
         ``eager_time / compiled_time``.
     degraded : bool
         Whether a silent fallback warning was captured.
+    input_tensor, output_tensor : dict or None
+        Shape, dtype, device, numel, byte size, and view status for the
+        benchmark input and eager output.
     traceback_tail : str or None
         Trimmed traceback for failed cells.
     notes : str
@@ -99,6 +102,8 @@ class CellResult:
     compiled_time: float | None = None
     speedup: float | None = None
     degraded: bool = False
+    input_tensor: dict | None = None
+    output_tensor: dict | None = None
     traceback_tail: str | None = None
     notes: str = ""
 
@@ -112,6 +117,21 @@ class CallCounter:
 
 def _to_cpu(x: torch.Tensor) -> torch.Tensor:
     return x.detach().cpu()
+
+
+def _tensor_info(tensor: torch.Tensor | None) -> dict | None:
+    if tensor is None:
+        return None
+    return {
+        "shape": list(tensor.shape),
+        "dtype": str(tensor.dtype),
+        "device": str(tensor.device),
+        "numel": tensor.numel(),
+        "bytes": tensor.numel() * tensor.element_size(),
+        "is_view": tensor._base is not None,
+        "is_contiguous": tensor.is_contiguous(),
+        "stride": list(tensor.stride()),
+    }
 
 
 def diff_metrics(
@@ -331,7 +351,12 @@ def _is_blocked_out_of_scope(tail: str) -> bool:
     return any(marker in lowered for marker in ("cupy", "sigpy", "_cupy_pytorch"))
 
 
-def _error_result(spec: CellSpec, exc: BaseException, phase: str) -> CellResult:
+def _error_result(
+    spec: CellSpec,
+    exc: BaseException,
+    phase: str,
+    input_: torch.Tensor | None = None,
+) -> CellResult:
     unavailable = _is_unavailable(spec, exc)
     tail = "\n".join(traceback.format_exc().strip().splitlines()[-8:])
     if unavailable:
@@ -345,6 +370,7 @@ def _error_result(spec: CellSpec, exc: BaseException, phase: str) -> CellResult:
         status=status,
         cell_class=cell_class,
         graph_breaks=None,
+        input_tensor=_tensor_info(input_),
         traceback_tail=tail,
         notes=f"raised during {phase}",
     )
@@ -377,12 +403,14 @@ def execute_cell(
                 lambda: target(input_), warmup=warmup, iters=iters, device=spec.device
             )
         except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
-            return _error_result(spec, exc, phase="eager")
+            return _error_result(spec, exc, phase="eager", input_=input_)
         if eager_cache is not None:
             eager_cache[key] = (ref, eager_time)
 
     if spec.config == "eager":
         result = run_cell(spec, ref, ref, eager_time=eager_time)
+        result.input_tensor = _tensor_info(input_)
+        result.output_tensor = _tensor_info(ref)
         result.notes = "eager baseline"
         return result
 
@@ -397,7 +425,7 @@ def execute_cell(
             lambda: compiled_fn(input_), warmup=warmup, iters=iters, device=spec.device
         )
     except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
-        return _error_result(spec, exc, phase="compiled")
+        return _error_result(spec, exc, phase="compiled", input_=input_)
 
     # Non-default configs do not get an explain pass, so their break count is
     # unknown rather than a measured zero.
@@ -406,7 +434,7 @@ def execute_cell(
         graph_breaks, break_locations = capture_graph_breaks(
             target, input_, spec_key(spec), log_dir=log_dir
         )
-    return run_cell(
+    result = run_cell(
         spec,
         ref,
         out,
@@ -416,6 +444,9 @@ def execute_cell(
         break_locations=break_locations,
         degraded=degraded,
     )
+    result.input_tensor = _tensor_info(input_)
+    result.output_tensor = _tensor_info(ref)
+    return result
 
 
 def measure_recompiles(

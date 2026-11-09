@@ -5,6 +5,7 @@ from benchmarks.compile.report import (
     build_compiled_markdown,
     build_compiled_pages,
     load_compiled_results,
+    row_id,
 )
 
 
@@ -34,6 +35,26 @@ def _payload(level="reduced", config="default"):
                 "speedup": 2.0,
                 "traceback_tail": None,
                 "notes": "",
+                "input_tensor": {
+                    "shape": [3],
+                    "dtype": "torch.float32",
+                    "device": "cuda",
+                    "numel": 3,
+                    "bytes": 12,
+                    "is_view": False,
+                    "is_contiguous": True,
+                    "stride": [1],
+                },
+                "output_tensor": {
+                    "shape": [4],
+                    "dtype": "torch.float32",
+                    "device": "cuda",
+                    "numel": 4,
+                    "bytes": 16,
+                    "is_view": False,
+                    "is_contiguous": True,
+                    "stride": [1],
+                },
             }
         ],
         "phases": {},
@@ -190,3 +211,25 @@ def test_full_chains_page_links_pipeline_chart():
     }
     md = build_compiled_pages(data, "full")["chains.md"]
     assert "../assets/pipeline_speedups.png" in md
+
+
+def test_compiled_pages_include_row_detail_page():
+    data = _payload("reduced")
+    pages = build_compiled_pages(data, "reduced")
+    detail_name = f"rows/{row_id(data['rows'][0])}.md"
+
+    assert detail_name in pages
+    detail = pages[detail_name]
+    assert "## Tensors" in detail
+    assert "Shape" in detail
+    assert "12.00 B" in detail
+    assert "2.00x" in detail
+
+
+def test_tables_link_to_row_detail_pages():
+    data = _payload("reduced")
+    pages = build_compiled_pages(data, "reduced")
+    link = f"rows/{row_id(data['rows'][0])}.md"
+
+    assert link in pages["index.md"]
+    assert link in pages["float-vs-complex.md"]

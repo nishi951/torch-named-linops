@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import warnings
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -38,6 +39,31 @@ def _format_speedup(value):
 
 def _cell(value) -> str:
     return str(value).replace("|", "\\|")
+
+
+def _format_bytes(num_bytes) -> str:
+    if num_bytes is None:
+        return "—"
+    value = float(num_bytes)
+    for unit in ("B", "KB", "MB", "GB"):
+        if value < 1024:
+            return f"{value:.2f} {unit}"
+        value /= 1024
+    return f"{value:.2f} TB"
+
+
+def row_id(row: dict) -> str:
+    """Stable filename stem for a benchmark result row."""
+    raw = (
+        f"{row.get('op', '')}-{row.get('method', '')}-{row.get('device', '')}-"
+        f"{row.get('dtype', '')}-{row.get('level', '')}-{row.get('config', '')}"
+    )
+    raw = raw.replace("torch.", "")
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", raw)
+
+
+def _row_link(row: dict) -> str:
+    return f"[details](rows/{row_id(row)}.md)"
 
 
 def _table(headers: list[str], rows: list[list]) -> str:
@@ -120,6 +146,7 @@ def _build_compatibility_section(rows: list[dict]) -> list[str]:
                 if row.get("max_rel_diff") is not None
                 else "—",
                 _error_signature(row.get("traceback_tail")),
+                _row_link(row),
             ]
         )
     lines.append(
@@ -134,6 +161,7 @@ def _build_compatibility_section(rows: list[dict]) -> list[str]:
                 "Graph breaks",
                 "Max rel diff",
                 "Error",
+                "Details",
             ],
             table_rows,
         )
@@ -195,6 +223,7 @@ def _build_speedup_section(rows: list[dict]) -> list[str]:
                 _format_time(row.get("compiled_time")),
                 _format_speedup(row.get("speedup")),
                 row.get("effective_class", row.get("cell_class", "")),
+                _row_link(row),
             ]
         )
     lines.append(
@@ -209,6 +238,7 @@ def _build_speedup_section(rows: list[dict]) -> list[str]:
                 "Compiled",
                 "Speedup",
                 "Class",
+                "Details",
             ],
             table_rows,
         )
@@ -318,7 +348,7 @@ def _build_summary_section(rows: list[dict]) -> list[str]:
         lines += ["### Failure signatures", ""]
         lines.append(
             _table(
-                ["Operator", "Method", "Device", "Config", "Signature"],
+                ["Operator", "Method", "Device", "Config", "Signature", "Details"],
                 [
                     [
                         row.get("op", ""),
@@ -326,6 +356,7 @@ def _build_summary_section(rows: list[dict]) -> list[str]:
                         row.get("device", ""),
                         row.get("config", ""),
                         _error_signature(row.get("traceback_tail")),
+                        _row_link(row),
                     ]
                     for row in failures
                 ],
@@ -351,6 +382,7 @@ def _build_functional_section(rows: list[dict]) -> list[str]:
                 "Class",
                 "Graph breaks",
                 "Speedup",
+                "Details",
             ],
             [
                 [
@@ -361,6 +393,7 @@ def _build_functional_section(rows: list[dict]) -> list[str]:
                     row.get("effective_class", row.get("cell_class", "")),
                     "—" if row.get("graph_breaks") is None else row.get("graph_breaks"),
                     _format_speedup(row.get("speedup")),
+                    _row_link(row),
                 ]
                 for row in sorted(
                     functional,
@@ -448,7 +481,15 @@ def _build_dtype_section(rows: list[dict]) -> list[str]:
         lines += [f"### {dtype}", ""]
         lines.append(
             _table(
-                ["Operator", "Level", "Method", "Device", "Speedup", "Class"],
+                [
+                    "Operator",
+                    "Level",
+                    "Method",
+                    "Device",
+                    "Speedup",
+                    "Class",
+                    "Details",
+                ],
                 [
                     [
                         row.get("op", ""),
@@ -457,6 +498,7 @@ def _build_dtype_section(rows: list[dict]) -> list[str]:
                         row.get("device", ""),
                         _format_speedup(row.get("speedup")),
                         row.get("effective_class", row.get("cell_class", "")),
+                        _row_link(row),
                     ]
                     for row in sorted(
                         subset, key=lambda r: r.get("speedup") or 0, reverse=True
@@ -535,6 +577,101 @@ def _no_data_page(title: str) -> str:
         + "No compiled benchmark data available. Run `just bench` for the "
         + "reduced suite or `just bench-compiled` for the full suite.\n"
     )
+
+
+def _build_row_detail_page(row: dict) -> str:
+    title = (
+        f"{row.get('op', '')} — {row.get('method', '')} "
+        f"({row.get('device', '')}, {row.get('dtype', '')}, "
+        f"{row.get('level', '')}, {row.get('config', '')})"
+    )
+    lines = [
+        f"# {title}",
+        "",
+        "[← Back to compiled benchmarks](../index.md)",
+        "",
+        "## Result",
+        "",
+        _table(
+            ["Field", "Value"],
+            [
+                ["Operator", row.get("op", "")],
+                ["Category", row.get("category", "")],
+                ["Method", row.get("method", "")],
+                ["Device", row.get("device", "")],
+                ["Dtype", row.get("dtype", "")],
+                ["Compile level", row.get("level", "")],
+                ["Compile config", row.get("config", "")],
+                ["Status", row.get("status", "")],
+                ["Class", row.get("effective_class", row.get("cell_class", ""))],
+                [
+                    "Graph breaks",
+                    "—" if row.get("graph_breaks") is None else row.get("graph_breaks"),
+                ],
+                ["Recompiles", row.get("recompiles", "—") or "—"],
+                ["Eager time", _format_time(row.get("eager_time"))],
+                ["Compiled time", _format_time(row.get("compiled_time"))],
+                ["Speedup", _format_speedup(row.get("speedup"))],
+                ["Max abs diff", row.get("max_abs_diff", "—")],
+                ["Max rel diff", row.get("max_rel_diff", "—")],
+                ["Degraded", row.get("degraded", False)],
+            ],
+        ),
+        "",
+        "## Tensors",
+        "",
+    ]
+    tensor_rows = []
+    for label, key in (("input", "input_tensor"), ("output", "output_tensor")):
+        info = row.get(key)
+        if not info:
+            continue
+        tensor_rows.append(
+            [
+                label,
+                info.get("shape", "—"),
+                info.get("dtype", "—"),
+                info.get("device", "—"),
+                info.get("numel", "—"),
+                _format_bytes(info.get("bytes")),
+                info.get("is_view", "—"),
+                info.get("is_contiguous", "—"),
+                info.get("stride", "—"),
+            ]
+        )
+    if tensor_rows:
+        lines.append(
+            _table(
+                [
+                    "Tensor",
+                    "Shape",
+                    "Dtype",
+                    "Device",
+                    "Numel",
+                    "Bytes",
+                    "View",
+                    "Contiguous",
+                    "Stride",
+                ],
+                tensor_rows,
+            )
+        )
+    else:
+        lines.append("No tensor metadata recorded.")
+    lines.append("")
+
+    locations = row.get("break_locations") or []
+    if locations:
+        lines += ["## Graph-break locations", ""]
+        lines += [f"- `{_cell(location)}`" for location in locations[:3]]
+        lines.append("")
+
+    traceback_tail = row.get("traceback_tail")
+    if traceback_tail:
+        lines += ["## Traceback", "", "```text", traceback_tail, "```", ""]
+
+    lines += ["## Notes", "", row.get("notes") or "—", ""]
+    return AUTOGENERATED_FRONTMATTER + "\n".join(lines)
 
 
 def build_compiled_pages(data: dict | None, level: str | None) -> dict[str, str]:
@@ -647,6 +784,8 @@ def build_compiled_pages(data: dict | None, level: str | None) -> dict[str, str]
             ],
         ),
     }
+    for row in rows:
+        pages[f"rows/{row_id(row)}.md"] = _build_row_detail_page(row)
     return pages
 
 
@@ -784,7 +923,9 @@ def render_compiled_report(results_dir: Path, docs_dir: Path, assets_dir: Path) 
     docs_dir.mkdir(parents=True, exist_ok=True)
     pages = build_compiled_pages(data, level)
     for filename, content in pages.items():
-        (docs_dir / filename).write_text(content)
+        path = docs_dir / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
     if data is not None:
         plot_compiled_charts(data, level or "", assets_dir)
     print(f"Compiled benchmark report generated at {docs_dir}")
