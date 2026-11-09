@@ -494,20 +494,17 @@ def _unfold_torch(
     block_size: tuple[int, ...],
     stride: tuple[int, ...],
     ndim: int,
-    _im_size: tuple[int, ...],
+    im_size: tuple[int, ...],
     nblocks: tuple[int, ...],
     nbatch: int,
     out: Tensor | None = None,
 ) -> Float[Tensor, "B I ..."]:
-    """Fallback option
-
-    Note: Compile takes forever
-    """
+    """Fallback option"""
     output_size = (nbatch, *nblocks, *block_size)
     if out is None:
-        out = torch.zeros(output_size, device=x.device, dtype=x.dtype)
+        out = torch.empty(output_size, device=x.device, dtype=x.dtype)
     else:
-        out = out.reshape(*output_size).zero_()
+        out = out.reshape(*output_size)
     x_strided_view = _unfold_helper(x, x.stride(), stride, ndim, output_size)
     out.copy_(x_strided_view)
     return out

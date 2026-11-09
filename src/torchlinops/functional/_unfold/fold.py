@@ -497,23 +497,24 @@ def _fold_torch(
     nbatch: int,
     out: Tensor | None = None,
 ) -> Shaped[Tensor, "B I ..."]:
-    """Fallback option
-
-    Note: Compile takes forever
-    """
+    """Fallback option"""
     if out is None:
         out = torch.zeros((nbatch, *im_size), device=x.device, dtype=x.dtype)
     else:
         out = out.reshape(nbatch, *im_size).zero_()
+
+    # Work with flattened tensor
     out = out.reshape(nbatch, -1)
-    index = torch.arange(out.shape[1])
+    index = torch.arange(out.shape[1], device=out.device)
     index = index.reshape(1, *im_size)
-    index_unfolded = _unfold_helper(
-        index, (1, *index.stride()[1:]), stride, ndim, (1, *x.shape[1:])
-    ).expand(nbatch, *x.shape[1:])
-    out.scatter_add_(1, index_unfolded.reshape(nbatch, -1), x.reshape(nbatch, -1))
-    out.reshape(nbatch, *im_size)
-    return out
+    index_unfolded = (
+        _unfold_helper(index, index.stride(), stride, ndim, (1, *x.shape[1:]))
+        .reshape(1, -1)
+        .expand(nbatch, -1)
+    )
+    out.scatter_add_(1, index_unfolded, x.reshape(nbatch, -1))
+
+    return out.reshape(nbatch, *im_size)
 
 
 def _prep_fold(x, im_size, block_size, stride, mask):
