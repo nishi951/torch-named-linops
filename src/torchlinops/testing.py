@@ -121,3 +121,16 @@ class BaseNamedLinopTests(ABC):
             out.sum().backward()
         grad_out = torch.ones_like(out)
         assert x.grad.allclose(A.H(grad_out), rtol=1e-3)
+
+    def test_compile(self, linop_input_output):
+        op, x, y = linop_input_output
+        torch._dynamo.reset()
+        torch.testing.assert_close(torch.compile(op)(x), op(x))
+
+        H = op.H
+        torch._dynamo.reset()
+        torch.testing.assert_close(torch.compile(H)(y), H(y))
+
+        N = op.N
+        torch._dynamo.reset()
+        torch.testing.assert_close(torch.compile(N)(x), N(x))

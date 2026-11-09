@@ -1,8 +1,8 @@
-from itertools import product
-
 import torch
 from jaxtyping import Bool, Shaped
 from torch import Tensor
+
+from .unfold import _unfold_helper
 
 try:  # pragma: no cover
     import triton
@@ -497,25 +497,24 @@ def _fold_torch(
     nbatch: int,
     out: Tensor | None = None,
 ) -> Shaped[Tensor, "B I ..."]:
-    """Fallback option
-
-    Note: Compile takes forever
-    """
+    """Fallback option"""
     if out is None:
         out = torch.zeros((nbatch, *im_size), device=x.device, dtype=x.dtype)
     else:
         out = out.reshape(nbatch, *im_size).zero_()
-    # Python implementation
-    for batch in range(nbatch):
-        for blk in product(*(range(nblk) for nblk in nblocks)):
-            blk_slc = tuple(
-                slice(iblk * st, iblk * st + blk_sz)
-                for iblk, st, blk_sz in zip(blk, stride, block_size)
-            )
-            in_idx = (batch, *blk)
-            out_idx = (batch, *blk_slc)
-            out[out_idx] += x[in_idx]
-    return out
+
+    # Work with flattened tensor
+    out = out.reshape(nbatch, -1)
+    index = torch.arange(out.shape[1], device=out.device)
+    index = index.reshape(1, *im_size)
+    index_unfolded = (
+        _unfold_helper(index, index.stride(), stride, ndim, (1, *x.shape[1:]))
+        .reshape(1, -1)
+        .expand(nbatch, -1)
+    )
+    out.scatter_add_(1, index_unfolded, x.reshape(nbatch, -1))
+
+    return out.reshape(nbatch, *im_size)
 
 
 def _prep_fold(x, im_size, block_size, stride, mask):
