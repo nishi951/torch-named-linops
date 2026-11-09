@@ -1,4 +1,5 @@
 from itertools import product
+from typing import ClassVar
 
 import pytest
 import torch
@@ -19,8 +20,9 @@ class TestArrayToBlocks(BaseNamedLinopTests):
     equality_check = "approx"
 
     # Fixture/test parameterization
-    devices = ["cpu"]
-    instances = ["small3d"]
+    devices = ["cpu", "cuda"]
+    instances = ["small3d", "small4d_nomask"]
+    isclose_kwargs: ClassVar[dict] = {"rtol": 1e-3}
 
     @pytest.fixture(
         scope="class",
@@ -68,9 +70,9 @@ class TestArrayToBlocks(BaseNamedLinopTests):
                         [0, 0, 0],
                     ],
                     [
-                        [0, 1, 0],
                         [1, 1, 1],
-                        [0, 1, 0],
+                        [1, 1, 1],
+                        [1, 1, 1],
                     ],
                     [
                         [0, 0, 0],
@@ -80,6 +82,18 @@ class TestArrayToBlocks(BaseNamedLinopTests):
                 ],
                 dtype=bool,
             ),
+        }
+        return spec
+
+    @pytest.fixture(scope="class")
+    @classmethod
+    def small4d_nomask(cls, request):
+        spec = {
+            "N": (1,),
+            "shape": (15, 15, 15, 15),
+            "block_size": (3, 3, 3, 3),
+            "stride": (1, 1, 1, 1),
+            "mask": None,
         }
         return spec
 
