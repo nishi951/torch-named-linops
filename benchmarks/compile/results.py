@@ -24,13 +24,27 @@ class CompiledBenchmarkSession:
         self.eager_cache: dict = {}
 
     def record(self, result: CellResult) -> None:
+        """Record one compiled benchmark result."""
         self.config._compiled_results.append(result_to_dict(result))
 
     def record_phase(self, kind: str, rows: list[dict]) -> None:
+        """Record full-suite phase rows under ``kind``."""
         self.config._compiled_phases[kind] = rows
 
 
 def result_to_dict(result: CellResult) -> dict:
+    """Serialize a ``CellResult`` into a result-row dictionary.
+
+    Parameters
+    ----------
+    result : CellResult
+        Result to serialize.
+
+    Returns
+    -------
+    dict
+        JSON-serializable row.
+    """
     spec = result.spec
     return {
         "op": spec.op,
@@ -67,6 +81,22 @@ def result_to_dict(result: CellResult) -> dict:
 
 
 def compiled_results_payload(results: list[dict], level: str, metadata: dict) -> dict:
+    """Build the JSON payload for one suite level.
+
+    Parameters
+    ----------
+    results : list of dict
+        Serialized result rows.
+    level : str
+        Suite level.
+    metadata : dict
+        Environment metadata.
+
+    Returns
+    -------
+    dict
+        Payload with metadata, level, and rows.
+    """
     return {
         "metadata": {
             **metadata,
@@ -79,6 +109,20 @@ def compiled_results_payload(results: list[dict], level: str, metadata: dict) ->
 
 
 def write_compiled_results(config, latest_dir: Path) -> bool:
+    """Atomically write compiled results for the current session.
+
+    Parameters
+    ----------
+    config : pytest.Config
+        Session config holding compiled results/phases.
+    latest_dir : pathlib.Path
+        Latest results directory.
+
+    Returns
+    -------
+    bool
+        True when a file was written.
+    """
     level = getattr(config, "_compiled_level", None)
     results = getattr(config, "_compiled_results", None) or []
     phases = dict(getattr(config, "_compiled_phases", {}) or {})

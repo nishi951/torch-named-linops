@@ -92,7 +92,20 @@ class Case:
 def target_for_spec(
     case: Case, spec: CellSpec
 ) -> tuple[Callable[[Tensor], Tensor], Tensor]:
-    """Return the callable to compile and its input for one benchmark cell."""
+    """Return the compiled callable and input for one benchmark cell.
+
+    Parameters
+    ----------
+    case : Case
+        Registry entry describing how to build the operator, input, and output.
+    spec : CellSpec
+        Matrix cell selecting method, device, dtype, and compile level.
+
+    Returns
+    -------
+    tuple of callable and torch.Tensor
+        Target to compile and the tensor to feed it.
+    """
     linop, x, y = case.build(spec.device, spec.dtype)
 
     if case.category == "functional":
@@ -520,6 +533,20 @@ CASE_BY_OP = {case.op: case for case in CASES}
 
 
 def levels_for(case: Case, suite_level: str) -> list[str]:
+    """Return the compile levels to evaluate for a case.
+
+    Parameters
+    ----------
+    case : Case
+        Registry entry.
+    suite_level : str
+        Either ``"reduced"`` or ``"full"``.
+
+    Returns
+    -------
+    list of str
+        ``"wrapper"`` and/or ``"inner"``.
+    """
     if case.category == "functional":
         return ["inner"]
     if case.deep_dive:
@@ -528,24 +555,76 @@ def levels_for(case: Case, suite_level: str) -> list[str]:
 
 
 def methods_for(case: Case, suite_level: str) -> list[str]:
+    """Return the evaluation methods for a suite level.
+
+    Parameters
+    ----------
+    case : Case
+        Registry entry.
+    suite_level : str
+        Either ``"reduced"`` or ``"full"``.
+
+    Returns
+    -------
+    list of str
+        Subset of ``"fwd"``, ``"adj"``, and ``"normal"``.
+    """
     if suite_level == "reduced":
         return [method for method in ("fwd", "adj") if method in case.methods]
     return list(case.methods)
 
 
 def configs_for(suite_level: str) -> list[str]:
+    """Return the compile configs for a suite level.
+
+    Parameters
+    ----------
+    suite_level : str
+        Either ``"reduced"`` or ``"full"``.
+
+    Returns
+    -------
+    list of str
+        ``"default"`` and optionally ``"fullgraph"``.
+    """
     if suite_level == "reduced":
         return ["default"]
     return ["default", "fullgraph"]
 
 
 def dtypes_for(case: Case, suite_level: str) -> list[torch.dtype]:
+    """Return the dtypes to evaluate for a case.
+
+    Parameters
+    ----------
+    case : Case
+        Registry entry.
+    suite_level : str
+        Either ``"reduced"`` or ``"full"``.
+
+    Returns
+    -------
+    list of torch.dtype
+        Reduced runs use the first declared dtype; full runs use all.
+    """
     if suite_level == "reduced":
         return list(case.dtypes[:1])
     return list(case.dtypes)
 
 
 def iter_specs(suite_level: str) -> list[CellSpec]:
+    """Expand every registered case into matrix cells.
+
+    Parameters
+    ----------
+    suite_level : str
+        Either ``"reduced"`` or ``"full"``.
+
+    Returns
+    -------
+    list of CellSpec
+        One entry per operator/method/device/dtype/level/config combination.
+    """
     specs: list[CellSpec] = []
     for case in CASES:
         for method in methods_for(case, suite_level):
@@ -568,5 +647,17 @@ def iter_specs(suite_level: str) -> list[CellSpec]:
 
 
 def spec_id(spec: CellSpec) -> str:
+    """Return a stable identifier for a matrix cell.
+
+    Parameters
+    ----------
+    spec : CellSpec
+        Matrix cell.
+
+    Returns
+    -------
+    str
+        Filename-friendly cell identifier.
+    """
     dtype = str(spec.dtype).replace("torch.", "")
     return f"{spec.op}-{spec.method}-{spec.device}-{dtype}-{spec.level}-{spec.config}"

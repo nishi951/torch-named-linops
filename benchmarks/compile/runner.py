@@ -137,10 +137,21 @@ def _tensor_info(tensor: torch.Tensor | None) -> dict | None:
 def diff_metrics(
     reference_out: torch.Tensor, compiled_out: torch.Tensor
 ) -> tuple[float, float]:
-    """Return (max_abs_diff, max_rel_diff), comparing complex tensors part-wise.
+    """Return max absolute and relative differences.
 
-    Shape disagreement or non-finite values are disagreement by definition
-    (infinite diffs), never a pass.
+    Shape disagreement and non-finite values are always disagreement.
+
+    Parameters
+    ----------
+    reference_out : torch.Tensor
+        Eager reference output.
+    compiled_out : torch.Tensor
+        Compiled output.
+
+    Returns
+    -------
+    tuple of float
+        ``(max_abs_diff, max_rel_diff)``, using infinity for disagreement.
     """
     ref = _to_cpu(reference_out)
     out = _to_cpu(compiled_out)
@@ -182,7 +193,34 @@ def run_cell(
     degraded: bool = False,
     notes: str = "",
 ) -> CellResult:
-    """Classify one completed eager-vs-compiled comparison."""
+    """Classify one completed eager-vs-compiled comparison.
+
+    Parameters
+    ----------
+    spec : CellSpec
+        Matrix cell being classified.
+    reference_out : torch.Tensor
+        Eager reference output.
+    compiled_out : torch.Tensor
+        Compiled output.
+    eager_time, compiled_time : float, optional
+        Median per-call times in seconds.
+    graph_breaks : int or None, optional
+        Measured graph-break count.
+    break_locations : list of str, optional
+        Formatted break locations.
+    recompiles : int or None, optional
+        Shape-driven recompile count.
+    degraded : bool, optional
+        Whether a fallback warning was captured.
+    notes : str, optional
+        Free-form annotation.
+
+    Returns
+    -------
+    CellResult
+        Populated result row.
+    """
     max_abs, max_rel = diff_metrics(reference_out, compiled_out)
     cell_class = "fails_silent" if max_rel > TOL else "works"
     speedup = None
@@ -213,6 +251,18 @@ DEGRADATION_MARKERS = (
 
 
 def detect_degradation(messages: list[str]) -> bool:
+    """Return whether warnings indicate a known compiled fallback.
+
+    Parameters
+    ----------
+    messages : list of str
+        Captured warning messages.
+
+    Returns
+    -------
+    bool
+        True when a degradation marker is present.
+    """
     lowered = " ".join(messages).lower()
     return any(marker in lowered for marker in DEGRADATION_MARKERS)
 
@@ -225,6 +275,28 @@ def effective_class(
     degraded: bool,
     config: str | None = None,
 ) -> str:
+    """Resolve the effective class used by reports.
+
+    Parameters
+    ----------
+    status : str
+        Execution status (``"ok"``, ``"error"``, or ``"n_a"``).
+    cell_class : str
+        Raw numeric/execution class.
+    graph_breaks : int or None
+        Measured break count, or ``None`` when unknown.
+    speedup : float or None
+        Eager/compiled speedup.
+    degraded : bool
+        Whether a fallback warning was captured.
+    config : str, optional
+        Compile config, used to distinguish unknown breaks.
+
+    Returns
+    -------
+    str
+        Effective class name.
+    """
     if status == "n_a":
         return "n_a"
     if cell_class != "works":
@@ -241,12 +313,35 @@ def effective_class(
 
 
 def spec_key(spec: CellSpec) -> str:
+    """Return a filesystem-friendly key for a matrix cell.
+
+    Parameters
+    ----------
+    spec : CellSpec
+        Matrix cell.
+
+    Returns
+    -------
+    str
+        Key suitable for log filenames.
+    """
     dtype = str(spec.dtype).replace("torch.", "")
     return f"{spec.op}-{spec.method}-{spec.device}-{dtype}-{spec.level}-{spec.config}"
 
 
 def eager_key(spec: CellSpec) -> tuple[str, str, str, str, str]:
-    """Key identifying an eager measurement shared across compile configs."""
+    """Return the key shared by compile configs for eager reuse.
+
+    Parameters
+    ----------
+    spec : CellSpec
+        Matrix cell.
+
+    Returns
+    -------
+    tuple of str
+        Op, method, device, dtype, and level.
+    """
     return (
         spec.op,
         spec.method,
@@ -269,7 +364,26 @@ def median_time(
     device: str,
     counter: CallCounter | None = None,
 ) -> float:
-    """Median per-call wall time after warmup; adapts down for slow calls."""
+    """Return median per-call wall time after warmup.
+
+    Parameters
+    ----------
+    fn : callable
+        Zero-argument function to time.
+    warmup : int
+        Untimed warmup iterations.
+    iters : int
+        Timed iterations.
+    device : str
+        ``"cpu"`` or ``"cuda"``.
+    counter : CallCounter, optional
+        Optional call counter for tests.
+
+    Returns
+    -------
+    float
+        Median per-call time in seconds.
+    """
 
     def call() -> torch.Tensor:
         if counter is not None:
@@ -313,10 +427,23 @@ def capture_graph_breaks(
     spec_key: str,
     log_dir: Path | None = None,
 ) -> tuple[int | None, list[str]]:
-    """Run torch._dynamo.explain and optionally write its report to a log file.
+    """Capture graph breaks for a target/input pair.
 
-    Returns ``(None, [error])`` when explain itself fails, so callers cannot
-    mistake a failed measurement for a clean zero-break run.
+    Parameters
+    ----------
+    target : callable
+        Function that will be compiled.
+    input_ : torch.Tensor
+        Input passed to ``target``.
+    spec_key : str
+        Key used for the optional log filename.
+    log_dir : pathlib.Path, optional
+        Directory for explain logs.
+
+    Returns
+    -------
+    tuple of int or None and list of str
+        Break count (``None`` if explain failed) and formatted locations.
     """
     count: int | None = None
     locations: list[str] = []
@@ -387,10 +514,29 @@ def execute_cell(
     eager_cache: dict[tuple[str, str, str, str, str], tuple[torch.Tensor, float]]
     | None = None,
 ) -> CellResult:
-    """Run one matrix cell: eager reference, compiled run, classification.
+    """Run one matrix cell and classify the result.
 
-    ``eager_cache`` lets full-matrix runs reuse the eager reference/timing
-    across the ``default`` and ``fullgraph`` configs for the same spec key.
+    Parameters
+    ----------
+    spec : CellSpec
+        Cell to measure.
+    target : callable
+        Function to compile.
+    input_ : torch.Tensor
+        Input passed to the target.
+    warmup : int
+        Untimed warmup iterations.
+    iters : int
+        Timed iterations.
+    log_dir : pathlib.Path, optional
+        Directory for explain logs.
+    eager_cache : dict, optional
+        Cache of eager references/timings shared across compile configs.
+
+    Returns
+    -------
+    CellResult
+        Measured and classified row.
     """
     key = eager_key(spec)
     cached = eager_cache.get(key) if eager_cache is not None else None
@@ -452,10 +598,19 @@ def execute_cell(
 def measure_recompiles(
     fn: Callable[[torch.Tensor], torch.Tensor], inputs: list[torch.Tensor]
 ) -> tuple[int, list[torch.Tensor]]:
-    """Run fn compiled once over several shapes; return (recompiles, outputs).
+    """Measure shape-driven recompiles for one callable.
 
-    Recompiles = graphs Dynamo built for calls after the first (a graph-breaking
-    first call may build several fragments; those are not recompiles).
+    Parameters
+    ----------
+    fn : callable
+        Function to compile.
+    inputs : list of torch.Tensor
+        Inputs with different shapes.
+
+    Returns
+    -------
+    tuple of int and list of torch.Tensor
+        Recompile count and outputs for each input.
     """
     torch._dynamo.reset()
     from torch._dynamo.utils import counters
@@ -470,6 +625,20 @@ def measure_recompiles(
 
 
 def classify_grads(eager_grad: torch.Tensor, compiled_grad: torch.Tensor) -> dict:
+    """Classify eager-vs-compiled gradients.
+
+    Parameters
+    ----------
+    eager_grad : torch.Tensor
+        Eager gradient.
+    compiled_grad : torch.Tensor
+        Compiled gradient.
+
+    Returns
+    -------
+    dict
+        Class and difference metrics.
+    """
     max_abs, max_rel = diff_metrics(eager_grad, compiled_grad)
     return {
         "cell_class": "fails_silent" if max_rel > TOL else "works",
@@ -488,6 +657,22 @@ def _loss_grad(fn, x: torch.Tensor, y: torch.Tensor, compiled: bool):
 
 
 def check_grad_agreement(fn, x: torch.Tensor, y: torch.Tensor) -> dict:
+    """Compare eager and compiled backward gradients.
+
+    Parameters
+    ----------
+    fn : callable
+        Forward callable.
+    x : torch.Tensor
+        Input leaf.
+    y : torch.Tensor
+        Target tensor for the loss.
+
+    Returns
+    -------
+    dict
+        Status, class, difference metrics, traceback, and notes.
+    """
     try:
         eager_grad = _loss_grad(fn, x, y, compiled=False)
     except Exception:  # noqa: BLE001 - recorded, not swallowed

@@ -53,7 +53,18 @@ def _format_bytes(num_bytes) -> str:
 
 
 def row_id(row: dict) -> str:
-    """Stable filename stem for a benchmark result row."""
+    """Return a stable filename stem for a result row.
+
+    Parameters
+    ----------
+    row : dict
+        Serialized result row.
+
+    Returns
+    -------
+    str
+        Filename-friendly identifier.
+    """
     raw = (
         f"{row.get('op', '')}-{row.get('method', '')}-{row.get('device', '')}-"
         f"{row.get('dtype', '')}-{row.get('level', '')}-{row.get('config', '')}"
@@ -85,7 +96,18 @@ def _error_signature(tail: str | None) -> str:
 
 
 def load_compiled_results(results_dir: Path) -> tuple[dict | None, str | None]:
-    """Load the newest available compiled results, preferring the full level."""
+    """Load the newest available compiled results.
+
+    Parameters
+    ----------
+    results_dir : pathlib.Path
+        Directory containing ``compiled-*.json`` files.
+
+    Returns
+    -------
+    tuple of dict or None and str or None
+        Result payload and suite level, preferring ``full`` over ``reduced``.
+    """
     for level in ("full", "reduced"):
         path = results_dir / f"compiled-{level}.json"
         if not path.exists():
@@ -675,7 +697,20 @@ def _build_row_detail_page(row: dict) -> str:
 
 
 def build_compiled_pages(data: dict | None, level: str | None) -> dict[str, str]:
-    """Build every compiled docs page keyed by filename."""
+    """Build every compiled documentation page.
+
+    Parameters
+    ----------
+    data : dict or None
+        Compiled result payload.
+    level : str or None
+        Suite level.
+
+    Returns
+    -------
+    dict of str to str
+        Markdown contents keyed by relative filename, including row pages.
+    """
     filenames = [
         "index.md",
         "float-vs-complex.md",
@@ -790,7 +825,20 @@ def build_compiled_pages(data: dict | None, level: str | None) -> dict[str, str]
 
 
 def build_compiled_markdown(data: dict | None, level: str | None) -> str:
-    """Compatibility helper returning the compiled index page."""
+    """Return the compiled index page markdown.
+
+    Parameters
+    ----------
+    data : dict or None
+        Compiled result payload.
+    level : str or None
+        Suite level.
+
+    Returns
+    -------
+    str
+        Index page markdown.
+    """
     return build_compiled_pages(data, level)["index.md"]
 
 
@@ -911,6 +959,17 @@ def _plot_pipeline_speedups(data: dict, assets_dir: Path) -> None:
 
 
 def plot_compiled_charts(data: dict, level: str, assets_dir: Path) -> None:
+    """Generate all compiled chart assets.
+
+    Parameters
+    ----------
+    data : dict
+        Compiled result payload.
+    level : str
+        Suite level.
+    assets_dir : pathlib.Path
+        Directory to write PNG files into.
+    """
     rows = data.get("rows", [])
     for device in ("cpu", "cuda"):
         _plot_speedup_bars(rows, device, assets_dir)
@@ -919,6 +978,17 @@ def plot_compiled_charts(data: dict, level: str, assets_dir: Path) -> None:
 
 
 def render_compiled_report(results_dir: Path, docs_dir: Path, assets_dir: Path) -> None:
+    """Write all compiled documentation pages and charts.
+
+    Parameters
+    ----------
+    results_dir : pathlib.Path
+        Directory containing compiled result JSON files.
+    docs_dir : pathlib.Path
+        Output directory for compiled Markdown pages.
+    assets_dir : pathlib.Path
+        Output directory for charts.
+    """
     data, level = load_compiled_results(results_dir)
     docs_dir.mkdir(parents=True, exist_ok=True)
     pages = build_compiled_pages(data, level)

@@ -27,8 +27,10 @@ from benchmarks.compile.runner import (
 from torchlinops import NUFFT, Chain, Dense, Diagonal, Dim, Identity
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 
+# Fixed-point pipeline: x <- x - ALPHA * A.H(A(x) - b), repeated STEPS times.
 STEPS = 20
 ALPHA = 0.5
+# Timed repetitions used to take the median pipeline duration.
 REPEATS = 3
 
 
@@ -50,6 +52,24 @@ def _variant(input_: Tensor) -> Tensor | None:
 
 
 def run_recompile_check(case, spec: CellSpec, device: str, dtype: torch.dtype) -> dict:
+    """Run a shape-family recompile check for one cell.
+
+    Parameters
+    ----------
+    case : Case
+        Registry entry.
+    spec : CellSpec
+        Matrix cell.
+    device : str
+        Device to run on.
+    dtype : torch.dtype
+        Dtype to use.
+
+    Returns
+    -------
+    dict
+        Recompile record with shapes and agreement fields.
+    """
     record = {
         "op": spec.op,
         "level": spec.level,
@@ -98,6 +118,18 @@ def run_recompile_check(case, spec: CellSpec, device: str, dtype: torch.dtype) -
 
 
 def run_recompile_phase(device: str = "cuda") -> list[dict]:
+    """Run recompile checks for all applicable cases and levels.
+
+    Parameters
+    ----------
+    device : str, optional
+        Device to run on, by default ``"cuda"``.
+
+    Returns
+    -------
+    list of dict
+        One recompile record per case/level.
+    """
     rows = []
     for case in CASES:
         for level in levels_for(case, "full"):
@@ -118,6 +150,24 @@ def run_recompile_phase(device: str = "cuda") -> list[dict]:
 
 
 def run_autograd_check(case, spec: CellSpec, device: str, dtype: torch.dtype) -> dict:
+    """Run one compiled-backward check for a case.
+
+    Parameters
+    ----------
+    case : Case
+        Registry entry.
+    spec : CellSpec
+        Result row spec; its method is ``"grad"``.
+    device : str
+        Device to run on.
+    dtype : torch.dtype
+        Dtype to use.
+
+    Returns
+    -------
+    dict
+        Autograd result row.
+    """
     row = {
         "op": spec.op,
         "level": spec.level,
@@ -154,6 +204,18 @@ def run_autograd_check(case, spec: CellSpec, device: str, dtype: torch.dtype) ->
 
 
 def run_autograd_phase(device: str = "cuda") -> list[dict]:
+    """Run backward checks for every deep-dive case and level.
+
+    Parameters
+    ----------
+    device : str, optional
+        Device to run on, by default ``"cuda"``.
+
+    Returns
+    -------
+    list of dict
+        Autograd result rows.
+    """
     rows = []
     for case in CASES:
         if not case.deep_dive:
@@ -216,6 +278,19 @@ CHAINS = {"simple": _simple_chain, "nufft": _nufft_chain}
 
 
 def pipeline_break_kind(locations: list[str]) -> str:
+    """Classify pipeline graph-break locations.
+
+    Parameters
+    ----------
+    locations : list of str
+        Break locations/reasons.
+
+    Returns
+    -------
+    str
+        ``"wrapper (logging/namedlinop)"``, ``"inner (triton/inductor)"``,
+        ``"unattributed"``, or ``"none"``.
+    """
     lowered = " ".join(locations).lower()
     if "triton" in lowered or "inductor" in lowered:
         return "inner (triton/inductor)"
@@ -373,6 +448,18 @@ def _run_chain(name: str, device: str = "cuda") -> list[dict]:
 
 
 def run_pipeline_phase(device: str = "cuda") -> list[dict]:
+    """Run fixed-point pipeline checks.
+
+    Parameters
+    ----------
+    device : str, optional
+        Device to run on, by default ``"cuda"``.
+
+    Returns
+    -------
+    list of dict
+        Pipeline result rows.
+    """
     rows: list[dict] = []
     for name in CHAINS:
         try:

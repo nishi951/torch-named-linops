@@ -8,6 +8,7 @@ from pathlib import Path
 
 import torch
 
+# Untimed warmup iterations before eager benchmark measurement.
 NUM_WARMUP = 3
 
 # Folders and files to check for a dirty working tree.

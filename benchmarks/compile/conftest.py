@@ -9,12 +9,34 @@ from benchmarks.compile.results import CompiledBenchmarkSession
 
 @pytest.fixture(scope="session")
 def compiled_benchmark_session(request):
-    """Session-scoped fixture for collecting compiled benchmark results."""
+    """Provide the session-scoped compiled result collector.
+
+    Parameters
+    ----------
+    request : pytest.FixtureRequest
+        Pytest request used to read ``--compiled-level``.
+
+    Returns
+    -------
+    CompiledBenchmarkSession
+        Collector for the selected suite level.
+    """
     level = request.config.getoption("compiled_level")
     return CompiledBenchmarkSession(request.config, level)
 
 
 def pytest_generate_tests(metafunc):
+    """Parametrize compiled benchmark cells for the selected level.
+
+    Reads ``--compiled-level``, expands the case registry with ``iter_specs``,
+    and parametrizes the ``compiled_spec`` fixture. Cells are marked
+    ``benchmark``; CUDA cells also get ``gpu`` and a CUDA-availability skip.
+
+    Parameters
+    ----------
+    metafunc : pytest.Metafunc
+        Pytest metafunction used to register parametrization.
+    """
     if "compiled_spec" not in metafunc.fixturenames:
         return
 
