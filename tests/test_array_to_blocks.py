@@ -1,4 +1,5 @@
 from itertools import product
+from typing import ClassVar
 
 import pytest
 import torch
@@ -19,12 +20,20 @@ class TestArrayToBlocks(BaseNamedLinopTests):
     equality_check = "approx"
 
     # Fixture/test parameterization
-    devices = ["cpu"]
-    instances = ["small3d"]
+    devices = ["cpu", "cuda"]
+    instances = ["small3d", "small4d_nomask"]
+    # Complex64 fold accumulates up to 81 overlapping blocks with CUDA atomics,
+    # so results vary by a few ulps between runs.
+    isclose_kwargs: ClassVar[dict] = {"rtol": 1e-3, "atol": 1e-4}
 
     @pytest.fixture(
         scope="class",
-        params=product(instances, devices),
+        params=[
+            pytest.param((spec, dev), marks=PYTEST_GPU_MARKS)
+            if dev == "cuda"
+            else (spec, dev)
+            for spec, dev in product(instances, devices)
+        ],
     )
     @classmethod
     def linop_input_output(cls, request):
@@ -80,6 +89,18 @@ class TestArrayToBlocks(BaseNamedLinopTests):
                 ],
                 dtype=bool,
             ),
+        }
+        return spec
+
+    @pytest.fixture(scope="class")
+    @classmethod
+    def small4d_nomask(cls, request):
+        spec = {
+            "N": (1,),
+            "shape": (15, 15, 15, 15),
+            "block_size": (3, 3, 3, 3),
+            "stride": (1, 1, 1, 1),
+            "mask": None,
         }
         return spec
 

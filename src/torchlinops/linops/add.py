@@ -16,11 +16,6 @@ __all__ = ["Add"]
 logger = logging.getLogger("torchlinops")
 
 
-def _log_transfer(msg):
-    if config.log_device_transfers:
-        logger.info(msg)
-
-
 class Add(NamedLinop):
     """The sum of one or more linear operators.
 
@@ -174,28 +169,6 @@ class Add(NamedLinop):
     @property
     def dims(self):
         return set().union(*[linop.dims for linop in self.linops])
-
-    @property
-    def H(self):
-        try:
-            if config.cache_adjoint_normal:
-                if self._adjoint is None:
-                    self._adjoint = [self.adjoint()]
-                return self._adjoint[0]
-            return self.adjoint()
-        except AttributeError as e:
-            raise RuntimeError(f"AttributeError in {type(self).__name__}.H: {e}") from e
-
-    @property
-    def N(self):
-        try:
-            if config.cache_adjoint_normal:
-                if self._normal is None:
-                    self._normal = [self.normal()]
-                return self._normal[0]
-            return self.normal()
-        except AttributeError as e:
-            raise RuntimeError(f"AttributeError in {type(self).__name__}.N: {e}") from e
 
     def flatten(self):
         return [self]

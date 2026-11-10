@@ -22,6 +22,7 @@ Example:
 
 from . import config as config
 from . import testing as testing
+from . import tools as tools
 from .alg import *
 from .linops import *
 from .nameddim import *

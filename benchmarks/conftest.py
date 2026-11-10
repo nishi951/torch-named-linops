@@ -1,27 +1,21 @@
 """Pytest configuration and session-scoped benchmark collector."""
 
 import json
-import platform
-import shutil
-import subprocess  # nosec
 import time
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 import torch
 
+from benchmarks._session import (
+    NUM_WARMUP,
+    archive_results,
+    collect_metadata,
+    remove_owned_latest_files,
+    write_patch_diff,
+)
+from benchmarks.compile.results import write_compiled_results
 from torchlinops.utils.benchmark import CupyHandler, TorchHandler
-
-NUM_WARMUP = 3
-
-# Folders and files to check for diff.
-DIFF_PATHS = [
-    "src/",
-    "tests/",
-    "uv.lock",
-    "pyproject.toml",
-]
 
 
 class BenchmarkSession:
@@ -30,7 +24,7 @@ class BenchmarkSession:
     def __init__(self, config, results_dir: Path):
         self.config = config
         self.results_dir = results_dir
-        self.metadata = _collect_metadata()
+        self.metadata = collect_metadata()
 
     def run(
         self,
@@ -175,66 +169,14 @@ class BenchmarkSession:
         return max(0.01, min(0.5, min_run_time))
 
 
-def _collect_metadata():
-    """Collect environment metadata for the benchmark run."""
-    metadata = {
-        "date": datetime.now(tz=UTC).isoformat(),
-        "python_version": platform.python_version(),
-        "torch_version": torch.__version__,
-        "cuda_version": torch.version.cuda,
-        "os": platform.system(),
-        "num_threads": torch.get_num_threads(),
-    }
-
-    try:
-        metadata["commit_sha"] = (
-            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])  # nosec
-            .decode()
-            .strip()
-        )
-        metadata["full_sha"] = (
-            subprocess.check_output(["git", "rev-parse", "HEAD"])  # nosec
-            .decode()
-            .strip()
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        metadata["commit_sha"] = "unknown"
-        metadata["full_sha"] = "unknown"
-
-    if torch.cuda.is_available():
-        metadata["gpu_name"] = torch.cuda.get_device_name(0)
-    else:
-        metadata["gpu_name"] = None
-
-    try:
-        subprocess.check_output(["git", "diff", "--"] + DIFF_PATHS + ["--quiet"])  # nosec
-        metadata["dirty"] = False
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        metadata["dirty"] = True
-
-    return metadata
-
-
-def _write_patch_diff(results_dir: Path):
-    """Save git diff if the working tree is dirty."""
-    try:
-        diff = subprocess.check_output(["git", "diff"]).decode()  # nosec
-        if diff:
-            (results_dir / "patch.diff").write_text(diff)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-
-def _archive_results(latest_dir: Path, metadata: dict):
-    """Copy the latest results to a date-SHA archive directory."""
-    sha = metadata.get("commit_sha", "unknown")
-    date = datetime.now(tz=UTC).strftime("%Y-%m-%d")
-    archive_name = f"{date}-{sha}"
-    archive_dir = latest_dir.parent / archive_name
-    if archive_dir.exists():
-        shutil.rmtree(archive_dir)
-    shutil.copytree(latest_dir, archive_dir)
-    return archive_dir
+def pytest_addoption(parser):
+    parser.addoption(
+        "--compiled-level",
+        action="store",
+        default="reduced",
+        choices=("reduced", "full"),
+        help="Compiled benchmark level to run (default: reduced).",
+    )
 
 
 @pytest.fixture(scope="session")
@@ -252,29 +194,30 @@ def benchmark_session(request):
 @pytest.hookimpl(tryfirst=True)
 def pytest_sessionfinish(session, exitstatus):
     """Write benchmark results to disk at the end of the session."""
-    results = getattr(session.config, "_benchmark_results", None)
-    if not results:
+    config = session.config
+    results = getattr(config, "_benchmark_results", None)
+    compiled_results = getattr(config, "_compiled_results", None)
+    compiled_phases = getattr(config, "_compiled_phases", None)
+    if not results and not compiled_results and not compiled_phases:
         return
 
     benchmarks_dir = Path(__file__).parent
     latest_dir = benchmarks_dir / "results" / "latest"
     latest_dir.mkdir(parents=True, exist_ok=True)
 
-    metadata = _collect_metadata()
+    metadata = collect_metadata()
 
-    # Clear previous latest results (keep directory)
-    for item in latest_dir.iterdir():
-        if item.is_file() or item.is_symlink():
-            item.unlink()
-        elif item.is_dir():
-            shutil.rmtree(item)
+    if results:
+        # Remove only the files this eager suite owns.
+        remove_owned_latest_files(
+            latest_dir, ["results.json", "metadata.json", "patch.diff"]
+        )
+        (latest_dir / "results.json").write_text(json.dumps(results, indent=2))
+        (latest_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
+        if metadata.get("dirty"):
+            write_patch_diff(latest_dir)
 
-    # Write results and metadata
-    (latest_dir / "results.json").write_text(json.dumps(results, indent=2))
-    (latest_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
+    compiled_written = write_compiled_results(config, latest_dir)
 
-    if metadata.get("dirty"):
-        _write_patch_diff(latest_dir)
-
-    # Archive to date-SHA directory
-    _archive_results(latest_dir, metadata)
+    if results or compiled_written:
+        archive_results(latest_dir, metadata)

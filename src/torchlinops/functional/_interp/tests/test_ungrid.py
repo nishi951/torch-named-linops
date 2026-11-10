@@ -4,7 +4,7 @@ import pytest
 import sigpy as sp
 import torch
 
-from torchlinops.functional import ungrid
+from torchlinops.functional._interp import ungrid
 from torchlinops.functional._interp.tests._valid_pts import get_valid_locs
 from torchlinops.utils import from_pytorch, to_pytorch
 

@@ -3,7 +3,7 @@ from math import prod
 import pytest
 import torch
 
-from torchlinops.functional import unfold
+from torchlinops.functional._unfold import unfold
 
 PYTEST_GPU_MARKS = [
     pytest.mark.gpu,

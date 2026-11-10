@@ -2,7 +2,7 @@ import pytest
 import sigpy as sp
 import torch
 
-from torchlinops.functional import grid, ungrid
+from torchlinops.functional._interp import grid, ungrid
 from torchlinops.utils import from_pytorch, to_pytorch
 
 PYTEST_GPU_MARKS = [

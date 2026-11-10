@@ -1,14 +1,12 @@
-from itertools import product
-
 import torch
 from jaxtyping import Bool, Shaped
 from torch import Tensor
 
+from .unfold import _unfold_helper
+
 try:  # pragma: no cover
     import triton
     import triton.language as tl
-
-    from .casting import scalar_cast as cast
 
     TRITON_ENABLED = True
 except ImportError:
@@ -175,10 +173,10 @@ def _fold1d(
     N, Ix = pid_0 // x_blocks_per_batch, pid_0 % x_blocks_per_batch
 
     # Convert types
-    x_nblocks = cast(x_nblocks, tl.int64)
-    x_block_dim = cast(x_block_dim, tl.int64)
-    x_size = cast(x_size, tl.int64)
-    x_stride = cast(x_stride, tl.int32)
+    x_nblocks = tl.cast(x_nblocks, tl.int64)
+    x_block_dim = tl.cast(x_block_dim, tl.int64)
+    x_size = tl.cast(x_size, tl.int64)
+    x_stride = tl.cast(x_stride, tl.int32)
 
     nblocks = x_nblocks
     block_dim = x_block_dim
@@ -266,14 +264,14 @@ def _fold2d(
     Iy = pid_1 % y_blocks_per_batch
 
     # Convert types
-    x_nblocks = cast(x_nblocks, tl.int64)
-    y_nblocks = cast(y_nblocks, tl.int64)
-    x_block_dim = cast(x_block_dim, tl.int64)
-    y_block_dim = cast(y_block_dim, tl.int64)
-    x_size = cast(x_size, tl.int64)
-    y_size = cast(y_size, tl.int64)
-    x_stride = cast(x_stride, tl.int32)
-    y_stride = cast(y_stride, tl.int32)
+    x_nblocks = tl.cast(x_nblocks, tl.int64)
+    y_nblocks = tl.cast(y_nblocks, tl.int64)
+    x_block_dim = tl.cast(x_block_dim, tl.int64)
+    y_block_dim = tl.cast(y_block_dim, tl.int64)
+    x_size = tl.cast(x_size, tl.int64)
+    y_size = tl.cast(y_size, tl.int64)
+    x_stride = tl.cast(x_stride, tl.int32)
+    y_stride = tl.cast(y_stride, tl.int32)
 
     nblocks = x_nblocks * y_nblocks
     block_dim = x_block_dim * y_block_dim
@@ -385,18 +383,18 @@ def _fold3d(
     Iz = pid_2 % z_blocks_per_batch
 
     # Convert types
-    x_nblocks = cast(x_nblocks, tl.int64)
-    y_nblocks = cast(y_nblocks, tl.int64)
-    z_nblocks = cast(z_nblocks, tl.int64)
-    x_block_dim = cast(x_block_dim, tl.int64)
-    y_block_dim = cast(y_block_dim, tl.int64)
-    z_block_dim = cast(z_block_dim, tl.int64)
-    x_size = cast(x_size, tl.int64)
-    y_size = cast(y_size, tl.int64)
-    z_size = cast(z_size, tl.int64)
-    x_stride = cast(x_stride, tl.int32)
-    y_stride = cast(y_stride, tl.int32)
-    z_stride = cast(z_stride, tl.int32)
+    x_nblocks = tl.cast(x_nblocks, tl.int64)
+    y_nblocks = tl.cast(y_nblocks, tl.int64)
+    z_nblocks = tl.cast(z_nblocks, tl.int64)
+    x_block_dim = tl.cast(x_block_dim, tl.int64)
+    y_block_dim = tl.cast(y_block_dim, tl.int64)
+    z_block_dim = tl.cast(z_block_dim, tl.int64)
+    x_size = tl.cast(x_size, tl.int64)
+    y_size = tl.cast(y_size, tl.int64)
+    z_size = tl.cast(z_size, tl.int64)
+    x_stride = tl.cast(x_stride, tl.int32)
+    y_stride = tl.cast(y_stride, tl.int32)
+    z_stride = tl.cast(z_stride, tl.int32)
 
     nblocks = x_nblocks * y_nblocks * z_nblocks
     block_dim = x_block_dim * y_block_dim * z_block_dim
@@ -499,25 +497,24 @@ def _fold_torch(
     nbatch: int,
     out: Tensor | None = None,
 ) -> Shaped[Tensor, "B I ..."]:
-    """Fallback option
-
-    Note: Compile takes forever
-    """
+    """Fallback option"""
     if out is None:
         out = torch.zeros((nbatch, *im_size), device=x.device, dtype=x.dtype)
     else:
         out = out.reshape(nbatch, *im_size).zero_()
-    # Python implementation
-    for batch in range(nbatch):
-        for blk in product(*(range(nblk) for nblk in nblocks)):
-            blk_slc = tuple(
-                slice(iblk * st, iblk * st + blk_sz)
-                for iblk, st, blk_sz in zip(blk, stride, block_size)
-            )
-            in_idx = (batch, *blk)
-            out_idx = (batch, *blk_slc)
-            out[out_idx] += x[in_idx]
-    return out
+
+    # Work with flattened tensor
+    out = out.reshape(nbatch, -1)
+    index = torch.arange(out.shape[1], device=out.device)
+    index = index.reshape(1, *im_size)
+    index_unfolded = (
+        _unfold_helper(index, index.stride(), stride, ndim, (1, *x.shape[1:]))
+        .reshape(1, -1)
+        .expand(nbatch, -1)
+    )
+    out.scatter_add_(1, index_unfolded, x.reshape(nbatch, -1))
+
+    return out.reshape(nbatch, *im_size)
 
 
 def _prep_fold(x, im_size, block_size, stride, mask):
