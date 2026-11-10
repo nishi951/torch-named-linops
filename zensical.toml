@@ -20,6 +20,8 @@ extra_css = [
 extra_javascript = [
     "javascripts/mathjax.js",
     "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js",
+    "https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js",
+    "javascripts/tablesort.js",
 ]
 
 [project.theme]
@@ -28,6 +30,7 @@ logo = "assets/logo_dark.svg"
 favicon = "assets/favicon.svg"
 features = [
     "navigation.indexes",
+    "navigation.instant",
     "navigation.sections",
     "navigation.tabs",
     "navigation.top",
@@ -76,9 +79,20 @@ repo = "fontawesome/brands/github"
 [[project.nav]]
 "Benchmarks" = [
     "benchmarks/index.md",
-    { "CPU" = "benchmarks/cpu.md" },
-    { "GPU" = "benchmarks/gpu.md" },
-    { "Methodology" = "benchmarks/methodology.md" },
+    { "SigPy Comparisons" = [
+        "benchmarks/sigpy/index.md",
+        { "CPU" = "benchmarks/sigpy/cpu.md" },
+        { "GPU" = "benchmarks/sigpy/gpu.md" },
+        { "Methodology" = "benchmarks/sigpy/methodology.md" },
+    ] },
+    { "torch.compile" = [
+        "benchmarks/compile/index.md",
+        { "Float vs Complex" = "benchmarks/compile/float-vs-complex.md" },
+        { "Wrapper vs Inner" = "benchmarks/compile/wrapper-vs-inner.md" },
+        { "Autograd" = "benchmarks/compile/autograd.md" },
+        { "Chains" = "benchmarks/compile/chains.md" },
+        { "Methodology" = "benchmarks/compile/methodology.md" },
+    ] },
 ]
 
 [[project.nav]]
@@ -140,6 +154,7 @@ repo = "fontawesome/brands/github"
         "reference/utils/memory.md",
         "reference/utils/benchmark.md",
     ] },
+    { "Tools" = "reference/tools.md" },
 ]
 
 # mkdocstrings configuration

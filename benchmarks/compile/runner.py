@@ -1,0 +1,713 @@
+"""Cell-level runner for compiled benchmarks.
+
+A cell is one point of the compiled benchmark matrix:
+(op, method, device, dtype, compile level, compile config).
+"""
+
+from __future__ import annotations
+
+import statistics
+import time
+import traceback
+import warnings
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import torch
+
+TOL = 1e-3
+PROTOCOLS = {
+    "reduced": {"warmup": 5, "iters": 20},
+    "full": {"warmup": 20, "iters": 100},
+}
+SLOW_CALL_SECONDS = 0.5
+
+
+@dataclass(frozen=True)
+class CellSpec:
+    """One point in the compiled benchmark matrix.
+
+    Attributes
+    ----------
+    op : str
+        Operator name from the case registry.
+    category : str
+        ``"linop"`` or ``"functional"``.
+    method : str
+        ``"fwd"``, ``"adj"``, or ``"normal"``.
+    device : str
+        ``"cuda"`` or ``"cpu"``.
+    dtype : torch.dtype
+        Input dtype for the cell.
+    level : str
+        Compile unit: ``"wrapper"`` or ``"inner"``.
+    config : str
+        ``torch.compile`` mode: ``"default"`` or ``"fullgraph"``.
+    """
+
+    op: str
+    category: str
+    method: str
+    device: str
+    dtype: torch.dtype
+    level: str
+    config: str
+
+
+@dataclass
+class CellResult:
+    """Measured and classified outcome for one ``CellSpec``.
+
+    Attributes
+    ----------
+    spec : CellSpec
+        The matrix cell that produced this result.
+    status : str
+        ``"ok"``, ``"error"``, or ``"n_a"``.
+    cell_class : str
+        Raw numeric/execution class before the effective-class overlay.
+    graph_breaks : int or None
+        Measured graph-break count, or ``None`` when not measured.
+    break_locations : list of str
+        Up to three formatted graph-break reasons/locations.
+    recompiles : int or None
+        Shape-driven recompiles, when measured by the full suite.
+    max_abs_diff, max_rel_diff : float or None
+        Compiled-vs-eager numeric differences.
+    eager_time, compiled_time : float or None
+        Median per-call times in seconds.
+    speedup : float or None
+        ``eager_time / compiled_time``.
+    degraded : bool
+        Whether a silent fallback warning was captured.
+    input_tensor, output_tensor : dict or None
+        Shape, dtype, device, numel, byte size, and view status for the
+        benchmark input and eager output.
+    traceback_tail : str or None
+        Trimmed traceback for failed cells.
+    notes : str
+        Free-form annotation.
+    """
+
+    spec: CellSpec
+    status: str = "ok"
+    cell_class: str = "works"
+    graph_breaks: int | None = 0
+    break_locations: list[str] = field(default_factory=list)
+    recompiles: int | None = None
+    max_abs_diff: float | None = None
+    max_rel_diff: float | None = None
+    eager_time: float | None = None
+    compiled_time: float | None = None
+    speedup: float | None = None
+    degraded: bool = False
+    input_tensor: dict | None = None
+    output_tensor: dict | None = None
+    traceback_tail: str | None = None
+    notes: str = ""
+
+
+class CallCounter:
+    """Counts fn invocations made through median_time, for warmup proofs."""
+
+    def __init__(self) -> None:
+        self.count = 0
+
+
+def _to_cpu(x: torch.Tensor) -> torch.Tensor:
+    return x.detach().cpu()
+
+
+def _tensor_info(tensor: torch.Tensor | None) -> dict | None:
+    if tensor is None:
+        return None
+    return {
+        "shape": list(tensor.shape),
+        "dtype": str(tensor.dtype),
+        "device": str(tensor.device),
+        "numel": tensor.numel(),
+        "bytes": tensor.numel() * tensor.element_size(),
+        "is_view": tensor._base is not None,
+        "is_contiguous": tensor.is_contiguous(),
+        "stride": list(tensor.stride()),
+    }
+
+
+def diff_metrics(
+    reference_out: torch.Tensor, compiled_out: torch.Tensor
+) -> tuple[float, float]:
+    """Return max absolute and relative differences.
+
+    Shape disagreement and non-finite values are always disagreement.
+
+    Parameters
+    ----------
+    reference_out : torch.Tensor
+        Eager reference output.
+    compiled_out : torch.Tensor
+        Compiled output.
+
+    Returns
+    -------
+    tuple of float
+        ``(max_abs_diff, max_rel_diff)``, using infinity for disagreement.
+    """
+    ref = _to_cpu(reference_out)
+    out = _to_cpu(compiled_out)
+    if ref.shape != out.shape:
+        return float("inf"), float("inf")
+    if not (torch.isfinite(ref).all() and torch.isfinite(out).all()):
+        return float("inf"), float("inf")
+    if ref.is_complex() or out.is_complex():
+        ref = ref.to(torch.complex128)
+        out = out.to(torch.complex128)
+        parts = [
+            (ref.real.to(torch.float64), out.real.to(torch.float64)),
+            (ref.imag.to(torch.float64), out.imag.to(torch.float64)),
+        ]
+    else:
+        parts = [(ref.to(torch.float64), out.to(torch.float64))]
+
+    max_abs = 0.0
+    max_rel = 0.0
+    for a, b in parts:
+        d = (a - b).abs()
+        if d.numel() == 0:
+            continue
+        max_abs = max(max_abs, d.max().item())
+        denom = a.abs().clamp_min(1e-12)
+        max_rel = max(max_rel, (d / denom).max().item())
+    return max_abs, max_rel
+
+
+def run_cell(
+    spec: CellSpec,
+    reference_out: torch.Tensor,
+    compiled_out: torch.Tensor,
+    eager_time: float | None = None,
+    compiled_time: float | None = None,
+    graph_breaks: int | None = 0,
+    break_locations: list[str] | None = None,
+    recompiles: int | None = None,
+    degraded: bool = False,
+    notes: str = "",
+) -> CellResult:
+    """Classify one completed eager-vs-compiled comparison.
+
+    Parameters
+    ----------
+    spec : CellSpec
+        Matrix cell being classified.
+    reference_out : torch.Tensor
+        Eager reference output.
+    compiled_out : torch.Tensor
+        Compiled output.
+    eager_time, compiled_time : float, optional
+        Median per-call times in seconds.
+    graph_breaks : int or None, optional
+        Measured graph-break count.
+    break_locations : list of str, optional
+        Formatted break locations.
+    recompiles : int or None, optional
+        Shape-driven recompile count.
+    degraded : bool, optional
+        Whether a fallback warning was captured.
+    notes : str, optional
+        Free-form annotation.
+
+    Returns
+    -------
+    CellResult
+        Populated result row.
+    """
+    max_abs, max_rel = diff_metrics(reference_out, compiled_out)
+    cell_class = "fails_silent" if max_rel > TOL else "works"
+    speedup = None
+    if eager_time is not None and compiled_time is not None and compiled_time > 0:
+        speedup = eager_time / compiled_time
+    return CellResult(
+        spec=spec,
+        status="ok",
+        cell_class=cell_class,
+        graph_breaks=graph_breaks,
+        break_locations=list(break_locations or []),
+        recompiles=recompiles,
+        max_abs_diff=max_abs,
+        max_rel_diff=max_rel,
+        eager_time=eager_time,
+        compiled_time=compiled_time,
+        speedup=speedup,
+        degraded=degraded,
+        traceback_tail=None,
+        notes=notes,
+    )
+
+
+DEGRADATION_MARKERS = (
+    "does not support code generation for complex",
+    "falling back to eager",
+)
+
+
+def detect_degradation(messages: list[str]) -> bool:
+    """Return whether warnings indicate a known compiled fallback.
+
+    Parameters
+    ----------
+    messages : list of str
+        Captured warning messages.
+
+    Returns
+    -------
+    bool
+        True when a degradation marker is present.
+    """
+    lowered = " ".join(messages).lower()
+    return any(marker in lowered for marker in DEGRADATION_MARKERS)
+
+
+def effective_class(
+    status: str,
+    cell_class: str,
+    graph_breaks: int | None,
+    speedup: float | None,
+    degraded: bool,
+    config: str | None = None,
+) -> str:
+    """Resolve the effective class used by reports.
+
+    Parameters
+    ----------
+    status : str
+        Execution status (``"ok"``, ``"error"``, or ``"n_a"``).
+    cell_class : str
+        Raw numeric/execution class.
+    graph_breaks : int or None
+        Measured break count, or ``None`` when unknown.
+    speedup : float or None
+        Eager/compiled speedup.
+    degraded : bool
+        Whether a fallback warning was captured.
+    config : str, optional
+        Compile config, used to distinguish unknown breaks.
+
+    Returns
+    -------
+    str
+        Effective class name.
+    """
+    if status == "n_a":
+        return "n_a"
+    if cell_class != "works":
+        return cell_class
+    if degraded:
+        return "silent_degradation"
+    if config == "default" and graph_breaks is None:
+        return "works_with_unknown_breaks"
+    if graph_breaks is not None and graph_breaks > 0:
+        return "works_with_breaks"
+    if speedup is not None and speedup < 0.9:
+        return "compiles_slower"
+    return "works"
+
+
+def spec_key(spec: CellSpec) -> str:
+    """Return a filesystem-friendly key for a matrix cell.
+
+    Parameters
+    ----------
+    spec : CellSpec
+        Matrix cell.
+
+    Returns
+    -------
+    str
+        Key suitable for log filenames.
+    """
+    dtype = str(spec.dtype).replace("torch.", "")
+    return f"{spec.op}-{spec.method}-{spec.device}-{dtype}-{spec.level}-{spec.config}"
+
+
+def eager_key(spec: CellSpec) -> tuple[str, str, str, str, str]:
+    """Return the key shared by compile configs for eager reuse.
+
+    Parameters
+    ----------
+    spec : CellSpec
+        Matrix cell.
+
+    Returns
+    -------
+    tuple of str
+        Op, method, device, dtype, and level.
+    """
+    return (
+        spec.op,
+        spec.method,
+        spec.device,
+        str(spec.dtype),
+        spec.level,
+    )
+
+
+def _sync(device: str) -> None:
+    if device == "cuda":
+        torch.cuda.synchronize()
+
+
+def median_time(
+    fn: Callable[[], torch.Tensor],
+    *,
+    warmup: int,
+    iters: int,
+    device: str,
+    counter: CallCounter | None = None,
+) -> float:
+    """Return median per-call wall time after warmup.
+
+    Parameters
+    ----------
+    fn : callable
+        Zero-argument function to time.
+    warmup : int
+        Untimed warmup iterations.
+    iters : int
+        Timed iterations.
+    device : str
+        ``"cpu"`` or ``"cuda"``.
+    counter : CallCounter, optional
+        Optional call counter for tests.
+
+    Returns
+    -------
+    float
+        Median per-call time in seconds.
+    """
+
+    def call() -> torch.Tensor:
+        if counter is not None:
+            counter.count += 1
+        return fn()
+
+    _sync(device)
+    start = time.perf_counter()
+    call()
+    _sync(device)
+    if time.perf_counter() - start > SLOW_CALL_SECONDS:
+        iters = min(iters, 10)
+
+    for _ in range(max(warmup - 1, 0)):
+        call()
+    _sync(device)
+
+    durations = []
+    for _ in range(iters):
+        _sync(device)
+        start = time.perf_counter()
+        call()
+        _sync(device)
+        durations.append(time.perf_counter() - start)
+    return statistics.median(durations)
+
+
+def _format_break_reason(reason) -> str:
+    reason_text = str(getattr(reason, "reason", reason)).strip().splitlines()
+    text = reason_text[0][:220] if reason_text else "unknown graph break"
+    stack = getattr(reason, "user_stack", None) or []
+    if stack:
+        frame = stack[0]
+        text = (f"{frame.filename}:{frame.lineno} in {frame.name}: {text}")[:300]
+    return text
+
+
+def capture_graph_breaks(
+    target: Callable[[torch.Tensor], torch.Tensor],
+    input_: torch.Tensor,
+    spec_key: str,
+    log_dir: Path | None = None,
+) -> tuple[int | None, list[str]]:
+    """Capture graph breaks for a target/input pair.
+
+    Parameters
+    ----------
+    target : callable
+        Function that will be compiled.
+    input_ : torch.Tensor
+        Input passed to ``target``.
+    spec_key : str
+        Key used for the optional log filename.
+    log_dir : pathlib.Path, optional
+        Directory for explain logs.
+
+    Returns
+    -------
+    tuple of int or None and list of str
+        Break count (``None`` if explain failed) and formatted locations.
+    """
+    count: int | None = None
+    locations: list[str] = []
+    try:
+        explanation = torch._dynamo.explain(target)(input_)
+        count = max(0, int(getattr(explanation, "graph_break_count", 0) or 0))
+        reasons = getattr(explanation, "break_reasons", None) or []
+        locations = [_format_break_reason(reason) for reason in reasons[:3]]
+        text = str(explanation)
+        if locations:
+            text += "\n\nBreak locations:\n" + "\n".join(locations)
+    except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+        locations = [f"explain failed: {type(exc).__name__}: {exc}"]
+        text = locations[0]
+    if log_dir is not None:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        (log_dir / f"{spec_key}.log").write_text(text + "\n")
+    return count, locations
+
+
+def _is_unavailable(spec: CellSpec, exc: BaseException) -> bool:
+    msg = f"{type(exc).__name__}: {exc}".lower()
+    if spec.device == "cpu" and any(m in msg for m in ("cuda", "gpu", "triton")):
+        return True
+    if "not implemented for" in msg and ("cpu" in msg or "cuda" in msg):
+        return True
+    return "requires cuda" in msg or "requires triton" in msg
+
+
+def _is_blocked_out_of_scope(tail: str) -> bool:
+    lowered = tail.lower()
+    return any(marker in lowered for marker in ("cupy", "sigpy", "_cupy_pytorch"))
+
+
+def _error_result(
+    spec: CellSpec,
+    exc: BaseException,
+    phase: str,
+    input_: torch.Tensor | None = None,
+) -> CellResult:
+    unavailable = _is_unavailable(spec, exc)
+    tail = "\n".join(traceback.format_exc().strip().splitlines()[-8:])
+    if unavailable:
+        status, cell_class = "n_a", "n_a"
+    elif _is_blocked_out_of_scope(tail):
+        status, cell_class = "error", "blocked_out_of_scope"
+    else:
+        status, cell_class = "error", "fails_loud"
+    return CellResult(
+        spec=spec,
+        status=status,
+        cell_class=cell_class,
+        graph_breaks=None,
+        input_tensor=_tensor_info(input_),
+        traceback_tail=tail,
+        notes=f"raised during {phase}",
+    )
+
+
+def execute_cell(
+    spec: CellSpec,
+    target: Callable[[torch.Tensor], torch.Tensor],
+    input_: torch.Tensor,
+    *,
+    warmup: int,
+    iters: int,
+    log_dir: Path | None = None,
+    eager_cache: dict[tuple[str, str, str, str, str], tuple[torch.Tensor, float]]
+    | None = None,
+) -> CellResult:
+    """Run one matrix cell and classify the result.
+
+    Parameters
+    ----------
+    spec : CellSpec
+        Cell to measure.
+    target : callable
+        Function to compile.
+    input_ : torch.Tensor
+        Input passed to the target.
+    warmup : int
+        Untimed warmup iterations.
+    iters : int
+        Timed iterations.
+    log_dir : pathlib.Path, optional
+        Directory for explain logs.
+    eager_cache : dict, optional
+        Cache of eager references/timings shared across compile configs.
+
+    Returns
+    -------
+    CellResult
+        Measured and classified row.
+    """
+    key = eager_key(spec)
+    cached = eager_cache.get(key) if eager_cache is not None else None
+    if cached is not None:
+        ref, eager_time = cached
+    else:
+        try:
+            ref = target(input_)
+            eager_time = median_time(
+                lambda: target(input_), warmup=warmup, iters=iters, device=spec.device
+            )
+        except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+            return _error_result(spec, exc, phase="eager", input_=input_)
+        if eager_cache is not None:
+            eager_cache[key] = (ref, eager_time)
+
+    if spec.config == "eager":
+        result = run_cell(spec, ref, ref, eager_time=eager_time)
+        result.input_tensor = _tensor_info(input_)
+        result.output_tensor = _tensor_info(ref)
+        result.notes = "eager baseline"
+        return result
+
+    torch._dynamo.reset()
+    try:
+        compiled_fn = torch.compile(target, fullgraph=(spec.config == "fullgraph"))
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            out = compiled_fn(input_)
+        degraded = detect_degradation([str(w.message) for w in caught])
+        compiled_time = median_time(
+            lambda: compiled_fn(input_), warmup=warmup, iters=iters, device=spec.device
+        )
+    except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+        return _error_result(spec, exc, phase="compiled", input_=input_)
+
+    # Non-default configs do not get an explain pass, so their break count is
+    # unknown rather than a measured zero.
+    graph_breaks, break_locations = (None, [])
+    if spec.config == "default":
+        graph_breaks, break_locations = capture_graph_breaks(
+            target, input_, spec_key(spec), log_dir=log_dir
+        )
+    result = run_cell(
+        spec,
+        ref,
+        out,
+        eager_time=eager_time,
+        compiled_time=compiled_time,
+        graph_breaks=graph_breaks,
+        break_locations=break_locations,
+        degraded=degraded,
+    )
+    result.input_tensor = _tensor_info(input_)
+    result.output_tensor = _tensor_info(ref)
+    return result
+
+
+def measure_recompiles(
+    fn: Callable[[torch.Tensor], torch.Tensor], inputs: list[torch.Tensor]
+) -> tuple[int, list[torch.Tensor]]:
+    """Measure shape-driven recompiles for one callable.
+
+    Parameters
+    ----------
+    fn : callable
+        Function to compile.
+    inputs : list of torch.Tensor
+        Inputs with different shapes.
+
+    Returns
+    -------
+    tuple of int and list of torch.Tensor
+        Recompile count and outputs for each input.
+    """
+    torch._dynamo.reset()
+    from torch._dynamo.utils import counters
+
+    compiled = torch.compile(fn)
+    outputs = [compiled(inputs[0])]
+    after_first = int(counters["stats"].get("unique_graphs", 0))
+    for x in inputs[1:]:
+        outputs.append(compiled(x))
+    after_all = int(counters["stats"].get("unique_graphs", 0))
+    return max(0, after_all - after_first), outputs
+
+
+def classify_grads(eager_grad: torch.Tensor, compiled_grad: torch.Tensor) -> dict:
+    """Classify eager-vs-compiled gradients.
+
+    Parameters
+    ----------
+    eager_grad : torch.Tensor
+        Eager gradient.
+    compiled_grad : torch.Tensor
+        Compiled gradient.
+
+    Returns
+    -------
+    dict
+        Class and difference metrics.
+    """
+    max_abs, max_rel = diff_metrics(eager_grad, compiled_grad)
+    return {
+        "cell_class": "fails_silent" if max_rel > TOL else "works",
+        "max_abs_diff": max_abs,
+        "max_rel_diff": max_rel,
+    }
+
+
+def _loss_grad(fn, x: torch.Tensor, y: torch.Tensor, compiled: bool):
+    leaf = x.detach().clone().requires_grad_(True)
+    target = torch.compile(fn) if compiled else fn
+    out = target(leaf)
+    loss = (torch.abs(out - y) ** 2).sum()
+    (grad,) = torch.autograd.grad(loss, leaf, allow_unused=True)
+    return None if grad is None else grad.detach()
+
+
+def check_grad_agreement(fn, x: torch.Tensor, y: torch.Tensor) -> dict:
+    """Compare eager and compiled backward gradients.
+
+    Parameters
+    ----------
+    fn : callable
+        Forward callable.
+    x : torch.Tensor
+        Input leaf.
+    y : torch.Tensor
+        Target tensor for the loss.
+
+    Returns
+    -------
+    dict
+        Status, class, difference metrics, traceback, and notes.
+    """
+    try:
+        eager_grad = _loss_grad(fn, x, y, compiled=False)
+    except Exception:  # noqa: BLE001 - recorded, not swallowed
+        return {
+            "status": "error",
+            "cell_class": "fails_loud",
+            "max_abs_diff": None,
+            "max_rel_diff": None,
+            "traceback_tail": traceback.format_exc().strip()[-800:],
+            "notes": "raised during eager backward",
+        }
+
+    try:
+        torch._dynamo.reset()
+        compiled_grad = _loss_grad(fn, x, y, compiled=True)
+    except Exception:  # noqa: BLE001 - recorded, not swallowed
+        return {
+            "status": "error",
+            "cell_class": "fails_loud",
+            "max_abs_diff": None,
+            "max_rel_diff": None,
+            "traceback_tail": traceback.format_exc().strip()[-800:],
+            "notes": "raised during compiled backward",
+        }
+
+    if eager_grad is None or compiled_grad is None:
+        return {
+            "status": "error",
+            "cell_class": "fails_loud",
+            "max_abs_diff": None,
+            "max_rel_diff": None,
+            "traceback_tail": None,
+            "notes": "no gradient produced",
+        }
+
+    result = classify_grads(eager_grad, compiled_grad)
+    result.update(status="ok", traceback_tail=None, notes="")
+    return result

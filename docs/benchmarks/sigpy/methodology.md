@@ -1,4 +1,4 @@
-# Benchmark Methodology
+# SigPy Comparison Methodology
 
 ## Overview
 
@@ -202,3 +202,6 @@ just docs
 Results are saved to `benchmarks/results/latest/` and automatically archived
 to `benchmarks/results/<date>-<sha>/`. If the working tree is dirty, a
 `patch.diff` is saved alongside the results for reproducibility.
+
+Compiled-benchmark methodology is documented separately under
+[torch.compile Methodology](../compile/methodology.md).

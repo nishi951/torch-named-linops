@@ -90,6 +90,8 @@ norecursedirs = [
     "dev",
 ]
 minversion = "6.0"
+# Let tests/ import the top-level benchmarks package.
+pythonpath = ["."]
 addopts = """
 -ra -q \
 -m 'not slow and not benchmark'
