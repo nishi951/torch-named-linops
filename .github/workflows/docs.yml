@@ -37,6 +37,8 @@ jobs:
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v6
+      - name: Generate tutorials
+        run: uv run python scripts/build_tutorials.py
       - name: Generate benchmark report
         run: uv run python benchmarks/_report.py
       - name: Build documentation
