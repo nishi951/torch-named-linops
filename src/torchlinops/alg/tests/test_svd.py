@@ -11,22 +11,31 @@ class TestSVD:
     """Tests for singular_value_decomposition function."""
 
     def test_svd_simple(self):
-        """Test SVD on a simple tall matrix."""
+        """Test SVD on a deterministic tall matrix with known singular values."""
         m, n = 10, 5
-        A_dense = torch.randn(m, n, dtype=torch.float64)
+        expected = torch.tensor([5.0, 4.0, 3.0, 2.0, 1.0], dtype=torch.float64)
+        A_dense = torch.zeros(m, n, dtype=torch.float64)
+        A_dense[:n, :n] = torch.diag(expected)
         A = Dense(A_dense, ("M", "N"), ("N",), ("M",))
 
-        x_init = torch.randn(n, dtype=torch.float64)
+        x_init = torch.ones(n, dtype=torch.float64)
         num_sv = min(m, n)
 
         U, S, Vh = singular_value_decomposition(
-            A, x_init, num_singular_values=num_sv, max_iters=100
+            A,
+            x_init,
+            num_singular_values=num_sv,
+            max_iters=200,
+            tol=1e-12,
+            tqdm_kwargs={"disable": True},
         )
 
         assert U.shape == (m, num_sv)
         assert S.shape == (num_sv,)
         assert Vh.shape == (num_sv, n)
+
         assert torch.all(S[:-1] >= S[1:])
+        assert torch.allclose(S, expected, rtol=1e-8, atol=1e-8)
 
     def test_svd_reconstruction(self):
         """Test that A ≈ U @ diag(S) @ Vh."""
