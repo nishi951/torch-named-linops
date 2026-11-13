@@ -68,9 +68,8 @@ Dense(((),) -> ((1),))
 Dense(((1),) -> ((2),))
 ```
 
-### Anonymous dimensions
-
-You may notice the printed shapes look like `((1),) -> ((),)`. When shapes are inferred, dimensions get *anonymous* names: `()` means "one unnamed dimension" and parenthesized numbers like `(1)`, `(2)` distinguish different anonymous dimensions from each other. Every operator still tracks these dims and keeps them consistent — they just don't have helpful names yet. This is often good enough for a quick start.
+!!! note "Anonymous dimensions"
+    You may notice the printed shapes look like `((1),) -> ((),)`. When shapes are inferred, dimensions get *anonymous* names: `()` means "one unnamed dimension" and parenthesized numbers like `(1)`, `(2)` distinguish different anonymous dimensions from each other. Every operator still tracks these dims and keeps them consistent — they just don't have helpful names yet. This is often good enough for a quick start.
 
 ## Naming your dimensions
 
