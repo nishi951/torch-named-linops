@@ -3,7 +3,7 @@ from copy import copy
 from dataclasses import dataclass
 from typing import Any
 
-__all__ = ["ANY", "ELLIPSES", "AnyDim", "Dim", "NamedDimension", "Shape"]
+__all__ = ["ANY", "ELLIPSES", "AnyDim", "Dim", "NamedDimension", "shape"]
 
 # Special dim names
 ELLIPSES = "..."
@@ -22,7 +22,7 @@ _REGULAR_DIM_UPPERCASE = "([A-Z][a-z_]*)([0-9]*)"
 DIM_PATTERN = re.compile(f"{_REGULAR_DIM_UPPERCASE}|{_ANY_DIM}", re.VERBOSE)
 
 
-def Shape(s: str | None = None) -> tuple[str, ...]:
+def shape(s: str | None = None) -> tuple[str, ...]:
     """Convenience function for splitting a string into a tuple of dimension names.
 
     Parses a compact dimension string into individual dimension names using
@@ -46,16 +46,17 @@ def Shape(s: str | None = None) -> tuple[str, ...]:
 
     Examples
     --------
-    >>> Dim("ABCD")
+    >>> shape("ABCD")
     ('A', 'B', 'C', 'D')
-    >>> Dim("NxNyNz")
+    >>> shape("NxNyNz")
     ('Nx', 'Ny', 'Nz')
-    >>> Dim("A1B2Kx1Ky2")
+    >>> shape("A1B2Kx1Ky2")
     ('A1', 'B2', 'Kx1', 'Ky2')
-    >>> Dim("()A()B")
+    >>> shape("()A()B")
     ('()', 'A', '()', 'B')
-    >>> Dim("(1)A(23)")
+    >>> shape("(1)A(23)")
     ('(1)', 'A', '(23)')
+    >>> shape()
     """
     if s is None or len(s) == 0:
         return ()
@@ -71,7 +72,7 @@ def Shape(s: str | None = None) -> tuple[str, ...]:
 
 
 # Alias for backwards compatibility
-Dim = Shape
+Dim = shape
 
 
 @dataclass(slots=True, frozen=True)
