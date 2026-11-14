@@ -251,43 +251,6 @@ class Stack(NamedLinop):
             output_linops.append(type(linop).split(linop, sub_tile))
         return stack.spinoff(output_linops)
 
-    def split_data(self, ibatch, obatch, data_list):
-        """Split stack linop, making a new stack linop if necessary
-
-        Parameters
-        ----------
-        data_list : list, same length as linops
-            List of data for each linop in this stack linop
-
-        """
-        linop_idxs = set(range(len(self.linops)))
-        for i, slc in enumerate(ibatch):
-            if i == self.idim_idx:
-                linop_idxs &= set(slice2range(slc, len(self.linops)))
-        for i, slc in enumerate(obatch):
-            if i == self.odim_idx:
-                linop_idxs &= set(slice2range(slc, len(self.linops)))
-
-        if len(linop_idxs) == 0:
-            # No linops satisfy this slice (diagonal stacking)
-            return 0.0  # TODO is this ok
-        linop_idxs = sorted(linop_idxs)
-        output_linop_data = []
-        # Remove stack dims from slice batch
-        if self.idim_idx is not None:
-            ibatch = copy(ibatch)
-            ibatch.pop(self.idim_idx)
-        if self.odim_idx is not None:
-            obatch = copy(obatch)
-            obatch.pop(self.odim_idx)
-
-        # Slice each sub-linop
-        for i in linop_idxs:
-            linop = self.linops[i]
-            data = data_list[i]
-            output_linop_data.append(linop.split_data(ibatch, obatch, data))
-        return output_linop_data
-
     def adjoint(self):
         adj_linops = [linop.H for linop in self.linops]
         return self.spinoff(
@@ -431,28 +394,3 @@ class Stack(NamedLinop):
             output += INDENT.indent(f"idim = {self.idim}, odim = {self.odim}\n")
         output += INDENT.indent(")")
         return output
-
-
-def strict_update(d1: dict, d2: dict) -> dict:
-    """Strictly updates one dictionary with values from the other.
-
-    Parameters
-    ----------
-    d1, d2 : dict
-        The dictionaries to combine.
-
-    Returns
-    -------
-    dict
-        The combined mapping.
-
-    Raises
-    ------
-    ValueError
-        If there are conflicting keys.
-    """
-    for k, v in d2.items():
-        if k in d1 and d1[k] != v:
-            raise ValueError(f"Conflict at key '{k}': {d1[k]} != {v}")
-    d1.update(d2)
-    return d1

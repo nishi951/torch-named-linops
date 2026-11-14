@@ -116,47 +116,6 @@ def test_stack_repr(denselinops):
     assert len(C) == 2
 
 
-def test_split_data_via_nested_stack():
-    """split_data on a nested Stack should recurse correctly."""
-    P, Q = 3, 4
-    # Use Stack sub-linops that themselves have split_data (nested Stacks)
-    A = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
-    B = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
-    # Inner stacks (vertical) — these have split_data
-    inner_A = Stack(A, odim_and_idx=("M", 1))
-    inner_B = Stack(B, odim_and_idx=("M", 1))
-    # Outer diagonal stack
-    outer = Stack(inner_A, inner_B, idim_and_idx=("N", 0), odim_and_idx=("L", 2))
-
-    # data_list contains one item per outer linop
-    data_list = [torch.randn(1), torch.randn(1)]
-
-    # Request a slice that gives empty linop_idxs (diagonal stack, non-overlapping slices)
-    ibatch = [slice(1, 2), slice(None)]  # N=1: only inner_B
-    obatch = [slice(None), slice(0, 1), slice(0, 1)]  # L=0: only inner_A
-    result = outer.split_data(ibatch, obatch, data_list)
-    # Intersection is empty → should return 0.0
-    assert result == 0.0
-
-
-def test_split_data_empty_indices(denselinops):
-    """When no linops satisfy the slice, split_data should return 0.0."""
-    P, Q = 3, 4
-    A = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
-    B = Dense(torch.randn(P, Q), ("P", "Q"), Dim("Q"), Dim("P"))
-    # Diagonal stack: different input AND output dims
-    C = Stack(A, B, idim_and_idx=("N", 0), odim_and_idx=("M", 1))
-
-    data_list = [torch.randn(Q), torch.randn(Q)]
-    # Request only index 0 on output (M dim=1) and index 1 on input (N dim=0)
-    # These cannot match the same sub-linop so intersection is empty
-    ibatch = [slice(1, 2), slice(None)]  # N=1, Q=all
-    obatch = [slice(None), slice(0, 1)]  # P=all, M=0
-
-    result = C.split_data(ibatch, obatch, data_list)
-    assert result == 0.0
-
-
 def test_stack_get_dim_and_idx_dim_already_in_shape_raises():
     """Stack._get_dim_and_idx should raise ValueError if the dim is already in the shape."""
     P, Q = 3, 4
