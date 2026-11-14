@@ -137,6 +137,7 @@ class NamedDimCollection:
             data = coalesce(data, lambda x: x == ELLIPSES)
             indexed_shape = []
             for d in data:
+                d = ND.infer(d)
                 if d not in self._dims:
                     self._dims.append(ND.infer(d))
                 indexed_shape.append(self._dims.index(d))

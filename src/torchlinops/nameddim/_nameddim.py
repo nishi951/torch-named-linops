@@ -1,15 +1,28 @@
+import re
 from copy import copy
 from dataclasses import dataclass
 from typing import Any
 
-__all__ = ["ANY", "ELLIPSES", "AnyDim", "Dim", "NamedDimension"]
+__all__ = ["ANY", "ELLIPSES", "AnyDim", "Dim", "NamedDimension", "Shape"]
 
 # Special dim names
 ELLIPSES = "..."
 ANY = "()"
 
 
-def Dim(s: str | None = None) -> tuple[str]:
+### Various regular expressions
+_ANY_DIM = r"\(([0-9]*)\)"
+_REGULAR_DIM = r"([a-zA-Z_]*)([0-9]*)"
+
+ANY_PATTERN = re.compile(_ANY_DIM, re.VERBOSE)
+REGULAR_PATTERN = re.compile(_REGULAR_DIM, re.VERBOSE)
+
+# Uppercase is used as delimiting info for Shape/Dim only
+_REGULAR_DIM_UPPERCASE = "([A-Z][a-z_]*)([0-9]*)"
+DIM_PATTERN = re.compile(f"{_REGULAR_DIM_UPPERCASE}|{_ANY_DIM}", re.VERBOSE)
+
+
+def Shape(s: str | None = None) -> tuple[str, ...]:
     """Convenience function for splitting a string into a tuple of dimension names.
 
     Parses a compact dimension string into individual dimension names using
@@ -46,47 +59,19 @@ def Dim(s: str | None = None) -> tuple[str]:
     """
     if s is None or len(s) == 0:
         return ()
-    parts = []
-    current = s[0]
-    i = 0
-    while i < len(s) - 1:
-        i += 1
-        char = s[i]
-        if char == "(":
-            # Look ahead for pattern "(digits)"
-            if i + 1 < len(s) and s[i + 1].isdigit():
-                # Find the closing paren
-                j = i + 2
-                while j < len(s) and s[j].isdigit():
-                    j += 1
-                if j < len(s) and s[j] == ")":
-                    # Found pattern "(digits)"
-                    parts.append(current)
-                    current = s[i : j + 1]  # "(1)", "(23)", etc.
-                    i = j  # Skip ahead past the closing paren
-                else:
-                    # No closing paren, treat as regular dim start
-                    parts.append(current)
-                    current = char
-            else:
-                parts.append(current)
-                current = char
-        elif current == "()" or (
-            current.startswith("(") and current.endswith(")") and len(current) >= 3
-        ):
-            # Current is ANY or ordinal ANY, start new dim
-            parts.append(current)
-            current = char
-        elif char.isupper():
-            # New dim
-            if char.isdigit():
-                raise ValueError(f"Dim cannot start with a digit in dim string {s}")
-            parts.append(current)
-            current = char
-        else:
-            current += char
-    parts.append(current)
-    return tuple(parts)
+    shape = []
+    pos = 0
+    while pos < len(s):
+        m = DIM_PATTERN.match(s, pos)
+        if m is None:
+            raise ValueError(f"no token matches at index {pos}: {s[pos : pos + 10]!r}")
+        shape.append(m.group())
+        pos = m.end()
+    return tuple(shape)
+
+
+# Alias for backwards compatibility
+Dim = Shape
 
 
 @dataclass(slots=True, frozen=True)
@@ -141,12 +126,21 @@ class NamedDimension:
         """
         if isinstance(dim, cls):
             return dim
-        if isinstance(dim, str) and len(dim) == 2:
-            if dim[1].isdigit():
-                return cls(dim[0], int(dim[1]))
-        elif dim == ELLIPSES:
+        if dim == ELLIPSES:
             return cls(ELLIPSES)
-        elif isinstance(dim, (tuple, list)):
+        if isinstance(dim, str):
+            m = ANY_PATTERN.match(dim)
+            if m is not None:
+                val = m.groups()[0]
+                val = int(val) if len(val) > 0 else 0
+                return cls(ANY, val)
+            m = REGULAR_PATTERN.match(dim)
+            if m is not None:
+                name, val = m.groups()
+                val = int(val) if len(val) > 0 else 0
+                return cls(name, val)
+            raise ValueError(f"Could not infer named dimension from string {dim}")
+        if isinstance(dim, (tuple, list)):
             return type(dim)(cls.infer(d) for d in dim)
         return cls(dim)
 
