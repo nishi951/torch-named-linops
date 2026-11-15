@@ -7,8 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ._matching import coalesce, is_any
-from ._nameddim import ELLIPSES, shape
+from ._nameddim import ANY, ELLIPSES, shape
 from ._nameddim import NamedDimension as ND
 
 __all__ = [
@@ -16,7 +15,6 @@ __all__ = [
     "Assignment",
     "EmptyShape",
     "Shape",
-    "assign",
     "match",
     "normalize",
 ]
@@ -24,6 +22,25 @@ __all__ = [
 Shape = tuple[ND, ...]
 AnyShape = (ND.infer(ELLIPSES),)
 EmptyShape = ()
+
+
+def is_any(dim):
+    """Check if dim is ANY or ordinal ANY."""
+    if isinstance(dim, str):
+        # Check if it's a string representation of ANY or ordinal ANY
+        return dim == ANY or (
+            dim.startswith("(") and dim.endswith(")") and dim[1:-1].isdigit()
+        )
+    return hasattr(dim, "name") and dim.name == ANY
+
+
+def coalesce(lst, cond):
+    result = []
+    for x in lst:
+        if cond(x) and result and cond(result[-1]):
+            continue
+        result.append(x)
+    return result
 
 
 def normalize(value: str | Sequence | None) -> Shape:
@@ -73,6 +90,15 @@ class Assignment:
         if isinstance(idx, tuple):
             return tuple(self.target[i] for i in idx)
         return self.target[idx]
+
+    def assign(self, source: Shape):
+        output = []
+        for src in source:
+            if src == ELLIPSES:
+                output.extend(self.apply(src))
+            else:
+                output.append(self.apply(src))
+        return normalize(output)
 
 
 def match(source: tuple, target: tuple) -> Assignment | None:
@@ -168,16 +194,6 @@ def match(source: tuple, target: tuple) -> Assignment | None:
                         break
     mapping = tuple(output)
     return Assignment(source, target, mapping)
-
-
-def assign(assignment, source):
-    output = []
-    for src in source:
-        if src == ELLIPSES:
-            output.extend(assignment.apply(src))
-        else:
-            output.append(assignment.apply(src))
-    return normalize(output)
 
 
 def unify(): ...

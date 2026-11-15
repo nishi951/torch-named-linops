@@ -5,6 +5,7 @@ from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES
 from ._nameddim import NamedDimension as ND
+from .utils import coalesce, is_any, match
 
 __all__ = [
     "align",
@@ -17,16 +18,6 @@ __all__ = [
     "resolve_wildcards",
     "standardize_shapes",
 ]
-
-
-def is_any(dim):
-    """Check if dim is ANY or ordinal ANY."""
-    if isinstance(dim, str):
-        # Check if it's a string representation of ANY or ordinal ANY
-        return dim == ANY or (
-            dim.startswith("(") and dim.endswith(")") and dim[1:-1].isdigit()
-        )
-    return hasattr(dim, "name") and dim.name == ANY
 
 
 def partition(seq: Sequence, val: Any) -> tuple[Sequence, Sequence, Sequence]:
@@ -250,7 +241,7 @@ def align(base_shape, new_shape):
     return tuple(aligned_shape)
 
 
-def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
+def resolve_wildcards(shape: tuple, target_shape: tuple) -> tuple:
     """Resolve wildcards in shape using target_shape via isequal assignment mapping.
 
     If no assignment is possible, return `shape` unchanged.
@@ -281,23 +272,8 @@ def resolve_wildcards(shape: Sequence, target_shape: Sequence) -> tuple:
     >>> resolve_wildcards(("X", "..."), ("A", "B")) # no match possible
     ('X', '...')
     """
-    has_any = any(is_any(d) for d in shape)
-    if not has_any and ELLIPSES not in shape:
-        return shape
-
-    match, assignments = isequal(shape, target_shape)
-    if not match or assignments is None:
-        return shape
-
-    resolved = []
-    for idx in range(len(shape)):
-        dim = shape[idx]
-        if dim == ELLIPSES or is_any(dim):
-            matched_indices = assignments.get(idx, [])
-            resolved.extend(target_shape[j] for j in matched_indices)
-        else:
-            resolved.append(dim)
-    return tuple(resolved)
+    assignment = match(shape, target_shape)
+    return assignment.assign(shape) if assignment is not None else shape
 
 
 def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, dict | None]:
@@ -383,15 +359,6 @@ def standardize_shapes(linops, shape):
         linop.ishape = shape.ishape
         linop.oshape = shape.oshape
     return linops
-
-
-def coalesce(lst, cond):
-    result = []
-    for x in lst:
-        if cond(x) and result and cond(result[-1]):
-            continue
-        result.append(x)
-    return result
 
 
 if __name__ == "__main__":
