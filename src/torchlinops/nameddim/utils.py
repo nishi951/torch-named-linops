@@ -4,10 +4,11 @@ Once functionality is established, we will refactor the entire module.
 """
 
 from collections.abc import Sequence
+from copy import copy
 from dataclasses import dataclass
 from typing import Any
 
-from ._nameddim import ANY, ELLIPSES, shape
+from ._nameddim import ANY, ELLIPSES, AnyDim, shape
 from ._nameddim import NamedDimension as ND
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     "Shape",
     "match",
     "normalize",
+    "skeleton",
 ]
 
 Shape = tuple[ND, ...]
@@ -101,9 +103,19 @@ class Assignment:
         return normalize(output)
 
 
-def match(source: tuple, target: tuple) -> Assignment | None:
-    """
+def skeleton(shape: tuple[ND | str, ...]):
+    """Replace a shape's concrete dims with any dims."""
+    replace = {}
+    i = 0
+    for dim in shape:
+        if dim != ELLIPSES and dim not in replace:
+            replace[dim] = AnyDim(i)
+            i += 1
+    return tuple(replace[d] if d != ELLIPSES else d for d in shape)
 
+
+def match(source: tuple, target: tuple, replace=False) -> Assignment | None:
+    """
     Examples
     --------
     >>> match(("A", "B"), ("A", "B")).mapping
@@ -132,6 +144,9 @@ def match(source: tuple, target: tuple) -> Assignment | None:
     (1,)
 
     """
+    if replace:
+        old_source = copy(source)
+        source = skeleton(old_source)
     # Rows = source
     # Cols = target
     ptrs: list[list] = [
@@ -193,6 +208,8 @@ def match(source: tuple, target: tuple) -> Assignment | None:
                         output.append(elem)
                         break
     mapping = tuple(output)
+    if replace:
+        return Assignment(old_source, target, mapping)
     return Assignment(source, target, mapping)
 
 
