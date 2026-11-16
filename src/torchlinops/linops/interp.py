@@ -4,8 +4,8 @@ from torch import Tensor, nn
 import torchlinops.functional as F
 from torchlinops.utils import default_to, default_to_dict
 
-from ..nameddim import ELLIPSES, Shape
 from ..nameddim import NamedShape as NS
+from ..nameddim import Shape, is_ellipses
 from .namedlinop import NamedLinop
 
 __all__ = ["Interpolate"]
@@ -114,7 +114,7 @@ class Interpolate(NamedLinop):
 
     def split_locs(self, obatch, /, locs):
         """Can only split on locs dimensions"""
-        if self._shape.locs_batch_shape == ELLIPSES:
+        if is_ellipses(self._shape.locs_batch_shape):
             return locs
 
         N = len(self._shape.locs_batch_shape)

@@ -12,10 +12,13 @@ from ._nameddim import ANY, ELLIPSES, AnyDim, shape
 from ._nameddim import NamedDimension as ND
 
 __all__ = [
+    "ELLIPSES_MATCH",
     "AnyShape",
     "Assignment",
     "EmptyShape",
     "Shape",
+    "is_any",
+    "is_ellipses",
     "match",
     "normalize",
     "skeleton",
@@ -36,10 +39,22 @@ def is_any(dim):
     return hasattr(dim, "name") and dim.name == ANY
 
 
-def coalesce(lst, cond):
+def is_ellipses(dim):
+    """Check if dim is ANY or ordinal ANY."""
+    if isinstance(dim, str):
+        # Check if it's a string representation of ANY or ordinal ANY
+        return dim.startswith("...") and (len(dim[3:]) == 0 or dim[3:].isdigit())
+    return hasattr(dim, "name") and is_ellipses(dim.name)
+
+
+def ELLIPSES_MATCH(x, y):
+    return is_ellipses(x) and is_ellipses(y) and ND.infer(x).i == ND.infer(y).i
+
+
+def coalesce(lst, cond=ELLIPSES_MATCH) -> list:
     result = []
     for x in lst:
-        if cond(x) and result and cond(result[-1]):
+        if result and cond(result[-1], x):
             continue
         result.append(x)
     return result
@@ -70,7 +85,7 @@ def normalize(value: str | Sequence | None) -> Shape:
     elif isinstance(value, str):
         output = [ND.infer(s) for s in shape(value)]
     # Coalesce ellipses
-    output = coalesce(output, lambda x: x == ELLIPSES)
+    output = coalesce(output)
     return tuple(output)
 
 
@@ -96,7 +111,7 @@ class Assignment:
     def assign(self, source: Shape):
         output = []
         for src in source:
-            if src == ELLIPSES:
+            if is_ellipses(src):
                 output.extend(self.apply(src))
             else:
                 output.append(self.apply(src))
@@ -155,25 +170,25 @@ def match(source: tuple, target: tuple, replace=False) -> Assignment | None:
     # Base cases
     ptrs[0][0] = (0, 0)  # True (note that bool(tuple()) == False)
     for i in range(1, len(source) + 1):
-        ptrs[i][0] = (-1, 0) if source[0] == ELLIPSES else None
+        ptrs[i][0] = (-1, 0) if is_ellipses(source[0]) else None
     for j in range(1, len(target) + 1):
-        ptrs[0][j] = (0, -1) if target[0] == ELLIPSES else None
+        ptrs[0][j] = (0, -1) if is_ellipses(target[0]) else None
 
     # Dynamic programming
     for i in range(1, len(source) + 1):
         for j in range(1, len(target) + 1):
             val = None
             if ptrs[i - 1][j - 1] and (
-                source[i - 1] == ELLIPSES
-                or target[j - 1] == ELLIPSES
+                is_ellipses(source[i - 1])
+                or is_ellipses(target[j - 1])
                 or source[i - 1] == target[j - 1]
                 or is_any(source[i - 1])
                 or is_any(target[j - 1])
             ):
                 val = (-1, -1)
-            if val is None and ptrs[i - 1][j] and target[j - 1] == ELLIPSES:
+            if val is None and ptrs[i - 1][j] and is_ellipses(target[j - 1]):
                 val = (-1, 0)
-            if val is None and ptrs[i][j - 1] and source[i - 1] == ELLIPSES:
+            if val is None and ptrs[i][j - 1] and is_ellipses(source[i - 1]):
                 val = (0, -1)
             ptrs[i][j] = val
 
@@ -195,11 +210,11 @@ def match(source: tuple, target: tuple, replace=False) -> Assignment | None:
     # Assign non-ELLIPSES strictly to non-ELLIPSES
     output = []
     for src, lst in zip(source, mapping):
-        if src == ELLIPSES:
+        if is_ellipses(src):
             output.append(tuple(lst))
         else:
             # Only assign to ELLIPSES if its the only option
-            if all(target[elem] == ELLIPSES for elem in lst):
+            if all(is_ellipses(target[elem]) for elem in lst):
                 output.append(lst[0])
             else:
                 # Assign to the non-ELLIPSES element

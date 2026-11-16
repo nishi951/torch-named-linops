@@ -5,7 +5,7 @@ import torch
 
 from torchlinops.utils import cfftn, default_to
 
-from ...nameddim import ELLIPSES
+from ...nameddim import is_ellipses
 from ..dense import Dense
 from ..identity import Identity
 from ..namedlinop import NamedLinop
@@ -122,9 +122,11 @@ def psf_sizing(nufft, inner: NamedLinop, toeplitz_oversamp: float = 2.0):
     io_kshape = nufft.input_kshape
     ishape = batch_ishape + io_kshape
     oshape = batch_oshape + io_kshape
-    if batch_ishape == (ELLIPSES,):  # Special case
+    if len(batch_ishape) == 1 and is_ellipses(batch_ishape[0]):  # Special case
         kernel_shape = batch_ishape + io_kshape
-    elif ELLIPSES in batch_ishape and ELLIPSES in batch_oshape:
+    elif any(is_ellipses(d) for d in batch_ishape) and any(
+        is_ellipses(d) for d in batch_oshape
+    ):
         raise ValueError(
             f"Underspecified kernel shape for toeplitz embedding with inner.shape = {inner.shape}. Specify more dimensions of inner to avoid this."
         )

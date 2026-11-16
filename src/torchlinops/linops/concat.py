@@ -7,16 +7,16 @@ from torch import Tensor, nn
 from torchlinops.utils import INDENT
 
 from ..nameddim import (
-    ELLIPSES,
-    isequal,
-    max_shape,
-    standardize_shapes,
-)
-from ..nameddim import (
     NamedDimension as ND,
 )
 from ..nameddim import (
     NamedShape as NS,
+)
+from ..nameddim import (
+    is_ellipses,
+    isequal,
+    max_shape,
+    standardize_shapes,
 )
 from .add import Add
 from .identity import Zero
@@ -380,8 +380,8 @@ class Concat(NamedLinop):
         shape_list = [str(s) for s in shape]
         dim_idx = shape_list.index(str(dim))
         pre, post = shape_list[:dim_idx], shape_list[dim_idx + 1 :]
-        if ELLIPSES in pre:
-            if ELLIPSES in post:
+        if any(is_ellipses(d) for d in pre):
+            if any(is_ellipses(d) for d in post):
                 raise ValueError(
                     f"Cannot infer concat dimension for dim {dim} from shape {shape}"
                 )

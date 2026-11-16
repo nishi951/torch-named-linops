@@ -6,7 +6,7 @@ from torch import Tensor, nn
 
 from torchlinops import config
 
-from ..nameddim import ELLIPSES, AnyDim, Shape, align, iscompatible
+from ..nameddim import AnyDim, Shape, align, is_ellipses, iscompatible
 from ..nameddim import NamedShape as NS
 from .namedlinop import NamedLinop
 
@@ -111,7 +111,7 @@ class Dense(NamedLinop):
                 )
             weightshape, ishape, oshape = self._infer_dense_shapes(weight)
 
-        if sum(dim == ELLIPSES for dim in weightshape) > 1:
+        if sum(is_ellipses(dim) for dim in weightshape) > 1:
             raise ValueError(
                 f"weightshape may contain at most one ellipsis, got {weightshape}"
             )
@@ -415,14 +415,14 @@ class Dense(NamedLinop):
         return weight[tuple(weightbatch)]
 
     def size(self, dim: str):
-        if dim in self.broadcast_dims or dim == ELLIPSES:
+        if dim in self.broadcast_dims or is_ellipses(dim):
             return None
         # Guaranteed only one ellipsis axis
         # However it may span multiple weight axes
         extra_ellipsis_axes_count = self.weight.ndim - len(self.weightshape)
         seen_ellipsis = False
         for axis, weight_dim in enumerate(self.weightshape):
-            if weight_dim == ELLIPSES:
+            if is_ellipses(weight_dim):
                 seen_ellipsis = True
             elif weight_dim == dim:
                 if seen_ellipsis:

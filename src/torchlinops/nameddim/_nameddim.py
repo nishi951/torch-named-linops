@@ -13,9 +13,11 @@ ANY = "()"
 ### Various regular expressions
 _ANY_DIM = r"\(([0-9]*)\)"
 _REGULAR_DIM = r"([a-zA-Z_]*)([0-9]*)"
+_ELLIPSES_DIM = r"(?<!\.)(?:\.{3})([0-9]*)(?!\.)"
 
 ANY_PATTERN = re.compile(_ANY_DIM, re.VERBOSE)
 REGULAR_PATTERN = re.compile(_REGULAR_DIM, re.VERBOSE)
+ELLIPSES_PATTERN = re.compile(_ELLIPSES_DIM, re.VERBOSE)
 
 # Uppercase is used as delimiting info for Shape/Dim only
 _REGULAR_DIM_UPPERCASE = "([A-Z][a-z_]*)([0-9]*)"
@@ -127,9 +129,12 @@ class NamedDimension:
         """
         if isinstance(dim, cls):
             return dim
-        if dim == ELLIPSES:
-            return cls(ELLIPSES)
         if isinstance(dim, str):
+            m = ELLIPSES_PATTERN.match(dim)
+            if m is not None:
+                val = m.groups()[0]
+                val = int(val) if len(val) > 0 else 0
+                return cls(ELLIPSES, val)
             m = ANY_PATTERN.match(dim)
             if m is not None:
                 val = m.groups()[0]
@@ -150,8 +155,6 @@ class NamedDimension:
         curr = copy(self)
         if avoid is None:
             return curr + 1
-        if self.name == ELLIPSES:
-            return curr
         while curr in avoid:
             curr = curr + 1
         return curr
@@ -162,8 +165,6 @@ class NamedDimension:
         return self.name + ("" if self.i == 0 else str(self.i))
 
     def __add__(self, k):
-        if self.name == ELLIPSES:
-            return self
         try:
             return type(self)(self.name, self.i + k)
         except TypeError as e:

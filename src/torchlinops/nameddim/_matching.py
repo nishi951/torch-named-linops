@@ -5,7 +5,7 @@ from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES
 from ._nameddim import NamedDimension as ND
-from .utils import coalesce, is_any, match
+from .utils import coalesce, is_any, is_ellipses, match
 
 __all__ = [
     "align",
@@ -143,15 +143,15 @@ def isequal(
     # Base cases
     ptrs[0][0] = (0, 0)  # True (note that bool(tuple()) == False)
     for i in range(1, len(shape1) + 1):
-        ptrs[i][0] = (-1, 0) if shape1[0] == ELLIPSES else None
+        ptrs[i][0] = (-1, 0) if is_ellipses(shape1[0]) else None
     for j in range(1, len(shape2) + 1):
-        ptrs[0][j] = (0, -1) if shape2[0] == ELLIPSES else None
+        ptrs[0][j] = (0, -1) if is_ellipses(shape2[0]) else None
     for i in range(1, len(shape1) + 1):
         for j in range(1, len(shape2) + 1):
             if ptrs[i - 1][j - 1]:
                 if (
-                    shape1[i - 1] == ELLIPSES
-                    or shape2[j - 1] == ELLIPSES
+                    is_ellipses(shape1[i - 1])
+                    or is_ellipses(shape2[j - 1])
                     or shape1[i - 1] == shape2[j - 1]
                     or is_any(shape1[i - 1])
                     or is_any(shape2[j - 1])
@@ -160,12 +160,12 @@ def isequal(
                 else:
                     val = None
             elif ptrs[i - 1][j]:
-                if shape2[j - 1] == ELLIPSES:
+                if is_ellipses(shape2[j - 1]):
                     val = (-1, 0)
                 else:
                     val = None
             elif ptrs[i][j - 1]:
-                if shape1[i - 1] == ELLIPSES:
+                if is_ellipses(shape1[i - 1]):
                     val = (0, -1)
                 else:
                     val = None
@@ -223,7 +223,7 @@ def align(base_shape, new_shape):
     aligned_shape = []
     for i, olddim in enumerate(base_shape):
         dim_assignments = [new_shape[d] for d in assignments[i]]
-        if olddim == ELLIPSES:
+        if is_ellipses(olddim):
             aligned_shape.append(olddim)
             aligned_shape.extend(dim_assignments)
         else:
@@ -233,11 +233,11 @@ def align(base_shape, new_shape):
                     + f"base_shape: {base_shape} new_shape: {new_shape}"
                 )
             newdim = dim_assignments[0]
-            if newdim == ELLIPSES or is_any(newdim):
+            if is_ellipses(newdim) or is_any(newdim):
                 aligned_shape.append(olddim)
             else:
                 aligned_shape.append(newdim)
-    aligned_shape = coalesce(aligned_shape, lambda x: x == ELLIPSES)
+    aligned_shape = coalesce(aligned_shape)
     return tuple(aligned_shape)
 
 
@@ -335,9 +335,9 @@ def max_shape(shapes):
             new_dims = [shape[j] for j in sorted(assignments[i])]
             # Heuristic
             # 1. Ellipses and Any lose to everything
-            if orig_dim == ELLIPSES or is_any(orig_dim):
+            if is_ellipses(orig_dim) or is_any(orig_dim):
                 new_max_shape.extend(new_dims)
-            elif any(d == ELLIPSES or is_any(d) for d in new_dims):
+            elif any(is_ellipses(d) or is_any(d) for d in new_dims):
                 new_max_shape.append(orig_dim)
             else:
                 assert len(new_dims) == 1, (

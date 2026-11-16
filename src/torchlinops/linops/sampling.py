@@ -5,8 +5,8 @@ from torch import Tensor, nn
 import torchlinops.functional as F
 from torchlinops.utils import default_to
 
-from ..nameddim import ELLIPSES, Shape
 from ..nameddim import NamedShape as NS
+from ..nameddim import Shape, is_ellipses
 from .namedlinop import NamedLinop
 
 __all__ = ["Sampling"]
@@ -102,7 +102,7 @@ class Sampling(NamedLinop):
     def split(sampling, tile):
         ibatch = tuple(tile.get(dim, slice(None)) for dim in sampling.ishape)
         obatch = tuple(tile.get(dim, slice(None)) for dim in sampling.oshape)
-        if sampling._shape.output_shape == ELLIPSES:
+        if is_ellipses(sampling._shape.output_shape):
             # Cannot split if idx batch shape is not split
             return sampling
         return type(sampling)(

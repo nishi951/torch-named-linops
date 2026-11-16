@@ -3,6 +3,7 @@ import copy
 import pytest
 
 from torchlinops import ND, NamedDimension
+from torchlinops.nameddim import is_any, is_ellipses, coalesce
 
 
 def test_nameddim():
@@ -31,6 +32,10 @@ def test_nameddim_infer():
     ishape2 = NamedDimension.infer(ishape)
     assert ishape2[1] == NamedDimension("Nx")
 
+    # Any and Ellipses
+    assert ND.infer("(321)").i == 321
+    assert ND.infer("...453").i == 453
+
 
 def test_nameddim_add():
     K = NamedDimension("K")
@@ -44,12 +49,32 @@ def test_nameddim_ellipsis():
     assert ellipsis == ND("...")
 
 
+def test_is_any():
+    assert is_any("()")
+    assert is_any("(123)")
+    assert is_any(ND("()"))
+    assert is_any(ND.infer("(123)"))
+
+
+def test_is_ellipses():
+    assert is_ellipses("...")
+    assert is_ellipses("...321")
+    assert is_ellipses(ND("..."))
+    assert is_ellipses(ND.infer("...321"))
+
+
 def test_nameddim_hash_lookup():
     foo = {"P": 1}
     assert foo[ND("P")] == 1
 
     bar = {ND("Q"): 2}
     assert bar["Q"] == 2
+
+
+def test_ellipses_coalesce():
+    assert tuple(coalesce(("...", "..."))) == ("...",)
+    assert tuple(coalesce(("...", "...1"))) == ("...", "...1")
+    assert tuple(coalesce(("...", "...", "...", "...1"))) == ("...", "...1")
 
 
 def test_nameddim_infer_list():

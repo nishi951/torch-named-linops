@@ -1,8 +1,9 @@
 from collections.abc import Iterable, Mapping, Sequence
 
-from ._matching import coalesce, is_any, iscompatible
+from ._matching import coalesce, iscompatible
 from ._nameddim import ELLIPSES
 from ._nameddim import NamedDimension as ND
+from .utils import ELLIPSES_MATCH, is_any, is_ellipses
 
 __all__ = ["NamedDimCollection"]
 
@@ -134,7 +135,7 @@ class NamedDimCollection:
         if shape_name in self.idx:
             raise ValueError(f"{shape_name} already in index of shape: {self}")
         if isinstance(data, (tuple, list)):
-            data = coalesce(data, lambda x: x == ELLIPSES)
+            data = coalesce(data)
             indexed_shape = []
             for d in data:
                 d = ND.infer(d)
@@ -168,7 +169,7 @@ class NamedDimCollection:
         assert isinstance(newshape, tuple | list), (
             f"Expected tuple or list but got {type(newshape)}"
         )
-        newshape = coalesce(newshape, lambda x: x == ELLIPSES)
+        newshape = coalesce(newshape)
 
         # Updating a List, Tuple, or Mapping
         iscompat, assignments = iscompatible(oldshape, newshape)
@@ -193,7 +194,7 @@ class NamedDimCollection:
                 j = newdims_i_list[0]
                 newdim = newshape[j]
 
-                if newdim == ELLIPSES or is_any(newdim):
+                if is_ellipses(newdim) or is_any(newdim):
                     self._replace_old_with_wildcard(olddim, oldshape_name, i, newdim)
                 elif not is_any(olddim):
                     self._replace_old_with_new(
@@ -202,7 +203,7 @@ class NamedDimCollection:
                 else:  # olddim is ANY
                     self._replace_any_with_new(oldshape_name, i, newdim)
 
-            else:  # olddim == ELLIPSES
+            else:  # is_ellipses(olddim)
                 self._replace_ellipses_with_new_shape(
                     oldshape_name, newshape, i, assignments
                 )
@@ -303,10 +304,14 @@ class NamedDimCollection:
 
     def _coalesce_ellipses(self):
         """Remove duplicate ellipses from tracking and coalesce ellipses in tuple-type shapes."""
-        if ELLIPSES in self._dims:
+        if any(is_ellipses(d) for d in self._dims):
             for k, v in self.idx.items():
                 if isinstance(v, tuple):
-                    v = tuple(coalesce(v, lambda x: self._dims[x] == ELLIPSES))
+                    v = tuple(
+                        coalesce(
+                            v, lambda x, y: ELLIPSES_MATCH(self._dims[x], self._dims[y])
+                        )
+                    )
                 self.idx[k] = v
 
     def __repr__(self):
