@@ -90,7 +90,7 @@ def test_max_shape_ellipses_loses():
 
 def test_max_shape_incompatible_raises():
     """max_shape should raise ValueError for incompatible shapes."""
-    with pytest.raises(ValueError, match="incompatib"):
+    with pytest.raises(ValueError):
         max_shape([("A", "B"), ("C",)])
 
 

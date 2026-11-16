@@ -22,6 +22,7 @@ __all__ = [
     "match",
     "normalize",
     "skeleton",
+    "unify",
 ]
 
 Shape = tuple[ND, ...]
@@ -45,6 +46,10 @@ def is_ellipses(dim):
         # Check if it's a string representation of ANY or ordinal ANY
         return dim.startswith("...") and (len(dim[3:]) == 0 or dim[3:].isdigit())
     return hasattr(dim, "name") and is_ellipses(dim.name)
+
+
+def is_concrete(dim):
+    return not is_any(dim) and not is_ellipses(dim)
 
 
 def ELLIPSES_MATCH(x, y):
@@ -258,12 +263,26 @@ def unify(shapes: Sequence[Shape]):
     output = shapes[0]
     for target in shapes[1:]:
         a = match(output, target, replace=True)
+        if a is None:
+            raise ValueError(
+                f"Could not unify shapes {shapes}: no assignment possible between {output} and {target}"
+            )
         new_shape = []
-        for dim in new_shape:
+        for dim in output:
             new_dim = a.apply(dim)
+            if new_dim is None:
+                raise ValueError(
+                    f"Could not unify shapes {shapes}: no matching dim in {a} for {dim}"
+                )
             if is_ellipses(dim):
                 new_shape.extend(new_dim)
-            elif is_any(dim) and not is_any(new_dim):
-                pass
-
+            elif is_any(dim) and is_concrete(new_dim):
+                new_shape.append(new_dim)
+            elif is_concrete(dim) and is_concrete(new_dim):
+                new_shape.append(
+                    dim if ND.infer(dim).i > ND.infer(new_dim).i else new_dim
+                )
+            else:
+                new_shape.append(dim)
+        output = tuple(new_shape)
     return normalize(output)

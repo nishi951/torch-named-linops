@@ -4,8 +4,7 @@ from typing import Any
 from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES
-from ._nameddim import NamedDimension as ND
-from .utils import coalesce, is_any, is_ellipses, match
+from .utils import coalesce, is_any, is_ellipses, match, normalize, unify
 
 __all__ = [
     "align",
@@ -264,16 +263,16 @@ def resolve_wildcards(shape: tuple, target_shape: tuple) -> tuple:
     Examples
     --------
     >>> resolve_wildcards(("C", "..."), ("C", "Kx", "Ky"))
-    ('C', 'Kx', 'Ky')
+    (C, Kx, Ky)
     >>> resolve_wildcards(("...",), ("A", "B"))
-    ('A', 'B')
+    (A, B)
     >>> resolve_wildcards(("A", "B"), ("A", "B"))  # no wildcards
-    ('A', 'B')
+    (A, B)
     >>> resolve_wildcards(("X", "..."), ("A", "B")) # no match possible
-    ('X', '...')
+    (X, ...)
     """
     assignment = match(shape, target_shape)
-    return assignment.assign(shape) if assignment is not None else shape
+    return assignment.assign(shape) if assignment is not None else normalize(shape)
 
 
 def iscompatible(shape1: Sequence, shape2: Sequence) -> tuple[bool, dict | None]:
@@ -317,41 +316,7 @@ def max_shape(shapes):
     >>> max_shape([("A","..."), ("A2","...")])
     (A2, ...)
     """
-    # Normalize inputs
-    shapes = [tuple(ND.infer(s) for s in shape) for shape in shapes]
-    max_shape = shapes[0]
-    max_shape_names_only = [ND(d.name) for d in max_shape]
-    for shape in shapes[1:]:
-        shape_names_only = [ND(d.name) for d in shape]
-        iscompat, assignments = iscompatible(max_shape_names_only, shape_names_only)
-        if not iscompat:
-            raise ValueError(
-                f"Shape incompatibilty detected in concat: {max_shape} not compatible with {shape}"
-            )
-        new_max_shape = []
-        for i in range(len(max_shape)):
-            orig_dim = max_shape[i]
-            # Sort to preserve original order
-            new_dims = [shape[j] for j in sorted(assignments[i])]
-            # Heuristic
-            # 1. Ellipses and Any lose to everything
-            if is_ellipses(orig_dim) or is_any(orig_dim):
-                new_max_shape.extend(new_dims)
-            elif any(is_ellipses(d) or is_any(d) for d in new_dims):
-                new_max_shape.append(orig_dim)
-            else:
-                assert len(new_dims) == 1, (
-                    f"Expected singleton assignment dim but got {new_dims}"
-                )
-                # 2. Dim vs. dim rules
-                #   a. If the dim's "letter" is the same, pick the one with larger number
-                new_dim = new_dims[0]
-                assert new_dim.name == orig_dim.name, (
-                    f"Expected singleton assignment to have matching letter but got letters {new_dim} != {orig_dim}"
-                )
-                new_max_shape.append(orig_dim if orig_dim.i >= new_dim.i else new_dim)
-        max_shape = new_max_shape
-    return tuple(max_shape)
+    return unify(shapes)
 
 
 def standardize_shapes(linops, shape):
