@@ -102,11 +102,35 @@ class Assignment:
         return f"{type(self).__name__}({self.source} -> {self.target})"
 
     def apply(self, dim: ND):
-        src = self.source.index(dim)
-        idx = self.mapping[src]
-        if isinstance(idx, tuple):
-            return tuple(self.target[i] for i in idx)
-        return self.target[idx]
+        """Apply dim-level mapping
+
+        Assigns concrete dims to concrete dims
+
+        Fails if any dim cannot be uniquely assigned.
+        """
+        src_idxs = [i for i, d in enumerate(self.source) if d == dim]
+        tgt_idxs = [self.mapping[src_idx] for src_idx in src_idxs]
+
+        output = None
+        for tgt_idx in tgt_idxs:
+            if isinstance(tgt_idx, tuple):
+                candidate = tuple(self.target[t] for t in tgt_idx)
+            else:
+                candidate = self.target[tgt_idx]
+
+            if output is None:
+                output = candidate
+            else:
+                if candidate != output:
+                    if is_ellipses(output):
+                        output = candidate  # override
+                    elif not is_ellipses(
+                        candidate
+                    ):  # neither output nor dandidate are ellipses
+                        raise ValueError(
+                            f"Cannot uniquely assign dim {dim} to output dim(s) based on {self}, got both {output} and {candidate} as options."
+                        )
+        return output
 
     def assign(self, source: Shape):
         output = []
@@ -177,7 +201,6 @@ def match(source: tuple, target: tuple, replace=False) -> Assignment | None:
     # Dynamic programming
     for i in range(1, len(source) + 1):
         for j in range(1, len(target) + 1):
-            val = None
             if ptrs[i - 1][j - 1] and (
                 is_ellipses(source[i - 1])
                 or is_ellipses(target[j - 1])
@@ -186,10 +209,12 @@ def match(source: tuple, target: tuple, replace=False) -> Assignment | None:
                 or is_any(target[j - 1])
             ):
                 val = (-1, -1)
-            if val is None and ptrs[i - 1][j] and is_ellipses(target[j - 1]):
+            elif ptrs[i - 1][j] and is_ellipses(target[j - 1]):
                 val = (-1, 0)
-            if val is None and ptrs[i][j - 1] and is_ellipses(source[i - 1]):
+            elif ptrs[i][j - 1] and is_ellipses(source[i - 1]):
                 val = (0, -1)
+            else:
+                val = None
             ptrs[i][j] = val
 
     if not ptrs[-1][-1]:
@@ -228,4 +253,17 @@ def match(source: tuple, target: tuple, replace=False) -> Assignment | None:
     return Assignment(source, target, mapping)
 
 
-def unify(): ...
+def unify(shapes: Sequence[Shape]):
+    """Find the highest-valued shape according to some heuristics."""
+    output = shapes[0]
+    for target in shapes[1:]:
+        a = match(output, target, replace=True)
+        new_shape = []
+        for dim in new_shape:
+            new_dim = a.apply(dim)
+            if is_ellipses(dim):
+                new_shape.extend(new_dim)
+            elif is_any(dim) and not is_any(new_dim):
+                pass
+
+    return normalize(output)
