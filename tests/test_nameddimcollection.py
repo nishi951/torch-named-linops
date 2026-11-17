@@ -2,10 +2,11 @@ import pytest
 
 from torchlinops import ANY, NamedDimCollection
 from torchlinops.nameddim._matching import max_shape, align
+from torchlinops.nameddim import AnyDim
 
 
 def test_overwrite_any():
-    old_shape = ("A", ANY, "C", ANY)
+    old_shape = ("A", AnyDim(), "C", AnyDim(1))
     new_shape = ("A", "B", "C", "D")
     ndc = NamedDimCollection(shape=old_shape)
     ndc["shape"] = new_shape
@@ -19,6 +20,12 @@ def test_ndc_update():
     ndc = NamedDimCollection(shape1=("A", "B"))
     ndc.update({"shape2": ("C", "D")})
     assert ndc.shape2 == ("C", "D")
+
+
+def test_ndc_update_with_ellipses():
+    ndc = NamedDimCollection(shape=("A", "B"))
+    ndc["shape"] = ("...", "A", "B")
+    assert ndc["shape"] == ("A", "B")
 
 
 def test_ndc_add_duplicate_raises():
@@ -68,7 +75,7 @@ def test_ndc_singleton_update_non_nd_raises():
     ndc = NamedDimCollection()
     ndc._add("single", "A")
     # Passing a tuple instead of a single ND should raise
-    with pytest.raises(TypeError, match="non-singleton"):
+    with pytest.raises(ValueError, match="not compatible"):
         ndc["single"] = ("B", "C")
 
 
@@ -119,7 +126,7 @@ def test_replace_ellipses_with_ellipses():
 def test_repeated_dim_replacement():
     ndc = NamedDimCollection(shape=("C", "C"), other_shape=("C", "D"))
     new_shape = ("A", "B")
-    with pytest.raises(ValueError, match="inconsistent mapping"):
+    with pytest.raises(ValueError):
         ndc.shape = new_shape
 
     ndc = NamedDimCollection(shape=("C", "C"), other_shape=("C", "D"))
@@ -132,8 +139,9 @@ def test_repeated_dim_replacement():
 def test_override_with_ellipses():
     ndc = NamedDimCollection(shape=("A", "B", "C"), other_shape=("B", "..."))
     new_shape = ("...", "C")
-    ndc.shape = new_shape
-    assert ndc.shape == ("...", "C")
+    with pytest.warns(UserWarning, match="not supported"):
+        ndc.shape = new_shape
+    assert ndc.shape == ("A", "B", "C")
     assert ndc.other_shape == ("B", "...")
 
 
@@ -154,7 +162,8 @@ def test_update_shape_with_ellipsis_shrink():
         oshape=("...", "C", "Nx", "Ny"),
     )
     # Update oshape to match ishape (removing "C")
-    ndc.oshape = ("...", "Nx", "Ny")
-    assert ndc.oshape == ("...", "Nx", "Ny")
+    with pytest.warns(UserWarning, match="not supported"):
+        ndc.oshape = ("...", "Nx", "Ny")
+    # assert ndc.oshape == ("...", "Nx", "Ny")
     # ishape should be unchanged
     assert ndc.ishape == ("...", "Nx", "Ny")

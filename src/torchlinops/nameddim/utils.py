@@ -89,6 +89,8 @@ def normalize(value: str | Sequence | None) -> Shape:
         output = [ND.infer(s) for s in value]
     elif isinstance(value, str):
         output = [ND.infer(s) for s in shape(value)]
+    elif isinstance(value, ND):
+        output = [value]
     # Coalesce ellipses
     output = coalesce(output)
     return tuple(output)
@@ -232,7 +234,8 @@ def match(source: tuple, target: tuple, replace=False) -> Assignment | None:
         if row == 0 and col == 0:
             break
         assert ptrs[row][col] is not None, "Detected None ptr in passing match."
-        mapping[max(0, row - 1)].insert(0, max(0, col - 1))
+        if col - 1 >= 0:
+            mapping[max(0, row - 1)].insert(0, col - 1)
         drow, dcol = ptrs[row][col]
         row = row + drow
         col = col + dcol
@@ -258,8 +261,17 @@ def match(source: tuple, target: tuple, replace=False) -> Assignment | None:
     return Assignment(source, target, mapping)
 
 
-def unify(shapes: Sequence[Shape]):
-    """Find the highest-valued shape according to some heuristics."""
+def ALWAYS_REPLACE(_dim, _new_dim):
+    return True
+
+
+def unify(shapes: Sequence[Shape], should_replace=ALWAYS_REPLACE):
+    """Find the highest-valued shape according to some heuristics.
+
+    should_replace: Callable
+        Tiebreaker rule for
+
+    """
     output = shapes[0]
     for target in shapes[1:]:
         a = match(output, target, replace=True)
@@ -279,9 +291,7 @@ def unify(shapes: Sequence[Shape]):
             elif is_any(dim) and is_concrete(new_dim):
                 new_shape.append(new_dim)
             elif is_concrete(dim) and is_concrete(new_dim):
-                new_shape.append(
-                    dim if ND.infer(dim).i > ND.infer(new_dim).i else new_dim
-                )
+                new_shape.append(new_dim if should_replace(dim, new_dim) else dim)
             else:
                 new_shape.append(dim)
         output = tuple(new_shape)

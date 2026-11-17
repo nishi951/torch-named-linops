@@ -4,6 +4,7 @@ from typing import Any
 from warnings import warn
 
 from ._nameddim import ANY, ELLIPSES
+from ._nameddim import NamedDimension as ND
 from .utils import coalesce, is_any, is_ellipses, match, normalize, unify
 
 __all__ = [
@@ -213,31 +214,32 @@ def align(base_shape, new_shape):
     ('C', 'C', 'Nx1', 'Ny1')
 
     """
-    compatible, assignments = iscompatible(base_shape, new_shape)
+    return unify([base_shape, new_shape])
+    # compatible, assignments = iscompatible(base_shape, new_shape)
 
-    if not compatible:
-        raise ValueError(
-            f"Shape incompatibilty detected in merge: {base_shape} not compatible with {new_shape}"
-        )
-    aligned_shape = []
-    for i, olddim in enumerate(base_shape):
-        dim_assignments = [new_shape[d] for d in assignments[i]]
-        if is_ellipses(olddim):
-            aligned_shape.append(olddim)
-            aligned_shape.extend(dim_assignments)
-        else:
-            if len(dim_assignments) != 1:
-                raise ValueError(
-                    f"During alignment, non-ellipses dim {olddim} received invalid number of assignment dims {dim_assignments}."
-                    + f"base_shape: {base_shape} new_shape: {new_shape}"
-                )
-            newdim = dim_assignments[0]
-            if is_ellipses(newdim) or is_any(newdim):
-                aligned_shape.append(olddim)
-            else:
-                aligned_shape.append(newdim)
-    aligned_shape = coalesce(aligned_shape)
-    return tuple(aligned_shape)
+    # if not compatible:
+    #     raise ValueError(
+    #         f"Shape incompatibilty detected in merge: {base_shape} not compatible with {new_shape}"
+    #     )
+    # aligned_shape = []
+    # for i, olddim in enumerate(base_shape):
+    #     dim_assignments = [new_shape[d] for d in assignments[i]]
+    #     if is_ellipses(olddim):
+    #         aligned_shape.append(olddim)
+    #         aligned_shape.extend(dim_assignments)
+    #     else:
+    #         if len(dim_assignments) != 1:
+    #             raise ValueError(
+    #                 f"During alignment, non-ellipses dim {olddim} received invalid number of assignment dims {dim_assignments}."
+    #                 + f"base_shape: {base_shape} new_shape: {new_shape}"
+    #             )
+    #         newdim = dim_assignments[0]
+    #         if is_ellipses(newdim) or is_any(newdim):
+    #             aligned_shape.append(olddim)
+    #         else:
+    #             aligned_shape.append(newdim)
+    # aligned_shape = coalesce(aligned_shape)
+    # return tuple(aligned_shape)
 
 
 def resolve_wildcards(shape: tuple, target_shape: tuple) -> tuple:
@@ -316,7 +318,11 @@ def max_shape(shapes):
     >>> max_shape([("A","..."), ("A2","...")])
     (A2, ...)
     """
-    return unify(shapes)
+
+    def should_replace(dim, new_dim):
+        return ND.infer(dim).i < ND.infer(new_dim).i
+
+    return unify(shapes, should_replace)
 
 
 def standardize_shapes(linops, shape):

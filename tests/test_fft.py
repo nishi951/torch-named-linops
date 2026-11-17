@@ -65,7 +65,7 @@ def test_fft_normal_with_inner():
 
     F = FFT(ndim=1, centered=True)
     N = 16
-    d = Diagonal(torch.randn(N, dtype=torch.complex64), ("Kx",))
+    d = Diagonal(torch.randn(N, dtype=torch.complex64), ("...", "Kx"))
     normal = F.normal(inner=d)
     x = torch.randn(N, dtype=torch.complex64)
     expected = F.H(d(F(x)))

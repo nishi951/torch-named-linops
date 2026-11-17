@@ -35,6 +35,12 @@ def test_assign_then_apply_simple():
     assert a.apply("B") is None
 
 
+def test_assign_then_apply_hard():
+    a = match(("...", "A"), ("A",))
+    assert a is not None
+    assert a.assign(("...", "A")) == ("A",)  # Ellipsis is deleted
+
+
 def test_assign_then_apply_uniqueness():
     a = match(("()", "()"), ("...", "A"))
     assert a is not None
@@ -84,4 +90,8 @@ def test_assign_with_replace():
     a = match(("B", "N"), ("B", "N1"), replace=True)
     assert a is not None
     assert a.apply("B") == "B"
+    assert a.apply("N") == "N1"
+
+    a = match(("N",), ("...", "N1"), replace=True)
+    assert a is not None
     assert a.apply("N") == "N1"

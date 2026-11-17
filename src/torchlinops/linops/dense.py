@@ -233,7 +233,9 @@ class Dense(NamedLinop):
         parts = []
         for s in arr:
             s_str = str(s)
-            if s_str == "()":
+            if is_ellipses(s_str):
+                parts.append("...")
+            elif s_str == "()":
                 parts.append("any0")
             elif s_str.startswith("(") and s_str.endswith(")"):
                 # Ordinal ANY: (1), (2), etc.

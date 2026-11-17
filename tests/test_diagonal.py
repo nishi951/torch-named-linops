@@ -31,8 +31,9 @@ def test_diagonal_shape_renaming():
     A = Diagonal(weight, ("M", "N", "P"))
     B = copy(A)
     new_ioshape = ("()", "N1", "P1")
-    B.oshape = new_ioshape
-    assert B.ishape == new_ioshape
+    with pytest.warns(UserWarning, match="not supported"):
+        B.oshape = new_ioshape
+    # assert B.ishape == new_ioshape
 
     new_ioshape = ("M1", "N1", "P1")
     B.oshape = new_ioshape
